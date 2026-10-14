@@ -41,8 +41,8 @@
 - **Signed-expiry verification result:** with `jwt_expiry = 120`, signed-token expiry verification passed in Chromium on development (`3000`) and production preview (`3001`) at 1440px and 390px. It verified Auth rejection after expiration, PostgREST rejection observed at 32 seconds post-expiration, automatic browser session refresh on expired tokens, rejection and session clearing on invalid refresh tokens, and clean logout with no browser runtime exceptions.
 - **Full browser regression result:** full browser suite passed on development (`3000`) and production preview (`3001`) at both 1440px and 390px viewports (registration, full keyboard navigation/login, invalid credentials, all roles, cross-organisation isolation, empty membership, cookie flags, settled logout/history, refresh, two-tab session switching, direct routes and layout) with zero runtime exceptions.
 - **Configuration restoration and backend re-test:** restored `jwt_expiry = 3600` in `supabase/config.toml`, non-destructively restarted local Supabase, and re-seeded synthetic demo accounts. All seven real-session database integration tests passed.
-- **Checks result:** `docker compose run --rm checks` passed all six unit tests, ESLint, route types, TypeScript compilation, and optimized Next.js production build.
-- **Status:** Phase 1 verification complete. Authentication, access boundaries, recovery, and edge-case handling are verified across desktop and mobile. Ready for user review before proceeding to Phase 2 (responsive UI integration).
+- **Commit:** `092ebc2` — `feat(auth): verify local auth, recovery, and access boundaries`. 23 files committed on branch `feat/phase-1-auth-verification`.
+- **Status:** Phase 1 verification and commit complete. Authentication, access boundaries, recovery, and edge-case handling are verified across desktop and mobile. Ready to begin Phase 2 (responsive UI integration).
 
 ## Repository checkpoint and document relocation — 14 Oct 2026
 
