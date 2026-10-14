@@ -75,6 +75,6 @@ docker compose --profile production down
 - Development bind mounts are different from image contents: a future local `.env.local` is visible inside the development container, as it is to a local dev process. Keep it untracked.
 - Production does not automatically load host `.env.local`; define runtime environment/secrets explicitly when the backend is added. Next.js public variables may require build-time configuration; never expose privileged keys through them.
 - Supabase authentication/database integration is still pending. No unused Postgres or self-hosted Supabase stack is started here. Plan the Docker-based local Supabase workflow as part of that task.
-- The known development-only `braces@3.0.3` advisory is recorded in `plan.md`. Containerisation does not fix dependency vulnerabilities.
+- The known development-only `braces@3.0.3` advisory is tracked in [progress.md](../progress.md). Containerisation does not fix dependency vulnerabilities.
 
 First image builds need network access for the Node image, pnpm and packages. The starter also fetches its Google fonts at build time. Report connectivity failures rather than disabling TLS verification or substituting a different app silently.

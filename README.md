@@ -6,7 +6,8 @@ Working name: **TrafficSense / RoadAlert**. The goal is **REPORT → VERIFY → 
 
 - [Original problem statement](docs/Traffic_JAM.pdf): preserved 12-page brief, generated from employer input; not confirmed hackathon rules.
 - [Module coverage and source-page references](docs/README.md): seven recommended modules, planned demo limits, and acceptance references.
-- [Current plan](plan.md): v4.1 decisions, execution order, tests, and verification record.
+- [Project plan](plan.md): scope, planned decisions, execution order, and acceptance criteria.
+- [Progress](progress.md): implementation status, blockers, verification results, and commit records.
 
 The planned demo covers login/roles, a traffic map, reporting, evidence-based verification, a precomputed alternative-route alert, limited employer sharing, and seeded hotspot/monthly statistics. All simulated observations and estimates must be labelled. The duplicate-report attack demonstrates a specific control, not general spoof resistance.
 
@@ -36,7 +37,7 @@ docker compose run --build --rm checks
 
 See [Docker development](docs/docker.md) for package commands, logs, stopping containers, secret handling and the optional production preview on port 3001. Use Docker for all project runtime/package commands.
 
-The scaffold was generated in a temporary directory and imported here so the existing README, agent instructions and problem statement remained intact. Verification results are recorded in the current task in `plan.md`; domain tests will be added with the corresponding features.
+The scaffold was generated in a temporary directory and imported here so the existing README, agent instructions and problem statement remained intact. Implementation updates and verification results are recorded in [progress.md](progress.md); domain tests will be added with the corresponding features.
 
 The registered team has four people, but one human is currently building with GPT-Astra AI-agent assistance. Fewer than eight days remain; the plan uses seven-day checkpoints and reserves a buffer within the actual deadline rather than assuming an eighth day.
 

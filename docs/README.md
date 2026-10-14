@@ -38,4 +38,4 @@ The PDF recommends seven modules on page 12. The following maps them to the boun
 
 Before implementing a task, identify its module above and its acceptance checks in the plan. Before removing or expanding a module, update the plan's coverage table and decision log with the reason, remaining gap, and effect on the demo. The PDF remains unchanged; scope decisions belong in the plan.
 
-[plan.md](../plan.md) is the current execution record. Its exact deadline, event requirements, and employer feedback must be confirmed rather than inferred from this brief. Do not describe planned, simulated, deferred, or partially covered behaviour as implemented real-world functionality.
+[plan.md](../plan.md) holds the project plan; [progress.md](../progress.md) holds implementation updates, blockers, verification results, and commit records. The exact deadline, event requirements, and employer feedback must be confirmed rather than inferred from this brief. Do not describe planned, simulated, deferred, or partially covered behaviour as implemented real-world functionality.
