@@ -1,6 +1,6 @@
 # Project Plan — TrafficSense (working name)
 
-> **Version 4.1 — 14 Oct 2026.** Retains v4's planned thin coverage of the seven recommended modules in the [original problem statement](docs/Traffic_JAM.pdf), with [source-page traceability and explicit limits](docs/README.md). Updates delivery for fewer than eight days, a registered team of four but one active human builder with GPT-Astra AI-agent assistance. Nothing is implemented yet.
+> **Version 4.1 — 14 Oct 2026.** Retains v4's planned thin coverage of the seven recommended modules in the [original problem statement](docs/Traffic_JAM.pdf), with [source-page traceability and explicit limits](docs/README.md). Updates delivery for fewer than eight days, a registered team of four but one active human builder with GPT-Astra AI-agent assistance. The official framework scaffold is now generated; product modules remain unimplemented.
 > **Tagline (draft):** *Understand the disruption, avoid affected roads, share limited delay evidence, and investigate recurring problems.*
 >
 > **Verification note:** The 12-page supplied PDF was read for this documentation review. It is an AI-generated product brief based on employer input (p. 12), not confirmed event rules. Section 7 contains supplied research claims, not independent verification by this review. Prices, dates, legal points, and competitor features need checking before slides. A signed receipt proves integrity and origin, not GPS truth or why anyone was late.
@@ -308,7 +308,7 @@ Status: in progress; documentation only so far.
 
 - [x] Guidelines, repository, central plan, and v4 seven-module direction.
 - [x] Record fewer than eight days and one active human builder in a team of four, assisted by the AI agent.
-- [x] Select Next.js + Supabase for planning; nothing scaffolded.
+- [x] Select Next.js + Supabase and pnpm; generate the official Next.js starter. Supabase integration remains pending.
 - [ ] Confirm exact deadline/time zone, event rules/rubric, allowed pre-work and AI use, required tech, submission items, and available daily hours.
 - [ ] User sends P0-A to the employer; record receipt versus live-sharing preference. No reply is required to start independent foundations.
 - [ ] Confirm stack access: Supabase project/credentials, map tile provider/terms, hosting account and deployment target.
@@ -327,7 +327,7 @@ Acceptance: reproducible setup and seeded map; role boundaries tested. Employer-
 
 ### Current task — Official Next.js scaffold
 
-- **Status:** in progress (14 Oct 2026).
+- **Status:** completed (14 Oct 2026); authentication and remaining Day 1 work are still pending.
 - **Source modules:** shared setup prerequisite for module 1 and later modules; see [coverage reference](docs/README.md).
 - **Scope:** user requested `create-next-app` instead of hand-created boilerplate, then selected pnpm. Generate Next.js App Router with TypeScript, Tailwind CSS and ESLint; preserve project docs; convert the initial npm lockfile to pnpm, install dependencies and verify the starter.
 - **Exclusions:** authentication, roles, database migration, simulator/map and every domain feature remain the next bounded tasks. Scaffolding alone does not complete Day 1 or module 1.
@@ -335,7 +335,9 @@ Acceptance: reproducible setup and seeded map; role boundaries tested. Employer-
 - **Files/routes:** generated package/config files, `src/app` starter, and `public` assets. Keep generated documentation from overwriting project instructions.
 - **Steps:** run the official generator; import its scaffold; install; run generated lint/type/build checks; verify the starter through available browser or closest substitute; document commands and limitations.
 - **Acceptance:** generator succeeds, installation and applicable checks pass, starter route works, existing project documentation is preserved, and no unimplemented auth/domain functionality is claimed.
-- **Verification:** Not run. No MCP browser tools are connected; attempt automated browser verification using local tooling.
+- **Verification (14 Oct 2026):** `pnpm install --frozen-lockfile`, `pnpm lint`, `pnpm exec next typegen`, `pnpm exec tsc --noEmit`, and `pnpm build` passed. Generated source/config files match the official scaffold; the original PDF is byte-identical. A temporary Chromium automation script tested the production starter at 1440×1000 and 390×844: image loading, no horizontal overflow, keyboard focus, Documentation link opening, reload, 404 and return navigation; no runtime exceptions. Reviewed settled light/dark layouts. These are starter checks, not domain/auth tests.
+- **Dependency caveat:** `pnpm audit --prod` reports no known vulnerabilities. Full audit still reports a high-severity development-only `braces@3.0.3` advisory through Next.js ESLint tooling. `pnpm update braces --depth 10` found no update; the registry returns no matching `braces@3.0.4`, the stated patch. Keep this visible for follow-up rather than suppressing it. pnpm's `unrs-resolver` postinstall was explicitly reviewed and approved; no blanket script approval.
+- **Package manager:** pnpm 11.11.0 is pinned; `pnpm-lock.yaml` is the only package lockfile. The starter was initially generated with npm, then converted at the user's request. No Supabase credentials were added.
 
 ### Phase 2 — Reporting, evidence and attack (Days 2–3 targets)
 
@@ -459,7 +461,8 @@ Repository: [NITHINKR06/hackathon](https://github.com/NITHINKR06/hackathon). `.g
 | Authority analytics seeded and labelled simulated | Proposed | Needs weeks of real data; big-city tools already exist |
 | Photo, AI, voice, native app, SOS, prediction, full admin | Deferred | Not needed for the core story |
 | Fewer than eight days; registered team of four, one active builder plus GPT-Astra AI assistance | Confirmed by user | Plan sequential checked tasks, not four developers' capacity |
-| Next.js + Supabase, no extra backend services | Selected for planning | Keep the solo build minimal; credentials/provider setup still pending |
+| Next.js + Supabase, no extra backend services | Selected; official Next.js starter generated | Keep the solo build minimal; Supabase credentials/integration still pending |
+| Official `create-next-app` scaffold and pnpm 11.11.0 | Requested by user during setup | Generate boilerplate rather than write it manually; retain only the pnpm lockfile |
 | Foundations before final receipt fields | Confirmed v4.1 sequence | Auth, simulator, reporting, evidence and map do not depend on employer preference |
 | Receipt fields and prominence | Pending employer response P0-A | The PDF requests traffic verification and employer visibility, not a signed receipt specifically |
 | CSV, L6 confirmation, Realtime, then live employer table are fallback cuts | Recorded v4.1 order | Preserve receipt protections; cutting the status table leaves a disclosed module 6 gap |
@@ -473,4 +476,5 @@ Repository: [NITHINKR06/hackathon](https://github.com/NITHINKR06/hackathon). `.g
 - V3: narrowed scope to evidence, receipts, employer verification, map, and attack; corrected workload arithmetic; recorded a documentation check on 14 Oct 2026.
 - **V4 (14 Oct 2026):** restored the PS modules, added the validation against existing solutions, extended scenarios and metrics (S12–S14, M7), updated schedule and demo. **No documentation checks were run on v4**; external sources were read via search results and not independently verified.
 - **V4.1 (14 Oct 2026):** read all 12 PDF pages, copied the source unchanged to `docs/Traffic_JAM.pdf`, and added module/source-page traceability. Updated capacity, selected stack, build order, fallback cuts, and provisional receipt status; aligned README and agent guidance. Documentation checks passed: 14 Markdown files, 33 local links, balanced code fences, 16 numbered sections, 14 scenarios, seven metrics, and seven source-module mappings. Main-goal/stack/scope assertions and `git diff --check` passed. Byte comparison verified the PDF copy is unchanged (128,844 bytes; SHA-256 `3642bcdc74c59edc419bb27e2b653ece845f49bf6fd526ff4d63e4dd63fc9150`). External research was not verified.
-- **Application verification:** Not run. No application tests, simulations, field tests, deployments, or browser flows have run. All section 8 metrics remain Not run.
+- **Scaffold verification (14 Oct 2026):** official Next.js starter generated and converted to pnpm; frozen installation, lint, route type generation, TypeScript, production build, and desktop/mobile Chromium starter checks passed. See the current task for the unresolved development dependency advisory.
+- **Domain verification:** Not run. Authentication, roles, simulations, traffic flows, receipts, field tests and deployment are not implemented or verified. All section 8 metrics remain Not run.

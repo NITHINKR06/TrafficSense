@@ -8,4 +8,6 @@ Keep the original goal in view: REPORT → VERIFY → ALERT → ANALYSE. Read [d
 
 Plan for one active human builder with AI assistance and fewer than eight days, not four parallel developers. Work in small checked steps with relevant tests first; preserve user review, privacy, and negative tests.
 
+After each completed and verified task, review the diff and create a scoped local commit. Include its verification record, preserve unrelated changes, and report the commit hash. Push only when explicitly requested.
+
 For web application changes, verify the affected flows in a browser, including other pages sharing the changed state or components. Check desktop and mobile when layout changes. If browser tools are unavailable, use the closest available tests and explicitly report what could not be verified.
