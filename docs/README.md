@@ -16,7 +16,7 @@ The PDF recommends seven modules on page 12. The following maps them to the boun
 
 | Recommended module | Source pages / sections | Planned demonstration | Acceptance reference |
 | --- | --- | --- | --- |
-| 1. Registration and login | p. 12 MVP; pp. 8–9 §15 roles | Next.js + Supabase authentication; commuter/employee, employer and seeded authority-view roles; seed/reset restricted | Phase 1; relevant S7, S10–S11; later sharing S13 |
+| 1. Registration and login | p. 12 MVP; pp. 8–9 §15 roles | Optional Next.js + Supabase accounts, public guest entry, protected commuter/employer/authority roles; seed/reset restricted | Phase 1; relevant S7, S10–S11; later sharing S13 |
 | 2. Live GPS and traffic map | pp. 1–2 §3; p. 8 §13 | One seeded corridor with incident details and provenance; foreground GPS optional; explicit refresh is acceptable | Phases 3–4; S1, S4, S10–S11 |
 | 3. Incident reporting | p. 1 §2; p. 7 §11 | Simple report form, categories including Unknown, timestamp, location provenance; no photos/voice | Phase 4; S1–S3 |
 | 4. Incident verification | pp. 2–3 §4; p. 7 §12 | L1–L4 indicators, separate cause, duplicate attack; optional simulated authority confirmation | Phase 4; S1–S5; receipt extension Phase 8/S7–S9 |

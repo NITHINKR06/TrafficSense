@@ -2,6 +2,8 @@
 
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
+import { cookies } from "next/headers";
+import { authCookieOptions } from "@/lib/auth/config";
 import { createAuthClient } from "@/lib/auth/server";
 import { validateCredentials } from "@/lib/auth/rules";
 
@@ -37,13 +39,20 @@ export async function register(_state: AuthFormState, form: FormData): Promise<A
 }
 
 export async function logout(): Promise<AuthFormState> {
+  let revocationConfirmed = false;
   try {
     const supabase = await createAuthClient(true);
     const { error } = await supabase.auth.signOut({ scope: "local" });
-    if (error) return { error: "Sign-out failed. Please try again; this session may still be active." };
+    revocationConfirmed = !error;
   } catch {
-    return { error: "Sign-out is unavailable. Please try again; this session may still be active." };
+    revocationConfirmed = false;
+  }
+  const store = await cookies();
+  for (const cookie of store.getAll()) {
+    if (/^trafficsense-auth(?:\.\d+)?$/.test(cookie.name)) {
+      store.set({ ...authCookieOptions, name: cookie.name, value: "", maxAge: 0, expires: new Date(0) });
+    }
   }
   revalidatePath("/", "layout");
-  redirect("/login");
+  redirect(revocationConfirmed ? "/login" : "/login?notice=revocation-unconfirmed");
 }

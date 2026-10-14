@@ -18,9 +18,10 @@ button, input { font: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 3px solid #158780; outline-offset: 4px; }
 .site-header, .site-main, .site-footer { width: min(100% - 3rem, 1080px); margin-inline: auto; }
-.site-header { display: flex; justify-content: space-between; align-items: center; gap: 1rem; padding-block: 1.5rem; border-bottom: 1px solid #d9e4e9; }
+.site-header { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 1rem; padding-block: 1.5rem; border-bottom: 1px solid #d9e4e9; }
 .brand { color: #172b3a; font-size: 1.25rem; font-weight: 750; text-decoration: none; }
-nav { display: flex; gap: 1.5rem; }
+nav { display: flex; flex-wrap: wrap; gap: 1.5rem; }
+nav a { display: inline-flex; align-items: center; min-height: 44px; }
 .site-main { flex: 1; padding-block: 3.5rem; }
 .site-footer { padding-block: 1.5rem; font-size: .8rem; color: #506371; border-top: 1px solid #d9e4e9; }
 h1 { font-size: clamp(1.85rem, 4vw, 3.5rem); line-height: 1.14; font-weight: 700; letter-spacing: -.035em; margin-bottom: 1.5rem; overflow-wrap: anywhere; }

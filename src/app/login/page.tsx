@@ -1,5 +1,6 @@
 import { AuthScreen } from "@/components/auth-screen";
 
-export default function LoginPage() {
-  return <AuthScreen mode="login" />;
+export default async function LoginPage({ searchParams }: { searchParams: Promise<{ notice?: string | string[] }> }) {
+  const { notice } = await searchParams;
+  return <AuthScreen mode="login" revocationUnconfirmed={notice === "revocation-unconfirmed"} />;
 }

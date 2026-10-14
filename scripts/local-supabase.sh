@@ -26,11 +26,32 @@ case "${1:-}" in
   test)
     docker compose run --build --rm -T demo node --test /app/tests/auth.integration.test.mjs
     ;;
+  test-browser-recovery)
+    test_compose=(docker compose -f compose.yaml -f compose.auth-test.yaml --profile auth-test)
+    test_services=(auth-recovery auth-recovery-production auth-unconfigured auth-unconfigured-development auth-faults)
+    cleanup_recovery() {
+      "${test_compose[@]}" rm --stop --force "${test_services[@]}"
+    }
+    trap cleanup_recovery EXIT
+    "${test_compose[@]}" up --build -d --wait "${test_services[@]}"
+    for port in 3002 3003; do
+      "${test_compose[@]}" run --rm -T supabase status --output json | docker run --rm -i --network host --user 1000:1000 \
+        --mount type=bind,src="$PWD",dst=/workspace --workdir /workspace \
+        -e APP_URL="http://127.0.0.1:$port" -e BROWSER_SCENARIO=recovery \
+        trafficsense-auth-recovery node tests/browser.mjs
+    done
+    for port in 3004 3005; do
+      docker run --rm --network host --user 1000:1000 \
+        --mount type=bind,src="$PWD",dst=/workspace --workdir /workspace \
+        -e APP_URL="http://127.0.0.1:$port" -e BROWSER_SCENARIO=setup \
+        trafficsense-auth-recovery node tests/browser.mjs
+    done
+    ;;
   stop)
     docker compose run --rm supabase stop
     ;;
   *)
-    printf '%s\n' 'Usage: bash scripts/local-supabase.sh start|seed|test|stop' >&2
+    printf '%s\n' 'Usage: bash scripts/local-supabase.sh start|seed|test|test-browser-recovery|stop' >&2
     exit 2
     ;;
 esac

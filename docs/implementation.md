@@ -41,7 +41,7 @@ Reuse the existing implementation rather than scaffolding it again. Consult prog
 
 - Diagnose any existing browser-navigation failure before a redesign: capture settled URL/page state, console/network errors and safe screenshots. Determine whether the application or driver is faulty; do not assume the cause or weaken assertions.
 - Verify startup → migrations → synthetic seed → app startup, repeated setup/seed, and non-destructive stop/start. Check loopback ports, project/network isolation, non-root app, no app/seeder Docker socket and secret/build exclusions.
-- Exercise registration, malformed/wrong credentials, login, every role, correct/wrong organisation, unassigned employer, direct links, reload, logout and account switching.
+- Exercise public guest entry without cookies or backend configuration; keep private routes protected. Exercise optional registration, malformed/wrong credentials, login, every role, correct/wrong organisation, unassigned employer, direct links, reload, logout and account switching.
 - Test forged session metadata, refresh/invalid refresh token, expiry around logout and missing-profile recovery. Distinguish forced cookie expiry from a genuinely expired signed token.
 - Cover backend outage/recovery, role/membership removal during a session, two tabs, and back/forward after navigation settles. Test complete keyboard form interaction, not only initial focus.
 - Run Docker unit/lint/type/build checks, real-session database tests and browser interactions on both development and production preview at desktop/mobile sizes. Verify missing configuration separately.
@@ -54,14 +54,14 @@ Reuse the existing implementation rather than scaffolding it again. Consult prog
 - Normalize shared colour, typography, spacing, border, focus, card, badge, button and form styles. Use Plus Jakarta Sans, Inter and JetBrains Mono with supported loading and fallbacks.
 - Match the homepage navigation, hero/map preview, feature cards, role sections and footer. Adapt desktop design for mobile navigation, readable labels and at least 44px controls; avoid overflow and clipped evidence text.
 - Apply the style to login/register, account, employer organisation pages, authority/admin foundation pages, errors, access-denied and not-found states.
-- Connect implemented actions only. Future screens show explicit planned/design-preview states, not `#` links, fabricated successful submissions or decorative “verified” certificates. Public demo navigation cannot grant a role.
+- Connect implemented actions only. Future screens show explicit planned/design-preview states, not `#` links, fabricated successful submissions or decorative “verified” certificates. Sign-in stays optional for guest/public browsing; public demo navigation cannot grant a private role. Keep `/demo` usable without backend configuration and route private account actions to authentication.
 - Correct unsupported template claims while preserving visual intent. Keep traffic reporting, verification, alerts and analysis prominent; label receipts as an extension until implemented.
 
 ### Planned screen mapping
 
 | Screen | Route / behavior |
 | --- | --- |
-| Landing | `/`; introduction and honest feature/demo availability |
+| Landing / guest entry | `/` and `/demo`; public preview with optional sign-in, honest feature availability and no automatic account/location collection |
 | Authentication | `/login`, `/register`; existing server-enforced auth |
 | Account / commuter entry | `/workspace`; preserve role-aware navigation |
 | Traffic | Proposed `/traffic`; map plus accessible list and incident details |
@@ -91,7 +91,7 @@ Finalize proposed route names and access contracts before wiring links; retain e
 
 Deliver persisted reporting first, then corroboration/recovery and the attack demonstration.
 
-- Write deterministic tests before mutations. Validate timestamps/category/segment/direction; derive source identity and receipt time on the server. Persist before showing success; use bounded abuse controls and safe retries.
+- Write deterministic tests before mutations. Validate timestamps/category/segment/direction; derive source identity and receipt time on the server. Support guest submission without forcing registration only after server-issued guest identity, least-privilege write/ownership policies and abuse controls pass. Browsing alone creates no auth session. Persist before showing success and use safe retries.
 - Keep reports, incidents, evidence, reported cause and lifecycle distinct. Use uniqueness/transactions to prevent concurrent retries inflating counts.
 - Specify eligibility and exact timestamp boundaries before implementing the planned thresholds in [plan.md](plan.md#evidence-and-lifecycle-contract). Distinct accounts are not proven independent people.
 - L1 is reported; L2 is eligible location support with provenance; L3/L4 are corroboration indicators. Cause remains reported/unknown without separate support. L5 is not collected; L6 is unavailable unless explicitly built as a labelled simulated action.

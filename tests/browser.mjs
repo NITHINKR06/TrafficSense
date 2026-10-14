@@ -1,10 +1,23 @@
 import assert from "node:assert/strict";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
+import { createRecoveryFixtures } from "./auth-recovery-fixtures.mjs";
+import { waitForSignedExpiry } from "./auth-expiry.mjs";
 
 const base = process.env.APP_URL || "http://127.0.0.1:3000";
 const debuggerUrl = process.env.CHROMIUM_DEBUG_URL || "http://127.0.0.1:9333";
 const setupOnly = process.env.BROWSER_SCENARIO === "setup";
-const accounts = setupOnly ? [] : JSON.parse(await readFile("supabase/.temp/demo-accounts.json", "utf8"));
+const recoveryOnly = process.env.BROWSER_SCENARIO === "recovery";
+const expiryOnly = process.env.BROWSER_SCENARIO === "expiry";
+if (expiryOnly) assert.ok(["http://127.0.0.1:3000", "http://127.0.0.1:3001"].includes(base), "Expiry tests require the local app.");
+if (recoveryOnly) assert.ok(["http://127.0.0.1:3002", "http://127.0.0.1:3003"].includes(base), "Recovery tests require the isolated local test app.");
+const accounts = setupOnly || recoveryOnly ? [] : JSON.parse(await readFile("supabase/.temp/demo-accounts.json", "utf8"));
+async function fault(mode) {
+  const response = await fetch("http://127.0.0.1:54323/__test_fault", {
+    method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode }), signal: AbortSignal.timeout(5000),
+  });
+  assert.equal(response.status, 200, "local fault proxy control failed");
+  assert.equal((await response.json()).mode, mode);
+}
 const endpoint = await (await fetch(`${debuggerUrl}/json/version`)).json();
 const socket = new WebSocket(endpoint.webSocketDebuggerUrl);
 await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror = reject; });
@@ -30,10 +43,11 @@ function send(method, params = {}, sessionId) {
   });
 }
 let context;
+let fixtures;
 try {
   ({ browserContextId: context } = await send("Target.createBrowserContext"));
   const { targetId } = await send("Target.createTarget", { url: "about:blank", browserContextId: context });
-  const { sessionId } = await send("Target.attachToTarget", { targetId, flatten: true });
+  let { sessionId } = await send("Target.attachToTarget", { targetId, flatten: true });
   const call = (method, params) => send(method, params, sessionId);
   const evaluate = async (expression) => {
     const value = await call("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
@@ -53,7 +67,15 @@ try {
   }
   const text = (value) => waitFor(`document.body?.innerText.includes(${JSON.stringify(value)})`, `page text: ${value}`);
   const route = (value) => waitFor(`location.pathname === ${JSON.stringify(value)}`, `route: ${value}`);
-  const go = async (path) => { await call("Page.navigate", { url: `${base}${path}` }); };
+  async function navigate(action) {
+    const marker = crypto.randomUUID();
+    await evaluate(`window.__navigationMarker = ${JSON.stringify(marker)}`);
+    const result = await action();
+    assert.ok(!result.errorText, result.errorText);
+    await waitFor(`window.__navigationMarker !== ${JSON.stringify(marker)} && document.readyState !== 'loading'`, "new document ready");
+  }
+  const go = (path) => navigate(() => call("Page.navigate", { url: `${base}${path}` }));
+  const reload = () => navigate(() => call("Page.reload"));
   async function click(selector) {
     await waitFor(`!!document.querySelector(${JSON.stringify(selector)})`, `element: ${selector}`);
     const rect = await evaluate(`(() => { const el = document.querySelector(${JSON.stringify(selector)}); el.scrollIntoView({block:'center'}); const r = el.getBoundingClientRect(); return {x:r.x+r.width/2,y:r.y+r.height/2}; })()`);
@@ -66,11 +88,25 @@ try {
     await call("Input.dispatchKeyEvent", { type: "keyUp", key: "a", code: "KeyA", modifiers: 2, windowsVirtualKeyCode: 65 });
     await call("Input.insertText", { text: value });
   }
-  async function login(label) {
+  async function key(key, code, windowsVirtualKeyCode) {
+    await call("Input.dispatchKeyEvent", { type: "keyDown", key, code, windowsVirtualKeyCode, ...(key === "Enter" ? { text: "\r" } : {}) });
+    await call("Input.dispatchKeyEvent", { type: "keyUp", key, code, windowsVirtualKeyCode });
+  }
+  async function login(label, keyboard = false) {
     const account = accounts.find((item) => item.label === label);
     await go("/login"); await text("Welcome back");
-    await fill("#email", account.email); await fill("#password", account.password);
-    await click('button[type="submit"]');
+    if (keyboard) {
+      for (let tab = 0; tab < 8 && await evaluate("document.activeElement.id !== 'email'"); tab++) await key("Tab", "Tab", 9);
+      assert.equal(await evaluate("document.activeElement.id"), "email");
+      await call("Input.insertText", { text: account.email });
+      await key("Tab", "Tab", 9);
+      assert.equal(await evaluate("document.activeElement.id"), "password");
+      await call("Input.insertText", { text: account.password });
+      await key("Enter", "Enter", 13);
+    } else {
+      await fill("#email", account.email); await fill("#password", account.password);
+      await click('button[type="submit"]');
+    }
     await route("/workspace"); await text(account.email);
     return account;
   }
@@ -82,39 +118,193 @@ try {
   async function layout() {
     assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth"), true, "horizontal overflow");
   }
+  async function snapshot(label) {
+    await mkdir("supabase/.temp/browser", { recursive: true });
+    const width = await evaluate("innerWidth");
+    const shot = await call("Page.captureScreenshot", { format: "png", captureBeyondViewport: true });
+    await writeFile(`supabase/.temp/browser/${new URL(base).port}-${width}-${label}.png`, Buffer.from(shot.data, "base64"));
+  }
   const sessionCookies = async () => (await call("Network.getCookies", { urls: [base] })).cookies
     .filter((cookie) => /^trafficsense-auth(?:\.\d+)?$/.test(cookie.name))
     .sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }));
-  async function rewriteSession(change) {
-    const cookies = await sessionCookies();
-    const value = cookies.map((cookie) => cookie.value).join("");
+  async function readSession() {
+    const value = (await sessionCookies()).map(cookie => cookie.value).join("");
     assert.ok(value.startsWith("base64-"));
-    const session = JSON.parse(Buffer.from(value.slice(7), "base64url").toString());
-    change(session);
-    for (const cookie of cookies) await call("Network.deleteCookies", { name: cookie.name, url: base });
+    return JSON.parse(Buffer.from(value.slice(7), "base64url").toString());
+  }
+  async function writeSession(session) {
+    for (const cookie of await sessionCookies()) await call("Network.deleteCookies", { name: cookie.name, url: base });
     const encoded = `base64-${Buffer.from(JSON.stringify(session)).toString("base64url")}`;
     for (let offset = 0; offset < encoded.length; offset += 3000) {
       const result = await call("Network.setCookie", { name: `trafficsense-auth.${offset / 3000}`, value: encoded.slice(offset, offset + 3000), url: base, path: "/", httpOnly: true, sameSite: "Lax" });
       assert.equal(result.success, true);
     }
   }
+  async function rewriteSession(change) {
+    const session = await readSession();
+    change(session);
+    await writeSession(session);
+  }
   await call("Page.enable"); await call("Runtime.enable"); await call("Network.enable");
+  if (recoveryOnly) {
+    await fault("healthy");
+    fixtures = await createRecoveryFixtures();
+    accounts.push(...fixtures.accounts);
+  }
   for (const [width, height, mobile] of [[1440, 1000, false], [390, 844, true]]) {
     await call("Emulation.setDeviceMetricsOverride", { width, height, mobile, deviceScaleFactor: 1 });
     await go("/"); await text("Understand the disruption"); await layout();
     await call("Input.dispatchKeyEvent", { type: "keyDown", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 });
     await call("Input.dispatchKeyEvent", { type: "keyUp", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 });
     assert.equal(await evaluate("document.activeElement.textContent"), "Skip to content");
+    assert.equal(await evaluate("!!document.querySelector('main a[href=\"/demo\"]')"), true, "homepage must offer guest access");
+    const guestCookies = (await sessionCookies()).map(cookie => cookie.value);
+    await click('main a[href="/demo"]'); await route("/demo"); await text("Explore TrafficSense as a guest"); await layout();
+    assert.equal(await evaluate("document.querySelector('form') === null"), true, "guest browsing must not require an account form");
+    assert.deepEqual((await sessionCookies()).map(cookie => cookie.value), guestCookies, "guest browsing must not create or replace an auth session");
+    await snapshot("guest");
+    await click('header a[href="/"]'); await text("Understand the disruption");
     await click('main a[href="/login"]');
     if (setupOnly) {
       await text("Authentication is not configured"); await layout();
       assert.equal(await evaluate("document.querySelector('form') === null"), true);
       await click('main a[href="/"]'); await text("Understand the disruption");
       await click('main a[href="/register"]'); await text("Authentication is not configured"); await layout();
-      console.log(`PASS ${base} ${width}px: home navigation and explicit unconfigured login/register states`);
+      for (const path of ["/workspace", "/employer", "/employer/10000000-0000-4000-8000-000000000001", "/authority", "/admin"]) {
+        await go(path); await text("Account access could not be loaded"); await layout();
+        await click('header a[href="/demo"]'); await text("Explore TrafficSense as a guest");
+      }
+      assert.equal((await sessionCookies()).length, 0, "Unconfigured browsing must not create a session");
+      console.log(`PASS ${base} ${width}px: public navigation, unconfigured login/register and protected routes`);
+      continue;
+    }
+    if (expiryOnly) {
+      const account = await login("commuter");
+      const original = await readSession();
+      await waitForSignedExpiry(original, account);
+      assert.ok((await readSession()).access_token === original.access_token, "No browser refresh may replace the token during the expiry wait");
+      await reload(); await route("/workspace"); await text(account.email);
+      const refreshed = await readSession();
+      assert.ok(refreshed.access_token !== original.access_token, "Expired signed token must be refreshed");
+      assert.ok(refreshed.expires_at > Date.now() / 1000);
+      await writeSession({ ...original, refresh_token: "invalid-refresh-token" });
+      await go("/workspace"); await route("/login"); await text("Welcome back");
+      assert.ok((await sessionCookies()).every(cookie => cookie.value === ""), "Expired token with invalid refresh must remove stored session contents");
+      await writeSession(refreshed);
+      await go("/workspace"); await text(account.email);
+      await rewriteSession(session => { session.access_token = original.access_token; session.expires_at = original.expires_at; });
+      await click('button[type="submit"]'); await route("/login"); await text("Welcome back");
+      assert.equal(await evaluate("location.search"), "", "Logout must confirm revocation after recovering the expired session");
+      assert.equal((await sessionCookies()).length, 0, "Logout with an expired signed token must not restore cookies");
+      await go("/workspace"); await route("/login");
+      console.log(`PASS ${base} ${width}px: unchanged Auth-issued signed-token expiry, backend denial, browser refresh, invalid refresh and logout`);
+      continue;
+    }
+    if (recoveryOnly) {
+      const errorPage = async (email) => {
+        await text("Account access could not be loaded"); await layout(); await snapshot("error");
+        for (const value of [email, fixtures.orgName]) assert.equal(await evaluate(`document.body.innerText.includes(${JSON.stringify(value)})`), false, "error page must not show private account data");
+      };
+      const employer = await login("recovery-employer");
+      await go(`/employer/${fixtures.orgId}`); await text(fixtures.orgName);
+      await fixtures.removeMembership();
+      await reload(); await text("Page not found");
+      await go("/employer"); await text("No organisation memberships");
+      await fixtures.restoreMembership();
+      await reload(); await text(fixtures.orgName);
+      await fixtures.setEmployerRole("commuter");
+      await reload(); await route("/access-denied");
+      await go("/workspace"); await text(employer.email); await text("commuter");
+      await go(`/employer/${fixtures.orgId}`); await route("/access-denied");
+      await fixtures.setEmployerRole("employer");
+      await go("/employer"); await text(fixtures.orgName);
+      assert.ok((await sessionCookies()).length > 0, "permission changes must be evaluated within the existing session");
+      await logout();
+
+      const commuter = await login("recovery-commuter");
+      await fixtures.removeProfile();
+      await reload(); await errorPage(commuter.email);
+      await reload(); await errorPage(commuter.email);
+      await fixtures.restoreProfile();
+      await click(".actions > button"); await text(commuter.email);
+      await fixtures.removeProfile();
+      await reload(); await errorPage(commuter.email);
+      await click('button[type="submit"]'); await route("/login"); await text("Welcome back");
+      assert.equal((await sessionCookies()).length, 0, "missing profile must not prevent logout");
+      await fixtures.restoreProfile();
+
+      await fill("#email", commuter.email); await fill("#password", commuter.password);
+      await fault("auth");
+      await click('button[type="submit"]'); await text("Sign-in is unavailable. Please try again.");
+      await route("/login");
+      assert.equal((await sessionCookies()).length, 0, "failed sign-in must not create a session");
+      await fault("healthy");
+      await fill("#email", commuter.email); await fill("#password", commuter.password);
+      await click('button[type="submit"]'); await route("/workspace"); await text(commuter.email);
+      await call("Network.setCookie", { name: "unrelated-preference", value: "kept", url: base, path: "/" });
+      await fault("auth");
+      await click('button[type="submit"]'); await route("/login");
+      await text("This browser is signed out. Server-side session revocation was not confirmed");
+      assert.equal((await sessionCookies()).length, 0, "auth outage must not prevent clearing this browser's session");
+      assert.equal((await call("Network.getCookies", { urls: [base] })).cookies.find(cookie => cookie.name === "unrelated-preference")?.value, "kept");
+      await layout(); await snapshot("logout-notice");
+      await fault("healthy");
+      await go("/workspace"); await route("/login"); await text("Welcome back");
+
+      await login("recovery-employer");
+      for (const mode of ["database", "auth", "all"]) {
+        await go("/employer"); await text(fixtures.orgName);
+        await fault(mode);
+        await reload(); await errorPage(employer.email);
+        await click('header a[href="/demo"]'); await text("Explore TrafficSense as a guest"); await layout();
+        assert.equal(await evaluate(`document.body.innerText.includes(${JSON.stringify(employer.email)})`), false);
+        await go("/employer"); await errorPage(employer.email);
+        await fault("healthy");
+        await click(".actions > button"); await text(fixtures.orgName);
+      }
+      for (const path of ["/employer", `/employer/${fixtures.orgId}`]) {
+        await go(path); await text(fixtures.orgName);
+        await fault("organisations");
+        await reload(); await errorPage(employer.email);
+        await go("/workspace"); await text(employer.email);
+        await go(path); await errorPage(employer.email);
+        for (const misleading of ["No organisation memberships", "Page not found"]) {
+          assert.equal(await evaluate(`document.body.innerText.includes(${JSON.stringify(misleading)})`), false);
+        }
+        await fault("healthy");
+        await click(".actions > button"); await text(fixtures.orgName);
+      }
+      for (const [path, role, heading] of [
+        ["/workspace", "employer", employer.email],
+        [`/employer/${fixtures.orgId}`, "employer", fixtures.orgName],
+        ["/authority", "authority", "Read-only authority account"],
+        ["/admin", "admin", "Demo administration"],
+      ]) {
+        await fixtures.setEmployerRole(role);
+        await go(path); await text(heading);
+        await fault("database"); await reload(); await errorPage(employer.email);
+        await fault("healthy"); await click(".actions > button"); await text(heading);
+      }
+      await fixtures.setEmployerRole("employer");
+      for (const path of ["/login", "/register"]) {
+        await fault("auth"); await go(path); await errorPage(employer.email);
+        await fault("healthy"); await click(".actions > button"); await route("/workspace"); await text(employer.email);
+      }
+      await logout();
+      console.log(`PASS ${base} ${width}px: current-session role/membership changes, missing-profile retry/logout, failed sign-in, local logout during outage, backend error/retry recovery`);
       continue;
     }
     await text("Welcome back"); await layout();
+    for (const query of ["notice=unsupported", "notice=revocation-unconfirmed&notice=unsupported"]) {
+      await go(`/login?${query}`); await text("Welcome back");
+      assert.equal(await evaluate("document.body.innerText.includes('Server-side session revocation was not confirmed')"), false);
+    }
+    for (const path of ["/login", "/register"]) {
+      await go(path); await text(path === "/login" ? "Welcome back" : "Create your account");
+      await click('main a[href="/demo"]'); await route("/demo"); await text("Explore TrafficSense as a guest");
+      assert.equal((await sessionCookies()).length, 0);
+    }
+    await click('main a[href="/login"]'); await text("Welcome back");
     await mkdir("supabase/.temp/browser", { recursive: true });
     const loginShot = await call("Page.captureScreenshot", { format: "png", captureBeyondViewport: true });
     await writeFile(`supabase/.temp/browser/${new URL(base).port}-${width}-login.png`, Buffer.from(loginShot.data, "base64"));
@@ -133,14 +323,14 @@ try {
     await go("/admin"); await route("/access-denied"); await text("This page is not available"); await layout();
     await logout();
 
-    const commuter = await login("commuter");
+    const commuter = await login("commuter", true);
     const cookies = (await call("Network.getCookies", { urls: [base] })).cookies.filter((cookie) => cookie.name.startsWith("trafficsense-auth"));
     assert.ok(cookies.length > 0);
     assert.ok(cookies.every((cookie) => cookie.httpOnly && cookie.sameSite === "Lax"));
     assert.equal(await evaluate("document.cookie.includes('trafficsense-auth')"), false);
     for (const path of ["/employer", "/authority", "/admin"]) { await go(path); await route("/access-denied"); }
     await go("/workspace"); await text(commuter.email);
-    await call("Page.reload"); await text(commuter.email);
+    await reload(); await text(commuter.email);
     await rewriteSession((session) => { session.user.email = "forged@example.test"; session.user.user_metadata = { role: "admin" }; });
     await go("/workspace"); await text(commuter.email);
     assert.equal(await evaluate("document.body.innerText.includes('forged@example.test')"), false);
@@ -152,14 +342,17 @@ try {
     await rewriteSession((session) => { session.expires_at = 1; session.refresh_token = "invalid-refresh-token"; });
     await go("/workspace"); await route("/login"); await text("Welcome back");
     await login("commuter");
+    const history = await call("Page.getNavigationHistory");
+    const signedInEntry = history.entries[history.currentIndex];
+    assert.equal(new URL(signedInEntry.url).pathname, "/workspace");
+    await go("/"); await text("Understand the disruption");
+    await go("/workspace"); await text(commuter.email);
     await rewriteSession((session) => { session.expires_at = 1; });
     await click('button[type="submit"]'); await route("/login"); await text("Welcome back");
     assert.equal((await sessionCookies()).length, 0, "expiry immediately before sign-out must not restore auth cookies");
-    const history = await call("Page.getNavigationHistory");
-    if (history.currentIndex > 0) {
-      await call("Page.navigateToHistoryEntry", { entryId: history.entries[history.currentIndex - 1].id });
-      await waitFor(`!document.body?.innerText.includes(${JSON.stringify(commuter.email)})`, "signed-out history hides account data");
-    }
+    await navigate(() => call("Page.navigateToHistoryEntry", { entryId: signedInEntry.id }));
+    await route("/login"); await text("Welcome back");
+    assert.equal(await evaluate(`document.body.innerText.includes(${JSON.stringify(commuter.email)})`), false, "signed-out history hides account data");
     await go("/workspace"); await route("/login");
 
     for (const label of ["employer-a", "employer-b"]) {
@@ -167,8 +360,8 @@ try {
       const other = accounts.find((item) => item.label === (label === "employer-a" ? "employer-b" : "employer-a"));
       await click('a[href="/employer"]'); await text("Your organisations"); await layout();
       assert.equal(await evaluate(`!!document.querySelector('a[href="/employer/${other.orgId}"]')`), false);
-      await click(`a[href="/employer/${account.orgId}"]`); await text("Organisation membership"); await layout();
-      await call("Page.reload"); await text("Organisation membership");
+      await click(`a[href="/employer/${account.orgId}"]`); await text("ORGANISATION MEMBERSHIP"); await layout();
+      await reload(); await text("ORGANISATION MEMBERSHIP");
       await go(`/employer/${other.orgId}`); await text("Page not found");
       await go("/employer/not-a-uuid"); await text("Page not found");
       for (const path of ["/authority", "/admin"]) { await go(path); await route("/access-denied"); }
@@ -182,16 +375,54 @@ try {
       for (const denied of ["/employer", label === "authority" ? "/admin" : "/authority"]) { await go(denied); await route("/access-denied"); }
       await logout();
     }
+    await login("commuter");
+    const primarySession = sessionId;
+    const second = await send("Target.createTarget", { url: "about:blank", browserContextId: context });
+    const secondary = await send("Target.attachToTarget", { targetId: second.targetId, flatten: true });
+    try {
+      sessionId = secondary.sessionId;
+      await call("Page.enable"); await call("Runtime.enable"); await call("Network.enable");
+      await call("Emulation.setDeviceMetricsOverride", { width, height, mobile, deviceScaleFactor: 1 });
+      await go("/workspace"); await text(commuter.email);
+      sessionId = primarySession; await call("Page.bringToFront");
+      await logout();
+      sessionId = secondary.sessionId; await call("Page.bringToFront");
+      await reload(); await route("/login"); await text("Welcome back");
+      sessionId = primarySession; await call("Page.bringToFront");
+      const employer = await login("employer-a");
+      sessionId = secondary.sessionId; await call("Page.bringToFront");
+      await click('header a[href="/workspace"]'); await route("/workspace"); await text(employer.email);
+      assert.equal(await evaluate(`document.body.innerText.includes(${JSON.stringify(commuter.email)})`), false);
+      for (const path of ["/login", "/login?notice=revocation-unconfirmed", "/register"]) { await go(path); await route("/workspace"); await text(employer.email); }
+      await logout();
+      sessionId = primarySession; await call("Page.bringToFront");
+      await reload(); await route("/login"); await text("Welcome back");
+    } finally {
+      sessionId = primarySession;
+      await send("Target.closeTarget", { targetId: second.targetId });
+      await call("Page.bringToFront");
+    }
     await go("/not-a-route"); await text("Page not found"); await layout();
     await click('header a[href="/"]'); await text("Understand the disruption");
     await mkdir("supabase/.temp/browser", { recursive: true });
     const shot = await call("Page.captureScreenshot", { format: "png", captureBeyondViewport: true });
     await writeFile(`supabase/.temp/browser/${new URL(base).port}-${width}.png`, Buffer.from(shot.data, "base64"));
-    console.log(`PASS ${base} ${width}px: registration, invalid login, all roles, organisation isolation, empty membership, cookie flags, logout/history, refresh, direct routes and layout`);
+    console.log(`PASS ${base} ${width}px: registration, keyboard login, invalid login, all roles, organisation isolation, empty membership, cookie flags, settled logout/history, refresh, two-tab session changes, direct routes and layout`);
   }
   assert.deepEqual(exceptions, [], "unexpected browser runtime exceptions");
   console.log("PASS: no browser runtime exceptions");
 } finally {
-  if (context) await send("Target.disposeBrowserContext", { browserContextId: context });
-  socket.close();
+  try {
+    if (recoveryOnly) await fault("healthy");
+  } finally {
+    try {
+      if (fixtures) await fixtures.cleanup();
+    } finally {
+      try {
+        if (context) await send("Target.disposeBrowserContext", { browserContextId: context });
+      } finally {
+        socket.close();
+      }
+    }
+  }
 }

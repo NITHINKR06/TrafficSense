@@ -16,15 +16,23 @@ Plan sequentially for one active human builder with AI assistance, using verifie
 
 | Recommended module | Planned bounded behavior |
 | --- | --- |
-| 1. Registration/login | Supabase accounts; server-enforced commuter, employer, authority and admin roles; organisation boundaries; commuter-only public registration |
+| 1. Registration/login | Optional Supabase accounts plus a public guest entry; private commuter, employer, authority and admin actions remain server-authorized; commuter-only public registration |
 | 2. GPS/traffic map | One simulated corridor, incident map/list/details, provenance and freshness; optional consented foreground GPS, not continuous tracking |
-| 3. Incident reporting | Authenticated persisted reports with segment/direction, time, category including Unknown and location provenance; no photos/voice |
+| 3. Incident reporting | Persisted guest/account reports with server-issued source identity, segment/direction, time, category including Unknown and provenance; guest-write policies and abuse controls must pass before guest submission is enabled; no photos/voice |
 | 4. Verification | Explainable L1–L4 evidence indicators, separate cause assessment, freshness/recovery and a narrowly defined duplicate-report attack |
 | 5. Alternative alert | One fixed primary route and precomputed alternative, relevance checks, qualified simulated estimates and abstention |
 | 6. Employer dashboard | Employee-started, separately shared journeys; recipient-specific limited status, visible consent and stop/end enforcement |
 | 7. Analytics/monthly reports | Deterministic dated synthetic hotspot and monthly views with defined units, recurrence and consistent totals |
 
 A signed **Delay Receipt** is a planned extension to verification and employer sharing, not a replacement for these modules. Its minimum fields and prominence depend on employer feedback; absent feedback it remains a provisional synthetic demonstration. If included, every consent, integrity, recipient, expiry and revocation protection is mandatory.
+
+### Optional sign-in and guest access
+
+Sign-in is optional for entering the app and browsing public traffic/demo information. Provide a public `/demo` entry and guest navigation from home and authentication screens; browsing must not create an account, collect location or expose private records. Public map, incident-detail and route-alert pages should follow this policy when implemented.
+
+Accounts remain necessary for private account/organisation data, saved personal journeys, employer sharing and restricted authority/admin actions. A public demo or role preview must never grant those privileges. Public traffic reads use explicitly allowlisted data and their own policies, not privileged queries over private tables.
+
+Guest reporting is planned without forcing registration, but requires a server-issued source identity, least-privilege write/ownership policies and abuse controls before it is enabled. Guest browsing alone does not start an anonymous auth session. A guest identity is not proof of an independent person. Defer guest writes until their Phase 4 checks pass rather than exposing anonymous database writes. Making sign-in mandatory later requires an explicit product decision; do not introduce a global login redirect now.
 
 ### Explicit limits
 
@@ -68,7 +76,7 @@ These thresholds are proposed demo assumptions, not calibrated field findings. D
 
 | Indicator | Planned rule | Limit |
 | --- | --- | --- |
-| L1 Reported | Valid report from an authenticated source | Does not establish congestion/cause |
+| L1 Reported | Valid report tied to a server-issued guest or account source identity | Does not establish congestion/cause |
 | L2 Location supported | Position overlaps selected segment with acceptable accuracy and explicit provenance | Location support only; simulated provenance stays visible |
 | L3 Multiple sources | At least three eligible distinct source identities, same segment/direction, 15-minute window; one contribution per source/time bucket | Distinct accounts are not proven independent people |
 | L4 Slowdown supported | At least three eligible synthetic sources below 40% of baseline speed for five minutes | Demonstrates a computable rule, not real-world truth |

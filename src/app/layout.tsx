@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "TrafficSense — Account access",
-  description: "TrafficSense development preview: accounts and privacy-conscious access foundations.",
+  title: "TrafficSense — Traffic demo",
+  description: "Explore the TrafficSense public preview without signing in. Optional accounts protect personal and organisation features.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -27,8 +27,8 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="min-h-full flex flex-col">
         <a className="skip-link" href="#main">Skip to content</a>
-        <header className="site-header"><Link className="brand" href="/">TrafficSense</Link><nav aria-label="Main navigation"><Link href="/">Home</Link><Link href="/workspace" prefetch={false}>My account</Link></nav></header>
-        <main id="main" className="site-main"><Suspense fallback={<p role="status" className="panel">Loading account access…</p>}>{children}</Suspense></main>
+        <header className="site-header"><Link className="brand" href="/">TrafficSense</Link><nav aria-label="Main navigation"><Link href="/">Home</Link><Link href="/demo">Guest preview</Link><Link href="/workspace" prefetch={false}>My account</Link></nav></header>
+        <main id="main" className="site-main"><Suspense fallback={<p role="status" className="panel">Loading…</p>}>{children}</Suspense></main>
         <footer className="site-footer">REPORT → VERIFY → ALERT → ANALYSE · Development preview</footer>
       </body>
     </html>

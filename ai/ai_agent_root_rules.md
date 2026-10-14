@@ -49,6 +49,7 @@ Documentation-only reviews do not require the full implementation workflow or ap
 
 - Prefer existing patterns and dependencies over new frameworks or abstractions.
 - Validate external data and enforce authorization on the server.
+- Keep sign-in optional for guest/public browsing. Require authorization for private account/organisation data and restricted actions; never turn a demo selector into role access. Guest reporting needs explicit source-identity, write-policy and abuse-control checks before implementation, not a blanket anonymous grant.
 - Keep incident evidence, interpretation, and lifecycle state separate.
 - Keep shared state consistent across map/details, alternative alerts, commuter and employer views, and historical analytics within their stated date windows.
 - Write relevant tests before behaviour, implement one bounded task, run checks and browser verification, then review the diff and commit the checked step under the commit rules.

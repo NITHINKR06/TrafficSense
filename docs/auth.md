@@ -30,7 +30,7 @@ New accounts created through the UI always start as commuters. Use synthetic ema
 
 | Surface | Required access |
 | --- | --- |
-| `/`, `/login`, `/register` | Public; signed-in users visiting login/register return to their account |
+| `/`, `/demo`, `/login`, `/register` | Public; guest preview creates no session; signed-in users visiting login/register return to their account |
 | `/workspace` | Authenticated account with an assigned database profile |
 | `/employer` | Employer role; only assigned organisations are returned |
 | `/employer/[orgId]` | Employer role and current membership; unavailable IDs return not found |
@@ -39,7 +39,9 @@ New accounts created through the UI always start as commuters. Use synthetic ema
 
 The server checks the authenticated user with Supabase Auth and reads the role from `profiles` on each request. User-editable metadata and submitted role fields cannot grant access. Database row-level security allows users to read their own profile, and employers to read their own memberships and organisations. Anonymous and authenticated clients have no write grants on these access tables. Admin does not imply employer access.
 
-Authentication cookies are HTTP-only and SameSite=Lax. The Next.js proxy refreshes them, while page-level checks remain the authorization boundary. Private reads use no-store requests; sign-in and sign-out invalidate the application layout. Sign-out affects the current session; previously issued access tokens can remain valid until their expiry, so this is not a claim of immediate revocation of copied tokens.
+Authentication cookies are HTTP-only and SameSite=Lax. The Next.js proxy refreshes them, while page-level checks remain the authorization boundary. Private reads use no-store requests; sign-in and sign-out invalidate the application layout. Sign-out always clears this browser's auth cookies, including during a backend outage, without deleting unrelated cookies. When server revocation cannot be confirmed, the login page explains that limitation. Sign-out affects the current session; previously issued access tokens can remain valid through the backend's expiration-validation window, so this is not a claim of immediate revocation of copied tokens. Auth and database validators can enforce expiration at different times; the expiry scenario measures both separately.
+
+Missing profiles and backend failures show an account-access error rather than private data. **Try again** uses the installed framework's `retry()` callback to fetch fresh server data. Removing or restoring profiles, roles or memberships is a server administration operation, not a browser self-service permission change.
 
 No employee data or journey access follows from organisation membership. Future employer sharing still requires explicit commuter consent and per-read authorization.
 
@@ -88,6 +90,36 @@ docker run --rm --network host --user 1000:1000 \
   trafficsense-demo node tests/browser.mjs
 ```
 
-Repeat with port `3001` for the production preview. The driver uses an isolated browser context and checks desktop/mobile registration, roles, account switching, denied direct routes, organisation isolation, empty membership, cookie flags, logout/history, refresh and layout. Chromium itself must be available separately; the application image does not install a browser.
+Repeat with port `3001` for the production preview. The driver uses an isolated browser context and checks desktop/mobile registration, full keyboard login, roles, denied direct routes, organisation isolation, empty membership, cookie flags, refresh and layout. Reload/history assertions wait for the destination document before inspecting account state. Two tabs exercise logout and account switching through subsequent reloads/navigation, including authenticated redirects from login/register.
+
+Cookie tests tamper with cached user metadata, force the cookie's expiry timestamp and invalidate its refresh token. Forced cookie expiry exercises refresh handling; it is not proof of behavior with a genuinely expired signed access token. Two-tab tests do not claim that an idle tab clears itself without navigation or refresh.
+
+### Recovery and missing configuration
+
+With the same Chromium endpoint running:
+
+```bash
+bash scripts/local-supabase.sh test-browser-recovery
+```
+
+The test-only `compose.auth-test.yaml` overlay starts isolated development/production apps on loopback ports 3002/3003, unconfigured production/development on 3004/3005, and a fixed-upstream fault proxy on 54323. It leaves the usual app/production services unchanged. The proxy accepts only local test control calls, never browser-originated control or a request-supplied upstream. No privileged key or Docker socket is mounted in these services.
+
+Recovery tests create temporary synthetic accounts and an organisation using a local-only service key piped through stdin to the test runner. They test missing-profile retry/logout, current-session role/membership changes, sign-in/logout during outages, auth/database failures, and organisation-query failures after a successful profile lookup. Unconfigured checks cover guest entry, login/register and every private route. Fixtures and test containers are cleaned up after the run; interruption or cleanup failure requires inspecting the local test accounts before another run. Run these tests serially because they share the fault proxy.
+
+### Genuine signed-token expiry
+
+The separate `BROWSER_SCENARIO=expiry` scenario requires a temporarily shortened **local** `jwt_expiry` of 120 seconds (above the SDK's 90-second proactive-refresh margin) in `supabase/config.toml`, followed by a non-destructive Supabase stop/start. It refuses lifetimes at or below 90 seconds or above 120 seconds instead of silently skipping the check. Run it separately from recovery/setup changes:
+
+```bash
+docker run --rm --network host --user 1000:1000 \
+  --env-file .env.local \
+  --mount type=bind,src="$PWD",dst=/workspace --workdir /workspace \
+  -e APP_URL=http://127.0.0.1:3000 -e BROWSER_SCENARIO=expiry \
+  trafficsense-demo node tests/browser.mjs
+```
+
+Repeat on port 3001. It verifies the original Auth-issued ES256 signature with the public verification key, confirms access before expiration, waits for the signed expiration, and checks Auth/database denial without modifying the token. Auth must reject immediately after the wait; database rejection is measured separately and must occur within 35 seconds after signed expiration. This tolerance is explicit rather than treated as immediate invalidation. Browser checks then cover refresh, invalid refresh and logout using that expired token. Cookies are manipulated only to select the refresh/logout cases; tokens are neither re-signed nor assigned artificial expiration claims. **Restore `jwt_expiry = 3600` and stop/start Supabase afterward, including after failures.** This local test does not alter hosted configuration.
+
+Chromium itself must be available separately; the application image does not install a browser.
 
 Stopping Supabase retains local data. `docker compose down` only stops/removes application services; it does not stop the separately managed Supabase stack. Avoid `stop --all`, Docker pruning, and unrelated projects. A deliberate local database reset deletes synthetic accounts and requires reseeding; it is not part of normal startup.
