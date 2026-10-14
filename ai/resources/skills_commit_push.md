@@ -1,10 +1,11 @@
 # Commit and Push Conventions
 
-Apply these conventions when Git work is requested. Repository hosting, branch protection, and collaboration settings have not been established; inspect actual configuration instead of assuming them.
+After each completed and verified task, review the diff and create a scoped local commit as required by [the root instructions](../../AGENTS.md), unless the user explicitly says not to commit. Inspect repository hosting, branch protection, and collaboration configuration instead of assuming it.
 
 ## Scope and Safety
 
-- Do not initialize Git, create a remote, commit, push, or open a pull request solely because these guidelines exist.
+- Commit only the completed, verified task's intended changes; an explicit no-commit instruction overrides the default local-commit workflow.
+- Read-only reviews create no edits or commits. Push only when explicitly requested. Do not initialize Git, create a remote, or open a pull request solely because these guidelines exist.
 - Inspect status and diffs before staging. Preserve unrelated user changes and stage only intended files.
 - Never commit environment secrets, API credentials, private travel data, generated recordings, or personal evidence uploads.
 - Avoid destructive Git operations and force pushes unless explicitly authorized.
@@ -23,4 +24,4 @@ The subject describes the change. Add a body only when the reason or a limitatio
 
 ## Before Committing
 
-Review the staged diff, run applicable configured checks, and update affected documentation. State checks that could not run and why. Never claim a push or pull request succeeded without confirming the tool result.
+Run applicable configured checks, complete relevant browser verification, and update affected documentation. Record verification commands, outcomes, and limitations in `progress.md` and include the verification record in the scoped commit. Failed or blocked required checks do not make a task verified; report them rather than claiming completion. Preserve user review and inspect the staged diff before committing. Report the resulting commit hash and record it in `progress.md`; do not amend solely to embed a commit's own hash. Never claim a commit, push, or pull request succeeded without confirming the tool result.

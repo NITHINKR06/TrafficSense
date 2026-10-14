@@ -1,6 +1,12 @@
 # Naming Guidelines
 
-Use the chosen language and framework's established casing and file conventions. This project has no language-specific naming baseline yet.
+Use the Next.js App Router and TypeScript baseline:
+
+- Use `camelCase` for variables and functions, including hooks named `useSomething`.
+- Use `PascalCase` for React components, types, interfaces, and classes when needed.
+- Use `kebab-case` for application files and route directories, preserving Next.js special filenames such as `page.tsx`, `layout.tsx`, and `route.ts` and existing local conventions.
+- Use `UPPER_SNAKE_CASE` for environment variables and module-level constants intended as fixed configuration.
+- Preserve database and external API field names at their boundaries; map them explicitly when TypeScript domain names differ.
 
 - Prefer domain names such as incident, report, evidence, journey, route, and delay summary over generic item or data names.
 - Distinguish an individual report from an incident assembled from reports.

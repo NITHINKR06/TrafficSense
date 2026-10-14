@@ -2,7 +2,7 @@
 
 ## Solve the Current Problem
 
-Build the plan's seven recommended modules thinly, one checked step at a time. Use [the source coverage reference](../../docs/README.md) to keep reporting, verification, alerts, employer visibility, and analytics aligned with the main goal. Receipt fields and prominence await employer input; independent foundations can proceed. Avoid speculative features, extra services, and deferred work. Record scope reductions rather than silently dropping a module.
+Build the plan's seven recommended modules thinly, one verified phase at a time for one active human with AI assistance, without a fixed promised date. Follow the phase order in `docs/implementation.md` and [architecture](architecture.md), using [plan.md](../../plan.md) for scope, design, and acceptance and [progress.md](../../progress.md) for actual status and results. Use [the source coverage reference](../../docs/README.md) to keep reporting, verification, alerts, employer visibility, and analytics aligned with the main goal. Receipt fields and prominence depend on employer input; the receipt extension follows the core traffic modules. Avoid speculative features, extra services, and deferred work. Record scope reductions in the plan rather than silently dropping a module.
 
 ## Prefer Readable, Focused Code
 
@@ -12,7 +12,7 @@ Use clear names and cohesive functions. Separate responsibilities when that impr
 
 A low-speed phone does not prove a traffic jam. Multiple accounts do not necessarily represent independent witnesses. A photo does not establish its own time or location. Preserve these limitations in status labels and explanations.
 
-A reported cause, corroborated congestion, and authority confirmation are different claims. Use numerical confidence only with a defined, evaluated method; never invent a probability for visual effect.
+A reported cause, corroborated congestion, and authority confirmation are different claims. Do not show confidence percentages in the demo, including percentages in supplied design examples. Show evidence indicators, source counts, freshness, and limitations instead; these are not calibrated probabilities.
 
 ## Privacy Is Part of Behavior
 

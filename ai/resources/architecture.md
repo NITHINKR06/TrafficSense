@@ -2,11 +2,11 @@
 
 ## Status and Goal
 
-This is a planned responsibility model, not implemented domain behaviour. The official Next.js TypeScript/Tailwind starter is scaffolded with pnpm. Docker Compose provides development, isolated checks and an optional standalone production preview; see [Docker development](../../docs/docker.md). Supabase integration, map provider, hosting and access remain pending; no database service is configured yet. Use [plan.md](../../plan.md) for current decisions and [the source coverage reference](../../docs/README.md) for the original PDF's seven recommended modules and deliberate demo limits.
+This is a responsibility model, not a completion report. Use the selected Next.js TypeScript/Tailwind application with Supabase and pnpm inside Docker; see [Docker development](../../docs/docker.md). Inspect current code and [progress.md](../../progress.md) for implemented behavior, verification results, and blockers. Use [plan.md](../../plan.md) for scope, design decisions, and acceptance criteria; `docs/implementation.md` for the detailed phase roadmap; and [the source coverage reference](../../docs/README.md) for the original PDF's seven recommended modules and deliberate demo limits. Use `docs/design/trafficsense/README.md` as the supplied responsive UI design reference; visual examples do not override privacy, evidence, or scope constraints.
 
 The main goal is **REPORT → VERIFY → ALERT → ANALYSE**. The demo combines one simulated corridor, incident evidence, a duplicate-report attack, a precomputed alternative, consent-based employer visibility, and seeded hotspot/monthly statistics. A Delay Receipt supports verification and employer sharing; it does not replace those broader goals. Its final contract and prominence await employer feedback.
 
-Build sequentially for one active human with AI assistance: setup/auth/roles and seeds; reporting/map/evidence; slowdown and attack; receipt/employer verification; remaining thin modules; deployed verification and presentation. Every step includes tests and relevant browser checks. Do not assume four active developers or eight full days.
+Build sequentially for one active human with AI assistance, with no fixed promised date. [The implementation plan](../../docs/implementation.md) is authoritative for phase order, dependencies and planned checks; actual outcomes belong only in `progress.md`. Complete core traffic and consent-based employer flows before the receipt extension. Verify required unit, integration and browser checks before advancing, or obtain an explicit user-approved scope change to defer optional work without representing its checks as passed. UI work must distinguish supplied visual states from implemented functionality and must not imply live traffic or completed backend behavior.
 
 ## Proposed Responsibilities
 
@@ -18,9 +18,10 @@ Build sequentially for one active human with AI assistance: setup/auth/roles and
 | Evidence assessment | L1–L4 indicators, source counts and observed slowdown; separate congestion evidence from claimed causes |
 | Simulator | Deterministic synthetic journeys, slowdown/recovery and duplicate attack, with restricted demo controls and persistent provenance |
 | Alternative alert | Compare fixed primary/alternative data only when an incident affects the selected route; no routing engine |
-| Delay sharing | Server-derived preview, consent, signed recipient-bound receipt, expiry/revocation; fields provisional pending employer input |
-| Employer experience | Authorised receipts and explicitly shared active journeys only; no full route or unrelated observations |
+| Journey sharing | Commuter-controlled journeys, explicit consent, intended organisation, limited summary fields, and server-enforced stop/end access |
+| Employer experience | Explicitly shared active journeys only; no full route or unrelated observations; authorised receipts added in the extension phase |
 | Analytics | Aggregate deterministic incident history into seeded hotspot and monthly views; explain time window, recurrence and delay units |
+| Receipt extension | Server-derived preview, consent, signed recipient-bound receipt, expiry/revocation; fields provisional pending employer input |
 
 These responsibilities live in one Next.js application with Supabase, not extra backend services. Realtime is optional; refresh-based views show freshness explicitly. Read-only authority analytics is distinct from the optional authority-confirm action. Photos, AI, voice, native apps, full administration, and real routing remain deferred.
 
@@ -59,4 +60,4 @@ Finalise schemas and canonical signing payloads before their implementation. Kee
 
 ## Scope Changes
 
-Follow the fallback order in the plan: CSV and authority confirmation; Realtime; then the live employer table while retaining receipt verification. The last fallback leaves partial employer-dashboard coverage and must be disclosed. Do not remove receipt protections or silently drop another recommended module. Update the source coverage reference and plan when scope changes.
+Use the plan's scope and acceptance criteria when proposing cuts, preserving the core traffic modules ahead of the receipt extension. Do not silently replace consent-based employer journeys with receipt verification or remove receipt protections when receipts are included. Record each approved scope change, remaining module gap, and acceptance impact in the plan and source coverage reference; update planned sequencing in `docs/implementation.md`. Record actual deferrals, blockers, and verification outcomes only in `progress.md`.

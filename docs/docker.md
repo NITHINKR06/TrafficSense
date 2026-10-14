@@ -7,9 +7,13 @@ Docker Engine with Compose is the only required host runtime. Node.js 24 and pnp
 From the repository root:
 
 ```bash
+bash scripts/local-supabase.sh start
+bash scripts/local-supabase.sh seed
 docker compose up --build -d app
 docker compose logs -f app
 ```
+
+The first two commands prepare the dedicated local backend network, database, and synthetic accounts. See [local authentication](auth.md) for requirements, access rules, and credentials handling.
 
 Open **http://localhost:3000**. The app binds only to the host's loopback interface. Next.js also explicitly permits `127.0.0.1` for development resources so hot reload works with either local address; unrelated origins remain blocked. Override a busy port with `APP_PORT=3002 docker compose up -d app`.
 
@@ -23,7 +27,7 @@ The container runs as the image's `node` user (UID/GID 1000/1000), matching the 
 docker compose run --build --rm checks
 ```
 
-This runs ESLint, Next.js route-type generation, TypeScript checking and a production build in a fresh one-off container. It uses an image snapshot of current source and does not share the running app's dependency/build volumes. The checks container cannot overwrite the dev server's `.next` output.
+This runs authentication unit tests, ESLint, Next.js route-type generation, TypeScript checking and a production build in a fresh one-off container. It uses an image snapshot of current source and does not share the running app's dependency/build volumes. The checks container cannot overwrite the dev server's `.next` output.
 
 Individual commands against the running development container:
 
@@ -33,7 +37,7 @@ docker compose exec app pnpm audit --prod
 docker compose exec app sh
 ```
 
-There are no authentication/domain tests yet. Add their test commands to the check workflow when those features are implemented. Container health is a readiness check, not proof that user flows work; browser verification is still required.
+Run `bash scripts/local-supabase.sh test` for real authentication and database-policy integration tests after starting and seeding the backend. Container health is a readiness check, not proof that user flows work; browser verification is still required. The browser runner is documented in [local authentication](auth.md).
 
 ## Dependencies
 
@@ -67,14 +71,14 @@ docker compose start app
 docker compose --profile production down
 ```
 
-`down` removes this project's containers/network while retaining its named volumes. Avoid `down --volumes` unless intentionally resetting this project's dependency/build caches; future database volumes would also be lost. Never prune or stop unrelated Docker projects to repair this one.
+`down` removes the application Compose containers/default network while retaining named volumes and the external Supabase bridge. It does not stop the separate local Supabase stack; use `bash scripts/local-supabase.sh stop` for that. Avoid `down --volumes` unless intentionally resetting application dependency/build caches. Never prune or stop unrelated Docker projects.
 
-## Secrets and future Supabase work
+## Secrets and local Supabase
 
-- `.dockerignore` excludes Git metadata, host dependencies/build output, environment files and private-key files from the build context. No secrets are passed through Docker build arguments.
-- Development bind mounts are different from image contents: a future local `.env.local` is visible inside the development container, as it is to a local dev process. Keep it untracked.
-- Production does not automatically load host `.env.local`; define runtime environment/secrets explicitly when the backend is added. Next.js public variables may require build-time configuration; never expose privileged keys through them.
-- Supabase authentication/database integration is still pending. No unused Postgres or self-hosted Supabase stack is started here. Plan the Docker-based local Supabase workflow as part of that task.
-- The known development-only `braces@3.0.3` advisory is tracked in [progress.md](../progress.md). Containerisation does not fix dependency vulnerabilities.
+- `.dockerignore` excludes Git metadata, host dependencies/build output, environment/private-key files and `supabase/.temp` from image builds. No secrets are passed through build arguments.
+- Development bind mounts differ from image contents: local `.env.local` and ignored files are visible to the development process. Keep credentials untracked and never print or publish them.
+- Compose loads optional `.env.local` into development and production-preview runtime environments. Recreate containers after environment changes. Runtime injection is not permission to bake secrets into images or expose privileged keys through `NEXT_PUBLIC_*`.
+- [Local authentication](auth.md) documents the separate Supabase stack and bridge. Only its one-off CLI tooling receives the Docker socket; normal app and seeder requests do not. Hosted configuration needs separate security checks.
+- Dependency advisory history and actual verification are tracked in [progress.md](../progress.md). Containerisation does not fix vulnerabilities.
 
 First image builds need network access for the Node image, pnpm and packages. The starter also fetches its Google fonts at build time. Report connectivity failures rather than disabling TLS verification or substituting a different app silently.

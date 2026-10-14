@@ -9,7 +9,7 @@ These guidelines apply to the traffic hackathon project. They are adapted from t
 - Keep changes focused, understandable, and reversible.
 - Distinguish proposed, implemented, and verified behavior in code documentation and responses.
 - Never claim tests, integrations, browser checks, or deployment succeeded without evidence.
-- Never fabricate live traffic, incident causes, authority confirmation, confidence percentages, or measured travel-time savings.
+- Never fabricate live traffic, incident causes, authority confirmation, or measured travel-time savings. Do not show confidence percentages in the demo; use evidence indicators and explain their limits.
 - Obtain explicit consent before sharing commuter information. Employer access must not imply continuous location tracking.
 - Do not copy secrets, personal travel histories, or credentials into source files, fixtures, logs, or documentation.
 
@@ -41,8 +41,9 @@ Documentation-only reviews do not require the full implementation workflow or ap
 1. Read the root README and any existing README or instructions in affected directories.
 2. Check the current files and working-tree changes. Preserve unrelated user work.
 3. Identify the requested behavior, source module, affected surfaces, and acceptance checks using [docs/README.md](../docs/README.md). Consult the linked PDF pages when interpreting the brief; do not mistake its examples for live data or event requirements.
-4. Read [plan.md](../plan.md) for the project plan and [progress.md](../progress.md) for implementation status. Keep `plan.md` plan-only; do not edit it for task updates, completion, blockers, verification results, or commit records. Record those updates in `progress.md`, including the current task and acceptance checks before implementation. This supersedes older progress-recording instructions within `plan.md`. For multi-step work, also maintain a short task list.
-5. Use the selected Next.js + Supabase stack with pnpm inside Docker (pinned in `package.json`); follow [Docker commands](../docs/docker.md), preserve `pnpm-lock.yaml`, and avoid host installs or npm/yarn lockfiles. Leave unrelated Docker projects untouched. Confirm unresolved provider access before dependent work. Plan sequentially for one active human with AI assistance; the exact deadline and available hours remain in the plan. Employer feedback gates final receipt fields and prominence, not independent auth, simulation, reporting, or map foundations.
+4. Read [plan.md](../plan.md) for scope, design decisions, and acceptance criteria; `docs/implementation.md` for the detailed phase roadmap; and [progress.md](../progress.md) for actual implementation and verification status. Keep all actual task updates, results, blockers, verification evidence, and commit records only in `progress.md`, including the current task and acceptance checks before implementation. Do not put transient status in instructions, the plan, or the roadmap. This division supersedes older documentation and scheduling directions. For multi-step work, also maintain a short task list.
+5. Use the selected Next.js + Supabase TypeScript stack with pnpm inside Docker (pinned in `package.json`); follow [Docker commands](../docs/docker.md), preserve `pnpm-lock.yaml`, and avoid host installs or npm/yarn lockfiles. Leave unrelated Docker projects untouched. Confirm unresolved provider access before dependent work. Plan sequentially for one active human with AI assistance, using [docs/implementation.md](../docs/implementation.md) as the authority for phase order and dependencies, not a fixed promised date. Finish required acceptance checks before advancing, or obtain an explicit user-approved scope change to defer optional work without marking its checks passed; implementation alone is not verification. Employer feedback gates final receipt fields and prominence, not the preceding core traffic phases.
+6. For UI work, consult the supplied responsive design reference at `docs/design/trafficsense/README.md`. Preserve accessibility, privacy, truthful evidence labels, and explicit simulated states rather than copying unsupported claims from visual examples.
 
 ### During implementation
 
@@ -66,7 +67,7 @@ Documentation-only reviews do not require the full implementation workflow or ap
 
 ### Documentation
 
-Update documentation when a change makes it inaccurate. Keep the root README as a short orientation and status summary; put detailed module behavior or run instructions in the affected module's README or docs when those exist.
+Update documentation when a change makes it inaccurate. Keep the root README as a short orientation linking to the plan, phase roadmap, design reference, and progress record, not a duplicate status summary. Put detailed module behavior or run instructions in the affected module's README or docs when those exist; all actual status and results stay in `progress.md`.
 
 Do not create repetitive progress reports for every task. Do not invent completion percentages or test results. Review-only tasks need no project edits unless requested.
 
@@ -74,4 +75,4 @@ Do not create repetitive progress reports for every task. Do not invent completi
 
 Higher-priority session instructions and applicable nested project instructions take precedence. Within this guideline set, root rules take precedence over resources; task-specific resources take precedence over general coding principles for their domain. Surface any unresolved conflict instead of silently weakening privacy or verification requirements.
 
-Keep resource links, source coverage, and architecture synchronized when scope or boundaries change. The Next.js TypeScript/Tailwind starter is scaffolded with pnpm; Supabase integration is pending. Read version-specific Next.js documentation bundled under `node_modules/next/dist/docs/` before framework changes.
+Keep resource links, source coverage, and architecture synchronized when scope or boundaries change. Inspect current source and configured scripts, and consult `progress.md` for implementation and verification status instead of embedding scaffold, integration, or test-availability claims in instructions. Read version-specific Next.js documentation bundled under `node_modules/next/dist/docs/` in the container before framework changes.

@@ -1,6 +1,6 @@
 # Testing and Browser Verification
 
-Use the test framework and scripts configured by the chosen stack. There is no application test command yet; do not claim one ran until tooling exists.
+Inspect `package.json`, the relevant test files, and [Docker commands](../../docs/docker.md) for the configured checks; do not assume tests are absent or that a script covers every verification layer. Run project tests and checks in Docker with the pinned pnpm version. Consult [progress.md](../../progress.md) for actual results and blockers, not these instructions.
 
 ## Automated Tests
 
@@ -19,7 +19,13 @@ Prioritize these cases when the corresponding feature is implemented:
 - Expired and revoked shares are denied by the server, not merely hidden in the interface.
 - Provider failure remains distinguishable from an empty result and from simulated data.
 
-Use unit tests for rules, integration tests for persistence and authorization, and end-to-end tests for the complete user flow. No universal coverage percentage is required.
+Keep verification layers separate:
+
+- **Unit:** deterministic rules and pure logic, including input validation, evidence, lifecycle, route relevance, and summary calculations.
+- **Integration:** real persistence, authentication sessions, server authorization, and database row-level security against the configured test backend. Mocked provider responses verify handling, not the real provider.
+- **Browser:** complete user interactions across affected routes, session changes, shared state, and responsive layouts. Unit or integration passes, successful builds, and healthy containers do not establish browser correctness.
+
+Run relevant checks at each phase gate and record each layer's outcome separately in [progress.md](../../progress.md). A failed or blocked browser check remains unverified even when other layers pass. No universal coverage percentage is required.
 
 ## Mandatory Browser Workflow for Web Changes
 
@@ -29,7 +35,9 @@ Use unit tests for rules, integration tests for persistence and authorization, a
 4. Actively test affected edge states and surrounding existing flows. A screenshot or successful render alone is insufficient.
 5. For layout or styling changes, check desktop and mobile widths, including overflow, overlays, and map controls.
 6. Check console and network failures when tools permit, without exposing sensitive request contents.
-7. Fix discovered problems and repeat the affected checks before declaring completion.
+7. Verify session changes across tabs and back/forward history after navigation has settled; check role/membership changes and expiry while views are open. Confirm complete keyboard form interaction, not only initial focus.
+8. At phase gates, verify development and production-preview behavior separately. Hosted release needs another pass on the deployed origin; a local preview is not deployment.
+9. Fix discovered problems and repeat the affected checks before declaring completion.
 
 For the proposed reporting-to-sharing flow, verify report creation, supporting-evidence display, relevant and irrelevant routes, share preview, employer access, revocation, and incident clearance when those capabilities exist.
 
