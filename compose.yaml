@@ -1,0 +1,48 @@
+name: trafficsense
+
+services:
+  app:
+    build:
+      context: .
+      target: development
+    init: true
+    ports:
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    volumes:
+      - .:/app
+      - dependencies:/app/node_modules
+      - next-cache:/app/.next
+    command: ["sh", "-c", "pnpm install --frozen-lockfile && pnpm dev --hostname 0.0.0.0"]
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      start_period: 40s
+      retries: 5
+
+  checks:
+    profiles: ["tools"]
+    build:
+      context: .
+      target: development
+    init: true
+    command: ["sh", "-c", "pnpm lint && pnpm exec next typegen && pnpm exec tsc --noEmit && pnpm build"]
+
+  production:
+    profiles: ["production"]
+    build:
+      context: .
+      target: production
+    init: true
+    ports:
+      - "127.0.0.1:${PRODUCTION_PORT:-3001}:3000"
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      start_period: 20s
+      retries: 5
+
+volumes:
+  dependencies:
+  next-cache:

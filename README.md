@@ -18,24 +18,23 @@ Photos, AI features, voice, native apps, and a real routing engine remain deferr
 
 The official `create-next-app` starter has been generated with Next.js 16.4, TypeScript, Tailwind CSS, App Router and ESLint. It still shows the default starter page. Authentication, Supabase integration, roles and traffic features are not implemented; no deployment exists yet.
 
-### Local setup
+### Docker setup
 
-Use Node.js 22 or newer and pnpm 11.11.0 (pinned in `package.json`). From this repository root:
-
-```bash
-pnpm install
-pnpm dev
-```
-
-Open `http://localhost:3000`. Supabase credentials are not needed for the starter; configure them locally during the authentication task, never in committed files.
+Use Docker Engine with Compose; host-installed Node.js and pnpm are not required. The containers provide Node.js 24 and the pinned pnpm version.
 
 ```bash
-pnpm lint
-pnpm exec next typegen
-pnpm exec tsc --noEmit
-pnpm build
-pnpm start
+docker compose up --build -d app
 ```
+
+Open `http://localhost:3000`. Source edits hot-reload; dependencies and build output live in Docker-managed volumes. Supabase credentials are not needed for the starter.
+
+Run lint, TypeScript and build checks in an isolated container:
+
+```bash
+docker compose run --build --rm checks
+```
+
+See [Docker development](docs/docker.md) for package commands, logs, stopping containers, secret handling and the optional production preview on port 3001. Use Docker for all project runtime/package commands.
 
 The scaffold was generated in a temporary directory and imported here so the existing README, agent instructions and problem statement remained intact. Verification results are recorded in the current task in `plan.md`; domain tests will be added with the corresponding features.
 

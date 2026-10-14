@@ -25,7 +25,7 @@
 - **Direction:** thin planned coverage of all seven recommended modules on one simulated corridor. Explainable evidence and the fake-report attack are core; the Delay Receipt is a proposed extension, with fields and prominence pending employer feedback.
 - **Confirmed capacity:** team of four on paper; only the user is currently building, assisted by the GPT-Astra AI agent. Plan for one human's available hours, not four parallel developers.
 - **Confirmed time constraint:** fewer than eight days remain. Use the seven-day target in section 10 only if it fits the actual deadline; there is no guaranteed eighth day.
-- **Selected stack:** Next.js + Supabase, with pnpm and no extra backend services. The official Next.js starter is scaffolded; Supabase integration, map provider, hosting, account access and privacy defaults remain pending.
+- **Selected stack:** Next.js + Supabase, with pnpm inside Docker and no extra backend services. The official Next.js starter is scaffolded; Supabase integration, map provider, hosting, account access and privacy defaults remain pending.
 - Safe first work after the initial checks: setup/auth/roles, seeded corridor and simulator, reporting/evidence rules, and map/details. Employer feedback gates the final receipt contract and headline, not those independent foundations.
 
 **One-sentence pitch:** TrafficSense shows evidence behind traffic disruptions, alerts commuters to a precomputed alternative, shares limited commute information with consent, and gives authorities clearly labelled recurring-hotspot statistics.
@@ -339,6 +339,19 @@ Acceptance: reproducible setup and seeded map; role boundaries tested. Employer-
 - **Dependency caveat:** `pnpm audit --prod` reports no known vulnerabilities. Full audit still reports a high-severity development-only `braces@3.0.3` advisory through Next.js ESLint tooling. `pnpm update braces --depth 10` found no update; the registry returns no matching `braces@3.0.4`, the stated patch. Keep this visible for follow-up rather than suppressing it. pnpm's `unrs-resolver` postinstall was explicitly reviewed and approved; no blanket script approval.
 - **Package manager:** pnpm 11.11.0 is pinned; `pnpm-lock.yaml` is the only package lockfile. The starter was initially generated with npm, then converted at the user's request. No Supabase credentials were added.
 
+### Current task — Docker development and checks
+
+- **Status:** completed and verified (14 Oct 2026).
+- **Source modules:** shared development prerequisite; no product feature added.
+- **User direction:** run the app, package management and checks in Docker. Keep pnpm and commit the verified task.
+- **Scope:** Docker Compose development with hot reload and isolated dependency/build volumes; a separate one-off check container; a non-root standalone production image; Docker-first commands and agent guidance.
+- **Exclusions:** no auth/database services before their implementation task, no changes to unrelated Docker projects, and no cloud deployment.
+- **Acceptance checks:** Compose validates; clean image build/frozen installation succeeds; lint/type/build run inside Docker; development and production routes/assets/404 work; source changes hot-reload and restore correctly; containers run non-root; host dependencies, Git data and environment secrets are excluded from image context; desktop/mobile starter interactions remain usable.
+- **Verification (14 Oct 2026):** `docker compose config --quiet`, `docker compose up --build -d --wait app`, `docker compose run --build --rm checks`, and `docker compose --profile production up --build -d --wait production` passed. The isolated checks ran ESLint, route-type generation, TypeScript and a production build. Compose builds reused cached layers; a separate `docker build --no-cache --target dependencies -t trafficsense-dependency-check .` verified a fresh frozen installation of all 353 packages with pnpm 11.11.0.
+- **Browser verification:** MCP browser tools were unavailable, so a temporary Node runner inside Docker drove the existing local headless Chromium through its debugging protocol. Development (port 3000) and production (port 3001) each passed at 1440×1000 and 390×844: image loading, no horizontal overflow, keyboard link focus, Documentation click opening its expected URL, reload, missing route and return navigation, with no runtime exceptions. Light/dark screenshots were captured and desktop/mobile samples inspected. A temporary source-text edit and its restoration both hot-reloaded without navigation; `src/app/page.tsx` remains unchanged. No authentication/domain interactions exist to test.
+- **Runtime and boundary checks:** both services run as `node` (UID/GID 1000/1000); development dependency/build volumes are writable. The development image excludes Git metadata, local environment files and host build output; the production image contains `server.js` without application source or Git metadata. Production `/`, logo assets and missing-route HTTP status checks passed. Development assets returned 200 for localhost/127.0.0.1 origins and 403 for an untrusted origin. Both services remain available on loopback; unrelated Docker projects were left untouched.
+- **Limits and next step:** this verifies local Docker setup, not deployment or product modules. The previously recorded development dependency advisory remains unresolved; no new audit was run. Next is module 1 authentication and server-enforced roles, with Supabase configuration still pending.
+
 ### Phase 2 — Reporting, evidence and attack (Days 2–3 targets)
 
 - [ ] Tests first for reports, deduplication, segment/direction/time matching, evidence inputs and freshness.
@@ -463,6 +476,7 @@ Repository: [NITHINKR06/hackathon](https://github.com/NITHINKR06/hackathon). `.g
 | Fewer than eight days; registered team of four, one active builder plus GPT-Astra AI assistance | Confirmed by user | Plan sequential checked tasks, not four developers' capacity |
 | Next.js + Supabase, no extra backend services | Selected; official Next.js starter generated | Keep the solo build minimal; Supabase credentials/integration still pending |
 | Official `create-next-app` scaffold and pnpm 11.11.0 | Requested by user during setup | Generate boilerplate rather than write it manually; retain only the pnpm lockfile |
+| Docker for development, package management and checks | Implemented and locally verified (14 Oct 2026) | Isolate dependencies/build output from the host; use Node.js 24 containers and keep Supabase setup in its own task |
 | Foundations before final receipt fields | Confirmed v4.1 sequence | Auth, simulator, reporting, evidence and map do not depend on employer preference |
 | Receipt fields and prominence | Pending employer response P0-A | The PDF requests traffic verification and employer visibility, not a signed receipt specifically |
 | CSV, L6 confirmation, Realtime, then live employer table are fallback cuts | Recorded v4.1 order | Preserve receipt protections; cutting the status table leaves a disclosed module 6 gap |

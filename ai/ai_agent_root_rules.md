@@ -42,7 +42,7 @@ Documentation-only reviews do not require the full implementation workflow or ap
 2. Check the current files and working-tree changes. Preserve unrelated user work.
 3. Identify the requested behavior, source module, affected surfaces, and acceptance checks using [docs/README.md](../docs/README.md). Consult the linked PDF pages when interpreting the brief; do not mistake its examples for live data or event requirements.
 4. Read [plan.md](../plan.md) and add or update the relevant implementation plan before starting work. Maintain its decisions, progress, blockers, and actual verification outcomes as work proceeds. For multi-step work, also maintain a short task list.
-5. Use the selected Next.js + Supabase stack with pnpm (pinned in `package.json`); preserve `pnpm-lock.yaml` and avoid npm/yarn lockfiles. Confirm unresolved provider access before dependent work. Plan sequentially for one active human with AI assistance; the exact deadline and available hours remain in the plan. Employer feedback gates final receipt fields and prominence, not independent auth, simulation, reporting, or map foundations.
+5. Use the selected Next.js + Supabase stack with pnpm inside Docker (pinned in `package.json`); follow [Docker commands](../docs/docker.md), preserve `pnpm-lock.yaml`, and avoid host installs or npm/yarn lockfiles. Leave unrelated Docker projects untouched. Confirm unresolved provider access before dependent work. Plan sequentially for one active human with AI assistance; the exact deadline and available hours remain in the plan. Employer feedback gates final receipt fields and prominence, not independent auth, simulation, reporting, or map foundations.
 
 ### During implementation
 

@@ -2,7 +2,7 @@
 
 ## Status and Goal
 
-This is a planned responsibility model, not implemented domain behaviour. The official Next.js TypeScript/Tailwind starter is scaffolded with pnpm. Supabase integration, map provider, hosting and access remain pending. Use [plan.md](../../plan.md) for current decisions and [the source coverage reference](../../docs/README.md) for the original PDF's seven recommended modules and deliberate demo limits.
+This is a planned responsibility model, not implemented domain behaviour. The official Next.js TypeScript/Tailwind starter is scaffolded with pnpm. Docker Compose provides development, isolated checks and an optional standalone production preview; see [Docker development](../../docs/docker.md). Supabase integration, map provider, hosting and access remain pending; no database service is configured yet. Use [plan.md](../../plan.md) for current decisions and [the source coverage reference](../../docs/README.md) for the original PDF's seven recommended modules and deliberate demo limits.
 
 The main goal is **REPORT → VERIFY → ALERT → ANALYSE**. The demo combines one simulated corridor, incident evidence, a duplicate-report attack, a precomputed alternative, consent-based employer visibility, and seeded hotspot/monthly statistics. A Delay Receipt supports verification and employer sharing; it does not replace those broader goals. Its final contract and prominence await employer feedback.
 
