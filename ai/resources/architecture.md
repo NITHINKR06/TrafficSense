@@ -2,25 +2,27 @@
 
 ## Status and Intent
 
-This is a proposed responsibility model, not an implemented application layout. The technology stack, hosting, map provider, routing provider, and data sources are undecided. Use [the root README](../../README.md) for current project status.
+This is a proposed responsibility model, not an implemented application layout. The technology stack, hosting, and map provider are undecided. The core demo uses clearly labelled simulated observations; routing integration is deferred. Use [the root README](../../README.md) for current project status.
 
-The original traffic proposal covers incident reporting, alternative routes, commute verification, and analytics. A recommended hackathon flow is:
+The focused hackathon scope is recorded in [plan.md](../../plan.md):
 
-Report a disruption → attach evidence → alert an affected commuter → share a delay summary with consent → clear or expire the incident.
+Report a disruption → inspect evidence on a live-updating map → demonstrate a rejected duplicate-report attack → preview and share a limited delay receipt → verify as the intended employer → revoke.
 
-Confirm scope before implementing. Full government administration, emergency dispatch, predictive traffic models, and employee monitoring are not default requirements.
+The map updates application state; it is not a connected live traffic feed. Simulated observations and receipts remain labelled throughout the flow. Signatures establish receipt integrity and origin, not GPS truth or the cause of lateness.
+
+Rerouting, AI, photo verification, native apps, and authority analytics are deferred. A fixed-route relevance alert is optional after the core flow passes. Confirm stack and event constraints before implementation.
 
 ## Proposed Responsibilities
 
 | Area | Responsibility |
 | --- | --- |
-| Commuter experience | Journey selection, incident reporting, route alerts, sharing preview and consent |
+| Commuter experience | Demo journey selection, incident reporting, sharing preview, consent and revocation |
 | Incident service | Validate reports, group related reports, track freshness and resolution |
 | Evidence assessment | Explain supporting signals; distinguish congestion evidence from claimed causes |
-| Route assessment | Determine whether an active incident affects the selected route |
+| Optional route assessment | Determine whether an incident affects a fixed demo route; no alternative routing |
 | Delay sharing | Create minimal, authorized, expiring summaries and enforce revocation |
 | Employer experience | Display only summaries the viewer is authorized to access |
-| Integrations | Isolate map, routing, speech, model, and notification providers |
+| Map and simulator | Isolate the chosen map provider and restrict synthetic observation controls to demo mode |
 
 These may live in a single application. Separate responsibilities do not require separate services or deployments.
 
@@ -38,12 +40,12 @@ Finalize schemas during implementation. Do not collapse report count, incident s
 
 1. The client submits a report; the server validates it and checks access rules.
 2. Incident logic associates evidence using explicit spatial and time criteria.
-3. Route assessment considers active, relevant incidents rather than alerting everyone nearby.
-4. The commuter receives an explanation reflecting evidence freshness and limitations.
-5. A separate sharing action creates an authorized summary, not access to the underlying journey.
-6. Resolution and expiry propagate consistently to all views that read incident state.
+3. Evidence status and receipt eligibility are derived server-side; duplicate submissions do not add independent corroboration.
+4. The commuter receives an explanation reflecting evidence freshness and limitations. Optional route alerts consider only the selected fixed route.
+5. A separate sharing action creates a signed, recipient-restricted summary, not access to the underlying journey. Every employer read checks authentication, organisation membership, receipt expiry, and revocation.
+6. Incident resolution and expiry propagate consistently to current incident views. Receipt evidence remains an issuance-time snapshot with its own expiry and revocation state.
 
-Clients cannot grant themselves authority-confirmed status or employer access. AI outputs are untrusted suggestions, not evidence that an incident happened. Shared algorithms should have explicit public interfaces rather than imports through another feature's private internals.
+Clients cannot assign verification status, sign their own delay claims, or grant employer access. Shared algorithms should have explicit public interfaces rather than imports through another feature's private internals.
 
 ## External Data and Demonstrations
 

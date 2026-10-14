@@ -1,8 +1,10 @@
 # Traffic Hackathon Project
 
-Working concept: RoadAlert / TrafficSense. The final name, technology stack, and hackathon scope are not yet confirmed.
+Working concept: RoadAlert / TrafficSense. The final name, technology stack, event rules, and team timeline are not yet confirmed.
 
-The project explores reporting road disruptions, showing the evidence supporting them, alerting affected commuters, and sharing commute-delay summaries with consent. The original proposal also includes alternative routes and historical analytics; these are not implemented or committed scope.
+The hackathon scope is focused on evidence-based traffic verification, a privacy-conscious Delay Receipt, and employer verification. The planned demo uses a live-updating map and clearly labelled simulated observations to show corroboration, rejection of a scripted duplicate-report attack, voluntary sharing, and revocation. A signed receipt establishes integrity, not proof of GPS truth or why an employee arrived late.
+
+Real-time rerouting, AI features, photo verification, native apps, and authority analytics are deferred.
 
 ## Current state
 
@@ -10,7 +12,7 @@ This folder contains project planning documentation and AI coding guidelines. No
 
 ## Project plan
 
-Use [plan.md](plan.md) as the central record for proposed work, decisions, implementation steps, progress, and verification outcomes. Update it before starting implementation and as work progresses.
+Use [plan.md](plan.md) as the central record for scope, decisions, implementation steps, and verification outcomes. Version 3 prioritises the receipt-to-employer flow, defines required security and browser checks, and provides conditional 24/48/72-hour schedules. Supplied research remains subject to independent verification; no application results exist yet. Confirm the outstanding decisions before coding and update the plan as work progresses.
 
 ## AI-assisted development
 
