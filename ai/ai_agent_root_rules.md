@@ -4,7 +4,7 @@ These guidelines apply to the traffic hackathon project. They are adapted from t
 
 ## Core Rules
 
-- Implement the requested scope; do not build the full traffic proposal by default.
+- Implement the current plan's thin seven-module scope one task at a time, not the entire product brief at once. Map each task to [the source coverage reference](../docs/README.md); record omissions and coverage gaps in the plan. Keep REPORT → VERIFY → ALERT → ANALYSE as the main goal; receipts support it.
 - Read existing code and relevant documentation before changing behavior.
 - Keep changes focused, understandable, and reversible.
 - Distinguish proposed, implemented, and verified behavior in code documentation and responses.
@@ -40,16 +40,17 @@ Documentation-only reviews do not require the full implementation workflow or ap
 
 1. Read the root README and any existing README or instructions in affected directories.
 2. Check the current files and working-tree changes. Preserve unrelated user work.
-3. Identify the requested behavior, affected surfaces, and acceptance checks.
+3. Identify the requested behavior, source module, affected surfaces, and acceptance checks using [docs/README.md](../docs/README.md). Consult the linked PDF pages when interpreting the brief; do not mistake its examples for live data or event requirements.
 4. Read [plan.md](../plan.md) and add or update the relevant implementation plan before starting work. Maintain its decisions, progress, blockers, and actual verification outcomes as work proceeds. For multi-step work, also maintain a short task list.
-5. Follow the existing stack and tooling. If no stack exists and selecting one materially affects the request, confirm it before scaffolding.
+5. Use the selected Next.js + Supabase stack with pnpm (pinned in `package.json`); preserve `pnpm-lock.yaml` and avoid npm/yarn lockfiles. Confirm unresolved provider access before dependent work. Plan sequentially for one active human with AI assistance; the exact deadline and available hours remain in the plan. Employer feedback gates final receipt fields and prominence, not independent auth, simulation, reporting, or map foundations.
 
 ### During implementation
 
 - Prefer existing patterns and dependencies over new frameworks or abstractions.
 - Validate external data and enforce authorization on the server.
 - Keep incident evidence, interpretation, and lifecycle state separate.
-- Keep shared application state consistent across commuter and employer views.
+- Keep shared state consistent across map/details, alternative alerts, commuter and employer views, and historical analytics within their stated date windows.
+- Write relevant tests before behaviour, implement one bounded task, run checks and browser verification, then review the diff and commit the checked step under the commit rules.
 - Make loading, empty, denied-permission, stale-data, and failure states explicit.
 - Keep demonstrations clearly labelled when data or integrations are simulated.
 
@@ -73,4 +74,4 @@ Do not create repetitive progress reports for every task. Do not invent completi
 
 Higher-priority session instructions and applicable nested project instructions take precedence. Within this guideline set, root rules take precedence over resources; task-specific resources take precedence over general coding principles for their domain. Surface any unresolved conflict instead of silently weakening privacy or verification requirements.
 
-Keep resource links and architecture descriptions synchronized when files or boundaries change. Add language-specific guidance after the project chooses a language; do not assume Python, TypeScript, or a particular backend today.
+Keep resource links, source coverage, and architecture synchronized when scope or boundaries change. The Next.js TypeScript/Tailwind starter is scaffolded with pnpm; Supabase integration is pending. Read version-specific Next.js documentation bundled under `node_modules/next/dist/docs/` before framework changes.

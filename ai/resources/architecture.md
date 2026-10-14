@@ -1,57 +1,62 @@
 # Architecture
 
-## Status and Intent
+## Status and Goal
 
-This is a proposed responsibility model, not an implemented application layout. The technology stack, hosting, and map provider are undecided. The core demo uses clearly labelled simulated observations; routing integration is deferred. Use [the root README](../../README.md) for current project status.
+This is a planned responsibility model, not implemented domain behaviour. The official Next.js TypeScript/Tailwind starter is scaffolded with pnpm. Supabase integration, map provider, hosting and access remain pending. Use [plan.md](../../plan.md) for current decisions and [the source coverage reference](../../docs/README.md) for the original PDF's seven recommended modules and deliberate demo limits.
 
-The focused hackathon scope is recorded in [plan.md](../../plan.md):
+The main goal is **REPORT → VERIFY → ALERT → ANALYSE**. The demo combines one simulated corridor, incident evidence, a duplicate-report attack, a precomputed alternative, consent-based employer visibility, and seeded hotspot/monthly statistics. A Delay Receipt supports verification and employer sharing; it does not replace those broader goals. Its final contract and prominence await employer feedback.
 
-Report a disruption → inspect evidence on a live-updating map → demonstrate a rejected duplicate-report attack → preview and share a limited delay receipt → verify as the intended employer → revoke.
-
-The map updates application state; it is not a connected live traffic feed. Simulated observations and receipts remain labelled throughout the flow. Signatures establish receipt integrity and origin, not GPS truth or the cause of lateness.
-
-Rerouting, AI, photo verification, native apps, and authority analytics are deferred. A fixed-route relevance alert is optional after the core flow passes. Confirm stack and event constraints before implementation.
+Build sequentially for one active human with AI assistance: setup/auth/roles and seeds; reporting/map/evidence; slowdown and attack; receipt/employer verification; remaining thin modules; deployed verification and presentation. Every step includes tests and relevant browser checks. Do not assume four active developers or eight full days.
 
 ## Proposed Responsibilities
 
 | Area | Responsibility |
 | --- | --- |
-| Commuter experience | Demo journey selection, incident reporting, sharing preview, consent and revocation |
-| Incident service | Validate reports, group related reports, track freshness and resolution |
-| Evidence assessment | Explain supporting signals; distinguish congestion evidence from claimed causes |
-| Optional route assessment | Determine whether an incident affects a fixed demo route; no alternative routing |
-| Delay sharing | Create minimal, authorized, expiring summaries and enforce revocation |
-| Employer experience | Display only summaries the viewer is authorized to access |
-| Map and simulator | Isolate the chosen map provider and restrict synthetic observation controls to demo mode |
+| Auth and roles | Supabase authentication, server-enforced memberships, commuter/employee, employer and seeded authority-view roles; restricted seed/reset |
+| Commuter experience | Selected demo journey, report form, map/details, route alert, explicit sharing controls and visible collection/sharing indicators |
+| Incident service | Validate and deduplicate reports, group by segment/direction/time, track freshness and resolution |
+| Evidence assessment | L1–L4 indicators, source counts and observed slowdown; separate congestion evidence from claimed causes |
+| Simulator | Deterministic synthetic journeys, slowdown/recovery and duplicate attack, with restricted demo controls and persistent provenance |
+| Alternative alert | Compare fixed primary/alternative data only when an incident affects the selected route; no routing engine |
+| Delay sharing | Server-derived preview, consent, signed recipient-bound receipt, expiry/revocation; fields provisional pending employer input |
+| Employer experience | Authorised receipts and explicitly shared active journeys only; no full route or unrelated observations |
+| Analytics | Aggregate deterministic incident history into seeded hotspot and monthly views; explain time window, recurrence and delay units |
 
-These may live in a single application. Separate responsibilities do not require separate services or deployments.
+These responsibilities live in one Next.js application with Supabase, not extra backend services. Realtime is optional; refresh-based views show freshness explicitly. Read-only authority analytics is distinct from the optional authority-confirm action. Photos, AI, voice, native apps, full administration, and real routing remain deferred.
 
 ## Conceptual Data
 
-- **Incident report:** a source account's observation, observation and submission times, location, claimed category, and optional evidence references.
-- **Incident:** grouped reports and lifecycle state, with timestamps and an auditable explanation for status changes.
-- **Evidence assessment:** supporting and conflicting signals, their provenance and freshness, and separate assessments for congestion and cause.
-- **Journey:** the commuter's selected route and explicit journey state. Precise locations are private by default.
-- **Delay summary:** the minimum information intentionally shared, intended audience, expiry, and revocation state.
+- **Incident report:** authenticated source, observation/submission times, segment and direction, reported category and provenance.
+- **Incident:** grouped observations, lifecycle status, timestamps and explanation.
+- **Evidence assessment:** eligible sources, supporting/conflicting observations, freshness, and separate cause/congestion support. L1–L4 are indicators, not calibrated probabilities or guaranteed independent witnesses.
+- **Journey:** commuter-controlled state and private segment summaries; raw pings remain local/in-memory in the demo design.
+- **Shared journey:** explicit consent, intended organisation, current sharing state and limited status fields. Ending/stopping sharing removes future employer access.
+- **Receipt:** server-derived issuance-time evidence snapshot, recipient, signature, expiry and revocation state; no journey trace.
+- **Historical data:** deterministic dated incident records used consistently by hotspot and monthly calculations; synthetic labels are retained.
 
-Finalize schemas during implementation. Do not collapse report count, incident status, and confidence into one field.
+Finalise schemas and canonical signing payloads before their implementation. Keep report count, evidence support, incident lifecycle, sharing state and receipt validity distinct.
 
-## Boundaries and Data Flow
+## Boundaries and Shared State
 
-1. The client submits a report; the server validates it and checks access rules.
-2. Incident logic associates evidence using explicit spatial and time criteria.
-3. Evidence status and receipt eligibility are derived server-side; duplicate submissions do not add independent corroboration.
-4. The commuter receives an explanation reflecting evidence freshness and limitations. Optional route alerts consider only the selected fixed route.
-5. A separate sharing action creates a signed, recipient-restricted summary, not access to the underlying journey. Every employer read checks authentication, organisation membership, receipt expiry, and revocation.
-6. Incident resolution and expiry propagate consistently to current incident views. Receipt evidence remains an issuance-time snapshot with its own expiry and revocation state.
+1. Clients submit observations; the server validates inputs and derives source identity, evidence status, delay and access. A browser role selector cannot grant privileges.
+2. Map markers, incident details, alerts and receipt eligibility read the same incident/evidence rules. Duplicate submissions do not add independent corroboration.
+3. Alert only for the affected primary segment/direction, not a nearby parallel road. Missing/stale alternative inputs yield unavailable savings; known hazards suppress recommendations. Simulated comparisons remain labelled.
+4. Sharing is separate from starting a journey. The server checks recipient membership, current consent and journey state on every dashboard read; stop/end revokes access and refreshed views clear prior contents.
+5. Receipt verification checks authentication, intended organisation, canonical integrity, expiry and current revocation. Signatures alone grant neither access nor proof of GPS truth.
+6. Incident clearance updates current map/alert/dashboard state. Receipt evidence remains historical, with separate expiry and revocation. A previously issued receipt does not become live evidence of current congestion.
+7. Hotspot and monthly totals derive from the same dated history. Newly reported incidents affect aggregates only within the selected period; historical-only views explicitly state that boundary.
+8. Account switching, logout, refresh and direct links must not retain another user's protected data. Test every surface sharing changed state, including employer and analytics views.
 
-Clients cannot assign verification status, sign their own delay claims, or grant employer access. Shared algorithms should have explicit public interfaces rather than imports through another feature's private internals.
+## Privacy and Demo Limits
 
-## External Data and Demonstrations
+- Employers receive an allowlisted summary, never raw coordinates, geometry, home location, unrelated journeys or unrestricted history. Even coarse zone/time data is sensitive.
+- Real data collection waits for defined consent, retention/deletion and access rules. A web app does not promise reliable background GPS.
+- Consent revocation stops subsequent server access; it cannot recall copies a viewer already saved. Explain this limit.
+- OSM-derived map tiles are not a live traffic feed. Check provider terms, attribution, coverage, quotas and key handling before integration.
+- Preserve **SIMULATED** labels on map observations, alerts, dashboard data, receipts and historical statistics. Never silently substitute synthetic data after a provider failure.
+- The duplicate-report demo establishes only the tested control. Distinct accounts, low speed and signatures do not prove a real jam, true cause, or person-level lateness.
+- A precomputed alternative is not a safety guarantee, and historical patterns support suggested investigation rather than infrastructure decisions.
 
-- OpenStreetMap map data is not itself a live traffic feed or a routing service.
-- Verify provider access, coverage, terms, attribution, and cost before promising integration behavior.
-- Keep provider secrets on the server where required; restrict intentionally public map keys according to provider guidance.
-- Label simulated reports, GPS traces, delays, and historical data wherever users could mistake them for live observations.
-- If an integration fails, show its unavailable state. Never silently substitute synthetic data for live data.
-- Treat routing around floods or closures as safety-sensitive; an alternative route is not a guarantee of safety.
+## Scope Changes
+
+Follow the fallback order in the plan: CSV and authority confirmation; Realtime; then the live employer table while retaining receipt verification. The last fallback leaves partial employer-dashboard coverage and must be disclosed. Do not remove receipt protections or silently drop another recommended module. Update the source coverage reference and plan when scope changes.

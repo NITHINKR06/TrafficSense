@@ -2,7 +2,7 @@
 
 ## Solve the Current Problem
 
-Build the agreed demonstration flow before optional dashboards, predictive models, or additional roles. Avoid speculative features and dependencies. A cohesive application is preferable to premature microservices.
+Build the plan's seven recommended modules thinly, one checked step at a time. Use [the source coverage reference](../../docs/README.md) to keep reporting, verification, alerts, employer visibility, and analytics aligned with the main goal. Receipt fields and prominence await employer input; independent foundations can proceed. Avoid speculative features, extra services, and deferred work. Record scope reductions rather than silently dropping a module.
 
 ## Prefer Readable, Focused Code
 
