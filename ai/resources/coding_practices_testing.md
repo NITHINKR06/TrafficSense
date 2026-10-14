@@ -1,6 +1,6 @@
 # Testing and Browser Verification
 
-Inspect `package.json`, the relevant test files, and [Docker commands](../../docs/docker.md) for the configured checks; do not assume tests are absent or that a script covers every verification layer. Run project tests and checks in Docker with the pinned pnpm version. Consult [progress.md](../../progress.md) for actual results and blockers, not these instructions.
+Inspect `package.json`, the relevant test files, and [Docker commands](../../docs/docker.md) for the configured checks; do not assume tests are absent or that a script covers every verification layer. Run project tests and checks in Docker with the pinned pnpm version. Consult [docs/progress.md](../../docs/progress.md) for actual results and blockers, not these instructions.
 
 ## Automated Tests
 
@@ -25,7 +25,7 @@ Keep verification layers separate:
 - **Integration:** real persistence, authentication sessions, server authorization, and database row-level security against the configured test backend. Mocked provider responses verify handling, not the real provider.
 - **Browser:** complete user interactions across affected routes, session changes, shared state, and responsive layouts. Unit or integration passes, successful builds, and healthy containers do not establish browser correctness.
 
-Run relevant checks at each phase gate and record each layer's outcome separately in [progress.md](../../progress.md). A failed or blocked browser check remains unverified even when other layers pass. No universal coverage percentage is required.
+Run relevant checks at each phase gate and record each layer's outcome separately in [docs/progress.md](../../docs/progress.md). A failed or blocked browser check remains unverified even when other layers pass. No universal coverage percentage is required.
 
 ## Mandatory Browser Workflow for Web Changes
 

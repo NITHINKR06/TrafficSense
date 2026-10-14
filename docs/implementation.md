@@ -1,6 +1,6 @@
 # TrafficSense Implementation Plan
 
-This is the detailed phase-wise build plan. [Project scope and decisions](../plan.md) define what to build; [progress](../progress.md) records what actually happened. This file contains dependencies, planned work and exit criteria—not task status, results or commit history.
+This is the detailed phase-wise build plan. [Project scope and decisions](plan.md) define what to build; [progress](progress.md) records what actually happened. This file contains dependencies, planned work and exit criteria—not task status, results or commit history.
 
 ## Delivery approach
 
@@ -23,12 +23,12 @@ The target is a working, responsive, synthetic web demonstration of **REPORT →
 | 8 | Protected delay-receipt extension | 4, 6; core phases first | Extension to 4/6; S6–S9 and S2 receipt check |
 | 9 | Full regression, release readiness and handoff | Core phases; 8 if included | All applicable S1–S14; measured metrics only |
 
-Scenario and metric definitions remain in [plan.md](../plan.md#acceptance-scenarios). A phase may satisfy only part of a scenario: do not claim receipt tests passed before receipts exist.
+Scenario and metric definitions remain in [plan.md](plan.md#acceptance-scenarios). A phase may satisfy only part of a scenario: do not claim receipt tests passed before receipts exist.
 
 ## Phase 0 — Align documentation and design references
 
-- Keep `plan.md` for scope, design decisions, contracts, acceptance targets and qualified research; use this file for execution sequence.
-- Move legacy task/results/history out of the root plan into dated `progress.md` entries, preserving qualifications and avoiding duplicated records. Reconcile progress with code and actual command evidence.
+- Keep `docs/plan.md` for scope, design decisions, contracts, acceptance targets and qualified research; use this file for execution sequence.
+- Keep legacy task/results/history in dated `docs/progress.md` entries rather than the scope plan, preserving qualifications and avoiding duplicated records. Reconcile progress with code and actual command evidence.
 - Preserve the supplied HTML, design specification and screenshot under [the design reference](design/trafficsense/README.md). Treat them as reference assets, not application behavior or a source of verified claims. Check secrets, asset provenance and third-party dependencies before reuse.
 - Align `AGENTS.md`, the AI root rules, architecture, testing, principles, naming and commit guidance. Remove stale starter-only assumptions and fixed-day scheduling; preserve Docker, privacy and browser requirements.
 - Synchronize README, source-module mappings and Docker/auth instructions. Keep the original PDF unchanged.
@@ -93,7 +93,7 @@ Deliver persisted reporting first, then corroboration/recovery and the attack de
 
 - Write deterministic tests before mutations. Validate timestamps/category/segment/direction; derive source identity and receipt time on the server. Persist before showing success; use bounded abuse controls and safe retries.
 - Keep reports, incidents, evidence, reported cause and lifecycle distinct. Use uniqueness/transactions to prevent concurrent retries inflating counts.
-- Specify eligibility and exact timestamp boundaries before implementing the planned thresholds in [plan.md](../plan.md#evidence-and-lifecycle-contract). Distinct accounts are not proven independent people.
+- Specify eligibility and exact timestamp boundaries before implementing the planned thresholds in [plan.md](plan.md#evidence-and-lifecycle-contract). Distinct accounts are not proven independent people.
 - L1 is reported; L2 is eligible location support with provenance; L3/L4 are corroboration indicators. Cause remains reported/unknown without separate support. L5 is not collected; L6 is unavailable unless explicitly built as a labelled simulated action.
 - Derive excess traversal time only from a complete observation and named baseline; missing/partial data is unavailable.
 - Demonstrate repeated fabricated reports from one source without source-count inflation or corroboration. Test concurrency, parallel road, wrong direction, stale/future/malformed data, insufficient sources and missing baselines.

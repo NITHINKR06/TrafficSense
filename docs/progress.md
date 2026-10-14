@@ -2,7 +2,7 @@
 
 ## Recording rules
 
-- `plan.md` holds scope, decisions, contracts and acceptance targets. `docs/implementation.md` holds detailed phases/dependencies/exit checks. Neither holds task status or verification history.
+- `docs/plan.md` holds scope, decisions, contracts and acceptance targets. `docs/implementation.md` holds detailed phases/dependencies/exit checks. Neither holds task status or verification history.
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
@@ -14,6 +14,15 @@
 - Functional maps, reports/evidence, simulator, alerts, journey sharing, analytics and receipts are not implemented. The supplied UI is a reference, not integrated application behavior. No hosted deployment is verified.
 - The previously reported high-severity development-only `braces@3.0.3` advisory remains unresolved in the record. No fresh dependency audit was run for the documentation alignment.
 
+## Repository checkpoint and document relocation — 14 Oct 2026
+
+- **User request:** moved `plan.md` and `progress.md` into `docs/`, then explicitly requested committing and pushing everything, including the pending authentication work.
+- **Scope:** retain `docs/plan.md` and `docs/progress.md`; fix relative links and AI path references; include the local-auth implementation, Docker/tooling changes, migration and tests as a work-in-progress snapshot rather than a completed release.
+- **Fresh verification:** `docker compose run --build --rm checks` passed five unit tests, lint, route types, TypeScript and production build; `bash scripts/local-supabase.sh test` passed seven real-session database integration tests. Documentation validation in network-disabled Docker passed 20 Markdown files, 82 local links/anchors, phase/scenario/metric mappings and unchanged PDF/design checksums. Shell syntax, Compose configuration and whitespace checks passed.
+- **Safety review:** local environment files, generated synthetic credentials, Supabase temporary logs, dependencies and build output remain ignored. A common credential-pattern/private-filename scan passed for 68 candidate text files; no sensitive filenames appeared in outgoing history. This is a targeted scan, not a guarantee that every possible secret pattern is detectable.
+- **Known limitation:** the earlier configured-auth browser failure remains unresolved; no application behavior was changed or browser acceptance claimed during this Git/documentation task. The user's explicit checkpoint request does not complete Phase 1. No fresh dependency audit or deployment was performed.
+- **Publishing:** remote tracking was refreshed; `main` was five commits ahead and zero behind `origin/main`. Publish the new snapshot and existing local commits to the configured origin without force. Commit/push outcomes are reported after Git confirms them; earlier “local; not pushed” labels describe their historical recording time.
+
 ## Phase 0 — Documentation/design/AI alignment, 14 Oct 2026
 
 - **User direction:** complete the build through deliberate verified phases, not an assumed seven-day schedule; keep the detailed implementation plan in a new `docs/` file. The user approved the proposed plan with that adjustment.
@@ -21,8 +30,8 @@
 - **Planning changes:** core traffic modules and consent-based employer status precede the receipt extension; phase exits require actual tests/browser behavior. One human with AI assistance, no fixed completion-date promise. Implementation plan and root plan stay free of execution results.
 - **Acceptance:** documentation/local links and phase/scenario mappings validate in Docker; original PDF and copied design assets match their sources; diff/secrets reviewed; no application/runtime files included in the documentation commit. Reference HTML is not executed or published as an app route.
 - **Verification:** a temporary Node documentation checker ran in `trafficsense-demo` with `--network none`, non-root user and read-only repository/script mounts. It passed 20 Markdown files, 82 local links/anchors, balanced fences, 10 ordered phases, 14 scenarios, seven metrics, seven module mappings, plan/progress ownership assertions, a common secret-pattern scan, and PDF/design SHA-256 checks. Source/design byte comparisons and `git diff --check` passed. Independent documentation review found two contract/order issues; explicit corroborated receipt eligibility and approved optional-phase deferral were restored and rechecked. External URLs/asset rights and application/browser behavior were not tested by this task. The outstanding auth browser failure remains unresolved.
-- **Commit preparation:** documentation/reference diff reviewed; application/runtime changes remain excluded. Local commit creation and recording its hash follow the staged-scope check.
-- **Next:** Phase 1 diagnoses the authentication browser failure and finishes its negative/recovery checks before Phase 2 integrates the UI. Existing uncommitted application work is preserved for its own verified commit.
+- **Commit:** `2ee86b7` — `docs: align verified build phases and UI reference` (local; not pushed). Staged-scope and whitespace checks passed for 19 documentation/reference files; application/runtime changes were excluded. This hash was recorded after commit creation; the verification record is included in that commit.
+- **Next:** Phase 1 diagnoses the authentication browser failure and finishes its negative/recovery checks before Phase 2 integrates the UI. The later user-requested checkpoint preserves pending application work without marking it verified.
 
 ## Local authentication foundation — in progress, 14 Oct 2026
 
@@ -35,7 +44,7 @@
 - **Browser:** the missing-configuration scenario passed on development at desktop/mobile sizes. The configured browser run failed while waiting for the login heading; a diagnostic rerun also exited unsuccessfully. Full auth interactions on development and production are not verified. Cookie tamper/refresh/logout scenarios exist in the driver but are not claimed passed. Outage/recovery, settled history/two-tab flows and live permission changes remain phase acceptance work.
 - **Setup findings:** package/store mismatch was corrected with a consistent pnpm store; large downloads required a longer timeout and project-specific cache. All 372 packages installed successfully; TLS/integrity checks stayed enabled. A script edited during a long run exited after backend setup; a stable rerun passed. Avoid editing an executing shell script.
 - **Isolation design:** official CLI legacy Docker backend; separate `trafficsense-local` project, four backend services and external loopback-publishing bridge. Only one-off CLI tooling receives Docker-socket access, not the app/seeder. Privileged key is passed to local seeding through stdin, not saved to the app environment. Complete runtime/persistence review remains part of Phase 1.
-- **Commit:** application/auth changes remain uncommitted pending browser verification and final review. `docs/auth.md` describes the implementation and limitations, not a claim of complete acceptance.
+- **Checkpoint decision:** the user explicitly requested committing/pushing the pending application snapshot before browser verification is complete. This changes version-control status, not feature acceptance; see the repository checkpoint entry. `docs/auth.md` describes the implementation and limitations, not a claim of complete acceptance.
 
 ## Docker setup — completed 14 Oct 2026
 

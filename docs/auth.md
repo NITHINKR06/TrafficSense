@@ -1,6 +1,6 @@
 # Local Authentication
 
-This documents the foundation for [module 1](README.md): registration, password sign-in, sign-out, roles, and organisation boundaries. Traffic reporting, journeys, sharing, maps, and analytics are separate work. [Implementation Phase 1](implementation.md#phase-1--finish-authentication-verification) defines completion checks; actual verification and outstanding failures belong in [progress.md](../progress.md). These run instructions are not a claim that every acceptance check has passed.
+This documents the foundation for [module 1](README.md): registration, password sign-in, sign-out, roles, and organisation boundaries. Traffic reporting, journeys, sharing, maps, and analytics are separate work. [Implementation Phase 1](implementation.md#phase-1--finish-authentication-verification) defines completion checks; actual verification and outstanding failures belong in [progress.md](progress.md). These run instructions are not a claim that every acceptance check has passed.
 
 ## Start the local demo
 

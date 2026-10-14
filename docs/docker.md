@@ -79,6 +79,6 @@ docker compose --profile production down
 - Development bind mounts differ from image contents: local `.env.local` and ignored files are visible to the development process. Keep credentials untracked and never print or publish them.
 - Compose loads optional `.env.local` into development and production-preview runtime environments. Recreate containers after environment changes. Runtime injection is not permission to bake secrets into images or expose privileged keys through `NEXT_PUBLIC_*`.
 - [Local authentication](auth.md) documents the separate Supabase stack and bridge. Only its one-off CLI tooling receives the Docker socket; normal app and seeder requests do not. Hosted configuration needs separate security checks.
-- Dependency advisory history and actual verification are tracked in [progress.md](../progress.md). Containerisation does not fix vulnerabilities.
+- Dependency advisory history and actual verification are tracked in [progress.md](progress.md). Containerisation does not fix vulnerabilities.
 
 First image builds need network access for the Node image, pnpm and packages. The starter also fetches its Google fonts at build time. Report connectivity failures rather than disabling TLS verification or substituting a different app silently.

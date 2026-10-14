@@ -3,6 +3,7 @@
 FROM node:24-bookworm-slim AS dependencies
 
 ENV COREPACK_HOME=/opt/corepack \
+    npm_config_store_dir=/home/node/.local/share/pnpm/store \
     NEXT_TELEMETRY_DISABLED=1
 
 WORKDIR /app
@@ -12,7 +13,8 @@ RUN corepack enable \
 
 USER node
 COPY --chown=node:node package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN corepack install && pnpm install --frozen-lockfile
+RUN --mount=type=cache,id=trafficsense-pnpm,target=/home/node/.local/share/pnpm/store,uid=1000,gid=1000 \
+    corepack install && pnpm install --frozen-lockfile --fetch-timeout 600000
 
 FROM dependencies AS development
 COPY --chown=node:node . .
@@ -35,3 +37,6 @@ COPY --from=builder --chown=node:node /app/.next/static ./.next/static
 USER node
 EXPOSE 3000
 CMD ["node", "server.js"]
+
+FROM development AS supabase-tools
+COPY --from=docker:28.5.2-cli /usr/local/bin/docker /usr/local/bin/docker

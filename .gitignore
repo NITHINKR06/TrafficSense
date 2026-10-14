@@ -11,6 +11,7 @@ Thumbs.db
 
 # Dependencies and generated application/test output
 node_modules/
+.pnpm-store/
 .next/
 .next-*/
 out/

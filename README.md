@@ -4,9 +4,9 @@ A traffic web project built around **REPORT → VERIFY → ALERT → ANALYSE**: 
 
 ## Start here
 
-- [Project plan](plan.md): scope, design decisions, contracts and acceptance targets.
+- [Project plan](docs/plan.md): scope, design decisions, contracts and acceptance targets.
 - [Phase-wise implementation plan](docs/implementation.md): build order, dependencies and exit checks.
-- [Progress](progress.md): actual implementation, verification, blockers and commit records.
+- [Progress](docs/progress.md): actual implementation, verification, blockers and commit records.
 - [Source coverage](docs/README.md): seven modules mapped to the [original product brief](docs/Traffic_JAM.pdf), which is not confirmed event rules.
 - [Supplied UI reference](docs/design/trafficsense/README.md): screenshot, HTML and design specification, with adaptation constraints.
 
@@ -37,4 +37,4 @@ The first command runs unit tests, lint, route types, TypeScript and build check
 
 Work sequentially for one active human with AI assistance, completing verified phases rather than promising an unconfirmed date. Consult progress for current readiness; a planned screen or test file is not a passing feature. Optional work and explicit scope gaps are defined in the plan.
 
-Start AI work with [AGENTS.md](AGENTS.md) and [the root rules](ai/ai_agent_root_rules.md). Use tests first, meaningful browser interaction across shared-state pages, desktop/mobile checks, user review and scoped local commits. Push only on explicit request. Actual task results belong in `progress.md`, never in either planning document.
+Start AI work with [AGENTS.md](AGENTS.md) and [the root rules](ai/ai_agent_root_rules.md). Use tests first, meaningful browser interaction across shared-state pages, desktop/mobile checks, user review and scoped local commits. Push only on explicit request. Actual task results belong in `docs/progress.md`, never in either planning document.

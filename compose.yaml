@@ -6,6 +6,10 @@ services:
       context: .
       target: development
     init: true
+    networks: [default, supabase]
+    env_file:
+      - path: .env.local
+        required: false
     ports:
       - "127.0.0.1:${APP_PORT:-3000}:3000"
     volumes:
@@ -26,7 +30,7 @@ services:
       context: .
       target: development
     init: true
-    command: ["sh", "-c", "pnpm lint && pnpm exec next typegen && pnpm exec tsc --noEmit && pnpm build"]
+    command: ["sh", "-c", "pnpm test && pnpm lint && pnpm exec next typegen && pnpm exec tsc --noEmit && pnpm build"]
 
   production:
     profiles: ["production"]
@@ -34,6 +38,10 @@ services:
       context: .
       target: production
     init: true
+    networks: [default, supabase]
+    env_file:
+      - path: .env.local
+        required: false
     ports:
       - "127.0.0.1:${PRODUCTION_PORT:-3001}:3000"
     healthcheck:
@@ -42,6 +50,46 @@ services:
       timeout: 5s
       start_period: 20s
       retries: 5
+
+  supabase:
+    profiles: ["tools"]
+    build:
+      context: .
+      target: supabase-tools
+    init: true
+    network_mode: host
+    group_add: ["${DOCKER_GID:-65534}"]
+    environment:
+      DOCKER_HOST: unix:///var/run/docker.sock
+      SUPABASE_EXPERIMENTAL_STACK: "0"
+      SUPABASE_SERVICES_HOSTNAME: "127.0.0.1"
+      SUPABASE_NETWORK_ID: trafficsense_supabase
+      TMPDIR: ${PWD}/supabase/.temp
+    working_dir: ${PWD}
+    volumes:
+      - .:${PWD}
+      - /var/run/docker.sock:/var/run/docker.sock
+    entrypoint: ["node", "/app/scripts/supabase-tool.mjs"]
+
+  demo:
+    profiles: ["tools"]
+    build:
+      context: .
+      target: development
+    init: true
+    networks: [supabase]
+    env_file:
+      - path: .env.local
+        required: false
+    working_dir: /workspace
+    volumes:
+      - .:/workspace
+    command: ["node", "/app/scripts/seed-demo.mjs"]
+
+networks:
+  supabase:
+    external: true
+    name: trafficsense_supabase
 
 volumes:
   dependencies:

@@ -5,10 +5,10 @@
 **TrafficSense Mangaluru** is a bounded web demonstration of **REPORT → VERIFY → ALERT → ANALYSE**: explain road disruptions with visible evidence, help commuters avoid affected roads, support consent-based employer visibility, and identify recurring problems for investigation.
 
 - This file holds scope, design decisions, proposed contracts, acceptance targets and research assumptions.
-- [docs/implementation.md](docs/implementation.md) holds the detailed phase-wise implementation plan, dependencies and exit checks.
+- [docs/implementation.md](implementation.md) holds the detailed phase-wise implementation plan, dependencies and exit checks.
 - [progress.md](progress.md) is the sole record of implementation status, actual blockers, verification results, review and commit history.
-- [Source coverage](docs/README.md) maps the seven recommended modules to the unchanged [original PDF](docs/Traffic_JAM.pdf).
-- [Design reference](docs/design/trafficsense/README.md) identifies the supplied UI and the rules for adapting it honestly.
+- [Source coverage](README.md) maps the seven recommended modules to the unchanged [original PDF](Traffic_JAM.pdf).
+- [Design reference](design/trafficsense/README.md) identifies the supplied UI and the rules for adapting it honestly.
 
 Plan sequentially for one active human builder with AI assistance, using verified phases rather than fixed-day promises. Confirm any event deadline, daily capacity and submission rules before scheduling a release. The PDF is an AI-generated employer-informed product brief, not confirmed event rules or independently verified research.
 
@@ -39,7 +39,7 @@ A signed **Delay Receipt** is a planned extension to verification and employer s
 
 Use the supplied TrafficSense Mangaluru screenshot/HTML as the visual baseline: pale lavender surface, white cards, teal actions, violet simulation labels, structured navigation, split hero, feature cards and role sections. Use Plus Jakarta Sans headings, Inter interface text and JetBrains Mono technical details.
 
-The [reference README](docs/design/trafficsense/README.md) governs differences between the screenshot, HTML and design-spec prose. Adapt to mobile with readable labels, accessible focus, keyboard operation, text/icons alongside colour and minimum 44px controls. User review is required for material deviations.
+The [reference README](design/trafficsense/README.md) governs differences between the screenshot, HTML and design-spec prose. Adapt to mobile with readable labels, accessible focus, keyboard operation, text/icons alongside colour and minimum 44px controls. User review is required for material deviations.
 
 The template is a visual reference, not functional or verified behavior. Replace placeholder links with implemented actions or explicitly unavailable states. Its map image is not an interactive map, and sample certificates/statistics are not real results. Correct unsupported privacy/security claims while preserving the design. Keep the main traffic goal prominent rather than presenting a receipt-only product.
 
@@ -163,7 +163,7 @@ Use deterministic unit tests, real persistence/policy tests and end-to-end brows
 | Privacy/retention/account policy | Approve/enforce before real data or public account use |
 | Event deadline/timezone/rubric/pre-work/AI disclosure | Confirm before promising submission; product brief is not event rules |
 
-User owns employer/event communication, access, final review and submission. AI implements bounded tasks under [the implementation workflow](docs/implementation.md#rules-for-every-implementation-task). No implicit authorization to push, deploy to an unknown target, collect personal data or contact outsiders.
+User owns employer/event communication, access, final review and submission. AI implements bounded tasks under [the implementation workflow](implementation.md#rules-for-every-implementation-task). No implicit authorization to push, deploy to an unknown target, collect personal data or contact outsiders.
 
 ## Research and cost assumptions
 
@@ -198,4 +198,4 @@ Earlier illustrative routing cost assumed 24,200 monthly calls and third-party p
 
 Demonstrate, in order: report and evidence; scripted duplicate attack; relevant alternative alert; explicit commuter sharing and employer stop/end; consistent hotspot/monthly history; optional receipt preview/verification/revocation. Explain simulated data and evidence limits throughout. Prepare a short narrative rather than promising unmeasured benefits.
 
-Release requires the applicable checks in [Phase 9](docs/implementation.md#phase-9--regression-release-and-handoff), user review and reproducible setup. Hosted acceptance needs authorized deployment and deployed browser tests. Confirm any event artefacts and deadline before scheduling submission; preserve a recovery buffer rather than starting new features immediately before it.
+Release requires the applicable checks in [Phase 9](implementation.md#phase-9--regression-release-and-handoff), user review and reproducible setup. Hosted acceptance needs authorized deployment and deployed browser tests. Confirm any event artefacts and deadline before scheduling submission; preserve a recovery buffer rather than starting new features immediately before it.

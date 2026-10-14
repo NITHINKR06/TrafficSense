@@ -20,3 +20,6 @@ next-env.d.ts
 *.log
 .DS_Store
 Thumbs.db
+supabase/.temp
+supabase/.branches
+.pnpm-store

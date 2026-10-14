@@ -12,7 +12,7 @@ The brief's four pillars are **REPORT → VERIFY → ALERT → ANALYSE** (page 1
 
 ## Recommended MVP traceability
 
-The PDF recommends seven modules on page 12. The following maps them to the bounded scope in [plan.md](../plan.md) and phases in [implementation.md](implementation.md). This is a scope/acceptance reference; actual implementation and verification belong in [progress.md](../progress.md).
+The PDF recommends seven modules on page 12. The following maps them to the bounded scope in [plan.md](plan.md) and phases in [implementation.md](implementation.md). This is a scope/acceptance reference; actual implementation and verification belong in [progress.md](progress.md).
 
 | Recommended module | Source pages / sections | Planned demonstration | Acceptance reference |
 | --- | --- | --- | --- |
@@ -38,4 +38,4 @@ The PDF recommends seven modules on page 12. The following maps them to the boun
 
 Before implementing a task, identify its module above and its acceptance checks in the plan. Before removing or expanding a module, obtain user approval and update the plan's scope and decisions with the reason, remaining gap, and effect on the demo. The PDF remains unchanged; scope decisions belong in the plan.
 
-[plan.md](../plan.md) holds scope, contracts and acceptance targets; [implementation.md](implementation.md) holds detailed phases; [progress.md](../progress.md) alone holds task updates, actual blockers, verification results and commit records. Use verified phases; confirm any deadline, event requirements and employer feedback rather than infer them from this brief. Do not describe planned, simulated, deferred or partially covered behavior as implemented real-world functionality.
+[plan.md](plan.md) holds scope, contracts and acceptance targets; [implementation.md](implementation.md) holds detailed phases; [progress.md](progress.md) alone holds task updates, actual blockers, verification results and commit records. Use verified phases; confirm any deadline, event requirements and employer feedback rather than infer them from this brief. Do not describe planned, simulated, deferred or partially covered behavior as implemented real-world functionality.

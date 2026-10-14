@@ -10,7 +10,7 @@ These files are reference-only and intentionally preserved, including unsupporte
 
 ## Adaptation rules
 
-Follow [project scope](../../../plan.md) and [implementation Phase 2](../../implementation.md#phase-2--integrate-the-supplied-responsive-ui). The screenshot and HTML establish the visual target where specification token tables and prose differ; resolve reusable tokens deliberately rather than mixing conflicting values.
+Follow [project scope](../../plan.md) and [implementation Phase 2](../../implementation.md#phase-2--integrate-the-supplied-responsive-ui). The screenshot and HTML establish the visual target where specification token tables and prose differ; resolve reusable tokens deliberately rather than mixing conflicting values.
 
 Preserve the pale lavender/white surfaces, teal actions, violet simulation labels, typography hierarchy, split hero, feature cards and role sections. Build responsive React components in the existing toolchain, adapting the desktop reference for mobile and keyboard interaction. Keep labels legible, focus visible and controls at least 44px. Validate contrast instead of assuming the specification's WCAG claims.
 
