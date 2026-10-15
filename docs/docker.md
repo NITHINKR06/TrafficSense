@@ -27,7 +27,7 @@ The container runs as the image's `node` user (UID/GID 1000/1000), matching the 
 docker compose run --build --rm checks
 ```
 
-This runs authentication unit tests, ESLint, Next.js route-type generation, TypeScript checking and a production build in a fresh one-off container. It uses an image snapshot of current source and does not share the running app's dependency/build volumes. The checks container cannot overwrite the dev server's `.next` output.
+This runs authentication, traffic fixture and simulator-command unit tests, ESLint, Next.js route-type generation, TypeScript checking and a production build in a fresh one-off container. It uses an image snapshot of current source and does not share the running app's dependency/build volumes. The checks container cannot overwrite the dev server's `.next` output.
 
 Individual commands against the running development container:
 
@@ -37,7 +37,7 @@ docker compose exec app pnpm audit --prod
 docker compose exec app sh
 ```
 
-Run `bash scripts/local-supabase.sh test` for real authentication and database-policy integration tests after starting and seeding the backend. Container health is a readiness check, not proof that user flows work; browser verification is still required. The browser runner is documented in [local authentication](auth.md).
+Run `bash scripts/local-supabase.sh test` for real authentication and database-policy integration tests after starting and seeding the backend. Run `bash scripts/local-supabase.sh test-traffic` separately for synthetic traffic persistence and authorization. See [local synthetic traffic](traffic.md) for scenario/reset commands and data contracts. Container health is a readiness check, not proof that user flows work; browser verification is still required. The browser runner is documented in [local authentication](auth.md).
 
 ## Dependencies
 
