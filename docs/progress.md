@@ -8,6 +8,8 @@
 
 ## Phase 4 — report grouping and source evidence verified locally, 15 Oct 2026
 
+- **Local commit:** `678ba1e` — `feat(evidence): add verified directed report source assessments`. Includes the verification record below. No push performed.
+
 - **Approval/scope:** user said “proceed” after the reporting slice and approved the next plan. Implement current directed-segment report groups and rolling-window distinct-source evidence for modules 3/4 and shared module 2 display. No persistent incident episodes, slowdown support, recovery/clearance, delay, alerts, journeys or receipts; simulated manual reports remain unconfirmed.
 - **Approved privacy boundary:** permit a dedicated read-only, non-login, non-owner, non-RLS-bypassing database role to reduce private report/source relationships to fixed public aggregate counts. No reporter IDs, hashes, owner IDs, request payloads, Auth/profile reads or application service key. Keep a single statement snapshot, with no caller-controlled source/clock arguments.
 - **Branch/acceptance:** start `feat/phase-4-report-evidence` from verified `871e863` plus its progress record. Write deterministic contract/boundary tests and real database privacy/concurrency/expiry tests before implementation. Verify repeated-source versus three-source scenarios, exact rolling windows, delayed/expired assessments, all shared map/list/details, ordinary reporting/auth and isolated failures in development/production Chromium at desktop/mobile/narrow widths. Review and locally commit only after passing; do not push.
