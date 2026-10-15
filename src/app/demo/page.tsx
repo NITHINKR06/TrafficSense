@@ -17,10 +17,10 @@ export default function GuestDemoPage() {
       <div className="panel section-space">
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-primary"></span>
-          <h2 className="text-lg font-bold text-on-surface m-0">Public traffic features — planned</h2>
+          <h2 className="text-lg font-bold text-on-surface m-0">Synthetic traffic corridor</h2>
         </div>
         <p className="text-sm mt-2 text-on-surface-variant">
-          Traffic maps, incident details, and relevant route alerts will be available to browse without signing in. These features are not implemented yet; this page does not show live traffic.
+          Browse directed segments, synthetic samples and an optional background map without signing in. The corridor uses schematic geometry and assumed baselines, not live traffic. Incident reporting and relevant route alerts remain planned.
         </p>
 
         <div className="pt-4 mt-4 border-t border-surface-container-high">
@@ -38,6 +38,7 @@ export default function GuestDemoPage() {
       </div>
 
       <div className="actions section-space">
+        <Link className="button" href="/traffic">Browse synthetic traffic</Link>
         <Link className="button secondary" href="/login">Sign in — optional</Link>
         <Link className="button secondary" href="/register">Create an account — optional</Link>
         <Link href="/">Return home</Link>

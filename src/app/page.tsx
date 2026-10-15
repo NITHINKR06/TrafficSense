@@ -25,7 +25,7 @@ export default function Home() {
             <p className="eyebrow">Report → Verify → Alert → Analyse</p>
             <h2 id="features-title">Traffic information, with its limits in view</h2>
           </div>
-          <p>Accounts and protected organisation access work today. The traffic features below are planned, not available services.</p>
+          <p>Browse the synthetic corridor and optional map without an account. Reporting, route alerts and analysis below remain planned.</p>
         </div>
         <div className="cards-grid">
           <article className="value-card" data-feature="evidence">
@@ -50,7 +50,7 @@ export default function Home() {
             <div className="feature-detail">
               <p className="detail-label">Planned route comparison</p>
               <dl className="preview-facts">
-                <div><dt>Traffic inputs</dt><dd>Not connected</dd></div>
+                <div><dt>Comparison inputs</dt><dd>Not connected</dd></div>
                 <div><dt>Estimated savings</dt><dd>Unavailable</dd></div>
                 <div><dt>Route alerts</dt><dd>Not implemented</dd></div>
               </dl>

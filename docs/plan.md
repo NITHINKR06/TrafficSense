@@ -58,7 +58,7 @@ The template is a visual reference, not functional or verified behavior. Replace
 | Application | One Next.js App Router application, TypeScript and Tailwind; no extra backend framework |
 | Runtime/package manager | Docker-only development, package commands and checks; pinned pnpm and sole `pnpm-lock.yaml` |
 | Auth/data | Supabase Auth/Postgres, migrations, RLS and server authorization; local Docker for development |
-| Map | MapLibre with a policy-compliant OSM-derived tile source; check attribution, coverage, quotas and key handling |
+| Map | Pinned MapLibre with opt-in OpenFreeMap Liberty background tiles; first-party renderer/worker, permanent OpenMapTiles/OpenStreetMap attribution, no keys or offline downloads; list remains usable without WebGL or provider access |
 | Routes/data | Deterministic corridor, segment/direction matching, synthetic scenarios and one precomputed alternative |
 | State | Shared server-derived evidence/lifecycle/consent/history rules; explicit refresh allowed; no stale private data after account changes |
 | Receipts | Proposed server-side Ed25519 canonical payload/version and protected keys; implement only with full validity/access checks |
@@ -69,6 +69,14 @@ Define schemas just before each feature, not a large speculative database upfron
 The client submits observations, never trusted identity, roles, corroboration, delay or validity. The server validates input, derives decisions, enforces current permissions and persists before showing success. Use database constraints/transactions for concurrent mutations and retries. Normal application requests use policies, not privileged-key bypasses.
 
 Map, list, details, alerts and receipt eligibility share incident/evidence rules. Employer list/detail reads share current consent and recipient rules. Hotspots/monthly totals share dated history. Store timestamps in UTC and explicitly define Asia/Kolkata display/analytics windows. Enforce freshness/expiry on reads even if scheduled cleanup is late.
+
+### Public synthetic corridor contract
+
+`/demo` remains a configuration-independent introduction linking to `/traffic`. The public traffic route reads only the owned synthetic corridor through one stable, security-invoker database snapshot; it never reads account cookies or starts an Auth session. The response contains explicit allowlisted fields and a database read timestamp. Invalid, denied, unavailable, unconfigured and empty data are distinct from a healthy snapshot.
+
+One `?segment=` value controls list selection, map highlight and details, including direct links, history and refresh. Unknown, empty or duplicate IDs are explicit rather than silently replaced. Display UTC observations in Asia/Kolkata. Samples are recent only when their age is nonnegative and below twenty minutes; future and missing samples remain separate states. Refreshing does not change stored observation times. Scenario names are not congestion evidence.
+
+Loading the optional background map requires an explicit action after an external-network privacy notice. Map failure must preserve the list/details and expose retry; hiding/unmounting releases map resources. No location request, navigation, incident cause, evidence promotion, delay calculation or route recommendation belongs to this foundation. Acceptance includes desktop/mobile keyboard and pointer selection, provider style/tile success and failure/retry, WebGL denial, backend outage/recovery, empty/stale/future/missing observations, public browsing during Auth failure and preservation of existing account sessions.
 
 ## Evidence and lifecycle contract
 

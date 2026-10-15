@@ -1,0 +1,41 @@
+.explorer { display: grid; gap: 1.5rem; min-width: 0; }
+.summary { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; }
+.summary > div { min-width: 0; }
+.timestamp { font-size: 0.85rem; overflow-wrap: anywhere; }
+.grid { display: grid; grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.7fr); gap: 1.5rem; align-items: start; }
+.list ul { list-style: none; padding: 0; display: grid; gap: 0.75rem; }
+.list a { display: grid; gap: 0.3rem; border: 1px solid var(--outline-variant); border-radius: 0.75rem; padding: 1rem; text-decoration: none; overflow-wrap: anywhere; }
+.list a span { font-size: 0.8rem; color: var(--on-surface-variant); }
+.list a[aria-current="true"] { border: 2px solid var(--primary); padding: calc(1rem - 1px); background: var(--surface-container-low); }
+.rightColumn { min-width: 0; display: grid; gap: 1.5rem; }
+.mapPanel { min-width: 0; }
+.mapConsent { display: grid; justify-items: start; gap: 0.75rem; }
+.mapConsent p { margin-bottom: 0; }
+.mapConsent a { display: inline-flex; align-items: center; min-height: 44px; }
+.mapRegion { min-width: 0; margin-top: 1rem; }
+.mapCanvas { height: 420px; width: 100%; border: 1px solid var(--outline-variant); border-radius: 0.75rem; overflow: hidden; }
+.mapCanvas :global(.maplibregl-ctrl-group) button { width: 44px; height: 44px; }
+.mapCanvas :global(.maplibregl-ctrl-group) button:focus-visible { outline: 3px solid var(--primary); outline-offset: -3px; }
+.marker { width: 44px; height: 44px; border: 2px solid var(--primary); border-radius: 50%; background: white; color: var(--primary); font-weight: 800; box-shadow: 0 2px 6px #131b2e33; }
+.marker[aria-pressed="true"] { background: var(--primary); color: white; border: 3px solid white; box-shadow: 0 0 0 3px var(--on-surface); z-index: 1; }
+.marker:focus-visible { outline: 3px solid var(--tertiary); outline-offset: 4px; }
+.attribution { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; font-size: 0.8rem; }
+.attribution a { display: inline-flex; align-items: center; min-height: 44px; overflow-wrap: anywhere; }
+.facts { display: grid; gap: 0.75rem; }
+.facts div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 1rem; }
+.facts dt { color: var(--on-surface-variant); }
+.facts dd { margin: 0; overflow-wrap: anywhere; }
+.samples { list-style: none; padding: 0; display: grid; gap: 0.75rem; }
+.samples li { display: flex; justify-content: space-between; gap: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--outline-variant); }
+.samples span { overflow-wrap: anywhere; }
+.samples strong { white-space: nowrap; }
+@media (max-width: 800px) {
+  .grid { grid-template-columns: minmax(0, 1fr); }
+  .summary { flex-direction: column; }
+  .mapCanvas { height: 360px; }
+}
+@media (max-width: 400px) {
+  .facts div { grid-template-columns: minmax(0, 1fr); gap: 0.2rem; }
+  .samples li { flex-direction: column; gap: 0.25rem; }
+  .mapCanvas { height: 320px; }
+}

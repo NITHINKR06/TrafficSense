@@ -14,7 +14,7 @@ bash scripts/local-supabase.sh simulate slowdown 2026-10-15T04:00:00.000Z
 bash scripts/local-supabase.sh simulate reset
 ```
 
-The default anchor is **2026-10-15T04:00:00.000Z**, never the machine's current clock. An explicit anchor must be a canonical millisecond UTC timestamp in 2000–2099. Fixed historical timestamps must not be presented as fresh traffic; future readers must show freshness against their own defined clock. Reset removes this corridor and its dependent synthetic rows, not accounts, organisations or unrelated corridors. Replacement and reset serialize through a transaction lock; a failed replacement rolls back to the previous dataset. Separate HTTP reads can cross a replacement boundary; future multi-table readers must use a consistent snapshot or detect/retry changed data.
+The default anchor is **2026-10-15T04:00:00.000Z**, never the machine's current clock. An explicit anchor must be a canonical millisecond UTC timestamp in 2000–2099. Fixed historical timestamps are not fresh traffic. The public reader compares observation times with its database read timestamp, then advances freshness in an open page every thirty seconds. Reset removes this corridor and its dependent synthetic rows, not accounts, organisations or unrelated corridors. Replacement and reset serialize through a transaction lock; a failed replacement rolls back to the previous dataset. Separate HTTP reads can cross a replacement boundary; `read_traffic_demo()` returns the public fields and `read_at` in one stable, security-invoker SQL statement instead.
 
 The command requires `DEMO_MODE=true`, the exact internal local Supabase URL and local CLI status supplied through stdin. Privileged keys remain in the process, never command arguments or output. Requests have a 15-second deadline. A timeout or transport failure leaves the outcome unknown; inspect the dataset before retrying rather than assuming rollback. Database functions require the service role; even the signed-in demo admin cannot call them. There is no browser simulation/reset endpoint. A future browser control requires server-enforced demo mode **and** admin authorization, with separate tests.
 
@@ -29,6 +29,16 @@ The command requires `DEMO_MODE=true`, the exact internal local Supabase URL and
 - Observations store km/h, UTC time and simulated provenance. Composite foreign keys bind each sample to its corridor, segment, source and anchor; unique keys reject duplicates. Geometry, baseline, speed, direction and time-window constraints reject malformed data.
 - All rows are public synthetic demonstration material. Never put private journeys, account identities, real GPS observations or reported incident evidence into these tables. Later private data needs separate schemas and authorization. Replacement retains only one synthetic scenario, not historical analytics.
 
+## Public browsing and optional map
+
+Open `/demo` and choose **Browse synthetic traffic**, or open `/traffic` directly. A single `?segment=` parameter selects the same directed segment in the accessible list, details and optional map. Browser history and refresh preserve the selected ID; invalid or duplicate selections are explicit. Data refresh rereads the database but does not generate samples or change their timestamps. No sign-in, anonymous Auth session, location permission or private-table access is needed.
+
+The stored scenario is separate from sample freshness. Timestamps display in **Asia/Kolkata**. Samples at least twenty minutes old are stale; future-dated and missing samples have their own labels. Baselines and geometry are assumptions. Colours identify routes/direction, not congestion severity; synthetic sources are not independent witnesses. No incident cause, corroboration, traversal delay or savings is calculated.
+
+**Load map** opts into external requests to OpenFreeMap and its delivery providers, following a privacy notice. MapLibre GL JS 6.14.0, CSS and the worker are bundled with the app; no runtime script CDN or API key is used. The Liberty background uses OpenStreetMap/OpenMapTiles data. Attribution remains below the canvas at narrow widths; `/map-notices.txt` contains the renderer license and provider/data/style notices. Provider terms and privacy are linked there. No offline/bulk download is implemented. The service has no uptime guarantee; failed provider requests or unavailable WebGL show **Retry map** while the list/details remain usable. **Hide map** releases map resources.
+
+Unconfigured, unavailable/denied, invalid and empty backend responses never substitute hardcoded healthy data. The static home/guest introduction remains available independently. Simulator commands are operator-only local tools, never public browser actions.
+
 ## Verification commands
 
 ```bash
@@ -37,4 +47,17 @@ bash scripts/local-supabase.sh test
 bash scripts/local-supabase.sh test-traffic
 ```
 
-Seed local demo accounts before integration tests. The traffic suite exercises public reads, all account roles, denied writes/functions, rollback, concurrent replacement and scoped reset; it restores any prior owned fixture and removes its unrelated sentinel. Run it serially with other traffic mutations and account-changing tests. Browser map/list, provider-failure and evidence acceptance belong to their respective later slices, not these data checks.
+Seed local demo accounts before integration tests. The traffic suite exercises public reads, all account roles, denied writes/functions, rollback, concurrent replacement and scoped reset; it restores any prior owned fixture and removes its unrelated sentinel. Run it serially with other traffic mutations and account-changing tests. Database checks do not replace browser or later evidence acceptance.
+
+With the local Chromium debugger on port 9333 (see [authentication browser setup](auth.md)), run the traffic browser suite separately for development and a rebuilt production preview:
+
+```bash
+export DOCKER_GID="$(stat -c '%g' /var/run/docker.sock)"
+docker compose run --rm -T supabase status --output json | docker run --rm -i --network host --user 1000:1000 \
+  --mount type=bind,src="$PWD",dst=/workspace --workdir /workspace \
+  -e APP_URL=http://127.0.0.1:3000 -e TRAFFIC_NARROW=true \
+  trafficsense-demo node tests/traffic-browser.mjs
+bash scripts/local-supabase.sh test-browser-recovery
+```
+
+Use port 3001 for production. The traffic suite uses real CDP pointer/keyboard input, network completion checks, provider style/tile blocking and WebGL denial; default widths are 1440/390px and `TRAFFIC_NARROW=true` adds 320px. It replaces/resets the owned synthetic fixture during checks and restores the prior fixture in cleanup. Run serially with database mutations. Screenshots stay in ignored `supabase/.temp/browser`; account forms are not captured. The recovery runner includes traffic database/Auth failures on isolated ports 3002/3003 and unconfigured browsing on 3004/3005, then removes those test services.

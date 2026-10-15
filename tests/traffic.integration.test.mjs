@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
 import { createTrafficFixture, DEMO_CORRIDOR_ID } from "../src/lib/traffic/simulator.ts";
+import { parseTrafficSnapshot } from "../src/lib/traffic/snapshot.ts";
 import { internalSupabaseUrl, readLocalStatus } from "../scripts/local-status.mjs";
 
 assert.equal(process.env.DEMO_MODE, "true");
@@ -36,6 +37,39 @@ async function readFixture(client = service, id = DEMO_CORRIDOR_ID) {
   }
   return result;
 }
+function orderedFixture(value) {
+  const result = structuredClone(value);
+  result.corridor.anchor_at = new Date(result.corridor.anchor_at).toISOString();
+  for (const row of result.observations) row.observed_at = new Date(row.observed_at).toISOString();
+  const stableJson = row => JSON.stringify(row, (_key, item) => item && typeof item === "object" && !Array.isArray(item)
+    ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item);
+  for (const key of Object.keys(tables)) result[key].sort((a, b) => stableJson(a).localeCompare(stableJson(b)));
+  return result;
+}
+
+async function readSnapshot(client = publicClient()) {
+  const started = Date.now();
+  const response = await client.rpc("read_traffic_demo");
+  assert.equal(response.error, null, "public snapshot RPC must succeed");
+  assert.deepEqual(Object.keys(response.data).sort(), ["fixture", "read_at"]);
+  const readAt = Date.parse(response.data.read_at);
+  assert.ok(Number.isFinite(readAt) && readAt >= started - 1000 && readAt <= Date.now() + 1000, "snapshot uses the current database statement clock");
+  const parsed = parseTrafficSnapshot(response.data);
+  assert.equal(parsed.read_at, new Date(response.data.read_at).toISOString());
+  const value = response.data.fixture;
+  if (value === null) return response.data;
+  assert.deepEqual(orderedFixture(parsed.fixture), orderedFixture(value));
+  assert.deepEqual(Object.keys(value).sort(), Object.keys(fixture).sort());
+  assert.deepEqual(Object.keys(value.corridor).sort(), Object.keys(fixture.corridor).sort());
+  for (const key of Object.keys(tables)) {
+    for (const row of value[key]) assert.deepEqual(Object.keys(row).sort(), Object.keys(fixture[key][0]).sort(), `${key} must retain the explicit public field allowlist`);
+  }
+  assert.equal(value.corridor.id, DEMO_CORRIDOR_ID, "unrelated corridors must never enter the snapshot");
+  assert.equal(value.corridor.provenance, "simulated");
+  assert.deepEqual(orderedFixture(value), orderedFixture(createTrafficFixture(value.corridor.scenario, new Date(value.corridor.anchor_at).toISOString())), "a read must contain one complete scenario, never mixed generations");
+  return response.data;
+}
+
 async function authSnapshot() {
   const users = await service.auth.admin.listUsers({ page: 1, perPage: 1000 });
   assert.equal(users.error, null);
@@ -92,6 +126,13 @@ test("anonymous traffic reads contain only public synthetic fields and create no
   assert.ok(privateRows.error || privateRows.data.length === 0);
 });
 
+test("public and service snapshots expose only the fixed owned fixture without an auth session", async () => {
+  const client = publicClient();
+  assert.equal((await readSnapshot(client)).fixture.observations.length, 180);
+  assert.equal((await readSnapshot(service)).fixture.observations.length, 180);
+  assert.equal((await client.auth.getSession()).data.session, null);
+});
+
 test("all account roles and anonymous clients can read but cannot write or run simulator RPCs", async () => {
   const clients = [publicClient()];
   try {
@@ -103,6 +144,7 @@ test("all account roles and anonymous clients can read but cannot write or run s
     }
     for (const client of clients) {
       assert.equal((await readFixture(client)).observations.length, 180);
+      assert.equal((await readSnapshot(client)).fixture.observations.length, 180);
       for (const table of ["demo_traffic_corridors", ...Object.values(tables)]) {
         const response = await service.from(table).select("*").limit(1).single();
         assert.equal(response.error, null);
@@ -187,6 +229,31 @@ test("concurrent replacements yield one complete fixture and scoped reset preser
     }
   }
   assert.deepEqual(await readFixture(service, sentinel), unrelatedBefore);
+  await replace();
+});
+
+test("snapshot returns null after reset and stays atomic during same-anchor replacements and resets", async () => {
+  const unrelatedBefore = await readFixture(service, sentinel);
+  assert.equal((await service.rpc("reset_traffic_demo")).error, null);
+  for (const client of [publicClient(), service]) assert.equal((await readSnapshot(client)).fixture, null);
+  await replace();
+  for (let round = 0; round < 12; round++) {
+    const operations = [
+      readSnapshot(),
+      replace(createTrafficFixture("normal", fixture.corridor.anchor_at)),
+      readSnapshot(), readSnapshot(service),
+      replace(createTrafficFixture("recovery", fixture.corridor.anchor_at)),
+      readSnapshot(),
+      service.rpc("reset_traffic_demo").then(result => assert.equal(result.error, null)),
+      readSnapshot(),
+      replace(),
+      readSnapshot(),
+    ];
+    const results = await Promise.allSettled(operations);
+    for (const result of results) if (result.status === "rejected") throw result.reason;
+  }
+  assert.deepEqual(await readFixture(service, sentinel), unrelatedBefore);
+  assert.deepEqual(await authSnapshot(), authBefore);
   await replace();
 });
 

@@ -47,12 +47,20 @@ case "${1:-}" in
         --mount type=bind,src="$PWD",dst=/workspace --workdir /workspace \
         -e APP_URL="http://127.0.0.1:$port" -e BROWSER_SCENARIO=recovery \
         trafficsense-auth-recovery node tests/browser.mjs
+      "${test_compose[@]}" run --rm -T supabase status --output json | docker run --rm -i --network host --user 1000:1000 \
+        --mount type=bind,src="$PWD",dst=/workspace --workdir /workspace \
+        -e APP_URL="http://127.0.0.1:$port" -e TRAFFIC_FAULTS=true \
+        trafficsense-auth-recovery node tests/traffic-browser.mjs
     done
     for port in 3004 3005; do
       docker run --rm --network host --user 1000:1000 \
         --mount type=bind,src="$PWD",dst=/workspace --workdir /workspace \
         -e APP_URL="http://127.0.0.1:$port" -e BROWSER_SCENARIO=setup \
         trafficsense-auth-recovery node tests/browser.mjs
+      docker run --rm --network host --user 1000:1000 \
+        --mount type=bind,src="$PWD",dst=/workspace --workdir /workspace \
+        -e APP_URL="http://127.0.0.1:$port" -e TRAFFIC_SETUP=true \
+        trafficsense-auth-recovery node tests/traffic-browser.mjs
     done
     ;;
   stop)
