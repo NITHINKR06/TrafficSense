@@ -7,6 +7,7 @@ const base = process.env.APP_URL || "http://127.0.0.1:3000";
 const debuggerUrl = process.env.CHROMIUM_DEBUG_URL || "http://127.0.0.1:9333";
 const setupOnly = process.env.TRAFFIC_SETUP === "true";
 const testFaults = process.env.TRAFFIC_FAULTS === "true";
+const reportSuite = process.env.REPORTS_BROWSER === "true";
 assert.ok(!(setupOnly && testFaults), "Setup and fault scenarios must run separately.");
 const ports = setupOnly ? [3004, 3005] : testFaults ? [3002, 3003] : [3000, 3001];
 assert.ok(ports.some(port => base === `http://127.0.0.1:${port}`), "Use the local app ports assigned to this scenario.");
@@ -80,6 +81,10 @@ function receive({ data }) {
     const owner = sessions.get(params.sessionId);
     owner?.sessions.delete(params.sessionId);
     sessions.delete(params.sessionId);
+  }
+  if (method === "Page.javascriptDialogOpening" && page?.acceptDialog) {
+    page.acceptDialog = false;
+    page.call("Page.handleJavaScriptDialog", { accept: true }).catch(() => instrumentationErrors.push("Dialog confirmation failed."));
   }
   if (method === "Runtime.exceptionThrown") {
     exceptions.push(params.exceptionDetails.exception?.description || params.exceptionDetails.text);
@@ -158,15 +163,16 @@ function privacyProbe(noWebGL) {
   }).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ["data-map-state"], attributeOldValue: true });
 }
 
-async function createPage(width, height, { noWebGL = false, signedIn = false } = {}) {
-  const { browserContextId } = await send("Target.createBrowserContext");
+async function createPage(width, height, { noWebGL = false, signedIn = false, contextId = null } = {}) {
+  const { browserContextId } = contextId ? { browserContextId: contextId } : await send("Target.createBrowserContext");
   const page = {
-    browserContextId, width, signedIn, sessions: new Set(), requests: [], requestsById: new Map(),
+    browserContextId, ownsContext: !contextId, width, signedIn, sessions: new Set(), requests: [], requestsById: new Map(),
     blockedURLs: [], geolocationCalls: 0, unconsentedRequests: 0, mapConsent: false,
   };
   pages.add(page);
   const { targetId } = await send("Target.createTarget", { url: "about:blank", browserContextId });
   const { sessionId } = await send("Target.attachToTarget", { targetId, flatten: true });
+  page.targetId = targetId;
   page.sessionId = sessionId;
   page.sessions.add(sessionId);
   sessions.set(sessionId, page);
@@ -202,6 +208,7 @@ async function createPage(width, height, { noWebGL = false, signedIn = false } =
   page.go = path => page.navigate(() => page.call("Page.navigate", { url: `${base}${path}` }));
   page.reload = () => page.navigate(() => page.call("Page.reload"));
   page.click = async selector => {
+    await page.call("Page.bringToFront");
     await page.waitFor(`(() => {
       const element = document.querySelector(${quote(selector)});
       return element && (element.hasAttribute('data-map-segment') || Object.keys(element).some(key => key.startsWith('__reactProps$')));
@@ -218,6 +225,7 @@ async function createPage(width, height, { noWebGL = false, signedIn = false } =
     await page.call("Input.dispatchMouseEvent", { type: "mouseReleased", ...position, button: "left", clickCount: 1 });
   };
   page.button = async label => {
+    await page.call("Page.bringToFront");
     await page.waitFor(`Array.from(document.querySelectorAll('button')).filter(button => button.textContent.trim() === ${quote(label)} && !button.disabled && Object.keys(button).some(key => key.startsWith('__reactProps$'))).length === 1`, `hydrated enabled ${label} button`);
     const position = await page.evaluate(`(async () => {
       await document.fonts.ready;
@@ -231,11 +239,12 @@ async function createPage(width, height, { noWebGL = false, signedIn = false } =
     await page.call("Input.dispatchMouseEvent", { type: "mouseReleased", ...position, button: "left", clickCount: 1 });
   };
   page.key = async (key, code, windowsVirtualKeyCode) => {
+    await page.call("Page.bringToFront");
     await page.call("Input.dispatchKeyEvent", { type: "keyDown", key, code, windowsVirtualKeyCode, ...(key === "Enter" ? { text: "\r" } : {}) });
     await page.call("Input.dispatchKeyEvent", { type: "keyUp", key, code, windowsVirtualKeyCode });
   };
   page.cookies = async () => (await page.call("Network.getCookies", { urls: [base] })).cookies
-    .filter(cookie => /^(?:trafficsense-auth(?:\.\d+)?|sb-.*-auth-token(?:\.\d+)?)$/.test(cookie.name))
+    .filter(cookie => /^(?:trafficsense-(?:auth|report-guest)(?:\.\d+)?|sb-.*-auth-token(?:\.\d+)?)$/.test(cookie.name))
     .sort((a, b) => a.name.localeCompare(b.name));
   page.block = async urls => {
     page.blockedURLs = urls;
@@ -254,7 +263,8 @@ async function createPage(width, height, { noWebGL = false, signedIn = false } =
 }
 
 async function disposePage(page) {
-  await send("Target.disposeBrowserContext", { browserContextId: page.browserContextId });
+  if (page.ownsContext) await send("Target.disposeBrowserContext", { browserContextId: page.browserContextId });
+  else await send("Target.closeTarget", { targetId: page.targetId });
   for (const sessionId of page.sessions) sessions.delete(sessionId);
   pages.delete(page);
 }
@@ -268,7 +278,7 @@ async function screenshot(page, label) {
 async function privacy(page) {
   assert.equal(page.geolocationCalls, 0, "Public browsing must never call geolocation, including previous documents.");
   assert.equal(page.unconsentedRequests, 0, "No provider requests may start before Load map.");
-  if (!page.signedIn) assert.equal((await page.cookies()).length, 0, "Guest traffic browsing must not create auth cookies.");
+  if (!page.signedIn) assert.equal((await page.cookies()).filter(cookie => !page.reporting || !cookie.name.startsWith("trafficsense-report-guest")).length, 0, "Browsing must not create auth cookies; only explicit reporting may create a guest identity.");
 }
 async function withPage(width, height, options, run) {
   const page = await createPage(width, height, options);
@@ -320,7 +330,7 @@ async function samples(page, id, label, anchor) {
     assert.equal(await page.evaluate(`Array.from(document.querySelectorAll('#segment-details time')).some(time => Date.parse(time.dateTime) === ${Date.parse(anchor)})`), true, "Selected observations retain their fixture timestamp.");
     await page.text("Asia/Kolkata");
   } else {
-    assert.equal(await page.evaluate("document.querySelectorAll('#segment-details time').length"), 0, "Missing samples must not invent an observation timestamp.");
+    assert.equal(await page.evaluate("Array.from(document.querySelectorAll('#segment-details time')).filter(element => !element.closest('#segment-reports')).length"), 0, "Missing samples must not invent an observation timestamp.");
   }
   if (await page.evaluate("!!document.querySelector('[data-map-state]')")) {
     await mapState(page, "ready");
@@ -670,7 +680,16 @@ try {
   });
   socket.onmessage = receive;
   if (setupOnly) {
-    for (const [width, height] of viewports) await withPage(width, height, {}, setup);
+    for (const [width, height] of viewports) await withPage(width, height, {}, async page => {
+      await setup(page);
+      if (reportSuite) {
+        await page.go("/reports/new");
+        await page.text("Reporting is not configured");
+        await page.button("Refresh traffic data");
+        await page.text("Reporting is not configured");
+        await layout(page);
+      }
+    });
   } else {
     // Missing UI fails before reading credentials or changing the shared fixture/proxy.
     await withPage(1440, 1000, {}, async page => {
@@ -690,7 +709,11 @@ try {
       await fault("healthy");
     }
     await replace(fixture);
-    for (const [width, height] of viewports) {
+    if (reportSuite) {
+      const { runReportScenarios } = await import("./reports-browser-scenarios.mjs");
+      await runReportScenarios({ base, status, viewports, withPage, createPage, disposePage, privacy, layout, ready, selected, selectList, loadMap, mapState, refresh, replace, fixture, fault, testFaults });
+    }
+    for (const [width, height] of reportSuite ? [] : viewports) {
       let tileBlock;
       await withPage(width, height, {}, async page => { tileBlock = await happyPath(page); });
       await withPage(width, height, {}, page => blockedMap(page, "style", "*://tiles.openfreemap.org/styles/*"));

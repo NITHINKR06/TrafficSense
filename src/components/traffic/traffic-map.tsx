@@ -3,17 +3,18 @@
 import { useEffect, useRef, useState } from "react";
 import type { Map as MapInstance, Marker } from "maplibre-gl";
 import type { TrafficFixture } from "@/lib/traffic/simulator";
+import type { PublicReport } from "@/lib/reports/rules";
 import "maplibre-gl/dist/maplibre-gl.css";
 import styles from "./traffic.module.css";
 
-type MapProps = { fixture: TrafficFixture; selectedId: string | null; onSelect: (id: string) => void };
+type MapProps = { fixture: TrafficFixture; reports: PublicReport[]; selectedId: string | null; onSelect: (id: string) => void };
 
 export function TrafficMap(props: MapProps) {
   const [attempt, setAttempt] = useState(0);
   return <MapAttempt key={attempt} {...props} onRetry={() => setAttempt(value => value + 1)} />;
 }
 
-function MapAttempt({ fixture, selectedId, onSelect, onRetry }: MapProps & { onRetry: () => void }) {
+function MapAttempt({ fixture, reports, selectedId, onSelect, onRetry }: MapProps & { onRetry: () => void }) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
   const markers = useRef<Marker[]>([]);
@@ -89,7 +90,16 @@ function MapAttempt({ fixture, selectedId, onSelect, onRetry }: MapProps & { onR
             button.className = styles.marker;
             button.textContent = String(index + 1);
             button.dataset.mapSegment = segment.id;
-            button.setAttribute("aria-label", `Select ${segment.name}, ${segment.direction}, simulated`);
+            const reportCount = reports.filter(report => report.segment_id === segment.id).length;
+            button.setAttribute("aria-label", `Select ${segment.name}, ${segment.direction}, simulated; ${reportCount} unconfirmed demo reports, including stale reports`);
+            button.dataset.reportCount = String(reportCount);
+            if (reportCount) {
+              const badge = document.createElement("span");
+              badge.className = styles.markerCount;
+              badge.textContent = String(reportCount);
+              badge.setAttribute("aria-hidden", "true");
+              button.append(badge);
+            }
             button.setAttribute("aria-pressed", String(selection.current === segment.id));
             button.addEventListener("click", () => onSelect(segment.id));
             const marker = new Marker({ element: button, offset: segment.direction === "inbound" ? [44, 0] : [0, 0] })
@@ -121,7 +131,7 @@ function MapAttempt({ fixture, selectedId, onSelect, onRetry }: MapProps & { onR
       map?.remove();
       mapRef.current = null;
     };
-  }, [fixture, onSelect]);
+  }, [fixture, reports, onSelect]);
 
   return (
     <div data-map-state={state} className={styles.mapRegion}>
@@ -131,7 +141,7 @@ function MapAttempt({ fixture, selectedId, onSelect, onRetry }: MapProps & { onR
       {state === "failed" && <button type="button" className="button secondary" onClick={onRetry}>Retry map</button>}
       <div ref={container} className={styles.mapCanvas} style={state === "failed" ? { display: "none" } : undefined}
         role="region" aria-label="Optional map with synthetic segment selection" />
-      <p>Teal: primary · Violet: fixed alternative · Brown: opposite direction. Dashed line and pressed marker: selected segment. Numbers match the list; colours are not congestion evidence.</p>
+      <p>Teal: primary · Violet: fixed alternative · Brown: opposite direction. Dashed line and pressed marker: selected segment. Marker numbers match the list. Small badges count unconfirmed demo reports, including stale and repeated-source reports; colours and counts are not congestion evidence.</p>
       <div className={styles.attribution} aria-label="Map attribution">
         <a href="https://openfreemap.org" target="_blank" rel="noreferrer">OpenFreeMap</a>
         <a href="https://www.openmaptiles.org/" target="_blank" rel="noreferrer">© OpenMapTiles</a>

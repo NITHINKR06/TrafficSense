@@ -31,7 +31,8 @@ New accounts created through the UI always start as commuters. Use synthetic ema
 | Surface | Required access |
 | --- | --- |
 | `/`, `/demo`, `/login`, `/register` | Public; guest preview creates no session; signed-in users visiting login/register return to their account |
-| `/workspace` | Authenticated account with an assigned database profile |
+| `/traffic`, `/reports/new` | Public synthetic data; only explicit report preparation creates a guest identity, as described in [local reporting](reports.md) |
+| `/workspace` | Authenticated non-anonymous account with an assigned database profile |
 | `/employer` | Employer role; only assigned organisations are returned |
 | `/employer/[orgId]` | Employer role and current membership; unavailable IDs return not found |
 | `/authority` | Authority role; read-only foundation |

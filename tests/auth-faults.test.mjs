@@ -36,6 +36,10 @@ test("organisation fault controls reject invalid and browser-originated changes"
       assert.equal(rejected.status, status);
       assert.equal((await request("/rest/v1/organisations")).status, 503, "Rejected control must not change the fault mode");
     }
+    const lostResponse = await request("/__test_fault", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode: "report-response-loss" }),
+    });
+    assert.equal(lostResponse.status, 200, "The isolated proxy supports report-response loss after forwarding.");
   } finally {
     child.kill();
     await exited;

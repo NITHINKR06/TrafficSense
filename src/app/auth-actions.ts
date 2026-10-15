@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { cookies } from "next/headers";
 import { authCookieOptions } from "@/lib/auth/config";
-import { createAuthClient } from "@/lib/auth/server";
+import { clearReportGuestCookies, createAuthClient } from "@/lib/auth/server";
 import { validateCredentials } from "@/lib/auth/rules";
 
 export type AuthFormState = { error?: string; message?: string };
@@ -19,6 +19,7 @@ export async function login(_state: AuthFormState, form: FormData): Promise<Auth
   } catch {
     return { error: "Sign-in is unavailable. Please try again." };
   }
+  await clearReportGuestCookies();
   revalidatePath("/", "layout");
   redirect("/workspace");
 }
@@ -34,6 +35,7 @@ export async function register(_state: AuthFormState, form: FormData): Promise<A
   } catch {
     return { error: "Account creation is unavailable. Please try again." };
   }
+  await clearReportGuestCookies();
   revalidatePath("/", "layout");
   redirect("/workspace");
 }
@@ -53,6 +55,7 @@ export async function logout(): Promise<AuthFormState> {
       store.set({ ...authCookieOptions, name: cookie.name, value: "", maxAge: 0, expires: new Date(0) });
     }
   }
+  await clearReportGuestCookies();
   revalidatePath("/", "layout");
   redirect(revocationConfirmed ? "/login" : "/login?notice=revocation-unconfirmed");
 }

@@ -4,7 +4,7 @@ import http from "node:http";
 const UPSTREAM = new URL("http://supabase_kong_trafficsense-local:8000");
 const REQUEST_TIMEOUT_MS = 10_000;
 const CONTROL_BODY_LIMIT_BYTES = 1024;
-const MODES = new Set(["healthy", "auth", "database", "organisations", "all"]);
+const MODES = new Set(["healthy", "auth", "database", "organisations", "all", "report-response-loss"]);
 const HOP_BY_HOP_HEADERS = new Set([
   "connection", "keep-alive", "proxy-authenticate", "proxy-authorization",
   "proxy-connection", "te", "trailer", "transfer-encoding", "upgrade",
@@ -148,6 +148,7 @@ const server = http.createServer({
     return;
   }
 
+  const loseReportResponse = mode === "report-response-loss" && request.method === "POST" && path === "/rest/v1/rpc/submit_traffic_report";
   upstreamRequest = http.request({
     hostname: UPSTREAM.hostname,
     port: UPSTREAM.port,
@@ -161,6 +162,11 @@ const server = http.createServer({
     incoming.once("aborted", () => response.destroy());
     if (response.destroyed || response.writableEnded) {
       incoming.destroy();
+      return;
+    }
+    if (loseReportResponse) {
+      incoming.once("end", () => response.destroy());
+      incoming.resume();
       return;
     }
     response.writeHead(incoming.statusCode, incoming.statusMessage, forwardHeaders(incoming.headers));

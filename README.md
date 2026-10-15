@@ -10,7 +10,7 @@ A traffic web project built around **REPORT → VERIFY → ALERT → ANALYSE**: 
 - [Source coverage](docs/README.md): seven modules mapped to the [original product brief](docs/Traffic_JAM.pdf), which is not confirmed event rules.
 - [Supplied UI reference](docs/design/trafficsense/README.md): screenshot, HTML and design specification, with adaptation constraints.
 
-Sign-in is optional for the public guest preview and future traffic browsing. Private account/organisation data, personal sharing and restricted actions still require authorization. Guest report submission remains planned until its source-identity and abuse-control checks pass.
+Sign-in is optional for the public guest preview and traffic browsing. Enabled local demo reporting supports accounts or an explicitly created temporary guest identity; browsing alone creates neither. Private account/organisation data, personal sharing and restricted actions still require authorization. See [demo reports](docs/reports.md) for limits and setup, and [progress](docs/progress.md) for verification status.
 
 The intended build is a labelled synthetic demonstration, not a live traffic service. Delay receipts are a supporting extension; they do not prove GPS truth or why someone arrived late. Employer access always requires explicit commuter sharing and server authorization.
 

@@ -78,6 +78,19 @@ One `?segment=` value controls list selection, map highlight and details, includ
 
 Loading the optional background map requires an explicit action after an external-network privacy notice. Map failure must preserve the list/details and expose retry; hiding/unmounting releases map resources. No location request, navigation, incident cause, evidence promotion, delay calculation or route recommendation belongs to this foundation. Acceptance includes desktop/mobile keyboard and pointer selection, provider style/tile success and failure/retry, WebGL denial, backend outage/recovery, empty/stale/future/missing observations, public browsing during Auth failure and preservation of existing account sessions.
 
+### Synthetic report submission contract
+
+The first reporting slice persists manually located synthetic guest/account reports at L1 Reported, without incident grouping, location support, corroboration, recovery, alerts or receipts. Those remain separate phase requirements, not acceptance waived by submission success. No GPS, media, narrative or real-person data belongs to this slice.
+
+- Prepare an explicit guest or current-account source; passive browsing creates no identity. Isolate guest/account cookies, prefer a verified existing account and never silently replace a failed account with a guest. Guest reporting access lasts 24 hours from preparation, independent of token refresh; private account routes and data remain unavailable to guests.
+- Accept only source/request UUIDs, an exact directed segment, finite reported category and canonical UTC observation time. The database validates new observations within the preceding twenty minutes, derives identity/receipt time/provenance and atomically persists the private report plus minimal public projection.
+- Bind each retry to its original owner, request and immutable content. Identical retries acknowledge the original; conflicting reuse never overwrites. Unknown transport outcomes retain a frozen browser draft for check/retry, and explicit discard is not deletion or cancellation.
+- Serialize quotas: five new reports per source per rolling fifteen minutes, 300 per rolling hour globally, 2,000 retained reports and 5,000 sources. These limits do not prove independent witnesses or general spoof resistance. Keep the local reporting gate disabled by default and privileged operations outside the web app.
+- Public snapshots contain only allowlisted report fields, never source/user/request identifiers. Map/list/details share direction-specific counts, explicit recent/stale labels and manual/simulated/unconfirmed provenance. Counts include repeated-source and stale reports; details may show the newest ten. Open tabs require refresh.
+- Preserve report ownership/retry records across simulator replacement/reset through a durable segment catalog. An absent corridor hides unmatched reports and prevents new submissions. Expiry blocks guest access without depending on cleanup; synthetic records remain until explicit local dataset or expired-guest cleanup.
+
+Acceptance includes actual guest/account authorization, anonymous exclusion from private policies, exact public projections, concurrent identical/conflicting retries, quota boundaries, expiry and account changes, database/Auth outages, committed-response loss, simulator preservation, and desktop/mobile submission-to-public-display flows in both local development and production. Hosted use and real-data retention require separate approval and verification. Operational contracts belong in [local reporting](reports.md); actual results belong in progress.
+
 ## Evidence and lifecycle contract
 
 These thresholds are proposed demo assumptions, not calibrated field findings. Define exact eligibility and time boundaries in tests before implementation.

@@ -51,7 +51,7 @@ async function readSnapshot(client = publicClient()) {
   const started = Date.now();
   const response = await client.rpc("read_traffic_demo");
   assert.equal(response.error, null, "public snapshot RPC must succeed");
-  assert.deepEqual(Object.keys(response.data).sort(), ["fixture", "read_at"]);
+  assert.deepEqual(Object.keys(response.data).sort(), ["fixture", "read_at", "reporting_enabled", "reports"]);
   const readAt = Date.parse(response.data.read_at);
   assert.ok(Number.isFinite(readAt) && readAt >= started - 1000 && readAt <= Date.now() + 1000, "snapshot uses the current database statement clock");
   const parsed = parseTrafficSnapshot(response.data);

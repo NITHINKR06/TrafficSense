@@ -20,7 +20,7 @@ export default function GuestDemoPage() {
           <h2 className="text-lg font-bold text-on-surface m-0">Synthetic traffic corridor</h2>
         </div>
         <p className="text-sm mt-2 text-on-surface-variant">
-          Browse directed segments, synthetic samples and an optional background map without signing in. The corridor uses schematic geometry and assumed baselines, not live traffic. Incident reporting and relevant route alerts remain planned.
+          Browse directed segments, synthetic samples and an optional background map without signing in. The corridor uses schematic geometry and assumed baselines, not live traffic. When enabled by the local operator, try a simulated, unconfirmed report with an account or an explicitly created temporary guest identity. Corroboration and relevant route alerts remain planned.
         </p>
 
         <div className="pt-4 mt-4 border-t border-surface-container-high">
@@ -39,6 +39,7 @@ export default function GuestDemoPage() {
 
       <div className="actions section-space">
         <Link className="button" href="/traffic">Browse synthetic traffic</Link>
+        <Link className="button secondary" href="/reports/new">Try a simulated report</Link>
         <Link className="button secondary" href="/login">Sign in — optional</Link>
         <Link className="button secondary" href="/register">Create an account — optional</Link>
         <Link href="/">Return home</Link>

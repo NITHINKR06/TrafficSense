@@ -34,6 +34,14 @@ case "${1:-}" in
     docker compose build demo
     docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/tests/traffic.integration.test.mjs
     ;;
+  reports)
+    docker compose build demo
+    docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/scripts/operate-reports.mjs "${@:2}"
+    ;;
+  test-reports)
+    docker compose build demo
+    docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/tests/reports.integration.test.mjs
+    ;;
   test-browser-recovery)
     test_compose=(docker compose -f compose.yaml -f compose.auth-test.yaml --profile auth-test)
     test_services=(auth-recovery auth-recovery-production auth-unconfigured auth-unconfigured-development auth-faults)
@@ -47,10 +55,12 @@ case "${1:-}" in
         --mount type=bind,src="$PWD",dst=/workspace --workdir /workspace \
         -e APP_URL="http://127.0.0.1:$port" -e BROWSER_SCENARIO=recovery \
         trafficsense-auth-recovery node tests/browser.mjs
-      "${test_compose[@]}" run --rm -T supabase status --output json | docker run --rm -i --network host --user 1000:1000 \
-        --mount type=bind,src="$PWD",dst=/workspace --workdir /workspace \
-        -e APP_URL="http://127.0.0.1:$port" -e TRAFFIC_FAULTS=true \
-        trafficsense-auth-recovery node tests/traffic-browser.mjs
+      for reports in false true; do
+        "${test_compose[@]}" run --rm -T supabase status --output json | docker run --rm -i --network host --user 1000:1000 \
+          --mount type=bind,src="$PWD",dst=/workspace --workdir /workspace \
+          -e APP_URL="http://127.0.0.1:$port" -e TRAFFIC_FAULTS=true -e REPORTS_BROWSER="$reports" \
+          trafficsense-auth-recovery node tests/traffic-browser.mjs
+      done
     done
     for port in 3004 3005; do
       docker run --rm --network host --user 1000:1000 \
@@ -59,7 +69,7 @@ case "${1:-}" in
         trafficsense-auth-recovery node tests/browser.mjs
       docker run --rm --network host --user 1000:1000 \
         --mount type=bind,src="$PWD",dst=/workspace --workdir /workspace \
-        -e APP_URL="http://127.0.0.1:$port" -e TRAFFIC_SETUP=true \
+        -e APP_URL="http://127.0.0.1:$port" -e TRAFFIC_SETUP=true -e REPORTS_BROWSER=true \
         trafficsense-auth-recovery node tests/traffic-browser.mjs
     done
     ;;
@@ -67,7 +77,7 @@ case "${1:-}" in
     docker compose run --rm supabase stop
     ;;
   *)
-    printf '%s\n' 'Usage: bash scripts/local-supabase.sh start|seed|test|test-traffic|test-browser-recovery|stop | simulate normal|slowdown|recovery [UTC-anchor] | simulate reset' >&2
+    printf '%s\n' 'Usage: bash scripts/local-supabase.sh start|seed|test|test-traffic|test-reports|test-browser-recovery|stop | simulate normal|slowdown|recovery [UTC-anchor] | simulate reset | reports enable|disable | reports cleanup|cleanup-expired-guests --confirm' >&2
     exit 2
     ;;
 esac

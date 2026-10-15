@@ -32,7 +32,7 @@ const hooks = registerHooks({
 after(() => { hooks.deregister(); delete globalThis.__trafficReaderTest; });
 const { parseTrafficSnapshot, sampleFreshness } = await import("../src/lib/traffic/snapshot.ts");
 const { readTrafficSnapshot } = await import("../src/lib/traffic/server.ts");
-const snapshot = () => ({ read_at: DEFAULT_DEMO_ANCHOR, fixture: createTrafficFixture("slowdown", DEFAULT_DEMO_ANCHOR) });
+const snapshot = () => ({ read_at: DEFAULT_DEMO_ANCHOR, fixture: createTrafficFixture("slowdown", DEFAULT_DEMO_ANCHOR), reports: [], reporting_enabled: false });
 
 test("snapshot parser preserves the fixture contract and canonicalizes PostgreSQL timestamps", () => {
   const input = snapshot();
@@ -44,12 +44,31 @@ test("snapshot parser preserves the fixture contract and canonicalizes PostgreSQ
   assert.deepEqual(parseTrafficSnapshot(input), expected);
   assert.notEqual(parseTrafficSnapshot(input).fixture, input.fixture);
   assert.equal(input.fixture.corridor.anchor_at, "2026-10-15 04:00:00+00");
-  assert.deepEqual(parseTrafficSnapshot({ read_at: DEFAULT_DEMO_ANCHOR, fixture: null }), { read_at: DEFAULT_DEMO_ANCHOR, fixture: null });
+  assert.deepEqual(parseTrafficSnapshot({ read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], reporting_enabled: false }), { read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], reporting_enabled: false });
+});
+
+test("public reports share the snapshot but never expose source identity or unsupported segments", () => {
+  const input = snapshot();
+  const report = { id: "a0866416-8ea3-4f6a-81f9-6f855cd73947", segment_id: "primary-west", direction: "outbound", category: "unknown", observed_at: DEFAULT_DEMO_ANCHOR, received_at: DEFAULT_DEMO_ANCHOR, provenance: "simulated", location_provenance: "manual" };
+  input.reports = [report];
+  input.reporting_enabled = true;
+  assert.deepEqual(parseTrafficSnapshot(input), input);
+  for (const mutate of [
+    value => { value.reports[0].source_id = "private"; },
+    value => { value.reports[0].direction = "inbound"; },
+    value => { value.reports.push(value.reports[0]); },
+    value => { value.fixture = null; },
+    value => { value.reporting_enabled = "true"; },
+    value => { value.reports = Array(2001).fill(report); },
+  ]) {
+    const invalid = structuredClone(input); mutate(invalid);
+    assert.throws(() => parseTrafficSnapshot(invalid));
+  }
 });
 
 test("snapshot geometry stays inside the map corridor, including bounds and all generated scenarios", () => {
   for (const scenario of ["normal", "slowdown", "recovery"]) {
-    const input = { read_at: DEFAULT_DEMO_ANCHOR, fixture: createTrafficFixture(scenario, DEFAULT_DEMO_ANCHOR) };
+    const input = { ...snapshot(), fixture: createTrafficFixture(scenario, DEFAULT_DEMO_ANCHOR) };
     assert.deepEqual(parseTrafficSnapshot(input), input);
   }
   const boundary = snapshot();
@@ -194,7 +213,7 @@ test("server snapshot reader is public, request-time, bounded, uncached and safe
     assert.deepEqual(await readTrafficSnapshot(), { status: "unavailable" });
     state.response = { data: {}, error: null, status: 200 };
     assert.deepEqual(await readTrafficSnapshot(), { status: "invalid" });
-    state.response = { data: { read_at: DEFAULT_DEMO_ANCHOR, fixture: null }, error: null, status: 200 };
+    state.response = { data: { read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], reporting_enabled: false }, error: null, status: 200 };
     assert.deepEqual(await readTrafficSnapshot(), { status: "ready", snapshot: state.response.data });
     state.requestError = true;
     assert.deepEqual(await readTrafficSnapshot(), { status: "unavailable" });

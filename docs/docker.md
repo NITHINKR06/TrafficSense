@@ -37,7 +37,7 @@ docker compose exec app pnpm audit --prod
 docker compose exec app sh
 ```
 
-Run `bash scripts/local-supabase.sh test` for real authentication and database-policy integration tests after starting and seeding the backend. Run `bash scripts/local-supabase.sh test-traffic` separately for synthetic traffic persistence and authorization. See [local synthetic traffic](traffic.md) for scenario/reset commands and data contracts. Container health is a readiness check, not proof that user flows work; browser verification is still required. The browser runner is documented in [local authentication](auth.md).
+Run `bash scripts/local-supabase.sh test` for real authentication and database-policy integration tests after starting and seeding the backend. Run `bash scripts/local-supabase.sh test-traffic` separately for synthetic traffic persistence and authorization. Run `bash scripts/local-supabase.sh test-reports` for synthetic report persistence, retries, guest authorization and quota checks. See [local synthetic traffic](traffic.md) for scenario/reset commands and [local reporting](reports.md) for reporting controls and recovery contracts. Container health is a readiness check, not proof that user flows work; browser verification is still required. The browser runner is documented in [local authentication](auth.md).
 
 ## Dependencies
 

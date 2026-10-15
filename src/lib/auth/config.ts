@@ -15,6 +15,15 @@ export const authCookieOptions = {
     : process.env.NODE_ENV === "production",
 };
 
+export const reportGuestCookieOptions = {
+  ...authCookieOptions,
+  name: "trafficsense-report-guest",
+};
+
+export function isAuthCookie(name: string, namespace = authCookieOptions.name) {
+  return name === namespace || (name.startsWith(`${namespace}.`) && /^\d+$/.test(name.slice(namespace.length + 1)));
+}
+
 export const authFetch: typeof fetch = (input, init) =>
   fetch(input, {
     ...init,

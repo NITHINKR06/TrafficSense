@@ -1,6 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
-import { authConfig, authCookieOptions, authFetch } from "./lib/auth/config";
+import { authConfig, authCookieOptions, authFetch, isAuthCookie } from "./lib/auth/config";
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -11,12 +11,13 @@ export async function proxy(request: NextRequest) {
     cookieOptions: authCookieOptions,
     global: { fetch: authFetch },
     cookies: {
-      getAll: () => request.cookies.getAll(),
+      getAll: () => request.cookies.getAll().filter(({ name }) => isAuthCookie(name)),
       setAll: (updates) => {
-        for (const { name, value } of updates) request.cookies.set(name, value);
+        const accountUpdates = updates.filter(({ name }) => isAuthCookie(name));
+        for (const { name, value } of accountUpdates) request.cookies.set(name, value);
         response = NextResponse.next({ request });
         response.headers.set("Cache-Control", "private, no-store, max-age=0");
-        for (const { name, value, options } of updates) response.cookies.set(name, value, options);
+        for (const { name, value, options } of accountUpdates) response.cookies.set(name, value, options);
       },
     },
   });

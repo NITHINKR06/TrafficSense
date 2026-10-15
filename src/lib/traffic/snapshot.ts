@@ -1,6 +1,7 @@
 import type { DemoLine, TrafficFixture } from "./simulator";
+import { parsePublicReport, type PublicReport } from "../reports/rules.ts";
 
-export type TrafficSnapshot = { read_at: string; fixture: TrafficFixture | null };
+export type TrafficSnapshot = { read_at: string; fixture: TrafficFixture | null; reports: PublicReport[]; reporting_enabled: boolean };
 
 function invalid(): never {
   throw new Error("Invalid traffic snapshot.");
@@ -69,9 +70,16 @@ function unique<T>(values: T[], key: (value: T) => string): void {
 }
 
 export function parseTrafficSnapshot(input: unknown): TrafficSnapshot {
-  const envelope = record(input, ["read_at", "fixture"]);
+  const envelope = record(input, ["read_at", "fixture", "reports", "reporting_enabled"]);
   const read_at = timestamp(envelope.read_at);
-  if (envelope.fixture === null) return { read_at, fixture: null };
+  if (typeof envelope.reporting_enabled !== "boolean") return invalid();
+  const reporting_enabled = envelope.reporting_enabled;
+  const reports = collection(envelope.reports, 0, 2000).map(parsePublicReport);
+  unique(reports, row => row.id);
+  if (envelope.fixture === null) {
+    if (reports.length) return invalid();
+    return { read_at, fixture: null, reports, reporting_enabled };
+  }
   const fixture = record(envelope.fixture, ["corridor", "segments", "routes", "route_segments", "sources", "observations"]);
   const corridor = record(fixture.corridor, ["id", "name", "provenance", "geometry_note", "scenario", "anchor_at"]);
   if (corridor.id !== "mangaluru-central-v1" || corridor.provenance !== "simulated") return invalid();
@@ -87,6 +95,7 @@ export function parseTrafficSnapshot(input: unknown): TrafficSnapshot {
   });
   unique(segments, row => row.id);
   const segmentById = new Map(segments.map(row => [row.id, row]));
+  if (reports.some(report => segmentById.get(report.segment_id)?.direction !== report.direction)) return invalid();
   const routes = collection(fixture.routes, 2, 2).map(input => {
     const row = record(input, ["id", "name", "kind", "direction"]);
     return {
@@ -131,7 +140,7 @@ export function parseTrafficSnapshot(input: unknown): TrafficSnapshot {
   });
   unique(observations, row => `${row.segment_id}:${row.source_id}:${row.observed_at}`);
   return {
-    read_at,
+    read_at, reports, reporting_enabled,
     fixture: {
       corridor: {
         id: corridor.id, name: text(corridor.name, 160), provenance: corridor.provenance,

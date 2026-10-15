@@ -25,7 +25,7 @@ export default function Home() {
             <p className="eyebrow">Report → Verify → Alert → Analyse</p>
             <h2 id="features-title">Traffic information, with its limits in view</h2>
           </div>
-          <p>Browse the synthetic corridor and optional map without an account. Reporting, route alerts and analysis below remain planned.</p>
+          <p>Browse the synthetic corridor and optional map without an account. Try unconfirmed demo reports when reporting is enabled; corroboration, route alerts and analysis remain planned.</p>
         </div>
         <div className="cards-grid">
           <article className="value-card" data-feature="evidence">
@@ -33,7 +33,7 @@ export default function Home() {
             <h3>1. Report and examine evidence</h3>
             <p>Report a disruption, then see which observations support congestion. A reported cause is not a confirmed cause.</p>
             <div className="feature-detail">
-              <p className="detail-label">Planned evidence indicators</p>
+              <p className="detail-label">Reported status; further evidence indicators planned</p>
               <ul className="evidence-list">
                 <li><code>L1</code> Reported</li>
                 <li><code>L2</code> Location support</li>
@@ -83,7 +83,7 @@ export default function Home() {
           <article className="value-card" data-role="commuter">
             <div className="card-icon violet"><FeatureIcon name="commuter" /></div>
             <h3>For commuters</h3>
-            <p>Browse the public preview without an account. Reporting, saved journeys and separate sharing controls are planned.</p>
+            <p>Browse without an account, or explicitly start a temporary guest identity for enabled demo reporting. Saved journeys and separate sharing controls remain planned.</p>
             <Link className="button" href="/demo">Explore the guest preview <span aria-hidden="true">→</span></Link>
           </article>
           <article className="value-card" data-role="employer">

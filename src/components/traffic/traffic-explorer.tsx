@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
+import { reportCategories } from "@/lib/reports/rules";
 import { useSearchParams } from "next/navigation";
 import type { TrafficSnapshot } from "@/lib/traffic/snapshot";
 import { sampleFreshness } from "@/lib/traffic/snapshot";
@@ -40,6 +42,8 @@ export function TrafficExplorer({ snapshot }: { snapshot: TrafficSnapshot }) {
   const selected = resolveSegment(fixture, params.getAll("segment"));
   const readAt = snapshotReadTime(snapshot, clock);
   const latest = selected ? latestSegmentSamples(fixture, selected.id) : null;
+  const selectedReports = selected ? snapshot.reports.filter(report => report.segment_id === selected.id)
+    .sort((a, b) => b.received_at.localeCompare(a.received_at) || a.id.localeCompare(b.id)) : [];
   return (
     <div data-testid="traffic-ready" className={styles.explorer}>
       <div className={`panel ${styles.summary}`}>
@@ -70,6 +74,7 @@ export function TrafficExplorer({ snapshot }: { snapshot: TrafficSnapshot }) {
                   <strong>{index + 1}. {segment.name}</strong>
                   <span>{segment.direction} · SIMULATED</span>
                   <span>{freshnessLabels[freshness]}</span>
+                  <span data-segment-report-count={segment.id}>{snapshot.reports.filter(report => report.segment_id === segment.id).length} unconfirmed demo reports, including stale reports</span>
                 </a>
               </li>;
             })}
@@ -85,7 +90,7 @@ export function TrafficExplorer({ snapshot }: { snapshot: TrafficSnapshot }) {
               <button type="button" className="button" onClick={() => setMapEnabled(true)}>Load map</button>
             </div> : <>
               <button type="button" className="button secondary" onClick={() => setMapEnabled(false)}>Hide map</button>
-              <TrafficMap key={snapshot.read_at} fixture={fixture} selectedId={selected?.id ?? null} onSelect={selectSegment} />
+              <TrafficMap key={snapshot.read_at} fixture={fixture} reports={snapshot.reports} selectedId={selected?.id ?? null} onSelect={selectSegment} />
             </>}
           </section>
           <section id="segment-details" data-segment-id={selected?.id ?? ""} className="panel" aria-labelledby="segment-details-title" aria-live="polite">
@@ -108,6 +113,22 @@ export function TrafficExplorer({ snapshot }: { snapshot: TrafficSnapshot }) {
                 {latest.samples.map(row => <li key={row.source_id}><span>{fixture.sources.find(source => source.id === row.source_id)?.label}</span><strong>{row.speed_kph} km/h</strong></li>)}
               </ul> : <p>No samples are available for this segment. Speed, delay and congestion are not inferred.</p>}
               <p>Cause, corroboration, measured delay and route savings are not assessed in this view.</p>
+              <div id="segment-reports" className={styles.reports} data-report-segment={selected.id}>
+                <h3>Unconfirmed demo reports</h3>
+                <p>{selectedReports.length} reports for this direction. Counts include repeated-source and stale reports, not independent witnesses. No reports does not mean the road is clear.</p>
+                {selectedReports.length > 10 && <p>Showing the ten most recently received reports.</p>}
+                {selectedReports.length ? <ul>
+                  {selectedReports.slice(0, 10).map(report => <li key={report.id} data-public-report={report.id}>
+                    <strong>{reportCategories[report.category]} — reported, unconfirmed</strong>
+                    <span>SIMULATED · Manually selected location · L1 Reported</span>
+                    <span>{sampleFreshness(report.observed_at, readAt) === "recent" ? "Recent report" : sampleFreshness(report.observed_at, readAt) === "future" ? "Future-dated report" : "Stale report"}</span>
+                    <span>Observed: <time dateTime={report.observed_at}>{formatTrafficTime(report.observed_at)}</time></span>
+                    <span>Received: <time dateTime={report.received_at}>{formatTrafficTime(report.received_at)}</time></span>
+                  </li>)}
+                </ul> : <p>No demo reports are stored for this segment.</p>}
+                {snapshot.reporting_enabled ? <Link className="button" href={`/reports/new?segment=${encodeURIComponent(selected.id)}`}>Report a simulated problem</Link>
+                  : <p>Demo reporting is disabled. Browsing remains available.</p>}
+              </div>
             </> : <>
               <h2 id="segment-details-title">Segment not found</h2>
               <p>The requested segment is not in this snapshot, or the URL contains multiple segment selections. Choose a segment from the list.</p>
