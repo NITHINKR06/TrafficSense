@@ -3,10 +3,13 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { cache } from "react";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 import { authConfig, authCookieOptions, authFetch } from "./config";
 import { canAccessRole, isRole, type Role } from "./rules";
 
 export async function createAuthClient(writableCookies = false) {
+  // Session expiry checks require a real request, not a cookie-aware prefetch.
+  await connection();
   const store = await cookies();
   const config = authConfig();
   if (!config) throw new Error("Authentication is not configured.");

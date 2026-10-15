@@ -11,10 +11,16 @@ export default async function OrganisationPage({ params }: PageProps<"/employer/
   if (!data) notFound();
   return (
     <section className="panel">
-      <p className="eyebrow">Organisation membership</p><h1>{data.name}</h1>
+      <div className="panel-heading">
+        <p className="eyebrow m-0">Organisation membership</p>
+        <span className="simulated-pill">MEMBER VERIFIED</span>
+      </div>
+      <h1>{data.name}</h1>
       <p>Your current membership permits access to this organisation. No employee information is available in this foundation.</p>
       <p className="notice">Journey sharing and employer dashboards remain planned. Employees must explicitly choose to share before any travel information can be shown.</p>
-      <Link href="/employer">Back to your organisations</Link>
+      <div className="pt-4 border-t border-surface-container-high">
+        <Link href="/employer">← Back to your organisations</Link>
+      </div>
     </section>
   );
 }

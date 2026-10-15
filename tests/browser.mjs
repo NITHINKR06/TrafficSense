@@ -5,12 +5,13 @@ import { waitForSignedExpiry } from "./auth-expiry.mjs";
 
 const base = process.env.APP_URL || "http://127.0.0.1:3000";
 const debuggerUrl = process.env.CHROMIUM_DEBUG_URL || "http://127.0.0.1:9333";
+const uiOnly = process.env.BROWSER_SCENARIO === "ui";
 const setupOnly = process.env.BROWSER_SCENARIO === "setup";
 const recoveryOnly = process.env.BROWSER_SCENARIO === "recovery";
 const expiryOnly = process.env.BROWSER_SCENARIO === "expiry";
 if (expiryOnly) assert.ok(["http://127.0.0.1:3000", "http://127.0.0.1:3001"].includes(base), "Expiry tests require the local app.");
 if (recoveryOnly) assert.ok(["http://127.0.0.1:3002", "http://127.0.0.1:3003"].includes(base), "Recovery tests require the isolated local test app.");
-const accounts = setupOnly || recoveryOnly ? [] : JSON.parse(await readFile("supabase/.temp/demo-accounts.json", "utf8"));
+const accounts = uiOnly || setupOnly || recoveryOnly ? [] : JSON.parse(await readFile("supabase/.temp/demo-accounts.json", "utf8"));
 async function fault(mode) {
   const response = await fetch("http://127.0.0.1:54323/__test_fault", {
     method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mode }), signal: AbortSignal.timeout(5000),
@@ -24,9 +25,28 @@ await new Promise((resolve, reject) => { socket.onopen = resolve; socket.onerror
 let sequence = 0;
 const pending = new Map();
 const exceptions = [];
+const navigationIssues = [];
+const expectedFailures = new Map();
+const documentContexts = new Map();
 socket.onmessage = ({ data }) => {
   const message = JSON.parse(data);
-  if (message.method === "Runtime.exceptionThrown") exceptions.push(message.params.exceptionDetails.text);
+  if (message.method === "Runtime.executionContextCreated" && message.params.context.auxData?.isDefault) {
+    documentContexts.set(message.sessionId, `${message.sessionId}:${message.params.context.id}`);
+  }
+  if (message.method === "Runtime.executionContextsCleared") documentContexts.delete(message.sessionId);
+  if (message.method === "Runtime.exceptionThrown") {
+    const details = message.params.exceptionDetails;
+    exceptions.push({
+      report: details.exception?.description || details.text,
+      context: `${message.sessionId}:${details.executionContextId}`,
+    });
+  }
+  if (message.method === "Runtime.consoleAPICalled") {
+    const details = message.params.args.map(arg => arg.value || arg.description || "").join(" ");
+    for (const diagnostic of ["uncached data during prerendering or a navigation", "Could not validate `instant`", "encountered the unstable value"]) {
+      if (details.includes(diagnostic)) navigationIssues.push(diagnostic);
+    }
+  }
   const item = pending.get(message.id);
   if (!item) return;
   pending.delete(message.id);
@@ -51,7 +71,7 @@ try {
   const call = (method, params) => send(method, params, sessionId);
   const evaluate = async (expression) => {
     const value = await call("Runtime.evaluate", { expression, returnByValue: true, awaitPromise: true });
-    if (value.exceptionDetails) throw new Error(value.exceptionDetails.text);
+    if (value.exceptionDetails) throw new Error(value.exceptionDetails.exception?.description || value.exceptionDetails.text);
     return value.result.value;
   };
   async function waitFor(expression, description = expression) {
@@ -107,7 +127,7 @@ try {
       await fill("#email", account.email); await fill("#password", account.password);
       await click('button[type="submit"]');
     }
-    await route("/workspace"); await text(account.email);
+    await route("/workspace"); await text(account.email); await layout(); await snapshot(`workspace-${label}`);
     return account;
   }
   async function logout() {
@@ -116,7 +136,56 @@ try {
     await route("/login"); await text("Welcome back");
   }
   async function layout() {
+    await evaluate("document.fonts.ready");
     assert.equal(await evaluate("document.documentElement.scrollWidth <= innerWidth"), true, "horizontal overflow");
+    const smallControls = await evaluate(`Array.from(document.querySelectorAll('header a, main a, main button, main input')).filter(el => {
+      const rect = el.getBoundingClientRect();
+      return rect.width > 0 && rect.height > 0 && (rect.height < 44 || rect.width < 44);
+    }).map(el => el.tagName + ':' + (el.getAttribute('href') || el.getAttribute('type') || 'control'))`);
+    assert.deepEqual(smallControls, [], "interactive targets must be at least 44px");
+    assert.equal(await evaluate("Array.from(document.querySelectorAll('.organisation-list a')).every(link => Math.abs(link.getBoundingClientRect().width - link.parentElement.getBoundingClientRect().width) < 1)"), true, "organisation links must fill their list rows");
+    const lowContrast = await evaluate(`(() => {
+      const rgb = value => (value.match(/[\\d.]+/g) || []).map(Number);
+      const luminance = color => color.slice(0, 3).map(value => {
+        const channel = value / 255;
+        return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
+      }).reduce((total, value, index) => total + value * [0.2126, 0.7152, 0.0722][index], 0);
+      return Array.from(document.querySelectorAll('h1, h2, h3, p, a, button, input, code, dt, dd, li, label, figcaption, .simulated-pill, .illustration-label')).filter(el => {
+        if (!el.getBoundingClientRect().width || el.disabled || el.closest('.skip-link')) return false;
+        let background = [255, 255, 255];
+        const parents = [];
+        for (let parent = el; parent; parent = parent.parentElement) parents.unshift(parent);
+        for (const parent of parents) {
+          const color = rgb(getComputedStyle(parent).backgroundColor);
+          const alpha = color[3] ?? 1;
+          background = background.map((value, index) => color[index] * alpha + value * (1 - alpha));
+        }
+        const style = getComputedStyle(el);
+        const lightness = [luminance(rgb(style.color)), luminance(background)].sort((a, b) => a - b);
+        const ratio = (lightness[1] + 0.05) / (lightness[0] + 0.05);
+        const large = parseFloat(style.fontSize) >= 24 || (parseFloat(style.fontSize) >= 18.66 && Number(style.fontWeight) >= 700);
+        return !Number.isFinite(ratio) || ratio < (large ? 3 : 4.5);
+      }).map(el => el.tagName + ':' + el.className);
+    })()`);
+    assert.deepEqual(lowContrast, [], "visible text must meet WCAG AA contrast");
+  }
+  async function homepage() {
+    await text("Traffic information, with its limits in view");
+    await text("Choose how to explore");
+    await text("Illustration only");
+    await text("Delay receipts — planned extension");
+    assert.equal(await evaluate("document.querySelectorAll('[data-feature]').length"), 3);
+    assert.equal(await evaluate("document.querySelectorAll('[data-role]').length"), 3);
+    assert.equal(await evaluate("!!document.querySelector('a[href=\"#\"]')"), false, "no placeholder links");
+    assert.equal(await evaluate("document.querySelector('meta[name=description]').content.includes('prove delays')"), false, "metadata must not overclaim functionality");
+    await evaluate("document.fonts.ready");
+    const fonts = await evaluate(`Array.from(document.fonts).filter(font => font.status === 'loaded').map(font => font.family.replaceAll('"', ''))`);
+    for (const name of ["Inter", "Plus Jakarta Sans", "JetBrains Mono"]) assert.ok(fonts.includes(name), `${name} must load`);
+    assert.deepEqual(await evaluate("performance.getEntriesByType('resource').filter(entry => new URL(entry.name).origin !== location.origin).map(entry => new URL(entry.name).origin)"), [], "preview assets must be served locally");
+    await call("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
+    await waitFor("matchMedia('(prefers-reduced-motion: reduce)').matches && getComputedStyle(document.querySelector('.button')).transitionDuration === '0s'", "reduced-motion styles applied");
+    await call("Emulation.setEmulatedMedia", { features: [] });
+    await snapshot("home");
   }
   async function snapshot(label) {
     await mkdir("supabase/.temp/browser", { recursive: true });
@@ -151,12 +220,15 @@ try {
     fixtures = await createRecoveryFixtures();
     accounts.push(...fixtures.accounts);
   }
-  for (const [width, height, mobile] of [[1440, 1000, false], [390, 844, true]]) {
+  const viewports = uiOnly ? [[1440, 1000, false], [1024, 900, false], [768, 1024, true], [390, 844, true], [320, 740, true]] : [[1440, 1000, false], [390, 844, true]];
+  for (const [width, height, mobile] of viewports) {
     await call("Emulation.setDeviceMetricsOverride", { width, height, mobile, deviceScaleFactor: 1 });
-    await go("/"); await text("Understand the disruption"); await layout();
+    await go("/"); await text("Understand the disruption"); await homepage(); await layout();
     await call("Input.dispatchKeyEvent", { type: "keyDown", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 });
     await call("Input.dispatchKeyEvent", { type: "keyUp", key: "Tab", code: "Tab", windowsVirtualKeyCode: 9 });
     assert.equal(await evaluate("document.activeElement.textContent"), "Skip to content");
+    await key("Enter", "Enter", 13);
+    assert.equal(await evaluate("document.activeElement.id"), "main", "skip link must move keyboard focus into content");
     assert.equal(await evaluate("!!document.querySelector('main a[href=\"/demo\"]')"), true, "homepage must offer guest access");
     const guestCookies = (await sessionCookies()).map(cookie => cookie.value);
     await click('main a[href="/demo"]'); await route("/demo"); await text("Explore TrafficSense as a guest"); await layout();
@@ -164,6 +236,19 @@ try {
     assert.deepEqual((await sessionCookies()).map(cookie => cookie.value), guestCookies, "guest browsing must not create or replace an auth session");
     await snapshot("guest");
     await click('header a[href="/"]'); await text("Understand the disruption");
+    if (uiOnly) {
+      for (const path of ["/employer", "/authority"]) {
+        await click(`main a[href="${path}"]`); await route("/login"); await text("Welcome back"); await layout();
+        await click('header a[href="/"]'); await text("Understand the disruption");
+      }
+      await click('main a[href="/register"]'); await text("Create your account"); await layout();
+      await click('main a[href="/demo"]'); await text("Explore TrafficSense as a guest");
+      await go("/not-a-route"); await text("Page not found"); await layout();
+      await click('header a[href="/"]'); await text("Understand the disruption");
+      assert.equal((await sessionCookies()).length, 0, "preview navigation must not create a session");
+      console.log(`PASS ${base} ${width}px: homepage, fonts, preview, protected role links, registration navigation, 404 and 44px controls`);
+      continue;
+    }
     await click('main a[href="/login"]');
     if (setupOnly) {
       await text("Authentication is not configured"); await layout();
@@ -172,6 +257,9 @@ try {
       await click('main a[href="/register"]'); await text("Authentication is not configured"); await layout();
       for (const path of ["/workspace", "/employer", "/employer/10000000-0000-4000-8000-000000000001", "/authority", "/admin"]) {
         await go(path); await text("Account access could not be loaded"); await layout();
+        const context = documentContexts.get(sessionId);
+        assert.ok(context, "the unconfigured document must have a browser execution context");
+        expectedFailures.set(context, "Authentication is not configured.");
         await click('header a[href="/demo"]'); await text("Explore TrafficSense as a guest");
       }
       assert.equal((await sessionCookies()).length, 0, "Unconfigured browsing must not create a session");
@@ -205,6 +293,14 @@ try {
         await text("Account access could not be loaded"); await layout(); await snapshot("error");
         for (const value of [email, fixtures.orgName]) assert.equal(await evaluate(`document.body.innerText.includes(${JSON.stringify(value)})`), false, "error page must not show private account data");
       };
+      const unavailable = async (action, email, expectedError) => {
+        await action();
+        await errorPage(email);
+        // Attribute delayed React reports to the failed document, not an arrival-time window.
+        const context = documentContexts.get(sessionId);
+        assert.ok(context, "the failed document must have a browser execution context");
+        expectedFailures.set(context, expectedError);
+      };
       const employer = await login("recovery-employer");
       await go(`/employer/${fixtures.orgId}`); await text(fixtures.orgName);
       await fixtures.removeMembership();
@@ -223,12 +319,12 @@ try {
 
       const commuter = await login("recovery-commuter");
       await fixtures.removeProfile();
-      await reload(); await errorPage(commuter.email);
-      await reload(); await errorPage(commuter.email);
+      await unavailable(reload, commuter.email, "Account access unavailable.");
+      await unavailable(reload, commuter.email, "Account access unavailable.");
       await fixtures.restoreProfile();
       await click(".actions > button"); await text(commuter.email);
       await fixtures.removeProfile();
-      await reload(); await errorPage(commuter.email);
+      await unavailable(reload, commuter.email, "Account access unavailable.");
       await click('button[type="submit"]'); await route("/login"); await text("Welcome back");
       assert.equal((await sessionCookies()).length, 0, "missing profile must not prevent logout");
       await fixtures.restoreProfile();
@@ -255,19 +351,20 @@ try {
       for (const mode of ["database", "auth", "all"]) {
         await go("/employer"); await text(fixtures.orgName);
         await fault(mode);
-        await reload(); await errorPage(employer.email);
+        const expectedError = mode === "database" ? "Account access unavailable." : "Authentication service unavailable.";
+        await unavailable(reload, employer.email, expectedError);
         await click('header a[href="/demo"]'); await text("Explore TrafficSense as a guest"); await layout();
         assert.equal(await evaluate(`document.body.innerText.includes(${JSON.stringify(employer.email)})`), false);
-        await go("/employer"); await errorPage(employer.email);
+        await unavailable(() => go("/employer"), employer.email, expectedError);
         await fault("healthy");
         await click(".actions > button"); await text(fixtures.orgName);
       }
       for (const path of ["/employer", `/employer/${fixtures.orgId}`]) {
         await go(path); await text(fixtures.orgName);
         await fault("organisations");
-        await reload(); await errorPage(employer.email);
+        await unavailable(reload, employer.email, "Organisation access is unavailable.");
         await go("/workspace"); await text(employer.email);
-        await go(path); await errorPage(employer.email);
+        await unavailable(() => go(path), employer.email, "Organisation access is unavailable.");
         for (const misleading of ["No organisation memberships", "Page not found"]) {
           assert.equal(await evaluate(`document.body.innerText.includes(${JSON.stringify(misleading)})`), false);
         }
@@ -282,12 +379,12 @@ try {
       ]) {
         await fixtures.setEmployerRole(role);
         await go(path); await text(heading);
-        await fault("database"); await reload(); await errorPage(employer.email);
+        await fault("database"); await unavailable(reload, employer.email, "Account access unavailable.");
         await fault("healthy"); await click(".actions > button"); await text(heading);
       }
       await fixtures.setEmployerRole("employer");
       for (const path of ["/login", "/register"]) {
-        await fault("auth"); await go(path); await errorPage(employer.email);
+        await fault("auth"); await unavailable(() => go(path), employer.email, "Authentication service unavailable.");
         await fault("healthy"); await click(".actions > button"); await route("/workspace"); await text(employer.email);
       }
       await logout();
@@ -358,9 +455,9 @@ try {
     for (const label of ["employer-a", "employer-b"]) {
       const account = await login(label);
       const other = accounts.find((item) => item.label === (label === "employer-a" ? "employer-b" : "employer-a"));
-      await click('a[href="/employer"]'); await text("Your organisations"); await layout();
+      await click('a[href="/employer"]'); await text("Your organisations"); await layout(); await snapshot("organisations");
       assert.equal(await evaluate(`!!document.querySelector('a[href="/employer/${other.orgId}"]')`), false);
-      await click(`a[href="/employer/${account.orgId}"]`); await text("ORGANISATION MEMBERSHIP"); await layout();
+      await click(`a[href="/employer/${account.orgId}"]`); await text("ORGANISATION MEMBERSHIP"); await layout(); await snapshot("organisation-detail");
       await reload(); await text("ORGANISATION MEMBERSHIP");
       await go(`/employer/${other.orgId}`); await text("Page not found");
       await go("/employer/not-a-uuid"); await text("Page not found");
@@ -371,7 +468,7 @@ try {
     }
     await login("employer-unassigned"); await go("/employer"); await text("No organisation memberships"); await layout(); await logout();
     for (const [label, path, heading] of [["authority", "/authority", "Read-only authority account"], ["admin", "/admin", "Demo administration"]]) {
-      await login(label); await click(`a[href="${path}"]`); await text(heading); await layout();
+      await login(label); await click(`a[href="${path}"]`); await text(heading); await layout(); await snapshot(label);
       for (const denied of ["/employer", label === "authority" ? "/admin" : "/authority"]) { await go(denied); await route("/access-denied"); }
       await logout();
     }
@@ -409,8 +506,15 @@ try {
     await writeFile(`supabase/.temp/browser/${new URL(base).port}-${width}.png`, Buffer.from(shot.data, "base64"));
     console.log(`PASS ${base} ${width}px: registration, keyboard login, invalid login, all roles, organisation isolation, empty membership, cookie flags, settled logout/history, refresh, two-tab session changes, direct routes and layout`);
   }
-  assert.deepEqual(exceptions, [], "unexpected browser runtime exceptions");
-  console.log("PASS: no browser runtime exceptions");
+  assert.deepEqual(navigationIssues, [], "route navigation must have a loading boundary");
+  const unexpected = exceptions.filter(({ report, context }) => {
+    const expectedError = expectedFailures.get(context);
+    const expected = `Error: Switched to client rendering because the server rendering errored:\n\n${expectedError}\n`;
+    const productionFallback = ["http://127.0.0.1:3003", "http://127.0.0.1:3004"].includes(base) && report === "Error: Minified React error #419; visit https://react.dev/errors/419 for the full message or use the non-minified dev environment for full errors and additional helpful warnings.";
+    return !expectedError || (!report.startsWith(expected) && !productionFallback);
+  });
+  assert.deepEqual(unexpected.map(({ report }) => report), [], "unexpected browser runtime exceptions");
+  console.log(`PASS: no unexpected browser runtime exceptions; ${exceptions.length} expected server-error reports from verified outage documents`);
 } finally {
   try {
     if (recoveryOnly) await fault("healthy");
