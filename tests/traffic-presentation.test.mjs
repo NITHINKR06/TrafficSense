@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { createTrafficFixture } from "../src/lib/traffic/simulator.ts";
 import { latestSegmentSamples, resolveSegment, formatTrafficTime, snapshotReadTime } from "../src/lib/traffic/presentation.ts";
+import * as presentation from "../src/lib/traffic/presentation.ts";
 import { sampleFreshness } from "../src/lib/traffic/snapshot.ts";
 
 const fixture = createTrafficFixture("slowdown", "2026-10-15T04:00:00.000Z");
@@ -51,6 +52,16 @@ test("new snapshots discard prior elapsed clocks even when their read timestamps
     assert.equal(snapshotReadTime(snapshot, { snapshot, elapsedMs: 0 }), read_at);
     assert.equal(Date.parse(snapshotReadTime(snapshot, { snapshot, elapsedMs: 30_000 })), Date.parse(read_at) + 30_000);
   }
+});
+
+test("conservative elapsed time expires observations but never promotes future observations", () => {
+  const readAt = "2026-10-15T04:00:00.000Z";
+  assert.equal(presentation.snapshotFreshness("2026-10-15T04:05:00.000Z", readAt, 10 * 60000), "future");
+  assert.equal(presentation.snapshotFreshness("2026-10-15T04:05:00.000Z", readAt, 86400000), "future");
+  assert.equal(presentation.snapshotFreshness("2026-10-15T03:45:00.000Z", readAt, 10 * 60000), "stale");
+  assert.equal(presentation.snapshotFreshness("2026-10-15T03:45:00.000Z", readAt, null), "unknown");
+  assert.equal(presentation.snapshotFreshness(null, readAt, null), "missing");
+  assert.equal(presentation.snapshotFreshness("2026-10-15T04:05:00.000Z", "2026-10-15T04:06:00.000Z", 0), "recent");
 });
 
 test("traffic timestamps explicitly use Asia/Kolkata without changing the stored UTC instant", () => {

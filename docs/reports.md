@@ -1,6 +1,6 @@
 # Local synthetic reporting
 
-This bounded reporting flow supports **REPORT → VERIFY → ALERT → ANALYSE** without treating a submission as verified traffic. Reports are **SIMULATED · L1 Reported · unconfirmed**, manually located on one directed demonstration segment. No GPS, photo, free text, personal journey or employer sharing is collected. Incident grouping, corroboration, recovery, alerts and receipts have separate acceptance gates. Actual verification results belong in [progress.md](progress.md).
+This bounded reporting flow supports **REPORT → VERIFY → ALERT → ANALYSE** without treating a submission as verified traffic. Reports are **SIMULATED · L1 Reported · unconfirmed**, manually located on one directed demonstration segment. No GPS, photo, free text, personal journey or employer sharing is collected. Current report groups expose limited source evidence; persistent incident episodes, slowdown support, recovery, alerts and receipts have separate acceptance gates. Actual verification results belong in [progress.md](progress.md).
 
 ## Use the demonstration
 
@@ -14,6 +14,21 @@ bash scripts/local-supabase.sh reports enable
 Open `/traffic`, select a directed segment and choose **Report a simulated problem**. `/reports/new` also supports one valid `?segment=` value. Choose **Continue as guest** or **Use current account**, select a category (including Unknown), review the manually entered Asia/Kolkata observation time and submit a synthetic example while stationary or as a passenger. The initial time is supplied by the database. New observations must be within the last twenty minutes and not in the future.
 
 Success means the database acknowledged persistence, not that congestion or the claimed cause was confirmed. Follow the saved-report link to the matching public segment. Map markers, list counts and details share the same snapshot; another open tab must refresh to see new data. Counts include stale and repeated-source reports, not independent witnesses. Details show the ten most recently received reports for that direction.
+
+## Current report-group assessments
+
+Each active directed segment has one assessment in the same database snapshot as its public reports. The list, map marker and details distinguish:
+
+- **Retained reports:** all matching public rows, including stale and repeated-source rows.
+- **Recent reports:** coherent observations strictly newer than twenty minutes before the read, with observation and receipt no later than the read.
+- **Eligible reports:** recent rows strictly newer than fifteen minutes before the read, linked to a source created no later than receipt. Guest sources must still be within their absolute lifetime; account sources have no guest expiry. A manually rounded observation may predate source preparation.
+- **Eligible sources:** each reporting identity counts once across the entire rolling fifteen-minute window, regardless of category, request key or repeated submissions. Three or more yield **L3 Multiple sources**.
+
+These are current segment/direction groups, not identified physical incidents. L3 does not mean independent witnesses, supported location, confirmed congestion or a confirmed cause. Reports remain L1 Reported with manually selected location and no L2 location support. Missing evidence never means the road is clear. Assessment uses all retained rows, not just the ten displayed reports.
+
+Counts are labelled **as of data read**, not live. The database supplies the earliest time-driven change, including observation aging and eligible guest expiry. At that deadline all shared surfaces withdraw the current assessment and ask for refresh; the browser never guesses private source decrements. Timing includes navigation/request loading and hydration and is checked on focus/visibility changes. Unknown timing is historical until refresh. A conservative early expiry is possible after client navigation or a forward device-clock change. Future-dated observations remain future/unsupported until a new database read; conservative elapsed time can expire evidence but cannot promote it. Refresh reads the database again; it never makes an old observation recent. Source expiry removes eligibility without deleting retained public rows.
+
+The sole privileged public-read exception is `read_report_assessments()`: a stable, no-argument, aggregate-only function owned by a read-only, non-login, non-owner, non-RLS-bypassing role. Its column grants allow only private report/source linkage and source kind/creation/expiry plus required public fields. It cannot read owner IDs, request payloads, Auth or profiles. Public output contains only segment/direction, retained/recent/eligible report counts, eligible source count, the multiple-source flag, deadline and simulated provenance. The outer `read_traffic_demo()` remains a single-statement security-invoker snapshot. Direct private-table access stays denied; no privileged application key is used.
 
 ## Identity and privacy
 
@@ -54,6 +69,7 @@ Run database-mutation/browser suites serially because they temporarily share the
 ```bash
 docker compose run --build --rm checks
 bash scripts/local-supabase.sh test-reports
+bash scripts/local-supabase.sh test-evidence
 bash scripts/local-supabase.sh test-traffic
 bash scripts/local-supabase.sh test
 bash scripts/local-supabase.sh test-browser-recovery
@@ -72,4 +88,4 @@ docker compose run --rm -T supabase status --output json |
     trafficsense-demo node tests/traffic-browser.mjs
 ```
 
-Repeat with port 3001 after rebuilding production. Run without `REPORTS_BROWSER=true` for the existing traffic regression suite. The recovery wrapper runs account, traffic and report suites against isolated development/production fault services, then missing-configuration apps. Its test-only proxy can discard a real submission response after the backend commits, allowing browser verification that retry creates no duplicate. No runtime fault-control endpoint is added to the application. Screenshots contain synthetic traffic/report surfaces and are stored in ignored `supabase/.temp/browser/`.
+Repeat with port 3001 after rebuilding production. Replace `REPORTS_BROWSER=true` with `EVIDENCE_BROWSER=true` for report-group, source-count and expiry interactions at 1440/390/320px. The evidence fixtures require no pre-existing recent reports on their controlled segments and refuse to remove unrelated rows. `test-evidence` includes real account/guest API checks and rollback-only SQL tests for exact time boundaries and column grants. Run without either browser flag for the existing traffic regression suite. The recovery wrapper runs account, traffic and report suites against isolated development/production fault services, then missing-configuration apps. Its test-only proxy can discard a real submission response after the backend commits, allowing browser verification that retry creates no duplicate. No runtime fault-control endpoint is added to the application. Screenshots contain synthetic traffic/report surfaces and are stored in ignored `supabase/.temp/browser/`.

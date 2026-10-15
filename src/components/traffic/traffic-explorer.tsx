@@ -1,30 +1,30 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import { reportCategories } from "@/lib/reports/rules";
 import { useSearchParams } from "next/navigation";
 import type { TrafficSnapshot } from "@/lib/traffic/snapshot";
-import { sampleFreshness } from "@/lib/traffic/snapshot";
-import { formatTrafficTime, latestSegmentSamples, resolveSegment, snapshotReadTime, type SnapshotClock } from "@/lib/traffic/presentation";
+import { formatTrafficTime, latestSegmentSamples, resolveSegment, snapshotFreshness } from "@/lib/traffic/presentation";
+import { assessmentView } from "@/lib/evidence/assessment";
+import { useAssessmentClock } from "./use-assessment-clock";
 import { RefreshTraffic } from "./refresh-traffic";
 import { TrafficMap } from "./traffic-map";
 import styles from "./traffic.module.css";
 
 const freshnessLabels = {
   recent: "Recent synthetic samples", stale: "Stale synthetic samples",
-  future: "Future-dated samples", missing: "No samples",
+  future: "Future-dated samples", missing: "No samples", unknown: "Sample freshness needs refresh",
 };
 
 export function TrafficExplorer({ snapshot }: { snapshot: TrafficSnapshot }) {
   const params = useSearchParams();
+  const { elapsedMs, refreshStarted } = useAssessmentClock(snapshot);
+  const assessments = Object.fromEntries(snapshot.report_assessments.map(row =>
+    [row.segment_id, assessmentView(row, snapshot.read_at, elapsedMs)]));
   const [mapEnabled, setMapEnabled] = useState(false);
-  const [clock, setClock] = useState<SnapshotClock | null>(null);
-  useEffect(() => {
-    const origin = performance.now();
-    const timer = setInterval(() => setClock({ snapshot, elapsedMs: performance.now() - origin }), 30000);
-    return () => clearInterval(timer);
-  }, [snapshot]);
+  const freshness = (observedAt: string | null) => snapshotFreshness(observedAt, snapshot.read_at, elapsedMs);
+  const sampleLabel = (observedAt: string | null) => freshnessLabels[freshness(observedAt)];
   const selectSegment = useCallback((id: string) => {
     const url = new URL(window.location.href);
     url.searchParams.set("segment", id);
@@ -36,11 +36,10 @@ export function TrafficExplorer({ snapshot }: { snapshot: TrafficSnapshot }) {
       <h2>No synthetic traffic data</h2>
       <p>No demonstration corridor is loaded. This does not mean roads are clear. A local operator can load a scenario; guest browsing cannot run the simulator.</p>
       {params.has("segment") && <p>The requested segment is not available in this empty dataset.</p>}
-      <RefreshTraffic />
+      <RefreshTraffic onRefresh={refreshStarted} />
     </div>
   );
   const selected = resolveSegment(fixture, params.getAll("segment"));
-  const readAt = snapshotReadTime(snapshot, clock);
   const latest = selected ? latestSegmentSamples(fixture, selected.id) : null;
   const selectedReports = selected ? snapshot.reports.filter(report => report.segment_id === selected.id)
     .sort((a, b) => b.received_at.localeCompare(a.received_at) || a.id.localeCompare(b.id)) : [];
@@ -54,7 +53,7 @@ export function TrafficExplorer({ snapshot }: { snapshot: TrafficSnapshot }) {
           <p className={styles.timestamp}>Scenario anchor: <time dateTime={fixture.corridor.anchor_at}>{formatTrafficTime(fixture.corridor.anchor_at)}</time></p>
           <p className={styles.timestamp}>Data read: <time dateTime={snapshot.read_at}>{formatTrafficTime(snapshot.read_at)}</time></p>
         </div>
-        <RefreshTraffic />
+        <RefreshTraffic onRefresh={refreshStarted} />
       </div>
       <div className={styles.grid}>
         <section className={`panel ${styles.list}`} aria-labelledby="segment-list-title">
@@ -63,7 +62,6 @@ export function TrafficExplorer({ snapshot }: { snapshot: TrafficSnapshot }) {
           <ul data-segment-list>
             {fixture.segments.map((segment, index) => {
               const samples = latestSegmentSamples(fixture, segment.id);
-              const freshness = sampleFreshness(samples.observedAt, readAt);
               return <li key={segment.id}>
                 <a href={`/traffic?segment=${encodeURIComponent(segment.id)}`} data-segment-id={segment.id}
                   aria-current={selected?.id === segment.id ? "true" : undefined}
@@ -73,8 +71,9 @@ export function TrafficExplorer({ snapshot }: { snapshot: TrafficSnapshot }) {
                   }}>
                   <strong>{index + 1}. {segment.name}</strong>
                   <span>{segment.direction} · SIMULATED</span>
-                  <span>{freshnessLabels[freshness]}</span>
+                  <span>{sampleLabel(samples.observedAt)}</span>
                   <span data-segment-report-count={segment.id}>{snapshot.reports.filter(report => report.segment_id === segment.id).length} unconfirmed demo reports, including stale reports</span>
+                  <span data-segment-assessment={segment.id} data-assessment-state={assessments[segment.id].state}>{assessments[segment.id].label}</span>
                 </a>
               </li>;
             })}
@@ -90,14 +89,14 @@ export function TrafficExplorer({ snapshot }: { snapshot: TrafficSnapshot }) {
               <button type="button" className="button" onClick={() => setMapEnabled(true)}>Load map</button>
             </div> : <>
               <button type="button" className="button secondary" onClick={() => setMapEnabled(false)}>Hide map</button>
-              <TrafficMap key={snapshot.read_at} fixture={fixture} reports={snapshot.reports} selectedId={selected?.id ?? null} onSelect={selectSegment} />
+              <TrafficMap key={snapshot.read_at} fixture={fixture} reports={snapshot.reports} assessments={assessments} selectedId={selected?.id ?? null} onSelect={selectSegment} />
             </>}
           </section>
           <section id="segment-details" data-segment-id={selected?.id ?? ""} className="panel" aria-labelledby="segment-details-title" aria-live="polite">
             {selected && latest ? <>
               <p className="simulated-pill">SIMULATED · {selected.direction}</p>
               <h2 id="segment-details-title">{selected.name}</h2>
-              <p><strong>{freshnessLabels[sampleFreshness(latest.observedAt, readAt)]}</strong></p>
+              <p><strong>{sampleLabel(latest.observedAt)}</strong></p>
               <p>Samples are stale at twenty minutes old; future-dated samples are not current evidence. Refreshing this page does not make old observations recent.</p>
               <dl className={styles.facts}>
                 <div><dt>Segment ID</dt><dd><code>{selected.id}</code></dd></div>
@@ -112,7 +111,11 @@ export function TrafficExplorer({ snapshot }: { snapshot: TrafficSnapshot }) {
               {latest.samples.length ? <ul className={styles.samples}>
                 {latest.samples.map(row => <li key={row.source_id}><span>{fixture.sources.find(source => source.id === row.source_id)?.label}</span><strong>{row.speed_kph} km/h</strong></li>)}
               </ul> : <p>No samples are available for this segment. Speed, delay and congestion are not inferred.</p>}
-              <p>Cause, corroboration, measured delay and route savings are not assessed in this view.</p>
+              <h3>Report-group evidence</h3>
+              <p data-report-assessment={selected.id} data-assessment-state={assessments[selected.id].state}><strong>{assessments[selected.id].label}</strong></p>
+              <p>SIMULATED · Reports group by this segment and direction, not by cause or a confirmed incident. Recent reports are under twenty minutes old; eligible reports are under fifteen minutes old and linked to an eligible reporting source.</p>
+              <p>Each source counts once across the rolling fifteen-minute window, including repeated reports and different categories. Expired guest sources no longer qualify. L3 Multiple sources requires at least three eligible sources, not three independent witnesses.</p>
+              <p>All locations are manually selected: L1 Reported, without L2 location support. Multiple sources do not confirm congestion or any reported cause. Slowdown support, recovery, measured delay and route savings are not assessed. No reports does not mean the road is clear.</p>
               <div id="segment-reports" className={styles.reports} data-report-segment={selected.id}>
                 <h3>Unconfirmed demo reports</h3>
                 <p>{selectedReports.length} reports for this direction. Counts include repeated-source and stale reports, not independent witnesses. No reports does not mean the road is clear.</p>
@@ -121,7 +124,7 @@ export function TrafficExplorer({ snapshot }: { snapshot: TrafficSnapshot }) {
                   {selectedReports.slice(0, 10).map(report => <li key={report.id} data-public-report={report.id}>
                     <strong>{reportCategories[report.category]} — reported, unconfirmed</strong>
                     <span>SIMULATED · Manually selected location · L1 Reported</span>
-                    <span>{sampleFreshness(report.observed_at, readAt) === "recent" ? "Recent report" : sampleFreshness(report.observed_at, readAt) === "future" ? "Future-dated report" : "Stale report"}</span>
+                    <span>{freshness(report.observed_at) === "unknown" ? "Report freshness needs refresh" : freshness(report.observed_at) === "recent" ? "Recent report" : freshness(report.observed_at) === "future" ? "Future-dated report" : "Stale report"}</span>
                     <span>Observed: <time dateTime={report.observed_at}>{formatTrafficTime(report.observed_at)}</time></span>
                     <span>Received: <time dateTime={report.received_at}>{formatTrafficTime(report.received_at)}</time></span>
                   </li>)}

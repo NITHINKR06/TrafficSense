@@ -1,7 +1,10 @@
 import type { DemoLine, TrafficFixture } from "./simulator";
 import { parsePublicReport, type PublicReport } from "../reports/rules.ts";
 
-export type TrafficSnapshot = { read_at: string; fixture: TrafficFixture | null; reports: PublicReport[]; reporting_enabled: boolean };
+import { parseReportAssessment, type ReportAssessment } from "../evidence/assessment.ts";
+
+export type TrafficSnapshot = { read_at: string; fixture: TrafficFixture | null; reports: PublicReport[];
+  reporting_enabled: boolean; report_assessments: ReportAssessment[] };
 
 function invalid(): never {
   throw new Error("Invalid traffic snapshot.");
@@ -55,6 +58,15 @@ function timestamp(input: unknown): string {
   return new Date(milliseconds - offset).toISOString();
 }
 
+function timestampMicros(input: unknown): number {
+  const canonical = timestamp(input);
+  const fraction = /\.(\d{1,6})/.exec(input as string)?.[1] ?? "";
+  // Accepted 20xx timestamps fit safely in integer microseconds.
+  const microseconds = Date.parse(canonical) * 1000 + Number(fraction.padEnd(6, "0").slice(3));
+  if (!Number.isSafeInteger(microseconds)) return invalid();
+  return microseconds;
+}
+
 function geometry(input: unknown): DemoLine {
   const value = record(input, ["type", "coordinates"]);
   if (value.type !== "LineString") return invalid();
@@ -70,15 +82,17 @@ function unique<T>(values: T[], key: (value: T) => string): void {
 }
 
 export function parseTrafficSnapshot(input: unknown): TrafficSnapshot {
-  const envelope = record(input, ["read_at", "fixture", "reports", "reporting_enabled"]);
+  const envelope = record(input, ["read_at", "fixture", "reports", "reporting_enabled", "report_assessments"]);
   const read_at = timestamp(envelope.read_at);
   if (typeof envelope.reporting_enabled !== "boolean") return invalid();
   const reporting_enabled = envelope.reporting_enabled;
   const reports = collection(envelope.reports, 0, 2000).map(parsePublicReport);
   unique(reports, row => row.id);
+  const report_assessments = collection(envelope.report_assessments, 0, 5).map(row => parseReportAssessment(row, read_at));
+  unique(report_assessments, row => row.segment_id);
   if (envelope.fixture === null) {
-    if (reports.length) return invalid();
-    return { read_at, fixture: null, reports, reporting_enabled };
+    if (reports.length || report_assessments.length) return invalid();
+    return { read_at, fixture: null, reports, reporting_enabled, report_assessments };
   }
   const fixture = record(envelope.fixture, ["corridor", "segments", "routes", "route_segments", "sources", "observations"]);
   const corridor = record(fixture.corridor, ["id", "name", "provenance", "geometry_note", "scenario", "anchor_at"]);
@@ -96,6 +110,27 @@ export function parseTrafficSnapshot(input: unknown): TrafficSnapshot {
   unique(segments, row => row.id);
   const segmentById = new Map(segments.map(row => [row.id, row]));
   if (reports.some(report => segmentById.get(report.segment_id)?.direction !== report.direction)) return invalid();
+  if (report_assessments.length !== segments.length) return invalid();
+  const readTime = timestampMicros(envelope.read_at);
+  const reportTimes = new Map((envelope.reports as Record<string, unknown>[]).map(report =>
+    [report.id, { observed: timestampMicros(report.observed_at), received: timestampMicros(report.received_at) }]));
+  for (const assessment of report_assessments) {
+    if (segmentById.get(assessment.segment_id)?.direction !== assessment.direction) return invalid();
+    const matching = reports.filter(report => report.segment_id === assessment.segment_id).map(report => reportTimes.get(report.id)!);
+    if (matching.some(report => report.observed > report.received)) return invalid();
+    const recent = matching.filter(report => report.observed > readTime - 1200000000
+      && report.observed <= readTime && report.received <= readTime);
+    const eligibleCandidates = recent.filter(report => report.observed > readTime - 900000000);
+    if (assessment.report_count !== matching.length || assessment.recent_report_count !== recent.length
+      || assessment.eligible_report_count > eligibleCandidates.length) return invalid();
+    const transitions = [
+      ...recent.map(report => Math.floor(report.observed / 1000) + 20 * 60000),
+      ...matching.filter(report => report.received > readTime && report.observed > report.received - 1200000000)
+        .map(report => Math.floor(report.received / 1000)),
+    ];
+    if ((transitions.length === 0) !== (assessment.valid_until === null)) return invalid();
+    if (assessment.valid_until !== null && Date.parse(assessment.valid_until) > Math.min(...transitions)) return invalid();
+  }
   const routes = collection(fixture.routes, 2, 2).map(input => {
     const row = record(input, ["id", "name", "kind", "direction"]);
     return {
@@ -140,7 +175,7 @@ export function parseTrafficSnapshot(input: unknown): TrafficSnapshot {
   });
   unique(observations, row => `${row.segment_id}:${row.source_id}:${row.observed_at}`);
   return {
-    read_at, reports, reporting_enabled,
+    read_at, reports, reporting_enabled, report_assessments,
     fixture: {
       corridor: {
         id: corridor.id, name: text(corridor.name, 160), provenance: corridor.provenance,

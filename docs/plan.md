@@ -30,7 +30,7 @@ A signed **Delay Receipt** is a planned extension to verification and employer s
 
 Sign-in is optional for entering the app and browsing public traffic/demo information. Provide a public `/demo` entry and guest navigation from home and authentication screens; browsing must not create an account, collect location or expose private records. Public map, incident-detail and route-alert pages should follow this policy when implemented.
 
-Accounts remain necessary for private account/organisation data, saved personal journeys, employer sharing and restricted authority/admin actions. A public demo or role preview must never grant those privileges. Public traffic reads use explicitly allowlisted data and their own policies, not privileged queries over private tables.
+Accounts remain necessary for private account/organisation data, saved personal journeys, employer sharing and restricted authority/admin actions. A public demo or role preview must never grant those privileges. Public traffic reads use explicitly allowlisted data and their own policies. The sole approved private-data aggregation exception is the bounded report-evidence reader below: it reduces private source relationships to per-segment counts inside the database, without exposing private records or giving the app a privileged key.
 
 Guest reporting is planned without forcing registration, but requires a server-issued source identity, least-privilege write/ownership policies and abuse controls before it is enabled. Guest browsing alone does not start an anonymous auth session. A guest identity is not proof of an independent person. Defer guest writes until their Phase 4 checks pass rather than exposing anonymous database writes. Making sign-in mandatory later requires an explicit product decision; do not introduce a global login redirect now.
 
@@ -99,10 +99,18 @@ These thresholds are proposed demo assumptions, not calibrated field findings. D
 | --- | --- | --- |
 | L1 Reported | Valid report tied to a server-issued guest or account source identity | Does not establish congestion/cause |
 | L2 Location supported | Position overlaps selected segment with acceptable accuracy and explicit provenance | Location support only; simulated provenance stays visible |
-| L3 Multiple sources | At least three eligible distinct source identities, same segment/direction, 15-minute window; one contribution per source/time bucket | Distinct accounts are not proven independent people |
+| L3 Multiple sources | At least three eligible distinct reporting identities on the same segment/direction in the rolling interval `(read_at − 15 minutes, read_at]`; one contribution per source across the entire window | Distinct identities are not proven independent people; this does not establish location, congestion or cause |
 | L4 Slowdown supported | At least three eligible synthetic sources below 40% of baseline speed for five minutes | Demonstrates a computable rule, not real-world truth |
 | L5 Photo/video | Not collected | Deferred |
 | L6 Authority confirmed | Unavailable unless separately implemented as an authorized, labelled simulated action | Never inferred from other indicators |
+
+### Bounded report-group assessment
+
+Group recent reports by exact corridor/segment/direction within `(read_at − 20 minutes, read_at]`, not category, distance or fixed quarter-hour buckets. This is a current report-group view, not a durable physical incident identity. Retained totals, recent reports and L3 eligibility are separate. A 17-minute-old report remains recent but cannot contribute to L3. Mixed categories and repeated fresh request keys never multiply a source's contribution; use observation time rather than receipt order. Guest evidence eligibility ends at absolute source expiry, while retained public reports remain until existing cleanup. Account roles add no weight; manual observations may predate source preparation. Simulator-device IDs are not reporting-source IDs.
+
+The approved aggregate exception uses a dedicated read-only NOLOGIN/NOBYPASSRLS role, distinct from table owners and the writing executor, with column-limited private joins and explicit RLS. Its fixed, no-argument public function returns only per-directed-segment counts, threshold status and one reassessment deadline inside the same statement snapshot as traffic/report data. It cannot expose raw/hash/pseudonymous reporter identifiers, Auth owners, profile data, request keys, canonical payloads or per-source expiry lists. No application service key or client-controlled historical clock is permitted. Exact aggregate counts do not guarantee anonymity; this remains synthetic-only.
+
+Assessments are labelled as of the database read. At their next time-dependent change, all shared displays must withdraw a positive current assessment and require refresh rather than invent a new private-source count. Handle delayed hydration, refresh timing and background-tab resumption conservatively without trusting device wall time. L2 remains unsupported for manual locations; losing L3 is not recovery or clearance. Persistent incident episodes, L4 slowdown, recovery lifecycle and delay remain separate Phase 4 requirements.
 
 Keep reported categories separate from evidence of congestion; show Unknown when support is insufficient. Stale after 20 minutes without fresh corroboration; clear after five minutes of supported recovery above 70% of baseline. Any manual resolve needs defined authorization. Nearby parallel roads/opposite directions do not merge by radius alone.
 

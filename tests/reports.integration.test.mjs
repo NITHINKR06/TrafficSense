@@ -89,7 +89,7 @@ test("sessionless clients are read-only and disabled reporting creates no source
   await rpc(service, "set_reporting_enabled", { p_enabled: false });
   assert.deepEqual(await rpc(signed, "prepare_report_source"), { status: "disabled" });
   const snapshot = await rpc(who, "read_traffic_demo");
-  assert.deepEqual(Object.keys(snapshot).sort(), ["fixture", "read_at", "reporting_enabled", "reports"]);
+  assert.deepEqual(Object.keys(snapshot).sort(), ["fixture", "read_at", "report_assessments", "reporting_enabled", "reports"]);
   assert.equal(snapshot.reporting_enabled, false);
   assert.equal((await who.auth.getSession()).data.session, null);
   await rpc(service, "set_reporting_enabled", { p_enabled: true });

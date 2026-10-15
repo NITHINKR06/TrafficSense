@@ -4,17 +4,19 @@ import { useEffect, useRef, useState } from "react";
 import type { Map as MapInstance, Marker } from "maplibre-gl";
 import type { TrafficFixture } from "@/lib/traffic/simulator";
 import type { PublicReport } from "@/lib/reports/rules";
+import type { AssessmentView } from "@/lib/evidence/assessment";
 import "maplibre-gl/dist/maplibre-gl.css";
 import styles from "./traffic.module.css";
 
-type MapProps = { fixture: TrafficFixture; reports: PublicReport[]; selectedId: string | null; onSelect: (id: string) => void };
+type MapProps = { fixture: TrafficFixture; reports: PublicReport[]; assessments: Record<string, AssessmentView>;
+  selectedId: string | null; onSelect: (id: string) => void };
 
 export function TrafficMap(props: MapProps) {
   const [attempt, setAttempt] = useState(0);
   return <MapAttempt key={attempt} {...props} onRetry={() => setAttempt(value => value + 1)} />;
 }
 
-function MapAttempt({ fixture, reports, selectedId, onSelect, onRetry }: MapProps & { onRetry: () => void }) {
+function MapAttempt({ fixture, reports, assessments, selectedId, onSelect, onRetry }: MapProps & { onRetry: () => void }) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
   const markers = useRef<Marker[]>([]);
@@ -29,6 +31,24 @@ function MapAttempt({ fixture, reports, selectedId, onSelect, onRetry }: MapProp
       button.setAttribute("aria-pressed", String(button.dataset.mapSegment === selectedId));
     }
   }, [selectedId]);
+
+  useEffect(() => {
+    for (const marker of markers.current) {
+      const button = marker.getElement();
+      const segment = fixture.segments.find(row => row.id === button.dataset.mapSegment);
+      const view = segment && assessments[segment.id];
+      if (!segment || !view) continue;
+      button.dataset.assessmentState = view.state;
+      const label = `Select ${segment.name}, ${segment.direction}, simulated; ${button.dataset.reportCount} unconfirmed demo reports, including stale reports. ${view.label}`;
+      button.setAttribute("aria-label", label);
+      button.title = label;
+      const badge = button.querySelector<HTMLElement>("[data-evidence-badge]");
+      if (badge) {
+        badge.textContent = view.state === "multiple" ? "L3" : view.state === "expired" ? "↻" : "";
+        badge.hidden = view.state === "insufficient";
+      }
+    }
+  }, [assessments, fixture, state]);
 
   useEffect(() => {
     let disposed = false;
@@ -100,6 +120,12 @@ function MapAttempt({ fixture, reports, selectedId, onSelect, onRetry }: MapProp
               badge.setAttribute("aria-hidden", "true");
               button.append(badge);
             }
+            const evidenceBadge = document.createElement("span");
+            evidenceBadge.className = styles.markerEvidence;
+            evidenceBadge.dataset.evidenceBadge = "";
+            evidenceBadge.setAttribute("aria-hidden", "true");
+            evidenceBadge.hidden = true;
+            button.append(evidenceBadge);
             button.setAttribute("aria-pressed", String(selection.current === segment.id));
             button.addEventListener("click", () => onSelect(segment.id));
             const marker = new Marker({ element: button, offset: segment.direction === "inbound" ? [44, 0] : [0, 0] })
@@ -141,7 +167,7 @@ function MapAttempt({ fixture, reports, selectedId, onSelect, onRetry }: MapProp
       {state === "failed" && <button type="button" className="button secondary" onClick={onRetry}>Retry map</button>}
       <div ref={container} className={styles.mapCanvas} style={state === "failed" ? { display: "none" } : undefined}
         role="region" aria-label="Optional map with synthetic segment selection" />
-      <p>Teal: primary · Violet: fixed alternative · Brown: opposite direction. Dashed line and pressed marker: selected segment. Marker numbers match the list. Small badges count unconfirmed demo reports, including stale and repeated-source reports; colours and counts are not congestion evidence.</p>
+      <p>Teal: primary · Violet: fixed alternative · Brown: opposite direction. Dashed line and pressed marker: selected segment. Marker numbers match the list. Small badges count unconfirmed demo reports, including stale and repeated-source reports; colours and counts are not congestion evidence. L3 badges mean at least three eligible reporting sources as of the data read, not independent witnesses or confirmed congestion. A ↻ badge means the assessment needs refresh.</p>
       <div className={styles.attribution} aria-label="Map attribution">
         <a href="https://openfreemap.org" target="_blank" rel="noreferrer">OpenFreeMap</a>
         <a href="https://www.openmaptiles.org/" target="_blank" rel="noreferrer">© OpenMapTiles</a>

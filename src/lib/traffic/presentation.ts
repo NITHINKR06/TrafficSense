@@ -1,11 +1,19 @@
 import type { TrafficFixture } from "./simulator";
-import type { TrafficSnapshot } from "./snapshot";
+import { sampleFreshness, type TrafficSnapshot } from "./snapshot.ts";
 
 export type SnapshotClock = { snapshot: TrafficSnapshot; elapsedMs: number };
 
 export function snapshotReadTime(snapshot: TrafficSnapshot, clock: SnapshotClock | null) {
   const elapsedMs = clock?.snapshot === snapshot ? clock.elapsedMs : 0;
   return new Date(Date.parse(snapshot.read_at) + elapsedMs).toISOString();
+}
+
+export function snapshotFreshness(observedAt: string | null, readAt: string, elapsedMs: number | null) {
+  if (observedAt === null) return "missing";
+  // An upper-bound clock may expire evidence early, but cannot promote future evidence.
+  if (sampleFreshness(observedAt, readAt) === "future") return "future";
+  if (elapsedMs === null || !Number.isFinite(elapsedMs) || elapsedMs < 0) return "unknown";
+  return sampleFreshness(observedAt, new Date(Date.parse(readAt) + elapsedMs).toISOString());
 }
 
 export function resolveSegment(fixture: TrafficFixture, requestedIds: string[]) {

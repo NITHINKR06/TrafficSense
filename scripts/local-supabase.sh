@@ -42,6 +42,11 @@ case "${1:-}" in
     docker compose build demo
     docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/tests/reports.integration.test.mjs
     ;;
+  test-evidence)
+    docker compose build demo
+    docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/tests/evidence.integration.test.mjs
+    docker exec -i supabase_db_trafficsense-local psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/evidence-boundaries.integration.sql
+    ;;
   test-browser-recovery)
     test_compose=(docker compose -f compose.yaml -f compose.auth-test.yaml --profile auth-test)
     test_services=(auth-recovery auth-recovery-production auth-unconfigured auth-unconfigured-development auth-faults)
@@ -77,7 +82,7 @@ case "${1:-}" in
     docker compose run --rm supabase stop
     ;;
   *)
-    printf '%s\n' 'Usage: bash scripts/local-supabase.sh start|seed|test|test-traffic|test-reports|test-browser-recovery|stop | simulate normal|slowdown|recovery [UTC-anchor] | simulate reset | reports enable|disable | reports cleanup|cleanup-expired-guests --confirm' >&2
+    printf '%s\n' 'Usage: bash scripts/local-supabase.sh start|seed|test|test-traffic|test-reports|test-evidence|test-browser-recovery|stop | simulate normal|slowdown|recovery [UTC-anchor] | simulate reset | reports enable|disable | reports cleanup|cleanup-expired-guests --confirm' >&2
     exit 2
     ;;
 esac

@@ -8,12 +8,14 @@ const debuggerUrl = process.env.CHROMIUM_DEBUG_URL || "http://127.0.0.1:9333";
 const setupOnly = process.env.TRAFFIC_SETUP === "true";
 const testFaults = process.env.TRAFFIC_FAULTS === "true";
 const reportSuite = process.env.REPORTS_BROWSER === "true";
+const evidenceSuite = process.env.EVIDENCE_BROWSER === "true";
+assert.ok(!evidenceSuite || !(reportSuite || setupOnly || testFaults), "Evidence scenarios run separately from reporting, setup and fault suites.");
 assert.ok(!(setupOnly && testFaults), "Setup and fault scenarios must run separately.");
 const ports = setupOnly ? [3004, 3005] : testFaults ? [3002, 3003] : [3000, 3001];
 assert.ok(ports.some(port => base === `http://127.0.0.1:${port}`), "Use the local app ports assigned to this scenario.");
 assert.ok(["127.0.0.1", "localhost"].includes(new URL(debuggerUrl).hostname), "Chromium must be local.");
 const viewports = [[1440, 1000], [390, 844]];
-if (process.env.TRAFFIC_NARROW === "true") viewports.push([320, 740]);
+if (process.env.TRAFFIC_NARROW === "true" || evidenceSuite) viewports.push([320, 740]);
 const readySelector = '[data-testid="traffic-ready"]';
 const listSelector = "[data-segment-list] a[data-segment-id]";
 const fixture = createTrafficFixture("slowdown", DEFAULT_DEMO_ANCHOR);
@@ -81,6 +83,12 @@ function receive({ data }) {
     const owner = sessions.get(params.sessionId);
     owner?.sessions.delete(params.sessionId);
     sessions.delete(params.sessionId);
+  }
+  if (method === "Fetch.requestPaused" && page) {
+    Promise.resolve().then(() => page.onRequestPaused
+      ? page.onRequestPaused(params)
+      : page.call("Fetch.continueRequest", { requestId: params.requestId }))
+      .catch(() => instrumentationErrors.push("Response interception failed."));
   }
   if (method === "Page.javascriptDialogOpening" && page?.acceptDialog) {
     page.acceptDialog = false;
@@ -287,6 +295,7 @@ async function withPage(width, height, options, run) {
     await privacy(page);
   } catch (error) {
     try { await screenshot(page, "failure"); } catch { /* Preserve the assertion if the failed document cannot be captured. */ }
+    if (exceptions.length) throw new AggregateError([error, ...exceptions.map(message => new Error(message))], "Browser flow failed with runtime diagnostics.");
     throw error;
   } finally {
     await disposePage(page);
@@ -459,6 +468,11 @@ async function dataScenarios(page) {
   await refresh(page);
   await selected(page, primaryId);
   await samples(page, primaryId, "Future-dated samples", futureAnchor);
+  await page.evaluate("window.__restoreTrafficNow = Date.now; Date.now = () => window.__restoreTrafficNow() + 24 * 60 * 60 * 1000 + 5 * 60000; window.dispatchEvent(new Event('focus'))");
+  try {
+    await page.evaluate("new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
+    await samples(page, primaryId, "Future-dated samples", futureAnchor);
+  } finally { await page.evaluate("Date.now = window.__restoreTrafficNow; delete window.__restoreTrafficNow"); }
   await screenshot(page, "future");
   const noSamples = structuredClone(fixture);
   noSamples.observations = noSamples.observations.filter(sample => sample.segment_id !== primaryId);
@@ -696,9 +710,12 @@ try {
       await page.go("/traffic");
       await page.text("Synthetic traffic corridor");
     });
-    const accounts = JSON.parse(await readFile("supabase/.temp/demo-accounts.json", "utf8"));
-    const account = accounts.find(item => item.label === "commuter");
-    assert.ok(account?.email && account?.password, "Seeded local commuter account is required.");
+    let account;
+    if (!evidenceSuite) {
+      const accounts = JSON.parse(await readFile("supabase/.temp/demo-accounts.json", "utf8"));
+      account = accounts.find(item => item.label === "commuter");
+      assert.ok(account?.email && account?.password, "Seeded local commuter account is required.");
+    }
     status = await readLocalStatus();
     const original = await snapshot();
     previous = original.fixture;
@@ -713,7 +730,11 @@ try {
       const { runReportScenarios } = await import("./reports-browser-scenarios.mjs");
       await runReportScenarios({ base, status, viewports, withPage, createPage, disposePage, privacy, layout, ready, selected, selectList, loadMap, mapState, refresh, replace, fixture, fault, testFaults });
     }
-    for (const [width, height] of reportSuite ? [] : viewports) {
+    if (evidenceSuite) {
+      const { runEvidenceScenarios } = await import("./evidence-browser-scenarios.mjs");
+      await runEvidenceScenarios({ base, status, viewports, withPage, createPage, disposePage, privacy, layout, ready, selected, selectList, loadMap, mapState, providerEvidence, refresh, screenshot, fixture });
+    }
+    for (const [width, height] of reportSuite || evidenceSuite ? [] : viewports) {
       let tileBlock;
       await withPage(width, height, {}, async page => { tileBlock = await happyPath(page); });
       await withPage(width, height, {}, page => blockedMap(page, "style", "*://tiles.openfreemap.org/styles/*"));

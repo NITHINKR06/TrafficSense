@@ -32,7 +32,13 @@ const hooks = registerHooks({
 after(() => { hooks.deregister(); delete globalThis.__trafficReaderTest; });
 const { parseTrafficSnapshot, sampleFreshness } = await import("../src/lib/traffic/snapshot.ts");
 const { readTrafficSnapshot } = await import("../src/lib/traffic/server.ts");
-const snapshot = () => ({ read_at: DEFAULT_DEMO_ANCHOR, fixture: createTrafficFixture("slowdown", DEFAULT_DEMO_ANCHOR), reports: [], reporting_enabled: false });
+const snapshot = () => {
+  const fixture = createTrafficFixture("slowdown", DEFAULT_DEMO_ANCHOR);
+  return { read_at: DEFAULT_DEMO_ANCHOR, fixture, reports: [], reporting_enabled: false,
+    report_assessments: fixture.segments.map(segment => ({ segment_id: segment.id, direction: segment.direction,
+      report_count: 0, recent_report_count: 0, eligible_report_count: 0, eligible_source_count: 0,
+      multiple_sources: false, valid_until: null, provenance: "simulated" })) };
+};
 
 test("snapshot parser preserves the fixture contract and canonicalizes PostgreSQL timestamps", () => {
   const input = snapshot();
@@ -44,13 +50,16 @@ test("snapshot parser preserves the fixture contract and canonicalizes PostgreSQ
   assert.deepEqual(parseTrafficSnapshot(input), expected);
   assert.notEqual(parseTrafficSnapshot(input).fixture, input.fixture);
   assert.equal(input.fixture.corridor.anchor_at, "2026-10-15 04:00:00+00");
-  assert.deepEqual(parseTrafficSnapshot({ read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], reporting_enabled: false }), { read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], reporting_enabled: false });
+  assert.deepEqual(parseTrafficSnapshot({ read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], reporting_enabled: false, report_assessments: [] }), { read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], reporting_enabled: false, report_assessments: [] });
 });
 
 test("public reports share the snapshot but never expose source identity or unsupported segments", () => {
   const input = snapshot();
   const report = { id: "a0866416-8ea3-4f6a-81f9-6f855cd73947", segment_id: "primary-west", direction: "outbound", category: "unknown", observed_at: DEFAULT_DEMO_ANCHOR, received_at: DEFAULT_DEMO_ANCHOR, provenance: "simulated", location_provenance: "manual" };
   input.reports = [report];
+  Object.assign(input.report_assessments.find(row => row.segment_id === report.segment_id), {
+    report_count: 1, recent_report_count: 1, valid_until: "2026-10-15T04:20:00.000Z",
+  });
   input.reporting_enabled = true;
   assert.deepEqual(parseTrafficSnapshot(input), input);
   for (const mutate of [
@@ -63,6 +72,38 @@ test("public reports share the snapshot but never expose source identity or unsu
   ]) {
     const invalid = structuredClone(input); mutate(invalid);
     assert.throws(() => parseTrafficSnapshot(invalid));
+  }
+});
+
+test("assessments exactly cover active directions and agree with all public rows", () => {
+  for (const mutate of [
+    value => { value.report_assessments.pop(); },
+    value => { value.report_assessments.push(value.report_assessments[0]); },
+    value => { value.report_assessments[0].report_count = 1; },
+    value => { value.report_assessments[0].direction = "inbound"; },
+    value => { value.report_assessments[0].source_id = "private"; },
+    value => { value.report_assessments = []; },
+  ]) {
+    const input = snapshot(); mutate(input);
+    assert.throws(() => parseTrafficSnapshot(input));
+  }
+});
+
+test("SQL microsecond window boundaries round-trip while display deadlines round down", () => {
+  for (const [observed, received, recent, eligible, deadline] of [
+    ["03:40:00.000001", "04:00:00.000000", 1, 0, "04:00:00.000001"],
+    ["03:45:00.000001", "04:00:00.000000", 1, 1, "04:00:00.000001"],
+    ["04:00:00.000001", "04:00:00.000001", 0, 0, "04:00:00.000001"],
+  ]) {
+    const input = snapshot();
+    input.read_at = "2026-10-15T04:00:00.000000Z";
+    input.reports = [{ id: "a0866416-8ea3-4f6a-81f9-6f855cd73947", segment_id: "primary-west", direction: "outbound",
+      category: "unknown", observed_at: `2026-10-15T${observed}Z`, received_at: `2026-10-15T${received}Z`, provenance: "simulated", location_provenance: "manual" }];
+    Object.assign(input.report_assessments[0], { report_count: 1, recent_report_count: recent, eligible_report_count: eligible,
+      eligible_source_count: eligible, valid_until: `2026-10-15T${deadline}Z` });
+    const parsed = parseTrafficSnapshot(input);
+    assert.equal(parsed.report_assessments[0].valid_until, parsed.read_at);
+    assert.equal(parsed.report_assessments[0].recent_report_count, recent);
   }
 });
 
@@ -213,7 +254,7 @@ test("server snapshot reader is public, request-time, bounded, uncached and safe
     assert.deepEqual(await readTrafficSnapshot(), { status: "unavailable" });
     state.response = { data: {}, error: null, status: 200 };
     assert.deepEqual(await readTrafficSnapshot(), { status: "invalid" });
-    state.response = { data: { read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], reporting_enabled: false }, error: null, status: 200 };
+    state.response = { data: { read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], reporting_enabled: false, report_assessments: [] }, error: null, status: 200 };
     assert.deepEqual(await readTrafficSnapshot(), { status: "ready", snapshot: state.response.data });
     state.requestError = true;
     assert.deepEqual(await readTrafficSnapshot(), { status: "unavailable" });
