@@ -26,6 +26,8 @@
 - **Status/limits:** the Phase 3 public map/list/details acceptance is verified in local development and production previews; user review and hosted deployment remain outstanding. Module 2 public viewing and module 5 fixed-route foundations use synthetic speeds, schematic geometry and assumed baselines, not live traffic or recommendations. Phase 4 has not started. Changes were initially handed back uncommitted and unpushed as requested.
 - **Publication review:** user authorized commit/push after the passing local checks. Rechecked the verification log, intended source/migration/dependency/documentation scope and whitespace; fetched `origin` and confirmed the current branch matched its remote before committing. No application behavior changed after verification. Hosted deployment remains unverified; the previously recorded development-only dependency advisory remains unresolved.
 
+- **Commit:** `d0dc52f` — `feat(traffic): add verified public corridor map and details`. Includes the 25-file implementation, tests, notices and verification record. Staged whitespace and targeted sensitive-path/common credential-pattern checks passed; the working tree was clean after creation. Publication to the existing `origin/feat/phase-3-traffic-foundation` branch is authorized; push outcome is confirmed separately after Git returns.
+
 ## Phase 3 — corridor and simulator data foundation verified, 15 Oct 2026
 
 - **User approval:** after being asked to review Phase 2 and approve the next data-contract/migration/simulator step, the user said “proceed.” Treat this as approval to advance; no separate volunteer usability study is claimed.
