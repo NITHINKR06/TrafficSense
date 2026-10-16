@@ -359,7 +359,10 @@ test("server snapshot reader is public, request-time, bounded, uncached and safe
     process.env.SUPABASE_URL = "http://synthetic.invalid";
     process.env.SUPABASE_ANON_KEY = "synthetic-public-key";
     state.events = [];
-    state.response = { data: snapshot(), error: null, status: 200 };
+    const phase4 = { traffic: snapshot(), incidents: [], traversals: snapshot().fixture.segments.map(segment => ({
+      segment_id: segment.id, direction: segment.direction, status: "missing", id: null, entered_at: null, exited_at: null,
+      baseline_seconds: null, baseline_label: null, delay_seconds: null, valid_until: null, provenance: "simulated" })) };
+    state.response = { data: phase4, error: null, status: 200 };
     state.fetch = true;
     const requestController = new AbortController();
     state.init = { cache: "force-cache", signal: requestController.signal };
@@ -371,9 +374,9 @@ test("server snapshot reader is public, request-time, bounded, uncached and safe
       status: segment.id === "primary-west" ? "supported" : "not_supported", window_start: "2026-10-15T03:55:00.000Z",
       window_end: DEFAULT_DEMO_ANCHOR, complete_source_count: 3, slow_source_count: segment.id === "primary-west" ? 3 : 0,
       valid_until: "2026-10-15T04:15:00.000Z", provenance: "simulated" }));
-    assert.deepEqual(await readTrafficSnapshot(), { status: "ready", snapshot: snapshot(), slowdown_assessments: expectedSlowdowns });
+    assert.deepEqual(await readTrafficSnapshot(), { status: "ready", snapshot: snapshot(), slowdown_assessments: expectedSlowdowns, incidents: [], traversals: phase4.traversals });
     assert.deepEqual(state.events, ["connection", "sdk"]);
-    assert.equal(state.rpc, "read_traffic_demo");
+    assert.equal(state.rpc, "read_traffic_phase4");
     assert.equal(state.url, process.env.SUPABASE_URL);
     assert.equal(state.key, process.env.SUPABASE_ANON_KEY);
     assert.deepEqual(state.options.auth, { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false });
@@ -398,8 +401,8 @@ test("server snapshot reader is public, request-time, bounded, uncached and safe
     assert.deepEqual(await readTrafficSnapshot(), { status: "unavailable" });
     state.response = { data: {}, error: null, status: 200 };
     assert.deepEqual(await readTrafficSnapshot(), { status: "invalid" });
-    state.response = { data: { read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], incident_episodes: [], reporting_enabled: false, report_assessments: [] }, error: null, status: 200 };
-    assert.deepEqual(await readTrafficSnapshot(), { status: "ready", snapshot: state.response.data, slowdown_assessments: [] });
+    state.response = { data: { traffic: { read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], incident_episodes: [], reporting_enabled: false, report_assessments: [] }, incidents: [], traversals: [] }, error: null, status: 200 };
+    assert.deepEqual(await readTrafficSnapshot(), { status: "ready", snapshot: state.response.data.traffic, slowdown_assessments: [], incidents: [], traversals: [] });
     state.requestError = true;
     assert.deepEqual(await readTrafficSnapshot(), { status: "unavailable" });
     state.requestError = false;

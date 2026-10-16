@@ -14,7 +14,7 @@ bash scripts/local-supabase.sh simulate slowdown 2026-10-15T04:00:00.000Z
 bash scripts/local-supabase.sh simulate reset
 ```
 
-The default anchor is **2026-10-15T04:00:00.000Z**, never the machine's current clock. An explicit anchor must be a canonical millisecond UTC timestamp in 2000–2099. Fixed historical timestamps are not fresh traffic. The public reader compares observation times with its database read timestamp, then advances freshness in an open page every thirty seconds. Reset removes this corridor and its dependent synthetic rows, not accounts, organisations or unrelated corridors. Replacement and reset serialize through a transaction lock; a failed replacement rolls back to the previous dataset. Separate HTTP reads can cross a replacement boundary; `read_traffic_demo()` returns the public fields and `read_at` in one stable, security-invoker SQL statement instead.
+The default anchor is **2026-10-15T04:00:00.000Z**, never the machine's current clock. An explicit anchor must be a canonical millisecond UTC timestamp in 2000–2099. Fixed historical timestamps are not fresh traffic. The public reader compares observation times with its database read timestamp, then advances freshness conservatively in an open page, including after background suspension. Reset removes this corridor and its dependent synthetic rows, not accounts, organisations or unrelated corridors. Replacement and reset serialize through a transaction lock; a failed replacement rolls back to the previous dataset. Separate HTTP reads can cross a replacement boundary; `read_traffic_demo()` returns the public fields and `read_at` in one stable, security-invoker SQL statement instead.
 
 The command requires `DEMO_MODE=true`, the exact internal local Supabase URL and local CLI status supplied through stdin. Privileged keys remain in the process, never command arguments or output. Requests have a 15-second deadline. A timeout or transport failure leaves the outcome unknown; inspect the dataset before retrying rather than assuming rollback. Database functions require the service role; even the signed-in demo admin cannot call them. There is no browser simulation/reset endpoint. A future browser control requires server-enforced demo mode **and** admin authorization, with separate tests.
 
@@ -52,13 +52,44 @@ bash scripts/local-supabase.sh speed-evidence cleanup "$RUN_ID" --confirm
 bash scripts/local-supabase.sh test-speed-evidence
 ```
 
-Cleanup preserves other runs, live fixtures, reporting settings, reports/episodes and Auth. It ends that run's replay guarantee; **never reuse a deliberately deleted run UUID**. Public reads neither expose nor write this ledger. Persistent lifecycle consumption, slowdown-only incidents, clearance and complete-traversal delay remain separate required work; archived samples alone do not create those states. See the [ingestion design and acceptance contract](plan.md#immutable-synthetic-speed-evidence-ingestion) and [actual verification status](progress.md).
+Cleanup preserves other runs, live fixtures, reporting settings, reports/episodes and Auth. It deliberately removes that run's derived incident history and completed traversals and ends its replay guarantee; **never reuse a deliberately deleted run UUID**. Public reads never mutate the ledger or disclose run/batch/source identities from it. See the [ingestion design and acceptance contract](plan.md#immutable-synthetic-speed-evidence-ingestion) and [actual verification status](progress.md).
+
+## Persisted incident lifecycle
+
+Accepted batch membership atomically processes the retained same-run, exact-direction evidence. At least three synthetic sources, each with six exact one-minute samples spanning five minutes strictly below 40% of the frozen baseline speed, can create an incident without a report. Later strictly advancing terminal windows can update support or withdraw it. Missing, incomplete, stale or merely normal-speed evidence is not clearance. Equal-terminal late additions do not rewrite prior transitions; a newer terminal is required for a new positive transition. Read-only revalidation can withdraw a current claim contradicted by newly accepted samples, and later favorable additions at that same terminal cannot promote it again.
+
+Clearance requires the same three or more sources across adjacent six-tick slowdown and recovery windows. Every recovery sample must be strictly above 70% of the baseline; a qualifying conflicting terminal slowdown cohort blocks clearance. Clearance records its historical evidence and acceptance time. A subsequent qualifying slowdown opens a new incident UUID referring to the earlier cycle. This never claims a real incident cause or current road safety.
+
+Report episodes remain separate immutable groupings. Temporal associations require the entire proof window to fit their immutable directed assignment interval; associations neither verify the reported cause nor turn segment-wide L3 into episode-specific corroboration. Cleanup of reports hides their public association without erasing retained transition evidence.
+
+## Completed synthetic traversal delay
+
+The local operator generates explicit piecewise forward motion from entry distance zero to exact segment exit using the authored schedule validated against a retained batch. A speed change integrates both motion intervals. A partial journey is not a completion; length divided by the latest sample is never substituted. Completion ingestion freezes exact entry/exit timestamps against the retained source, direction, full segment distance and named baseline. The database independently integrates the referenced batch/source's entire contiguous schedule (at least six exact one-minute samples), holding each speed until the next sample and the last speed only through anchor plus twenty minutes. It accepts only the exact first microsecond reaching the exit. Forged durations, stationary/incomplete/gapped/off-grid schedules and incompatible legacy completions cannot become available delay.
+
+```bash
+bash scripts/local-supabase.sh traversals generate "$RUN_ID" "$BATCH_ID" "$SOURCE_ID" "$TRAVERSAL_ID" "$ENTERED_AT" "$UNTIL"
+bash scripts/local-supabase.sh traversals check "$TRAVERSAL_ID"
+bash scripts/local-supabase.sh test-lifecycle
+bash scripts/local-supabase.sh test-traversals
+bash scripts/local-supabase.sh test-phase4
+bash scripts/local-supabase.sh test-phase4-browser
+```
+
+Use explicit UTC timestamps and stable UUIDs; check the original traversal UUID after an unknown outcome rather than allocating another ID. Credentials arrive through the same local-only stdin guard as speed capture. Partial generation exits without ingestion. Retained completions reject updates and conflicting retries; capacity is 1,000 per run and 10,000 overall, with no eviction. Run cleanup cascades completions.
+
+Excess time is `max(0, exited_at − entered_at − baseline_seconds)` using exact microseconds until presentation. The example of a 675-second completed simulated traversal against the named 180-second baseline yields 495 seconds. Normal/faster completed travel yields zero; absent, partial, stale, future, invalid or incompatible evidence yields unavailable, never zero. This is one synthetic traversal, not personal lateness, incident-caused delay, route savings or an average commute.
+
+## Coherent public evidence read
+
+`read_traffic_phase4()` encloses the unchanged `read_traffic_demo()` traffic envelope with allowlisted `incidents` and one `traversals` row per active direction. All data uses one stable SQL snapshot/read clock. Internal timestamp-accepting projection helpers are inaccessible to anonymous, authenticated and service-role clients. The dedicated public reader has no write privileges or private report/source access.
+
+For each direction, the most recently accepted retained batch selects the run; baseline incompatibility and missing completions never fall back to older favorable records. Historical clearance remains historical. Simulator replacement/reset does not process or clear incidents. Reset hides history while the corridor is absent; restoring it makes retained compatible history visible again. The map marker labels, list, details and incident disclosures share one server result and conservative elapsed clock. Support and traversal delay expire on time or clock uncertainty without inventing recovery; a refresh is required for new positive evidence.
 
 ## Public browsing and optional map
 
 Open `/demo` and choose **Browse synthetic traffic**, or open `/traffic` directly. A single `?segment=` parameter selects the same directed segment in the accessible list, details and optional map. Browser history and refresh preserve the selected ID; invalid or duplicate selections are explicit. Data refresh rereads the database but does not generate samples or change their timestamps. No sign-in, anonymous Auth session, location permission or private-table access is needed.
 
-The stored scenario is separate from sample freshness. Timestamps display in **Asia/Kolkata**. Samples at least twenty minutes old are stale; future-dated and missing samples have their own labels. Baselines and geometry are assumptions. Colours identify routes/direction, not congestion severity; synthetic sources are not independent witnesses. No incident cause, corroboration, traversal delay or savings is calculated.
+The stored scenario is separate from sample freshness. Timestamps display in **Asia/Kolkata**. Samples at least twenty minutes old are stale; future-dated and missing samples have their own labels. Baselines and geometry are assumptions. Colours identify routes/direction, not congestion severity; synthetic sources are not independent witnesses. L3 report counts and L4 slowdown support remain separate indicators, not confirmation of a real incident or cause. Persisted synthetic recovery and completed-traversal excess time use the retained evidence described above; savings are not calculated.
 
 **Load map** opts into external requests to OpenFreeMap and its delivery providers, following a privacy notice. MapLibre GL JS 6.14.0, CSS and the worker are bundled with the app; no runtime script CDN or API key is used. The Liberty background uses OpenStreetMap/OpenMapTiles data. Attribution remains below the canvas at narrow widths; `/map-notices.txt` contains the renderer license and provider/data/style notices. Provider terms and privacy are linked there. No offline/bulk download is implemented. The service has no uptime guarantee; failed provider requests or unavailable WebGL show **Retry map** while the list/details remain usable. **Hide map** releases map resources.
 

@@ -325,12 +325,27 @@ insert into public.speed_evidence_batches(run_id, batch_id, anchor_at, accepted_
 insert into public.speed_evidence_observations(run_id, source_id, observed_at, segment_id, direction, speed_kph, first_batch_id)
   select c.run_id, 'source-1', b.anchor_at - interval '2 minutes' - n * interval '1 microsecond', 'segment-1', 'outbound', 10.01, c.batch_id
   from speed_case c join public.speed_evidence_batches b using(run_id, batch_id) cross join generate_series(1, 5000) n;
+-- This budget-only seed deliberately includes a partial batch, not a captured generation.
+do $$
+begin
+  if exists(select 1 from pg_trigger where tgrelid = 'public.speed_evidence_batch_samples'::regclass and tgname = 'capture_incident_lifecycle') then
+    alter table public.speed_evidence_batch_samples disable trigger capture_incident_lifecycle;
+  end if;
+end;
+$$;
 insert into public.speed_evidence_batch_samples(run_id, batch_id, source_id, observed_at, ordinal)
   select b.run_id, b.batch_id, o.source_id, o.observed_at,
     row_number() over (partition by b.run_id, b.batch_id order by o.source_id collate "C", o.observed_at)
   from public.speed_evidence_batches b join speed_case c on c.run_id = b.run_id and c.batch_id <> b.batch_id
   cross join lateral (select source_id, observed_at from public.speed_evidence_observations where run_id = c.run_id order by observed_at limit 5000) o
   limit (249995 - (select count(*)::integer from public.speed_evidence_batch_samples));
+do $$
+begin
+  if exists(select 1 from pg_trigger where tgrelid = 'public.speed_evidence_batch_samples'::regclass and tgname = 'capture_incident_lifecycle') then
+    alter table public.speed_evidence_batch_samples enable trigger capture_incident_lifecycle;
+  end if;
+end;
+$$;
 select pg_temp.speed_assert(public.capture_speed_evidence(run_id, gen_random_uuid()) ->> 'status' = 'accepted', 'Append reaching exact membership cap accepted') from speed_case;
 select pg_temp.speed_assert((select count(*) = 250000 from public.speed_evidence_batch_samples), 'Membership cap reached exactly');
 select pg_temp.speed_assert(public.capture_speed_evidence(run_id, gen_random_uuid()) = '{"status":"limit_reached"}', 'Membership cap blocks even overlapping append') from speed_case;

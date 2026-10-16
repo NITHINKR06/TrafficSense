@@ -1,3 +1,5 @@
+import { authoredSpeedKph } from "./motion-schedule.ts";
+
 export const DEMO_CORRIDOR_ID = "mangaluru-central-v1";
 export const DEFAULT_DEMO_ANCHOR = "2026-10-15T04:00:00.000Z";
 
@@ -57,11 +59,7 @@ export function createTrafficFixture(scenario: unknown, anchor: unknown): Traffi
   for (let minute = 0; minute < 12; minute++) {
     const observed_at = new Date(Date.parse(anchor) - (11 - minute) * 60_000).toISOString();
     for (const segment of segments) {
-      let speed_kph = Math.round(segment.length_m / segment.baseline_seconds * 360) / 100;
-      if (segment.id === "primary-west") {
-        if (scenario === "slowdown" && minute >= 5) speed_kph = 8;
-        if (scenario === "recovery") speed_kph = minute < 6 ? 8 : 28;
-      }
+      const speed_kph = authoredSpeedKph(scenario, segment, minute);
       for (const source of sources.filter(source => source.segment_id === segment.id)) {
         observations.push({ segment_id: segment.id, source_id: source.id, observed_at, speed_kph });
       }

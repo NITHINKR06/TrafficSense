@@ -1,10 +1,12 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
 import { reportCategories } from "@/lib/reports/rules";
 import { useSearchParams } from "next/navigation";
 import type { TrafficSnapshot } from "@/lib/traffic/snapshot";
+import type { PublicIncident, PublicTraversal } from "@/lib/traffic/phase4";
+import { incidentView, traversalView } from "@/lib/traffic/phase4-presentation";
 import { episodeSummary, formatTrafficTime, latestSegmentSamples, resolveSegment, snapshotFreshness } from "@/lib/traffic/presentation";
 import { assessmentView } from "@/lib/evidence/assessment";
 import type { SlowdownAssessment } from "@/lib/evidence/slowdown";
@@ -19,9 +21,19 @@ const freshnessLabels = {
   future: "Future-dated samples", missing: "No samples", unknown: "Sample freshness needs refresh",
 };
 
-export function TrafficExplorer({ snapshot, slowdownAssessments }: { snapshot: TrafficSnapshot; slowdownAssessments: SlowdownAssessment[] }) {
+export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, traversals }: {
+  snapshot: TrafficSnapshot; slowdownAssessments: SlowdownAssessment[]; incidents: PublicIncident[]; traversals: PublicTraversal[];
+}) {
   const params = useSearchParams();
-  const { elapsedMs, refreshStarted } = useAssessmentClock(snapshot, slowdownAssessments);
+  const deadlines = useMemo(() => [...slowdownAssessments, ...incidents, ...traversals], [slowdownAssessments, incidents, traversals]);
+  const { elapsedMs, refreshStarted } = useAssessmentClock(snapshot, deadlines);
+  const incidentViews = Object.fromEntries(incidents.map(row => [row.id, incidentView(row, snapshot.read_at, elapsedMs)]));
+  const traversalViews = Object.fromEntries(traversals.map(row => [row.segment_id, traversalView(row, snapshot.read_at, elapsedMs)]));
+  const lifecycleLabels = Object.fromEntries((snapshot.fixture?.segments ?? []).map(segment => {
+    const rows = incidents.filter(row => row.segment_id === segment.id).sort((a, b) => b.started_at.localeCompare(a.started_at));
+    const current = rows.find(row => row.is_current) ?? rows[0];
+    return [segment.id, current ? incidentViews[current.id].label : "No retained incident · road status unknown"];
+  }));
   const slowdowns = Object.fromEntries(slowdownAssessments.map(row =>
     [row.segment_id, slowdownView(row, snapshot.read_at, elapsedMs)]));
   const assessments = Object.fromEntries(snapshot.report_assessments.map(row =>
@@ -49,6 +61,9 @@ export function TrafficExplorer({ snapshot, slowdownAssessments }: { snapshot: T
   const latest = selected ? latestSegmentSamples(fixture, selected.id) : null;
   const selectedEpisodes = selected ? snapshot.incident_episodes.filter(episode => episode.segment_id === selected.id)
     .sort((a, b) => b.created_at.localeCompare(a.created_at) || a.id.localeCompare(b.id)) : [];
+  const selectedIncidents = selected ? incidents.filter(row => row.segment_id === selected.id)
+    .sort((a, b) => b.started_at.localeCompare(a.started_at) || a.id.localeCompare(b.id)) : [];
+  const selectedTraversal = selected ? traversals.find(row => row.segment_id === selected.id) : null;
   const selectedReports = selected ? snapshot.reports.filter(report => report.segment_id === selected.id)
     .sort((a, b) => b.received_at.localeCompare(a.received_at) || a.id.localeCompare(b.id)) : [];
   return (
@@ -86,6 +101,8 @@ export function TrafficExplorer({ snapshot, slowdownAssessments }: { snapshot: T
                   <span data-segment-slowdown={segment.id} data-slowdown-state={slowdowns[segment.id].state}>
                     {slowdowns[segment.id].label}<br /><span>{slowdowns[segment.id].windowLabel}</span>
                   </span>
+                  <span data-segment-lifecycle={segment.id}>{lifecycleLabels[segment.id]}</span>
+                  <span data-segment-delay={segment.id} data-delay-state={traversalViews[segment.id].state}>{traversalViews[segment.id].label}</span>
                 </a>
               </li>;
             })}
@@ -101,7 +118,8 @@ export function TrafficExplorer({ snapshot, slowdownAssessments }: { snapshot: T
               <button type="button" className="button" onClick={() => setMapEnabled(true)}>Load map</button>
             </div> : <>
               <button type="button" className="button secondary" onClick={() => setMapEnabled(false)}>Hide map</button>
-              <TrafficMap fixture={fixture} reports={snapshot.reports} assessments={assessments} slowdowns={slowdowns} episodeCounts={episodeCounts} selectedId={selected?.id ?? null} onSelect={selectSegment} />
+              <TrafficMap fixture={fixture} reports={snapshot.reports} assessments={assessments} slowdowns={slowdowns} episodeCounts={episodeCounts}
+                lifecycleLabels={lifecycleLabels} traversalViews={traversalViews} selectedId={selected?.id ?? null} onSelect={selectSegment} />
             </>}
           </section>
           <section id="segment-details" data-segment-id={selected?.id ?? ""} className="panel" aria-labelledby="segment-details-title" aria-live="polite">
@@ -131,12 +149,35 @@ export function TrafficExplorer({ snapshot, slowdownAssessments }: { snapshot: T
               <p>SIMULATED · L4 requires the same three or more synthetic sources at six synchronized one-minute timestamps, spanning five complete minutes. Every required speed must be below 40% of the unrounded assumed baseline; every required sample must be under twenty minutes old.</p>
               <p>Baseline speed: {(selected.length_m / selected.baseline_seconds * 3.6).toLocaleString("en-GB", { maximumFractionDigits: 2 })} km/h (assumed). Missing or off-cadence samples are not filled in. The latest observed window is assessed, not an older favorable run.</p>
               <p>L4 is simulated slowdown support, not live or confirmed congestion. These synthetic sources are separate from reporting identities; L3 and L4 do not establish a reported cause or location support.</p>
-              <p>Loss of support, higher speeds and simulator reset do not establish recovery or clearance. Recovery/clearance and complete-traversal delay remain unavailable; speed samples do not prove a completed traversal. No route savings are calculated.</p>
+              <p>Loss of support, higher speeds alone and simulator reset do not establish recovery or clearance. Persisted incidents below use retained evidence from one simulation run; the replaceable scenario above is assessed separately. No route savings are calculated.</p>
+              <section className={styles.reports} aria-labelledby="lifecycle-title" data-lifecycle-history={selected.id}>
+                <h3 id="lifecycle-title">Persisted incident history</h3>
+                <p data-lifecycle-summary={selected.id}><strong>{lifecycleLabels[selected.id]}</strong></p>
+                <p>SIMULATED · A slowdown can create an incident without a report. Clearance requires the same three or more sources across adjacent five-minute slowdown and recovery windows, with recovery strictly above 70% of the assumed baseline and no qualifying conflicting slowdown cohort. Reopening creates a new incident reference.</p>
+                {selectedIncidents.map(incident => <details key={incident.id} data-lifecycle-incident={incident.id} data-lifecycle-state={incidentViews[incident.id].state}>
+                  <summary>Incident {incident.id.slice(0, 8)} · {incidentViews[incident.id].label}</summary>
+                  <p>Incident ID: <code>{incident.id}</code></p>
+                  <p>First supported window began: <time dateTime={incident.started_at}>{formatTrafficTime(incident.started_at)}</time>.</p>
+                  <p>Latest supported window ended: <time dateTime={incident.last_supported_at}>{formatTrafficTime(incident.last_supported_at)}</time> · {incident.supporting_source_count} synthetic sources.</p>
+                  {incident.cleared_at && <p>Historical clearance recorded: <time dateTime={incident.cleared_at}>{formatTrafficTime(incident.cleared_at)}</time> · {incident.recovered_source_count} continuous synthetic sources. This does not establish current road safety.</p>}
+                  {incident.prior_incident_id && <p>Reopened after incident: <code>{incident.prior_incident_id}</code>.</p>}
+                  <p>Cause: unknown. {incident.report_episode_ids.length ? "Temporally associated report episodes (not confirmed causes):" : "No retained report episode is temporally associated."}</p>
+                  {incident.report_episode_ids.map(id => <p key={id}><code>{id}</code></p>)}
+                </details>)}
+                {!selectedIncidents.length && <p>No persisted slowdown incident is available for this direction. Missing history does not mean clearance.</p>}
+              </section>
+              <section className={styles.reports} aria-labelledby="traversal-title" data-completed-traversal={selected.id} data-delay-state={traversalViews[selected.id].state}>
+                <h3 id="traversal-title">Completed synthetic traversal</h3>
+                <p><strong>{traversalViews[selected.id].label}</strong></p>
+                {selectedTraversal?.entered_at && selectedTraversal.exited_at && <p>Completed entry-to-exit window: <time dateTime={selectedTraversal.entered_at}>{formatTrafficTime(selectedTraversal.entered_at)}</time> to <time dateTime={selectedTraversal.exited_at}>{formatTrafficTime(selectedTraversal.exited_at)}</time>.</p>}
+                {selectedTraversal?.baseline_label && <p>Frozen assumed baseline: {selectedTraversal.baseline_seconds} seconds · {selectedTraversal.baseline_label}.</p>}
+                <p>Excess time is the completed simulated entry-to-exit duration minus its named baseline, with a minimum of zero. Partial movement is unavailable, not zero. This is one synthetic traversal, not incident-caused delay, an average commute or promised savings. The selected evidence run is the most recently accepted run for this direction; older favorable records are not substituted.</p>
+              </section>
               <h3>Report-group evidence</h3>
               <p data-report-assessment={selected.id} data-assessment-state={assessments[selected.id].state}><strong>{assessments[selected.id].label}</strong></p>
               <p>SIMULATED · Reports group by this segment and direction, not by cause or a confirmed incident. Recent reports are under twenty minutes old; eligible reports are under fifteen minutes old and linked to an eligible reporting source.</p>
               <p>Each source counts once across the rolling fifteen-minute window, including repeated reports and different categories. Expired guest sources no longer qualify. L3 Multiple sources requires at least three eligible sources, not three independent witnesses.</p>
-              <p>All locations are manually selected: L1 Reported, without L2 location support. Multiple sources do not confirm congestion or any reported cause. L4 uses separate synthetic speed evidence above; recovery, measured delay and route savings remain unavailable. No reports does not mean the road is clear.</p>
+              <p>All locations are manually selected: L1 Reported, without L2 location support. Multiple sources do not confirm congestion or any reported cause. L4 and persisted recovery use separate synthetic speed evidence above. Completed simulated traversal excess is not measured personal delay; route savings remain unavailable. No reports does not mean the road is clear.</p>
               <section aria-labelledby="episode-history-title" className={styles.reports}>
                 <h3 id="episode-history-title">Report episode history</h3>
                 <p data-episode-summary={selected.id}>{episodeSummary(episodeCounts[selected.id])}</p>

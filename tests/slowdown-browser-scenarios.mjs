@@ -156,7 +156,8 @@ export async function runSlowdownScenarios(tools) {
     const details = await page.evaluate("document.querySelector('#segment-details').innerText");
     assert.doesNotMatch(details, /(?:^|\n)\s*(?:(?:incident|road) (?:is |has been )?clear(?:ed)?|recovery (?:confirmed|supported)|incident resolved)\b/i,
       "The recovery scenario loses L4 but does not establish recovery or incident clearance.");
-    assert.match(details, /(?:recovery|clearance).*?(?:unavailable|not (?:assessed|established|available|implemented))|(?:unavailable|not (?:assessed|established|available|implemented)).*?(?:recovery|clearance)/i);
+    assert.match(details, /higher speeds alone and simulator reset do not establish recovery or clearance/i);
+    assert.match(details, /retained evidence from one simulation run/i);
     assert.match(details, /delay.*?(?:unavailable|not (?:assessed|available))|(?:unavailable|not (?:assessed|available)).*?delay/i);
     await screenshot(page, "slowdown-recovery-not-cleared");
     value = await freshFixture();
