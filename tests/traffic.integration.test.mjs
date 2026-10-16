@@ -55,7 +55,9 @@ async function readSnapshot(client = publicClient()) {
   const readAt = Date.parse(response.data.read_at);
   assert.ok(Number.isFinite(readAt) && readAt >= started - 1000 && readAt <= Date.now() + 1000, "snapshot uses the current database statement clock");
   const parsed = parseTrafficSnapshot(response.data);
-  assert.equal(parsed.read_at, new Date(response.data.read_at).toISOString());
+  const milliseconds = new Date(response.data.read_at).toISOString();
+  const remainder = (/\.(\d{1,6})/.exec(response.data.read_at)?.[1] ?? "").padEnd(6, "0").slice(3);
+  assert.equal(parsed.read_at, Number(remainder) ? milliseconds.replace("Z", `${remainder}Z`) : milliseconds);
   const value = response.data.fixture;
   if (value === null) return response.data;
   assert.deepEqual(orderedFixture(parsed.fixture), orderedFixture(value));

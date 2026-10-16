@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parseReportAssessment, assessmentView, assessmentElapsed, advanceAssessmentTiming } from "../src/lib/evidence/assessment.ts";
+import { parseReportAssessment, assessmentView, assessmentElapsed, advanceAssessmentTiming, assessmentRemainingMs } from "../src/lib/evidence/assessment.ts";
 
 const readAt = "2026-10-15T04:00:00.000Z";
 const assessment = () => ({ segment_id: "primary-west", direction: "outbound", report_count: 5,
@@ -58,6 +58,13 @@ test("expired evidence cannot reappear after a clock failure or regression witho
     assert.equal(assessmentView(assessment(), readAt, timing.failed ? null : timing.elapsedMs).state, "expired");
   }
   assert.equal(timing.failed, true);
+});
+
+test("all evidence deadlines and scheduling include the preserved read microseconds", () => {
+  const preciseRead = "2026-10-15T04:00:00.000900Z";
+  assert.equal(assessmentView(assessment(), preciseRead, 59999.5).state, "expired");
+  assert.equal(assessmentRemainingMs(assessment().valid_until, preciseRead, 59999.5), -0.4);
+  assert.equal(assessmentRemainingMs(assessment().valid_until, preciseRead, 59998), 1.1);
 });
 
 test("assessment elapsed time includes loading and sleep, and fails closed for unknown origins", () => {

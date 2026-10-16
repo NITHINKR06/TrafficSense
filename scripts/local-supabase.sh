@@ -47,6 +47,10 @@ case "${1:-}" in
     docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/tests/evidence.integration.test.mjs
     docker exec -i supabase_db_trafficsense-local psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/evidence-boundaries.integration.sql
     ;;
+  test-slowdown)
+    docker compose build demo
+    docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/tests/slowdown.integration.test.mjs
+    ;;
   test-browser-recovery)
     test_compose=(docker compose -f compose.yaml -f compose.auth-test.yaml --profile auth-test)
     test_services=(auth-recovery auth-recovery-production auth-unconfigured auth-unconfigured-development auth-faults)
@@ -58,11 +62,13 @@ case "${1:-}" in
     for port in 3002 3003; do
       "${test_compose[@]}" run --rm -T supabase status --output json | docker run --rm -i --network host --user 1000:1000 \
         --mount type=bind,src="$PWD",dst=/workspace --workdir /workspace \
+        -e CHROMIUM_DEBUG_URL="${CHROMIUM_DEBUG_URL:-http://127.0.0.1:9333}" \
         -e APP_URL="http://127.0.0.1:$port" -e BROWSER_SCENARIO=recovery \
         trafficsense-auth-recovery node tests/browser.mjs
       for reports in false true; do
         "${test_compose[@]}" run --rm -T supabase status --output json | docker run --rm -i --network host --user 1000:1000 \
           --mount type=bind,src="$PWD",dst=/workspace --workdir /workspace \
+          -e CHROMIUM_DEBUG_URL="${CHROMIUM_DEBUG_URL:-http://127.0.0.1:9333}" \
           -e APP_URL="http://127.0.0.1:$port" -e TRAFFIC_FAULTS=true -e REPORTS_BROWSER="$reports" \
           trafficsense-auth-recovery node tests/traffic-browser.mjs
       done
@@ -70,10 +76,12 @@ case "${1:-}" in
     for port in 3004 3005; do
       docker run --rm --network host --user 1000:1000 \
         --mount type=bind,src="$PWD",dst=/workspace --workdir /workspace \
+        -e CHROMIUM_DEBUG_URL="${CHROMIUM_DEBUG_URL:-http://127.0.0.1:9333}" \
         -e APP_URL="http://127.0.0.1:$port" -e BROWSER_SCENARIO=setup \
         trafficsense-auth-recovery node tests/browser.mjs
       docker run --rm --network host --user 1000:1000 \
         --mount type=bind,src="$PWD",dst=/workspace --workdir /workspace \
+        -e CHROMIUM_DEBUG_URL="${CHROMIUM_DEBUG_URL:-http://127.0.0.1:9333}" \
         -e APP_URL="http://127.0.0.1:$port" -e TRAFFIC_SETUP=true -e REPORTS_BROWSER=true \
         trafficsense-auth-recovery node tests/traffic-browser.mjs
     done
@@ -82,7 +90,7 @@ case "${1:-}" in
     docker compose run --rm supabase stop
     ;;
   *)
-    printf '%s\n' 'Usage: bash scripts/local-supabase.sh start|seed|test|test-traffic|test-reports|test-evidence|test-browser-recovery|stop | simulate normal|slowdown|recovery [UTC-anchor] | simulate reset | reports enable|disable | reports cleanup|cleanup-expired-guests --confirm' >&2
+    printf '%s\n' 'Usage: bash scripts/local-supabase.sh start|seed|test|test-traffic|test-reports|test-evidence|test-slowdown|test-browser-recovery|stop | simulate normal|slowdown|recovery [UTC-anchor] | simulate reset | reports enable|disable | reports cleanup|cleanup-expired-guests --confirm' >&2
     exit 2
     ;;
 esac

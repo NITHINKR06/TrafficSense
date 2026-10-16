@@ -9,7 +9,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "node --test tests/auth.test.mjs tests/auth-faults.test.mjs tests/traffic.test.mjs tests/traffic-cli.test.mjs tests/traffic-reader.test.mjs tests/traffic-presentation.test.mjs tests/reports.test.mjs tests/reports-server.test.mjs tests/evidence.test.mjs"
+    "test": "node --test tests/auth.test.mjs tests/auth-faults.test.mjs tests/traffic.test.mjs tests/traffic-cli.test.mjs tests/traffic-reader.test.mjs tests/traffic-presentation.test.mjs tests/reports.test.mjs tests/reports-server.test.mjs tests/evidence.test.mjs tests/slowdown.test.mjs tests/slowdown-presentation.test.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "0.12.7",

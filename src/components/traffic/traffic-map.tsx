@@ -5,10 +5,11 @@ import type { Map as MapInstance, Marker } from "maplibre-gl";
 import type { TrafficFixture } from "@/lib/traffic/simulator";
 import type { PublicReport } from "@/lib/reports/rules";
 import type { AssessmentView } from "@/lib/evidence/assessment";
+import type { SlowdownView } from "@/lib/evidence/slowdown-presentation";
 import "maplibre-gl/dist/maplibre-gl.css";
 import styles from "./traffic.module.css";
 
-type MapProps = { fixture: TrafficFixture; reports: PublicReport[]; assessments: Record<string, AssessmentView>;
+type MapProps = { fixture: TrafficFixture; reports: PublicReport[]; assessments: Record<string, AssessmentView>; slowdowns: Record<string, SlowdownView>;
   selectedId: string | null; onSelect: (id: string) => void };
 
 export function TrafficMap(props: MapProps) {
@@ -16,7 +17,7 @@ export function TrafficMap(props: MapProps) {
   return <MapAttempt key={attempt} {...props} onRetry={() => setAttempt(value => value + 1)} />;
 }
 
-function MapAttempt({ fixture, reports, assessments, selectedId, onSelect, onRetry }: MapProps & { onRetry: () => void }) {
+function MapAttempt({ fixture, reports, assessments, slowdowns, selectedId, onSelect, onRetry }: MapProps & { onRetry: () => void }) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
   const markers = useRef<Marker[]>([]);
@@ -37,9 +38,11 @@ function MapAttempt({ fixture, reports, assessments, selectedId, onSelect, onRet
       const button = marker.getElement();
       const segment = fixture.segments.find(row => row.id === button.dataset.mapSegment);
       const view = segment && assessments[segment.id];
-      if (!segment || !view) continue;
+      const slowdown = segment && slowdowns[segment.id];
+      if (!segment || !view || !slowdown) continue;
       button.dataset.assessmentState = view.state;
-      const label = `Select ${segment.name}, ${segment.direction}, simulated; ${button.dataset.reportCount} unconfirmed demo reports, including stale reports. ${view.label}`;
+      button.dataset.slowdownState = slowdown.state;
+      const label = `Select ${segment.name}, ${segment.direction}, simulated; ${button.dataset.reportCount} unconfirmed demo reports, including stale reports. ${view.label}. ${slowdown.label} ${slowdown.windowLabel}`;
       button.setAttribute("aria-label", label);
       button.title = label;
       const badge = button.querySelector<HTMLElement>("[data-evidence-badge]");
@@ -47,8 +50,13 @@ function MapAttempt({ fixture, reports, assessments, selectedId, onSelect, onRet
         badge.textContent = view.state === "multiple" ? "L3" : view.state === "expired" ? "↻" : "";
         badge.hidden = view.state === "insufficient";
       }
+      const slowdownBadge = button.querySelector<HTMLElement>("[data-slowdown-badge]");
+      if (slowdownBadge) {
+        slowdownBadge.textContent = slowdown.state === "supported" ? "L4" : "↻";
+        slowdownBadge.hidden = slowdown.state !== "supported" && slowdown.state !== "expired";
+      }
     }
-  }, [assessments, fixture, state]);
+  }, [assessments, slowdowns, fixture, state]);
 
   useEffect(() => {
     let disposed = false;
@@ -126,6 +134,12 @@ function MapAttempt({ fixture, reports, assessments, selectedId, onSelect, onRet
             evidenceBadge.setAttribute("aria-hidden", "true");
             evidenceBadge.hidden = true;
             button.append(evidenceBadge);
+            const slowdownBadge = document.createElement("span");
+            slowdownBadge.className = styles.markerSlowdown;
+            slowdownBadge.dataset.slowdownBadge = "";
+            slowdownBadge.setAttribute("aria-hidden", "true");
+            slowdownBadge.hidden = true;
+            button.append(slowdownBadge);
             button.setAttribute("aria-pressed", String(selection.current === segment.id));
             button.addEventListener("click", () => onSelect(segment.id));
             const marker = new Marker({ element: button, offset: segment.direction === "inbound" ? [44, 0] : [0, 0] })
@@ -167,7 +181,7 @@ function MapAttempt({ fixture, reports, assessments, selectedId, onSelect, onRet
       {state === "failed" && <button type="button" className="button secondary" onClick={onRetry}>Retry map</button>}
       <div ref={container} className={styles.mapCanvas} style={state === "failed" ? { display: "none" } : undefined}
         role="region" aria-label="Optional map with synthetic segment selection" />
-      <p>Teal: primary · Violet: fixed alternative · Brown: opposite direction. Dashed line and pressed marker: selected segment. Marker numbers match the list. Small badges count unconfirmed demo reports, including stale and repeated-source reports; colours and counts are not congestion evidence. L3 badges mean at least three eligible reporting sources as of the data read, not independent witnesses or confirmed congestion. A ↻ badge means the assessment needs refresh.</p>
+      <p>Teal: primary · Violet: fixed alternative · Brown: opposite direction. Dashed line and pressed marker: selected segment. Marker numbers match the list. Small badges count unconfirmed demo reports, including stale and repeated-source reports; colours and counts are not congestion evidence. L3 badges mean at least three eligible reporting sources as of the data read, not independent witnesses or confirmed congestion. L4 badges mean simulated slowdown support from the stated sample window, not confirmed congestion or cause. A ↻ badge means the corresponding assessment needs refresh; loss of a badge does not mean clearance.</p>
       <div className={styles.attribution} aria-label="Map attribution">
         <a href="https://openfreemap.org" target="_blank" rel="noreferrer">OpenFreeMap</a>
         <a href="https://www.openmaptiles.org/" target="_blank" rel="noreferrer">© OpenMapTiles</a>

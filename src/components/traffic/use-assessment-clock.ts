@@ -1,11 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { advanceAssessmentTiming, type AssessmentOrigin } from "@/lib/evidence/assessment";
+import { advanceAssessmentTiming, assessmentRemainingMs, type AssessmentOrigin } from "@/lib/evidence/assessment";
 import type { TrafficSnapshot } from "@/lib/traffic/snapshot";
 
 type Clock = { snapshot: TrafficSnapshot; elapsedMs: number | null };
-export function useAssessmentClock(snapshot: TrafficSnapshot) {
+export function useAssessmentClock(snapshot: TrafficSnapshot, slowdownAssessments: readonly { valid_until: string | null }[]) {
   const pendingOrigin = useRef<AssessmentOrigin | null>(null);
   const [clock, setClock] = useState<Clock | null>(null);
   const refreshStarted = useCallback(() => {
@@ -21,8 +21,8 @@ export function useAssessmentClock(snapshot: TrafficSnapshot) {
       clearTimeout(timer);
       timing = advanceAssessmentTiming(timing, origin, { monotonic: performance.now(), wall: Date.now() });
       setClock({ snapshot, elapsedMs: timing.failed ? null : timing.elapsedMs });
-      const remaining = snapshot.report_assessments.flatMap(row => row.valid_until === null ? []
-        : [Date.parse(row.valid_until) - Date.parse(snapshot.read_at) - timing.elapsedMs])
+      const remaining = [...snapshot.report_assessments, ...slowdownAssessments].flatMap(row => row.valid_until === null ? []
+        : [assessmentRemainingMs(row.valid_until, snapshot.read_at, timing.elapsedMs)])
         .filter(value => value > 0);
       timer = setTimeout(update, Math.min(1000, ...remaining));
     }
@@ -36,6 +36,6 @@ export function useAssessmentClock(snapshot: TrafficSnapshot) {
       window.removeEventListener("pageshow", update);
       document.removeEventListener("visibilitychange", update);
     };
-  }, [snapshot]);
+  }, [snapshot, slowdownAssessments]);
   return { elapsedMs: clock?.snapshot === snapshot ? clock.elapsedMs : null, refreshStarted };
 }

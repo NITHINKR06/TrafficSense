@@ -49,9 +49,15 @@ export function advanceAssessmentTiming(previous: AssessmentTiming, origin: Asse
   return { elapsedMs: Math.max(previous.elapsedMs, elapsed ?? 0), failed: previous.failed || elapsed === null };
 }
 
+export function assessmentRemainingMs(deadline: string, readAt: string, elapsedMs: number): number {
+  const remainder = (value: string) => Number((/\.(\d{1,6})(?:Z|[+-])/.exec(value)?.[1] ?? "").padEnd(6, "0").slice(3));
+  const remaining = (Date.parse(deadline) - Date.parse(readAt)) * 1000 + remainder(deadline) - remainder(readAt) - Math.ceil(elapsedMs * 1000);
+  return Number.isFinite(remaining) ? remaining / 1000 : -Infinity;
+}
+
 export function assessmentView(row: ReportAssessment, readAt: string, elapsedMs: number | null): AssessmentView {
   if (elapsedMs === null || !Number.isFinite(elapsedMs) || elapsedMs < 0
-    || (row.valid_until !== null && Date.parse(readAt) + elapsedMs >= Date.parse(row.valid_until))) {
+    || (row.valid_until !== null && assessmentRemainingMs(row.valid_until, readAt, elapsedMs) <= 0)) {
     return { state: "expired", label: "Assessment needs refresh — previous counts are historical, not current evidence." };
   }
   const counts = `${row.recent_report_count} recent · ${row.eligible_report_count} eligible reports · ${row.eligible_source_count} eligible sources (as of data read)`;

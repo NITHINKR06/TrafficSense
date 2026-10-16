@@ -1,5 +1,5 @@
 import type { TrafficFixture } from "./simulator";
-import { sampleFreshness, type TrafficSnapshot } from "./snapshot.ts";
+import { sampleFreshness, trafficTimestampMicros, type TrafficSnapshot } from "./snapshot.ts";
 
 export type SnapshotClock = { snapshot: TrafficSnapshot; elapsedMs: number };
 
@@ -13,7 +13,8 @@ export function snapshotFreshness(observedAt: string | null, readAt: string, ela
   // An upper-bound clock may expire evidence early, but cannot promote future evidence.
   if (sampleFreshness(observedAt, readAt) === "future") return "future";
   if (elapsedMs === null || !Number.isFinite(elapsedMs) || elapsedMs < 0) return "unknown";
-  return sampleFreshness(observedAt, new Date(Date.parse(readAt) + elapsedMs).toISOString());
+  const age = trafficTimestampMicros(readAt) + Math.ceil(elapsedMs * 1000) - trafficTimestampMicros(observedAt);
+  return age >= 20 * 60_000_000 ? "stale" : "recent";
 }
 
 export function resolveSegment(fixture: TrafficFixture, requestedIds: string[]) {
@@ -24,11 +25,9 @@ export function resolveSegment(fixture: TrafficFixture, requestedIds: string[]) 
 
 export function latestSegmentSamples(fixture: TrafficFixture, segmentId: string) {
   const observations = fixture.observations.filter(row => row.segment_id === segmentId);
-  const latest = observations.reduce((time, row) => Math.max(time, Date.parse(row.observed_at)), -Infinity);
-  return {
-    observedAt: Number.isFinite(latest) ? new Date(latest).toISOString() : null,
-    samples: observations.filter(row => Date.parse(row.observed_at) === latest).sort((a, b) => a.source_id.localeCompare(b.source_id)),
-  };
+  const latest = observations.reduce((time, row) => Math.max(time, trafficTimestampMicros(row.observed_at)), -Infinity);
+  const samples = observations.filter(row => trafficTimestampMicros(row.observed_at) === latest).sort((a, b) => a.source_id.localeCompare(b.source_id));
+  return { observedAt: samples[0]?.observed_at ?? null, samples };
 }
 
 export function formatTrafficTime(value: string) {

@@ -58,13 +58,19 @@ function timestamp(input: unknown): string {
   return new Date(milliseconds - offset).toISOString();
 }
 
-function timestampMicros(input: unknown): number {
+export function trafficTimestampMicros(input: unknown): number {
   const canonical = timestamp(input);
   const fraction = /\.(\d{1,6})/.exec(input as string)?.[1] ?? "";
   // Accepted 20xx timestamps fit safely in integer microseconds.
   const microseconds = Date.parse(canonical) * 1000 + Number(fraction.padEnd(6, "0").slice(3));
   if (!Number.isSafeInteger(microseconds)) return invalid();
   return microseconds;
+}
+
+function preciseTimestamp(input: unknown): string {
+  const canonical = timestamp(input);
+  const remainder = trafficTimestampMicros(input) - Date.parse(canonical) * 1000;
+  return remainder === 0 ? canonical : canonical.replace("Z", `${String(remainder).padStart(3, "0")}Z`);
 }
 
 function geometry(input: unknown): DemoLine {
@@ -83,7 +89,7 @@ function unique<T>(values: T[], key: (value: T) => string): void {
 
 export function parseTrafficSnapshot(input: unknown): TrafficSnapshot {
   const envelope = record(input, ["read_at", "fixture", "reports", "reporting_enabled", "report_assessments"]);
-  const read_at = timestamp(envelope.read_at);
+  const read_at = preciseTimestamp(envelope.read_at);
   if (typeof envelope.reporting_enabled !== "boolean") return invalid();
   const reporting_enabled = envelope.reporting_enabled;
   const reports = collection(envelope.reports, 0, 2000).map(parsePublicReport);
@@ -97,8 +103,9 @@ export function parseTrafficSnapshot(input: unknown): TrafficSnapshot {
   const fixture = record(envelope.fixture, ["corridor", "segments", "routes", "route_segments", "sources", "observations"]);
   const corridor = record(fixture.corridor, ["id", "name", "provenance", "geometry_note", "scenario", "anchor_at"]);
   if (corridor.id !== "mangaluru-central-v1" || corridor.provenance !== "simulated") return invalid();
-  const anchor_at = timestamp(corridor.anchor_at);
-  if (anchor_at < "2000-01-01T00:00:00.000Z" || anchor_at >= "2100-01-01T00:00:00.000Z") return invalid();
+  const anchor_at = preciseTimestamp(corridor.anchor_at);
+  const anchorTime = trafficTimestampMicros(anchor_at);
+  if (anchorTime < Date.parse("2000-01-01T00:00:00.000Z") * 1000 || anchorTime >= Date.parse("2100-01-01T00:00:00.000Z") * 1000) return invalid();
   const segments = collection(fixture.segments).map(input => {
     const row = record(input, ["id", "name", "direction", "geometry", "length_m", "baseline_seconds", "baseline_label"]);
     return {
@@ -111,9 +118,9 @@ export function parseTrafficSnapshot(input: unknown): TrafficSnapshot {
   const segmentById = new Map(segments.map(row => [row.id, row]));
   if (reports.some(report => segmentById.get(report.segment_id)?.direction !== report.direction)) return invalid();
   if (report_assessments.length !== segments.length) return invalid();
-  const readTime = timestampMicros(envelope.read_at);
+  const readTime = trafficTimestampMicros(envelope.read_at);
   const reportTimes = new Map((envelope.reports as Record<string, unknown>[]).map(report =>
-    [report.id, { observed: timestampMicros(report.observed_at), received: timestampMicros(report.received_at) }]));
+    [report.id, { observed: trafficTimestampMicros(report.observed_at), received: trafficTimestampMicros(report.received_at) }]));
   for (const assessment of report_assessments) {
     if (segmentById.get(assessment.segment_id)?.direction !== assessment.direction) return invalid();
     const matching = reports.filter(report => report.segment_id === assessment.segment_id).map(report => reportTimes.get(report.id)!);
@@ -162,15 +169,14 @@ export function parseTrafficSnapshot(input: unknown): TrafficSnapshot {
   });
   unique(sources, row => row.id);
   const sourceById = new Map(sources.map(row => [row.id, row]));
-  const anchorTime = Date.parse(anchor_at);
   const observations = collection(fixture.observations, 0).map(input => {
     const row = record(input, ["segment_id", "source_id", "observed_at", "speed_kph"]);
     const segment_id = identifier(row.segment_id);
     const source_id = identifier(row.source_id, 100);
     if (sourceById.get(source_id)?.segment_id !== segment_id) return invalid();
-    const observed_at = timestamp(row.observed_at);
-    const observedTime = Date.parse(observed_at);
-    if (observedTime > anchorTime || observedTime < anchorTime - 11 * 60_000) return invalid();
+    const observed_at = preciseTimestamp(row.observed_at);
+    const observedTime = trafficTimestampMicros(observed_at);
+    if (observedTime > anchorTime || observedTime < anchorTime - 11 * 60_000_000) return invalid();
     return { segment_id, source_id, observed_at, speed_kph: number(row.speed_kph, 0, 160) };
   });
   unique(observations, row => `${row.segment_id}:${row.source_id}:${row.observed_at}`);
@@ -187,9 +193,9 @@ export function parseTrafficSnapshot(input: unknown): TrafficSnapshot {
 }
 
 export function sampleFreshness(observedAt: string | null, readAt: string): "recent" | "stale" | "future" | "missing" {
-  const readTime = Date.parse(timestamp(readAt));
+  const readTime = trafficTimestampMicros(readAt);
   if (observedAt === null) return "missing";
-  const age = readTime - Date.parse(timestamp(observedAt));
+  const age = readTime - trafficTimestampMicros(observedAt);
   if (age < 0) return "future";
-  return age >= 20 * 60_000 ? "stale" : "recent";
+  return age >= 20 * 60_000_000 ? "stale" : "recent";
 }

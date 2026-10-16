@@ -9,13 +9,15 @@ const setupOnly = process.env.TRAFFIC_SETUP === "true";
 const testFaults = process.env.TRAFFIC_FAULTS === "true";
 const reportSuite = process.env.REPORTS_BROWSER === "true";
 const evidenceSuite = process.env.EVIDENCE_BROWSER === "true";
+const slowdownSuite = process.env.SLOWDOWN_BROWSER === "true";
+assert.ok(!slowdownSuite || !(evidenceSuite || reportSuite || setupOnly || testFaults), "Slowdown scenarios run separately from evidence, reporting, setup and fault suites.");
 assert.ok(!evidenceSuite || !(reportSuite || setupOnly || testFaults), "Evidence scenarios run separately from reporting, setup and fault suites.");
 assert.ok(!(setupOnly && testFaults), "Setup and fault scenarios must run separately.");
 const ports = setupOnly ? [3004, 3005] : testFaults ? [3002, 3003] : [3000, 3001];
 assert.ok(ports.some(port => base === `http://127.0.0.1:${port}`), "Use the local app ports assigned to this scenario.");
 assert.ok(["127.0.0.1", "localhost"].includes(new URL(debuggerUrl).hostname), "Chromium must be local.");
 const viewports = [[1440, 1000], [390, 844]];
-if (process.env.TRAFFIC_NARROW === "true" || evidenceSuite) viewports.push([320, 740]);
+if (process.env.TRAFFIC_NARROW === "true" || evidenceSuite || slowdownSuite) viewports.push([320, 740]);
 const readySelector = '[data-testid="traffic-ready"]';
 const listSelector = "[data-segment-list] a[data-segment-id]";
 const fixture = createTrafficFixture("slowdown", DEFAULT_DEMO_ANCHOR);
@@ -219,8 +221,9 @@ async function createPage(width, height, { noWebGL = false, signedIn = false, co
     await page.call("Page.bringToFront");
     await page.waitFor(`(() => {
       const element = document.querySelector(${quote(selector)});
-      return element && (element.hasAttribute('data-map-segment') || Object.keys(element).some(key => key.startsWith('__reactProps$')));
-    })()`, `hydrated control: ${selector}`);
+      return element && !element.matches(':disabled') && !element.closest('[inert]')
+        && (element.hasAttribute('data-map-segment') || Object.keys(element).some(key => key.startsWith('__reactProps$')));
+    })()`, `hydrated enabled control: ${selector}`);
     const position = await page.evaluate(`(async () => {
       await document.fonts.ready;
       const element = document.querySelector(${quote(selector)});
@@ -271,8 +274,8 @@ async function createPage(width, height, { noWebGL = false, signedIn = false, co
 }
 
 async function disposePage(page) {
+  await send("Target.closeTarget", { targetId: page.targetId });
   if (page.ownsContext) await send("Target.disposeBrowserContext", { browserContextId: page.browserContextId });
-  else await send("Target.closeTarget", { targetId: page.targetId });
   for (const sessionId of page.sessions) sessions.delete(sessionId);
   pages.delete(page);
 }
@@ -290,16 +293,18 @@ async function privacy(page) {
 }
 async function withPage(width, height, options, run) {
   const page = await createPage(width, height, options);
+  let failure;
   try {
     await run(page);
     await privacy(page);
   } catch (error) {
     try { await screenshot(page, "failure"); } catch { /* Preserve the assertion if the failed document cannot be captured. */ }
-    if (exceptions.length) throw new AggregateError([error, ...exceptions.map(message => new Error(message))], "Browser flow failed with runtime diagnostics.");
-    throw error;
+    failure = exceptions.length ? new AggregateError([error, ...exceptions.map(message => new Error(message))], "Browser flow failed with runtime diagnostics.") : error;
   } finally {
-    await disposePage(page);
+    try { await disposePage(page); }
+    catch (error) { failure = new AggregateError([...(failure ? [failure] : []), error], "Browser flow or page cleanup failed."); }
   }
+  if (failure) throw failure;
 }
 async function layout(page) {
   await page.evaluate("document.fonts.ready");
@@ -711,7 +716,7 @@ try {
       await page.text("Synthetic traffic corridor");
     });
     let account;
-    if (!evidenceSuite) {
+    if (!evidenceSuite && !slowdownSuite) {
       const accounts = JSON.parse(await readFile("supabase/.temp/demo-accounts.json", "utf8"));
       account = accounts.find(item => item.label === "commuter");
       assert.ok(account?.email && account?.password, "Seeded local commuter account is required.");
@@ -734,7 +739,11 @@ try {
       const { runEvidenceScenarios } = await import("./evidence-browser-scenarios.mjs");
       await runEvidenceScenarios({ base, status, viewports, withPage, createPage, disposePage, privacy, layout, ready, selected, selectList, loadMap, mapState, providerEvidence, refresh, screenshot, fixture });
     }
-    for (const [width, height] of reportSuite || evidenceSuite ? [] : viewports) {
+    if (slowdownSuite) {
+      const { runSlowdownScenarios } = await import("./slowdown-browser-scenarios.mjs");
+      await runSlowdownScenarios({ base, status, viewports, withPage, createPage, disposePage, privacy, layout, ready, selected, selectList, keyboardSelect, loadMap, mapState, providerEvidence, refresh, screenshot, fixture, snapshot, replace });
+    }
+    for (const [width, height] of reportSuite || evidenceSuite || slowdownSuite ? [] : viewports) {
       let tileBlock;
       await withPage(width, height, {}, async page => { tileBlock = await happyPath(page); });
       await withPage(width, height, {}, page => blockedMap(page, "style", "*://tiles.openfreemap.org/styles/*"));

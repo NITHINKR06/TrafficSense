@@ -46,11 +46,20 @@ test("snapshot parser preserves the fixture contract and canonicalizes PostgreSQ
   input.fixture.corridor.anchor_at = "2026-10-15 04:00:00+00";
   input.fixture.observations[0].observed_at = "2026-10-15T03:49:00+00:00";
   const expected = snapshot();
-  expected.read_at = "2026-10-15T04:00:00.123Z";
+  expected.read_at = "2026-10-15T04:00:00.123456Z";
   assert.deepEqual(parseTrafficSnapshot(input), expected);
   assert.notEqual(parseTrafficSnapshot(input).fixture, input.fixture);
   assert.equal(input.fixture.corridor.anchor_at, "2026-10-15 04:00:00+00");
   assert.deepEqual(parseTrafficSnapshot({ read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], reporting_enabled: false, report_assessments: [] }), { read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], reporting_enabled: false, report_assessments: [] });
+});
+
+test("snapshot preserves microseconds needed for exact slowdown cadence and future boundaries", () => {
+  const input = snapshot();
+  input.fixture.observations[0].observed_at = "2026-10-15T03:49:00.000001Z";
+  assert.equal(parseTrafficSnapshot(input).fixture.observations[0].observed_at, input.fixture.observations[0].observed_at);
+  assert.equal(sampleFreshness("2026-10-15T04:00:00.000001Z", DEFAULT_DEMO_ANCHOR), "future");
+  input.fixture.observations[0].observed_at = "2026-10-15T03:48:59.999999Z";
+  assert.throws(() => parseTrafficSnapshot(input));
 });
 
 test("public reports share the snapshot but never expose source identity or unsupported segments", () => {
@@ -227,7 +236,11 @@ test("server snapshot reader is public, request-time, bounded, uncached and safe
     const timeouts = [];
     AbortSignal.timeout = milliseconds => { timeouts.push(milliseconds); return originalTimeout(milliseconds); };
     globalThis.fetch = async (_input, init) => { received = init; return new Response("{}"); };
-    assert.deepEqual(await readTrafficSnapshot(), { status: "ready", snapshot: snapshot() });
+    const expectedSlowdowns = snapshot().fixture.segments.map(segment => ({ segment_id: segment.id, direction: segment.direction,
+      status: segment.id === "primary-west" ? "supported" : "not_supported", window_start: "2026-10-15T03:55:00.000Z",
+      window_end: DEFAULT_DEMO_ANCHOR, complete_source_count: 3, slow_source_count: segment.id === "primary-west" ? 3 : 0,
+      valid_until: "2026-10-15T04:15:00.000Z", provenance: "simulated" }));
+    assert.deepEqual(await readTrafficSnapshot(), { status: "ready", snapshot: snapshot(), slowdown_assessments: expectedSlowdowns });
     assert.deepEqual(state.events, ["connection", "sdk"]);
     assert.equal(state.rpc, "read_traffic_demo");
     assert.equal(state.url, process.env.SUPABASE_URL);
@@ -255,7 +268,7 @@ test("server snapshot reader is public, request-time, bounded, uncached and safe
     state.response = { data: {}, error: null, status: 200 };
     assert.deepEqual(await readTrafficSnapshot(), { status: "invalid" });
     state.response = { data: { read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], reporting_enabled: false, report_assessments: [] }, error: null, status: 200 };
-    assert.deepEqual(await readTrafficSnapshot(), { status: "ready", snapshot: state.response.data });
+    assert.deepEqual(await readTrafficSnapshot(), { status: "ready", snapshot: state.response.data, slowdown_assessments: [] });
     state.requestError = true;
     assert.deepEqual(await readTrafficSnapshot(), { status: "unavailable" });
     state.requestError = false;

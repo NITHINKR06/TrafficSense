@@ -25,6 +25,15 @@ test("latest samples use one segment and timestamp, preserve source speeds, and 
   assert.deepEqual(latestSegmentSamples(shuffled, "primary-west"), result);
 });
 
+test("latest samples and freshness preserve submillisecond ordering", () => {
+  const input = structuredClone(fixture);
+  input.observations.push({ ...input.observations.find(row => row.segment_id === "primary-west"), observed_at: "2026-10-15T04:00:00.000001Z" });
+  const latest = latestSegmentSamples(input, "primary-west");
+  assert.equal(latest.observedAt, "2026-10-15T04:00:00.000001Z");
+  assert.equal(latest.samples.length, 1);
+  assert.equal(presentation.snapshotFreshness(latest.observedAt, "2026-10-15T04:00:00.000002Z", 0), "recent");
+});
+
 test("snapshot freshness advances by elapsed time independently of browser wall-clock skew", context => {
   const snapshot = { read_at: fixture.corridor.anchor_at, fixture };
   context.mock.timers.enable({ apis: ["Date"], now: 0 });

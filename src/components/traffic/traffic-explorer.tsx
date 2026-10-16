@@ -7,6 +7,8 @@ import { useSearchParams } from "next/navigation";
 import type { TrafficSnapshot } from "@/lib/traffic/snapshot";
 import { formatTrafficTime, latestSegmentSamples, resolveSegment, snapshotFreshness } from "@/lib/traffic/presentation";
 import { assessmentView } from "@/lib/evidence/assessment";
+import type { SlowdownAssessment } from "@/lib/evidence/slowdown";
+import { slowdownView } from "@/lib/evidence/slowdown-presentation";
 import { useAssessmentClock } from "./use-assessment-clock";
 import { RefreshTraffic } from "./refresh-traffic";
 import { TrafficMap } from "./traffic-map";
@@ -17,9 +19,11 @@ const freshnessLabels = {
   future: "Future-dated samples", missing: "No samples", unknown: "Sample freshness needs refresh",
 };
 
-export function TrafficExplorer({ snapshot }: { snapshot: TrafficSnapshot }) {
+export function TrafficExplorer({ snapshot, slowdownAssessments }: { snapshot: TrafficSnapshot; slowdownAssessments: SlowdownAssessment[] }) {
   const params = useSearchParams();
-  const { elapsedMs, refreshStarted } = useAssessmentClock(snapshot);
+  const { elapsedMs, refreshStarted } = useAssessmentClock(snapshot, slowdownAssessments);
+  const slowdowns = Object.fromEntries(slowdownAssessments.map(row =>
+    [row.segment_id, slowdownView(row, snapshot.read_at, elapsedMs)]));
   const assessments = Object.fromEntries(snapshot.report_assessments.map(row =>
     [row.segment_id, assessmentView(row, snapshot.read_at, elapsedMs)]));
   const [mapEnabled, setMapEnabled] = useState(false);
@@ -74,6 +78,9 @@ export function TrafficExplorer({ snapshot }: { snapshot: TrafficSnapshot }) {
                   <span>{sampleLabel(samples.observedAt)}</span>
                   <span data-segment-report-count={segment.id}>{snapshot.reports.filter(report => report.segment_id === segment.id).length} unconfirmed demo reports, including stale reports</span>
                   <span data-segment-assessment={segment.id} data-assessment-state={assessments[segment.id].state}>{assessments[segment.id].label}</span>
+                  <span data-segment-slowdown={segment.id} data-slowdown-state={slowdowns[segment.id].state}>
+                    {slowdowns[segment.id].label}<br /><span>{slowdowns[segment.id].windowLabel}</span>
+                  </span>
                 </a>
               </li>;
             })}
@@ -89,7 +96,7 @@ export function TrafficExplorer({ snapshot }: { snapshot: TrafficSnapshot }) {
               <button type="button" className="button" onClick={() => setMapEnabled(true)}>Load map</button>
             </div> : <>
               <button type="button" className="button secondary" onClick={() => setMapEnabled(false)}>Hide map</button>
-              <TrafficMap key={snapshot.read_at} fixture={fixture} reports={snapshot.reports} assessments={assessments} selectedId={selected?.id ?? null} onSelect={selectSegment} />
+              <TrafficMap key={snapshot.read_at} fixture={fixture} reports={snapshot.reports} assessments={assessments} slowdowns={slowdowns} selectedId={selected?.id ?? null} onSelect={selectSegment} />
             </>}
           </section>
           <section id="segment-details" data-segment-id={selected?.id ?? ""} className="panel" aria-labelledby="segment-details-title" aria-live="polite">
@@ -111,11 +118,20 @@ export function TrafficExplorer({ snapshot }: { snapshot: TrafficSnapshot }) {
               {latest.samples.length ? <ul className={styles.samples}>
                 {latest.samples.map(row => <li key={row.source_id}><span>{fixture.sources.find(source => source.id === row.source_id)?.label}</span><strong>{row.speed_kph} km/h</strong></li>)}
               </ul> : <p>No samples are available for this segment. Speed, delay and congestion are not inferred.</p>}
+              <h3>Synthetic slowdown evidence</h3>
+              <div data-slowdown-assessment={selected.id} data-slowdown-state={slowdowns[selected.id].state}>
+                <p><strong>{slowdowns[selected.id].label}</strong></p>
+                <p>{slowdowns[selected.id].windowLabel}</p>
+              </div>
+              <p>SIMULATED · L4 requires the same three or more synthetic sources at six synchronized one-minute timestamps, spanning five complete minutes. Every required speed must be below 40% of the unrounded assumed baseline; every required sample must be under twenty minutes old.</p>
+              <p>Baseline speed: {(selected.length_m / selected.baseline_seconds * 3.6).toLocaleString("en-GB", { maximumFractionDigits: 2 })} km/h (assumed). Missing or off-cadence samples are not filled in. The latest observed window is assessed, not an older favorable run.</p>
+              <p>L4 is simulated slowdown support, not live or confirmed congestion. These synthetic sources are separate from reporting identities; L3 and L4 do not establish a reported cause or location support.</p>
+              <p>Loss of support, higher speeds and simulator reset do not establish recovery or clearance. Recovery/clearance and complete-traversal delay remain unavailable; speed samples do not prove a completed traversal. No route savings are calculated.</p>
               <h3>Report-group evidence</h3>
               <p data-report-assessment={selected.id} data-assessment-state={assessments[selected.id].state}><strong>{assessments[selected.id].label}</strong></p>
               <p>SIMULATED · Reports group by this segment and direction, not by cause or a confirmed incident. Recent reports are under twenty minutes old; eligible reports are under fifteen minutes old and linked to an eligible reporting source.</p>
               <p>Each source counts once across the rolling fifteen-minute window, including repeated reports and different categories. Expired guest sources no longer qualify. L3 Multiple sources requires at least three eligible sources, not three independent witnesses.</p>
-              <p>All locations are manually selected: L1 Reported, without L2 location support. Multiple sources do not confirm congestion or any reported cause. Slowdown support, recovery, measured delay and route savings are not assessed. No reports does not mean the road is clear.</p>
+              <p>All locations are manually selected: L1 Reported, without L2 location support. Multiple sources do not confirm congestion or any reported cause. L4 uses separate synthetic speed evidence above; recovery, measured delay and route savings remain unavailable. No reports does not mean the road is clear.</p>
               <div id="segment-reports" className={styles.reports} data-report-segment={selected.id}>
                 <h3>Unconfirmed demo reports</h3>
                 <p>{selectedReports.length} reports for this direction. Counts include repeated-source and stale reports, not independent witnesses. No reports does not mean the road is clear.</p>

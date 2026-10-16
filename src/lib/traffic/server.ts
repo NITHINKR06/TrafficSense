@@ -2,9 +2,10 @@ import "server-only";
 import { createClient } from "@supabase/supabase-js";
 import { connection } from "next/server";
 import { parseTrafficSnapshot, type TrafficSnapshot } from "./snapshot";
+import { assessSlowdown, type SlowdownAssessment } from "../evidence/slowdown.ts";
 
 export type TrafficSnapshotResult =
-  | { status: "ready"; snapshot: TrafficSnapshot }
+  | { status: "ready"; snapshot: TrafficSnapshot; slowdown_assessments: SlowdownAssessment[] }
   | { status: "unconfigured" | "unavailable" | "invalid" | "denied" };
 
 const trafficFetch: typeof fetch = (input, init) => fetch(input, {
@@ -30,7 +31,8 @@ export async function readTrafficSnapshot(): Promise<TrafficSnapshotResult> {
       return { status: error.code === "42501" || status === 401 || status === 403 ? "denied" : "unavailable" };
     }
     try {
-      return { status: "ready", snapshot: parseTrafficSnapshot(data) };
+      const snapshot = parseTrafficSnapshot(data);
+      return { status: "ready", snapshot, slowdown_assessments: assessSlowdown(snapshot) };
     } catch {
       return { status: "invalid" };
     }

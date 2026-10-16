@@ -52,6 +52,8 @@ export async function runReportScenarios(tools) {
     return { id, draft };
   }
   async function publicReport(page, record) {
+    await page.waitFor("document.querySelector('[data-report-saved] button')?.disabled === false", "saved report transition and refresh finish");
+    await layout(page);
     await page.click('a[href*="#segment-reports"]');
     await page.route("/traffic"); await ready(page); await selected(page, record.draft.segment_id);
     await page.waitFor(`!!document.querySelector('[data-public-report="${record.id}"]')`, "saved report appears on the public segment");
