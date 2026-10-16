@@ -3,6 +3,10 @@ import { sampleFreshness, trafficTimestampMicros, type TrafficSnapshot } from ".
 
 export type SnapshotClock = { snapshot: TrafficSnapshot; elapsedMs: number };
 
+export function episodeSummary(count: number): string {
+  return `${count} retained report episodes · unconfirmed grouping, not active incidents`;
+}
+
 export function snapshotReadTime(snapshot: TrafficSnapshot, clock: SnapshotClock | null) {
   const elapsedMs = clock?.snapshot === snapshot ? clock.elapsedMs : 0;
   return new Date(Date.parse(snapshot.read_at) + elapsedMs).toISOString();

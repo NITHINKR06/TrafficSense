@@ -1,10 +1,14 @@
 import type { DemoLine, TrafficFixture } from "./simulator";
-import { parsePublicReport, type PublicReport } from "../reports/rules.ts";
+import { parsePublicReport, reportDirections, reportTimestamp, reportUuid, type PublicReport, type ReportSegment } from "../reports/rules.ts";
 
 import { parseReportAssessment, type ReportAssessment } from "../evidence/assessment.ts";
 
+export type IncidentEpisode = {
+  id: string; segment_id: ReportSegment; direction: "inbound" | "outbound"; created_at: string;
+  first_observed_at: string; last_observed_at: string; report_count: number; provenance: "simulated";
+};
 export type TrafficSnapshot = { read_at: string; fixture: TrafficFixture | null; reports: PublicReport[];
-  reporting_enabled: boolean; report_assessments: ReportAssessment[] };
+  incident_episodes: IncidentEpisode[]; reporting_enabled: boolean; report_assessments: ReportAssessment[] };
 
 function invalid(): never {
   throw new Error("Invalid traffic snapshot.");
@@ -73,6 +77,23 @@ function preciseTimestamp(input: unknown): string {
   return remainder === 0 ? canonical : canonical.replace("Z", `${String(remainder).padStart(3, "0")}Z`);
 }
 
+function episodeTimestamp(input: unknown): string {
+  reportTimestamp(input);
+  return preciseTimestamp(input);
+}
+
+function parseIncidentEpisode(input: unknown): IncidentEpisode {
+  const row = record(input, ["id", "segment_id", "direction", "created_at", "first_observed_at", "last_observed_at", "report_count", "provenance"]);
+  const segment_id = choice(row.segment_id, Object.keys(reportDirections) as ReportSegment[]);
+  const direction = reportDirections[segment_id];
+  if (row.direction !== direction || row.provenance !== "simulated") return invalid();
+  const first_observed_at = episodeTimestamp(row.first_observed_at);
+  const last_observed_at = episodeTimestamp(row.last_observed_at);
+  if (trafficTimestampMicros(first_observed_at) > trafficTimestampMicros(last_observed_at)) return invalid();
+  return { id: reportUuid(row.id), segment_id, direction, created_at: episodeTimestamp(row.created_at),
+    first_observed_at, last_observed_at, report_count: number(row.report_count, 1, 2000, true), provenance: "simulated" };
+}
+
 function geometry(input: unknown): DemoLine {
   const value = record(input, ["type", "coordinates"]);
   if (value.type !== "LineString") return invalid();
@@ -88,17 +109,40 @@ function unique<T>(values: T[], key: (value: T) => string): void {
 }
 
 export function parseTrafficSnapshot(input: unknown): TrafficSnapshot {
-  const envelope = record(input, ["read_at", "fixture", "reports", "reporting_enabled", "report_assessments"]);
+  const envelope = record(input, ["read_at", "fixture", "reports", "incident_episodes", "reporting_enabled", "report_assessments"]);
   const read_at = preciseTimestamp(envelope.read_at);
   if (typeof envelope.reporting_enabled !== "boolean") return invalid();
   const reporting_enabled = envelope.reporting_enabled;
   const reports = collection(envelope.reports, 0, 2000).map(parsePublicReport);
   unique(reports, row => row.id);
+  const incident_episodes = collection(envelope.incident_episodes, 0, 2000).map(parseIncidentEpisode);
+  unique(incident_episodes, row => row.id);
+  const episodeById = new Map(incident_episodes.map(row => [row.id, row]));
+  // Public report display times are millisecond-normalized; relations use the raw database precision.
+  const reportTimes = new Map((envelope.reports as Record<string, unknown>[]).map(report =>
+    [report.id, { observed: trafficTimestampMicros(report.observed_at), received: trafficTimestampMicros(report.received_at) }]));
+  const episodeMembers = new Map<string, { count: number; first: number; last: number }>();
+  for (const report of reports) {
+    const episode = episodeById.get(report.episode_id);
+    const time = reportTimes.get(report.id)!;
+    if (!episode || episode.segment_id !== report.segment_id || episode.direction !== report.direction
+      || time.observed > time.received) return invalid();
+    const members = episodeMembers.get(episode.id) ?? { count: 0, first: time.observed, last: time.observed };
+    members.count++;
+    members.first = Math.min(members.first, time.observed);
+    members.last = Math.max(members.last, time.observed);
+    episodeMembers.set(episode.id, members);
+  }
+  for (const episode of incident_episodes) {
+    const members = episodeMembers.get(episode.id);
+    if (!members || members.count !== episode.report_count || members.first !== trafficTimestampMicros(episode.first_observed_at)
+      || members.last !== trafficTimestampMicros(episode.last_observed_at)) return invalid();
+  }
   const report_assessments = collection(envelope.report_assessments, 0, 5).map(row => parseReportAssessment(row, read_at));
   unique(report_assessments, row => row.segment_id);
   if (envelope.fixture === null) {
-    if (reports.length || report_assessments.length) return invalid();
-    return { read_at, fixture: null, reports, reporting_enabled, report_assessments };
+    if (reports.length || incident_episodes.length || report_assessments.length) return invalid();
+    return { read_at, fixture: null, reports, incident_episodes, reporting_enabled, report_assessments };
   }
   const fixture = record(envelope.fixture, ["corridor", "segments", "routes", "route_segments", "sources", "observations"]);
   const corridor = record(fixture.corridor, ["id", "name", "provenance", "geometry_note", "scenario", "anchor_at"]);
@@ -119,12 +163,9 @@ export function parseTrafficSnapshot(input: unknown): TrafficSnapshot {
   if (reports.some(report => segmentById.get(report.segment_id)?.direction !== report.direction)) return invalid();
   if (report_assessments.length !== segments.length) return invalid();
   const readTime = trafficTimestampMicros(envelope.read_at);
-  const reportTimes = new Map((envelope.reports as Record<string, unknown>[]).map(report =>
-    [report.id, { observed: trafficTimestampMicros(report.observed_at), received: trafficTimestampMicros(report.received_at) }]));
   for (const assessment of report_assessments) {
     if (segmentById.get(assessment.segment_id)?.direction !== assessment.direction) return invalid();
     const matching = reports.filter(report => report.segment_id === assessment.segment_id).map(report => reportTimes.get(report.id)!);
-    if (matching.some(report => report.observed > report.received)) return invalid();
     const recent = matching.filter(report => report.observed > readTime - 1200000000
       && report.observed <= readTime && report.received <= readTime);
     const eligibleCandidates = recent.filter(report => report.observed > readTime - 900000000);
@@ -181,7 +222,7 @@ export function parseTrafficSnapshot(input: unknown): TrafficSnapshot {
   });
   unique(observations, row => `${row.segment_id}:${row.source_id}:${row.observed_at}`);
   return {
-    read_at, reports, reporting_enabled, report_assessments,
+    read_at, reports, incident_episodes, reporting_enabled, report_assessments,
     fixture: {
       corridor: {
         id: corridor.id, name: text(corridor.name, 160), provenance: corridor.provenance,

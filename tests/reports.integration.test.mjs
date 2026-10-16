@@ -16,7 +16,7 @@ const ownedSources = [];
 let previous;
 let prepared = false;
 const fixture = createTrafficFixture("slowdown", "2026-10-15T04:00:00.000Z");
-const publicFields = ["id", "segment_id", "direction", "category", "observed_at", "received_at", "provenance", "location_provenance"].sort();
+const publicFields = ["id", "episode_id", "segment_id", "direction", "category", "observed_at", "received_at", "provenance", "location_provenance"].sort();
 
 async function rpc(who, name, input) {
   const result = await who.rpc(name, input).abortSignal(AbortSignal.timeout(15000));
@@ -89,7 +89,7 @@ test("sessionless clients are read-only and disabled reporting creates no source
   await rpc(service, "set_reporting_enabled", { p_enabled: false });
   assert.deepEqual(await rpc(signed, "prepare_report_source"), { status: "disabled" });
   const snapshot = await rpc(who, "read_traffic_demo");
-  assert.deepEqual(Object.keys(snapshot).sort(), ["fixture", "read_at", "report_assessments", "reporting_enabled", "reports"]);
+  assert.deepEqual(Object.keys(snapshot).sort(), ["fixture", "incident_episodes", "read_at", "report_assessments", "reporting_enabled", "reports"]);
   assert.equal(snapshot.reporting_enabled, false);
   assert.equal((await who.auth.getSession()).data.session, null);
   await rpc(service, "set_reporting_enabled", { p_enabled: true });
@@ -200,6 +200,7 @@ test("simulator reset/replacement preserves reports and retry acknowledgements w
   const empty = await rpc(client(), "read_traffic_demo");
   assert.equal(empty.fixture, null);
   assert.deepEqual(empty.reports, []);
+  assert.deepEqual(empty.incident_episodes, []);
   assert.equal(empty.reporting_enabled, true);
   accepted(await submit(who, value), true);
   assert.deepEqual(await submit(who, input(preparation)), { status: "unavailable_segment" });

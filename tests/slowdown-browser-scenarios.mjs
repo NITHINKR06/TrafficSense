@@ -49,9 +49,14 @@ export async function runSlowdownScenarios(tools) {
     await page.evaluate("window.__slowdownCanvas = document.querySelector('[data-map-state] canvas')");
   }
   async function refresh(page) {
+    await page.evaluate("window.__slowdownRefreshCanvas = document.querySelector('[data-map-state] canvas')");
     await refreshTraffic(page);
     await ready(page);
-    if (await page.evaluate("!!document.querySelector('[data-map-state]')")) await rememberCanvas(page);
+    if (await page.evaluate("!!document.querySelector('[data-map-state]')")) {
+      await rememberCanvas(page);
+      assert.equal(await page.evaluate("!window.__slowdownRefreshCanvas || window.__slowdownRefreshCanvas === document.querySelector('[data-map-state] canvas')"), true,
+        "Data-only refreshes update existing markers without rebuilding unchanged map geometry.");
+    }
   }
   async function sameCanvas(page) {
     assert.equal(await page.evaluate("document.querySelector('[data-map-state] canvas') === window.__slowdownCanvas && window.__slowdownCanvas?.isConnected"), true,

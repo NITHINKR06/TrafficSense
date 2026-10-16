@@ -31,6 +31,9 @@
 .samples strong { white-space: nowrap; }
 .reports { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--outline-variant); scroll-margin-top: 1rem; }
 .reports ul { list-style: none; padding: 0; display: grid; gap: 1rem; }
+.reports details { margin-block: 0.75rem; padding: 0.75rem; border: 1px solid var(--outline-variant); border-radius: 0.75rem; overflow-wrap: anywhere; }
+.reports summary { min-height: 44px; padding-block: 0.5rem; cursor: pointer; }
+.reports summary:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
 .reports li { display: grid; gap: 0.35rem; padding: 1rem; border: 1px solid var(--outline-variant); border-radius: 0.75rem; overflow-wrap: anywhere; }
 .reports li span { font-size: 0.85rem; }
 .markerEvidence { position: absolute; bottom: -12px; left: -9px; background: var(--on-surface); color: white; border-radius: 0.4rem; padding: 0.1rem 0.3rem; font-size: 0.7rem; line-height: 1.3; }

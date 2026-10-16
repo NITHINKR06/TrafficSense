@@ -141,8 +141,9 @@ begin
     public_ids := array_append(public_ids, public_id);
     insert into public.traffic_reports_private(public_id, source_id, request_id, canonical_input, received_at)
       values (public_id, source_ids[source_index], gen_random_uuid(), '{}', receipt);
-    insert into public.public_traffic_reports(id, segment_id, direction, category, observed_at, received_at)
-      values (public_id, segment, 'outbound', case when index % 2 = 0 then 'accident' else 'unknown' end, observation, receipt);
+    insert into public.public_traffic_reports(id, episode_id, segment_id, direction, category, observed_at, received_at)
+      values (public_id, public.assign_incident_episode(segment, 'outbound', observation, receipt),
+        segment, 'outbound', case when index % 2 = 0 then 'accident' else 'unknown' end, observation, receipt);
   end loop;
   envelope := public.read_traffic_demo();
   select value into assessment from jsonb_array_elements(envelope -> 'report_assessments') where value ->> 'segment_id' = segment;
@@ -166,8 +167,9 @@ begin
     public_id := gen_random_uuid();
     insert into public.traffic_reports_private(public_id, source_id, request_id, canonical_input, received_at)
       values (public_id, source_ids[source_index], gen_random_uuid(), '{}', read_clock);
-    insert into public.public_traffic_reports(id, segment_id, direction, category, observed_at, received_at)
-      values (public_id, segment, 'outbound', 'unknown', observation, read_clock);
+    insert into public.public_traffic_reports(id, episode_id, segment_id, direction, category, observed_at, received_at)
+      values (public_id, public.assign_incident_episode(segment, 'outbound', observation, read_clock),
+        segment, 'outbound', 'unknown', observation, read_clock);
   end loop;
   select value into assessment from jsonb_array_elements(public.read_report_assessments()) where value ->> 'segment_id' = segment;
   if (assessment ->> 'eligible_report_count')::integer <> 4 or (assessment ->> 'eligible_source_count')::integer <> 3
@@ -189,8 +191,9 @@ begin
     public_ids := array_append(public_ids, public_id);
     insert into public.traffic_reports_private(public_id, source_id, request_id, canonical_input, received_at)
       values (public_id, source_ids[source_index], gen_random_uuid(), '{}', read_clock);
-    insert into public.public_traffic_reports(id, segment_id, direction, category, observed_at, received_at)
-      values (public_id, segment, 'outbound', 'unknown', observation, read_clock);
+    insert into public.public_traffic_reports(id, episode_id, segment_id, direction, category, observed_at, received_at)
+      values (public_id, public.assign_incident_episode(segment, 'outbound', observation, read_clock),
+        segment, 'outbound', 'unknown', observation, read_clock);
   end loop;
   select value into assessment from jsonb_array_elements(public.read_report_assessments()) where value ->> 'segment_id' = segment;
   if (assessment ->> 'eligible_report_count')::integer <> 3 or (assessment ->> 'eligible_source_count')::integer <> 2
@@ -214,8 +217,9 @@ begin
   public_id := gen_random_uuid();
   insert into public.traffic_reports_private(public_id, source_id, request_id, canonical_input, received_at)
     values (public_id, source_ids[1], gen_random_uuid(), '{}', read_clock);
-  insert into public.public_traffic_reports(id, segment_id, direction, category, observed_at, received_at)
-    values (public_id, segment, 'outbound', 'unknown', read_clock - interval '21 minutes', read_clock);
+  insert into public.public_traffic_reports(id, episode_id, segment_id, direction, category, observed_at, received_at)
+    values (public_id, public.assign_incident_episode(segment, 'outbound', read_clock - interval '21 minutes', read_clock),
+      segment, 'outbound', 'unknown', read_clock - interval '21 minutes', read_clock);
   select value into assessment from jsonb_array_elements(public.read_report_assessments()) where value ->> 'segment_id' = segment;
   if (assessment ->> 'report_count')::integer <> 1 or (assessment ->> 'recent_report_count')::integer <> 0
     or (assessment ->> 'eligible_source_count')::integer <> 0 or assessment -> 'valid_until' <> 'null'::jsonb then

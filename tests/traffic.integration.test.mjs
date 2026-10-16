@@ -51,7 +51,7 @@ async function readSnapshot(client = publicClient()) {
   const started = Date.now();
   const response = await client.rpc("read_traffic_demo");
   assert.equal(response.error, null, "public snapshot RPC must succeed");
-  assert.deepEqual(Object.keys(response.data).sort(), ["fixture", "read_at", "report_assessments", "reporting_enabled", "reports"]);
+  assert.deepEqual(Object.keys(response.data).sort(), ["fixture", "incident_episodes", "read_at", "report_assessments", "reporting_enabled", "reports"]);
   const readAt = Date.parse(response.data.read_at);
   assert.ok(Number.isFinite(readAt) && readAt >= started - 1000 && readAt <= Date.now() + 1000, "snapshot uses the current database statement clock");
   const parsed = parseTrafficSnapshot(response.data);
@@ -59,7 +59,11 @@ async function readSnapshot(client = publicClient()) {
   const remainder = (/\.(\d{1,6})/.exec(response.data.read_at)?.[1] ?? "").padEnd(6, "0").slice(3);
   assert.equal(parsed.read_at, Number(remainder) ? milliseconds.replace("Z", `${remainder}Z`) : milliseconds);
   const value = response.data.fixture;
-  if (value === null) return response.data;
+  if (value === null) {
+    assert.deepEqual(response.data.reports, []);
+    assert.deepEqual(response.data.incident_episodes, []);
+    return response.data;
+  }
   assert.deepEqual(orderedFixture(parsed.fixture), orderedFixture(value));
   assert.deepEqual(Object.keys(value).sort(), Object.keys(fixture).sort());
   assert.deepEqual(Object.keys(value.corridor).sort(), Object.keys(fixture.corridor).sort());

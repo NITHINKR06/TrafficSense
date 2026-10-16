@@ -13,7 +13,7 @@ function snapshot(count = 3, ticks = 6, speed = 8) {
   fixture.observations = fixture.sources.flatMap(source => Array.from({ length: ticks }, (_, index) => ({
     segment_id: source.segment_id, source_id: source.id, observed_at: iso(Date.parse(end) - (ticks - 1 - index) * 60000), speed_kph: speed,
   })));
-  return { read_at: end, fixture, reports: [], reporting_enabled: false, report_assessments: fixture.segments.map(segment => ({
+  return { read_at: end, fixture, reports: [], incident_episodes: [], reporting_enabled: false, report_assessments: fixture.segments.map(segment => ({
     segment_id: segment.id, direction: segment.direction, report_count: 0, recent_report_count: 0, eligible_report_count: 0,
     eligible_source_count: 0, multiple_sources: false, valid_until: null, provenance: "simulated",
   })) };
@@ -39,7 +39,7 @@ test("one minimal simulated assessment per active segment, no fixture gives no r
     window_start: "2026-10-16T03:55:00.000Z", window_end: end, complete_source_count: 3, slow_source_count: 3,
     valid_until: "2026-10-16T04:15:00.000Z", provenance: "simulated" });
   assert.deepEqual(value, before);
-  assert.deepEqual(assessSlowdown({ ...value, fixture: null }), []);
+  assert.deepEqual(assessSlowdown({ ...value, fixture: null, report_assessments: [] }), []);
 });
 
 test("zero, one, two, three and additional sources are counted across all six timestamps", () => {
@@ -256,12 +256,23 @@ test("scenario names, reports, reporting gate and L3 never affect L4 or assert a
   for (const scenario of ["normal", "slowdown", "recovery"]) {
     value.fixture.corridor.scenario = scenario;
     value.reporting_enabled = true;
-    value.reports = Array.from({ length: 20 }, (_, index) => ({ id: `report-${index}`, segment_id: "primary-west", category: "accident" }));
-    value.report_assessments[0] = { ...value.report_assessments[0], eligible_source_count: 20, multiple_sources: true };
-    assert.deepEqual(assessSlowdown(value), expected);
+    value.reports = Array.from({ length: 20 }, (_, index) => ({
+      id: `a0866416-8ea3-4f6a-81f9-${String(index).padStart(12, "0")}`,
+      episode_id: `66ee2d39-c477-42ad-a6b8-${String(index % 2).padStart(12, "0")}`,
+      segment_id: "primary-west", direction: "outbound", category: "accident", observed_at: end, received_at: end,
+      provenance: "simulated", location_provenance: "manual",
+    }));
+    value.incident_episodes = value.reports.slice(0, 2).map(report => ({ id: report.episode_id,
+      segment_id: "primary-west", direction: "outbound", created_at: end, first_observed_at: end, last_observed_at: end,
+      report_count: 10, provenance: "simulated" }));
+    value.report_assessments[0] = { ...value.report_assessments[0], report_count: 20, recent_report_count: 20,
+      eligible_report_count: 20, eligible_source_count: 20, multiple_sources: true, valid_until: "2026-10-16T04:15:00.000Z" };
+    assert.deepEqual(assessSlowdown(parseTrafficSnapshot(value)), expected);
   }
   value.fixture.observations = [];
   assert.equal(west(value).status, "missing", "L3 alone cannot manufacture L4");
-  value.reports = [];
-  assert.equal(west(value).status, "missing", "no reports and no samples never implies clear");
+  value.reports = []; value.incident_episodes = [];
+  Object.assign(value.report_assessments[0], { report_count: 0, recent_report_count: 0, eligible_report_count: 0,
+    eligible_source_count: 0, multiple_sources: false, valid_until: null });
+  assert.equal(west(parseTrafficSnapshot(value)).status, "missing", "no reports and no samples never implies clear");
 });

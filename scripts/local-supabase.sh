@@ -51,6 +51,29 @@ case "${1:-}" in
     docker compose build demo
     docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/tests/slowdown.integration.test.mjs
     ;;
+  test-episodes)
+    case "${2:-}" in
+      --backfill)
+        sed '/^\\ir /r supabase/migrations/20261016000100_incident_episodes.sql' tests/incident-episodes-boundaries.sql |
+          sed '/^\\ir /d' |
+          docker exec -i supabase_db_trafficsense-local psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 -v episodes_backfill=true
+        ;;
+      --schema-only|'')
+        schema_only=false
+        if [[ "${2:-}" == --schema-only ]]; then schema_only=true; fi
+        docker compose build demo
+        docker compose run --rm -T supabase status --output json |
+          docker compose run --rm -T --workdir /app -e EPISODES_SCHEMA_ONLY="$schema_only" demo pnpm exec node /app/tests/incident-episodes.integration.test.mjs
+        if [[ "${2:-}" != --schema-only ]]; then
+          docker exec -i supabase_db_trafficsense-local psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/incident-episodes-boundaries.sql
+        fi
+        ;;
+      *)
+        printf '%s\n' 'Usage: bash scripts/local-supabase.sh test-episodes [--schema-only|--backfill]' >&2
+        exit 2
+        ;;
+    esac
+    ;;
   test-browser-recovery)
     test_compose=(docker compose -f compose.yaml -f compose.auth-test.yaml --profile auth-test)
     test_services=(auth-recovery auth-recovery-production auth-unconfigured auth-unconfigured-development auth-faults)
@@ -90,7 +113,7 @@ case "${1:-}" in
     docker compose run --rm supabase stop
     ;;
   *)
-    printf '%s\n' 'Usage: bash scripts/local-supabase.sh start|seed|test|test-traffic|test-reports|test-evidence|test-slowdown|test-browser-recovery|stop | simulate normal|slowdown|recovery [UTC-anchor] | simulate reset | reports enable|disable | reports cleanup|cleanup-expired-guests --confirm' >&2
+    printf '%s\n' 'Usage: bash scripts/local-supabase.sh start|seed|test|test-traffic|test-reports|test-evidence|test-slowdown|test-browser-recovery|stop | test-episodes [--schema-only|--backfill] | simulate normal|slowdown|recovery [UTC-anchor] | simulate reset | reports enable|disable | reports cleanup|cleanup-expired-guests --confirm' >&2
     exit 2
     ;;
 esac

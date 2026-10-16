@@ -7,10 +7,11 @@ globalThis.__reportServerTest = state;
 const originalEnv = { url: process.env.SUPABASE_URL, key: process.env.SUPABASE_ANON_KEY };
 const source = "09dcbb78-060d-4ce2-8800-339a04771fbc";
 const request = "a0866416-8ea3-4f6a-81f9-6f855cd73947";
+const episode = "66ee2d39-c477-42ad-a6b8-086781da03de";
 const now = "2026-10-15T04:20:00.000Z";
 const input = () => ({ source_id: source, request_id: request, segment_id: "primary-west", direction: "outbound", category: "unknown", observed_at: now });
 const ready = kind => ({ status: "ready", source: { id: source, kind, expires_at: kind === "guest" ? "2026-10-16T04:20:00.000Z" : null }, read_at: now });
-const accepted = replayed => ({ status: "accepted", report: { id: request, segment_id: "primary-west", direction: "outbound", category: "unknown", observed_at: now, received_at: now, provenance: "simulated", location_provenance: "manual" }, replayed });
+const accepted = replayed => ({ status: "accepted", report: { id: request, episode_id: episode, segment_id: "primary-west", direction: "outbound", category: "unknown", observed_at: now, received_at: now, provenance: "simulated", location_provenance: "manual" }, replayed });
 const hooks = registerHooks({
   resolve(specifier, context, nextResolve) {
     if (context.parentURL?.includes("/src/")) {
@@ -107,7 +108,7 @@ test("report actions require a present exact same-host Origin before any identit
 
 test("strict malformed action inputs are rejected before Auth or RPC", async () => {
   assert.deepEqual(await prepareReport("admin"), { status: "invalid" });
-  for (const value of [null, {}, [], { ...input(), role: "admin" }, { ...input(), source_id: "bad" }]) {
+  for (const value of [null, {}, [], { ...input(), role: "admin" }, { ...input(), source_id: "bad" }, { ...input(), episode_id: episode }]) {
     assert.deepEqual(await submitReport(value), { status: "invalid" });
   }
   for (const value of [null, [], {}, input(), { source_id: source, request_id: request, user_id: source }, { source_id: "bad", request_id: request }]) {
@@ -203,6 +204,27 @@ test("acknowledgement checks send only owner-scoped keys and revalidate only val
   state.result = { status: "not_found" };
   assert.deepEqual(await checkReport({ source_id: source, request_id: request }), { status: "not_found" });
   assert.deepEqual(state.revalidated, ["/traffic"]);
+});
+
+test("submit, replay and acknowledgement check preserve the database episode ID without sending membership", async () => {
+  session("guest"); state.result = accepted(false);
+  const submitted = await submitReport(input());
+  assert.equal(submitted.report.episode_id, episode);
+  state.result = accepted(true);
+  const replayed = await submitReport(input());
+  const checked = await checkReport({ source_id: source, request_id: request });
+  assert.deepEqual(replayed.report, submitted.report);
+  assert.deepEqual(checked.report, submitted.report);
+  assert.deepEqual(state.calls.map(call => call.args), [{ p_input: input() }, { p_input: input() },
+    { p_source_id: source, p_request_id: request }]);
+  assert.deepEqual(state.revalidated, ["/traffic", "/traffic", "/traffic"]);
+  for (const episode_id of [undefined, null, "bad"]) {
+    state.result = accepted(true);
+    if (episode_id === undefined) delete state.result.report.episode_id; else state.result.report.episode_id = episode_id;
+    assert.deepEqual(await submitReport(input()), { status: "unknown" });
+    assert.deepEqual(await checkReport({ source_id: source, request_id: request }), { status: "unavailable" });
+  }
+  assert.deepEqual(state.revalidated, ["/traffic", "/traffic", "/traffic"]);
 });
 
 test("mutation transport failures and malformed acknowledgements remain unknown; read failures unavailable", async () => {

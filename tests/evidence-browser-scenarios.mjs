@@ -14,9 +14,10 @@ export async function runEvidenceScenarios(tools) {
   const controlledSegments = [primaryId, oppositeId, parallelId];
   const users = new Set();
   const sources = new Set();
+  const sourceTokens = new Map();
   const privateIdentifiers = new Set();
   const assessmentFields = ["segment_id", "direction", "report_count", "recent_report_count", "eligible_report_count", "eligible_source_count", "multiple_sources", "valid_until", "provenance"].sort();
-  const reportFields = ["id", "segment_id", "direction", "category", "observed_at", "received_at", "provenance", "location_provenance"].sort();
+  const reportFields = ["id", "episode_id", "segment_id", "direction", "category", "observed_at", "received_at", "provenance", "location_provenance"].sort();
   const storage = "trafficsense-pending-demo-report";
   async function service(path, method = "GET", body) {
     const response = await fetch(`${status.API_URL}/${path}`, {
@@ -31,7 +32,7 @@ export async function runEvidenceScenarios(tools) {
   const rpc = (name, body = {}) => service(`rest/v1/rpc/${name}`, "POST", body);
   async function snapshot() {
     const result = await rpc("read_traffic_demo");
-    assert.deepEqual(Object.keys(result).sort(), ["fixture", "read_at", "report_assessments", "reporting_enabled", "reports"]);
+    assert.deepEqual(Object.keys(result).sort(), ["fixture", "incident_episodes", "read_at", "report_assessments", "reporting_enabled", "reports"]);
     assert.ok(Number.isFinite(Date.parse(result.read_at)));
     assert.deepEqual(result.report_assessments.map(row => row.segment_id).sort(), fixture.segments.map(segment => segment.id).sort(), "Exactly one assessment exists per active directed segment.");
     for (const row of result.report_assessments) {
@@ -64,14 +65,19 @@ export async function runEvidenceScenarios(tools) {
     return row;
   }
   async function createSource() {
-    const account = await service("auth/v1/admin/users", "POST", {
-      email: `evidence-browser-${crypto.randomUUID()}@example.test`, password: `Test-${crypto.randomUUID()}!`, email_confirm: true,
-    });
+    const credentials = { email: `evidence-browser-${crypto.randomUUID()}@example.test`, password: `Test-${crypto.randomUUID()}!` };
+    const account = await service("auth/v1/admin/users", "POST", { ...credentials, email_confirm: true });
     assert.ok(account?.id, "A test-owned fixture account must be created.");
     users.add(account.id); privateIdentifiers.add(account.id);
     const id = crypto.randomUUID();
     sources.add(id); privateIdentifiers.add(id);
     await service("rest/v1/report_sources", "POST", { id, user_id: account.id, kind: "account" });
+    const login = await fetch(`${status.API_URL}/auth/v1/token?grant_type=password`, {
+      method: "POST", headers: { apikey: status.ANON_KEY, "Content-Type": "application/json" },
+      body: JSON.stringify(credentials), signal: AbortSignal.timeout(15000),
+    });
+    assert.ok(login.ok, "Test-owned source authentication succeeds without exposing credentials.");
+    sourceTokens.set(id, (await login.json()).access_token);
     return id;
   }
   async function insertReport(sourceId, segmentId, observedAt, category = "accident") {
@@ -81,8 +87,22 @@ export async function runEvidenceScenarios(tools) {
     const { read_at: receivedAt } = await snapshot();
     const direction = fixture.segments.find(segment => segment.id === segmentId).direction;
     const canonical = { source_id: sourceId, request_id: requestId, segment_id: segmentId, direction, category, observed_at: observedAt };
+    let [episode] = await service(`rest/v1/incident_episodes?segment_id=eq.${segmentId}&assignment_upper=is.null&select=id`);
+    if (!episode) {
+      assert.ok(sourceTokens.has(sourceId), "Only a test-owned identity may create fixture episode membership.");
+      const response = await fetch(`${status.API_URL}/rest/v1/rpc/submit_traffic_report`, {
+        method: "POST", headers: { apikey: status.ANON_KEY, Authorization: `Bearer ${sourceTokens.get(sourceId)}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ p_input: { ...canonical, request_id: crypto.randomUUID(), observed_at: new Date(Date.parse(receivedAt) - 1000).toISOString() } }),
+        signal: AbortSignal.timeout(15000),
+      });
+      assert.ok(response.ok, "Fixture episode is allocated through real report admission.");
+      const accepted = await response.json();
+      assert.equal(accepted.status, "accepted");
+      episode = { id: accepted.report.episode_id };
+      await service(`rest/v1/traffic_reports_private?public_id=eq.${accepted.report.id}&source_id=eq.${sourceId}`, "DELETE");
+    }
     await service("rest/v1/traffic_reports_private", "POST", { public_id: id, source_id: sourceId, request_id: requestId, canonical_input: canonical, received_at: receivedAt });
-    await service("rest/v1/public_traffic_reports", "POST", { id, segment_id: segmentId, direction, category, observed_at: observedAt, received_at: receivedAt, provenance: "simulated", location_provenance: "manual" });
+    await service("rest/v1/public_traffic_reports", "POST", { id, episode_id: episode.id, segment_id: segmentId, direction, category, observed_at: observedAt, received_at: receivedAt, provenance: "simulated", location_provenance: "manual" });
     return id;
   }
   async function submitGuest(width, height) {
@@ -105,7 +125,7 @@ export async function runEvidenceScenarios(tools) {
       assert.ok(session.user?.id, "Track the browser-created guest for scoped cleanup.");
       users.add(session.user.id); privateIdentifiers.add(session.user.id);
       const rows = await service(`rest/v1/report_sources?user_id=eq.${session.user.id}&select=id`);
-      for (const row of rows) { sources.add(row.id); privateIdentifiers.add(row.id); }
+      for (const row of rows) { sources.add(row.id); privateIdentifiers.add(row.id); sourceTokens.set(row.id, session.access_token); }
       assert.equal(rows.length, 1);
       assert.ok(cookies.every(cookie => cookie.name.startsWith("trafficsense-report-guest") && cookie.httpOnly && cookie.sameSite === "Lax"));
       await page.click('[name="category"]'); await page.key("Home", "Home", 36);

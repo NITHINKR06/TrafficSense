@@ -49,7 +49,10 @@ export async function runReportScenarios(tools) {
     const rows = await service(`rest/v1/traffic_reports_private?source_id=eq.${draft.source_id}&request_id=eq.${draft.request_id}&select=public_id`);
     assert.equal(rows.length, 1, "Exactly one database report exists for this browser request.");
     assert.equal(rows[0].public_id, id);
-    return { id, draft };
+    const [projection] = await service(`rest/v1/public_traffic_reports?id=eq.${id}&select=episode_id`);
+    assert.ok(projection?.episode_id, "An accepted report has persisted episode membership.");
+    await page.waitFor(`document.querySelector('[data-report-episode]')?.dataset.reportEpisode === ${q(projection.episode_id)}`, "acknowledgement shows the persisted episode");
+    return { id, draft, episodeId: projection.episode_id };
   }
   async function publicReport(page, record) {
     await page.waitFor("document.querySelector('[data-report-saved] button')?.disabled === false", "saved report transition and refresh finish");
@@ -68,12 +71,46 @@ export async function runReportScenarios(tools) {
     const listCount = await page.evaluate(`document.querySelector('[data-segment-report-count="${record.draft.segment_id}"]').innerText`);
     assert.equal(Number.parseInt(listCount, 10), Number(count), "Map and list show the same report count.");
     assert.ok(body.includes(`${count} reports for this direction.`), "Details use the same directional report count.");
+    const episodes = (await rpc("read_traffic_demo")).incident_episodes.filter(row => row.segment_id === record.draft.segment_id);
+    await page.waitFor(`!!document.querySelector('[data-incident-episode="${record.episodeId}"]')`, "saved episode appears in segment history");
+    assert.equal(await page.evaluate(`document.querySelector('[data-public-report="${record.id}"]').dataset.episodeId`), record.episodeId);
+    const episodeLabels = await page.evaluate(`['[data-segment-episodes="${record.draft.segment_id}"]', '[data-episode-summary="${record.draft.segment_id}"]'].map(selector => document.querySelector(selector).innerText)`);
+    assert.equal(episodeLabels[0], episodeLabels[1], "List and details share the episode summary.");
+    assert.ok(episodeLabels[0].includes(`${episodes.length} retained report episodes`));
+    assert.equal(await page.evaluate(`document.querySelector('[data-map-segment="${record.draft.segment_id}"]').dataset.episodeCount`), String(episodes.length));
+    assert.ok((await page.evaluate(`document.querySelector('[data-map-segment="${record.draft.segment_id}"]').getAttribute('aria-label')`)).includes(episodeLabels[0]));
+    await page.click(`[data-incident-episode="${record.episodeId}"] summary`);
+    await page.waitFor(`document.querySelector('[data-incident-episode="${record.episodeId}"]').open`, "episode history expands with pointer input");
+    await page.key("Enter", "Enter", 13);
+    await page.waitFor(`!document.querySelector('[data-incident-episode="${record.episodeId}"]').open`, "keyboard collapses episode history");
+    await page.key("Enter", "Enter", 13);
+    await page.waitFor(`document.querySelector('[data-incident-episode="${record.episodeId}"]').open`, "keyboard expands episode history");
+    await page.text("Grouping does not confirm a cause or clearance");
     await selectList(page, "alternative-east");
     assert.equal(await page.evaluate(`!!document.querySelector('[data-public-report="${record.id}"]')`), false, "A nearby parallel segment must not inherit the report.");
     await page.click(`[data-map-segment="${record.draft.segment_id}"]`);
     await selected(page, record.draft.segment_id);
     await page.waitFor(`!!document.querySelector('[data-public-report="${record.id}"]')`, "map selection restores matching report details");
     await layout(page); await capture(page, "public");
+  }
+  async function rememberMap(page) {
+    await page.evaluate("window.__reportCanvas = document.querySelector('.maplibregl-canvas'); window.__reportMarkers = Array.from(document.querySelectorAll('[data-map-segment]'))");
+  }
+  async function unchangedMapCounts(page) {
+    const snapshot = await rpc("read_traffic_demo");
+    assert.equal(await page.evaluate("window.__reportCanvas === document.querySelector('.maplibregl-canvas') && window.__reportMarkers.every(marker => marker.isConnected)"), true, "Report changes preserve the loaded canvas and marker elements.");
+    for (const segment of snapshot.fixture.segments) {
+      const reports = snapshot.reports.filter(row => row.segment_id === segment.id).length;
+      const episodes = snapshot.incident_episodes.filter(row => row.segment_id === segment.id).length;
+      await page.waitFor(`(() => {
+        const marker = document.querySelector('[data-map-segment="${segment.id}"]');
+        const badge = marker?.querySelector('[data-report-badge]');
+        return marker?.dataset.reportCount === '${reports}' && marker?.dataset.episodeCount === '${episodes}'
+          && badge?.textContent === '${reports}' && badge.hidden === ${reports === 0}
+          && marker.getAttribute('aria-label').includes('${episodes} retained report episodes')
+          && marker.title === marker.getAttribute('aria-label');
+      })()`, "current marker counts, badge visibility and accessible episode summary");
+    }
   }
   async function discard(page) {
     page.acceptDialog = true;
@@ -117,16 +154,20 @@ export async function runReportScenarios(tools) {
           let first;
           try {
             await sibling.go("/traffic?segment=primary-west-inbound"); await ready(sibling);
+            await loadMap(sibling); await mapState(sibling, "ready"); await rememberMap(sibling);
             await page.click('button[type="submit"]');
             first = await saved(page);
             assert.equal(await sibling.evaluate(`!!document.querySelector('[data-public-report="${first.id}"]')`), false, "An open snapshot does not claim live updates.");
             await refresh(sibling);
             await sibling.waitFor(`!!document.querySelector('[data-public-report="${first.id}"]')`, "second-tab refresh sees the persisted report");
+            assert.equal(await sibling.evaluate(`document.querySelector('[data-public-report="${first.id}"]').dataset.episodeId`), first.episodeId, "Second-tab refresh preserves episode identity.");
+            await sibling.waitFor(`!!document.querySelector('[data-incident-episode="${first.episodeId}"]')`, "second-tab refresh includes retained episode history");
+            await unchangedMapCounts(sibling);
             await privacy(sibling);
           } finally { await disposePage(sibling); }
           await page.reload(); await page.text("Submission outcome is not confirmed");
           await page.button("Retry unchanged report");
-          await saved(page); await page.text("no duplicate was created");
+          assert.equal((await saved(page)).episodeId, first.episodeId, "Retry returns the original episode."); await page.text("no duplicate was created");
           await publicReport(page, first);
           const cookiesBefore = (await page.cookies()).map(({ name, value }) => ({ name, value }));
           await page.reload(); await ready(page); await refresh(page);
@@ -146,6 +187,7 @@ export async function runReportScenarios(tools) {
           await page.click('button[type="submit"]');
           const second = await saved(page);
           assert.notEqual(first.id, second.id);
+          assert.equal(first.episodeId, second.episodeId, "A fresh report on the same directed segment joins the current episode.");
           for (let i = 0; i < 3; i++) {
             await page.button("Prepare another report"); await prepareGuest(page);
             await page.click('button[type="submit"]'); await saved(page);
@@ -169,8 +211,17 @@ export async function runReportScenarios(tools) {
           await page.go("/reports/new"); await page.text("Demo reporting is disabled"); await layout(page);
           await rpc("set_reporting_enabled", { p_enabled: true });
           await replace(null); await page.go("/reports/new"); await page.text("No demonstration corridor is loaded");
+          assert.deepEqual((await rpc("read_traffic_demo")).incident_episodes, [], "Reset hides episodes without clearing them.");
           await replace(fixture); await page.go("/traffic?segment=primary-west-inbound"); await ready(page);
           await page.waitFor(`!!document.querySelector('[data-public-report="${first.id}"]')`, "report survives simulator reset and restoration");
+          assert.equal(await page.evaluate(`document.querySelector('[data-public-report="${first.id}"]').dataset.episodeId`), first.episodeId, "Staleness and simulator reset preserve membership.");
+          await page.waitFor(`!!document.querySelector('[data-incident-episode="${first.episodeId}"]')`, "retained episode reappears after simulator restoration");
+          await page.click(`[data-incident-episode="${first.episodeId}"] summary`);
+          await layout(page); await capture(page, "episode-history");
+          await loadMap(page); await mapState(page, "ready"); await rememberMap(page);
+          await rpc("cleanup_traffic_reports", { p_source_ids: [first.draft.source_id] });
+          await refresh(page); await unchangedMapCounts(page);
+          assert.equal(await page.evaluate(`!!document.querySelector('[data-public-report="${first.id}"]')`), false, "Deleting this test's source removes its report from the refreshed details.");
           console.log(`PASS reports ${base} ${width}px: explicit guest identity, keyboard form, persistence/retry/reload, invalid time, private-route denial, map/list/direction consistency and disabled/empty recovery`);
         } catch (error) { await capture(page, "failure"); throw error; }
       });

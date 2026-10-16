@@ -34,11 +34,32 @@ const { parseTrafficSnapshot, sampleFreshness } = await import("../src/lib/traff
 const { readTrafficSnapshot } = await import("../src/lib/traffic/server.ts");
 const snapshot = () => {
   const fixture = createTrafficFixture("slowdown", DEFAULT_DEMO_ANCHOR);
-  return { read_at: DEFAULT_DEMO_ANCHOR, fixture, reports: [], reporting_enabled: false,
+  return { read_at: DEFAULT_DEMO_ANCHOR, fixture, reports: [], incident_episodes: [], reporting_enabled: false,
     report_assessments: fixture.segments.map(segment => ({ segment_id: segment.id, direction: segment.direction,
       report_count: 0, recent_report_count: 0, eligible_report_count: 0, eligible_source_count: 0,
       multiple_sources: false, valid_until: null, provenance: "simulated" })) };
 };
+
+const episodeId = "66ee2d39-c477-42ad-a6b8-086781da03de";
+const nextEpisodeId = "7a3d81a4-d701-4ae6-86e9-06f90d548e7a";
+const publicReport = (index, overrides = {}) => ({
+  id: `a0866416-8ea3-4f6a-81f9-${String(index).padStart(12, "0")}`, episode_id: episodeId,
+  segment_id: "primary-west", direction: "outbound", category: "unknown", observed_at: DEFAULT_DEMO_ANCHOR,
+  received_at: DEFAULT_DEMO_ANCHOR, provenance: "simulated", location_provenance: "manual", ...overrides,
+});
+const episodeSummary = (report, overrides = {}) => ({
+  id: report.episode_id, segment_id: report.segment_id, direction: report.direction, created_at: report.received_at,
+  first_observed_at: report.observed_at, last_observed_at: report.observed_at, report_count: 1, provenance: "simulated", ...overrides,
+});
+function episodeSnapshot() {
+  const input = snapshot();
+  input.reports = [publicReport(1, { observed_at: "2026-10-15T03:59:00.123001Z" }),
+    publicReport(2, { observed_at: "2026-10-15T03:59:00.123999Z", category: "accident" })];
+  input.incident_episodes = [episodeSummary(input.reports[0], { report_count: 2, last_observed_at: input.reports[1].observed_at })];
+  Object.assign(input.report_assessments[0], { report_count: 2, recent_report_count: 2, eligible_report_count: 2,
+    eligible_source_count: 2, valid_until: "2026-10-15T04:14:00.123Z" });
+  return input;
+}
 
 test("snapshot parser preserves the fixture contract and canonicalizes PostgreSQL timestamps", () => {
   const input = snapshot();
@@ -50,7 +71,7 @@ test("snapshot parser preserves the fixture contract and canonicalizes PostgreSQ
   assert.deepEqual(parseTrafficSnapshot(input), expected);
   assert.notEqual(parseTrafficSnapshot(input).fixture, input.fixture);
   assert.equal(input.fixture.corridor.anchor_at, "2026-10-15 04:00:00+00");
-  assert.deepEqual(parseTrafficSnapshot({ read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], reporting_enabled: false, report_assessments: [] }), { read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], reporting_enabled: false, report_assessments: [] });
+  assert.deepEqual(parseTrafficSnapshot({ read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], incident_episodes: [], reporting_enabled: false, report_assessments: [] }), { read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], incident_episodes: [], reporting_enabled: false, report_assessments: [] });
 });
 
 test("snapshot preserves microseconds needed for exact slowdown cadence and future boundaries", () => {
@@ -64,8 +85,9 @@ test("snapshot preserves microseconds needed for exact slowdown cadence and futu
 
 test("public reports share the snapshot but never expose source identity or unsupported segments", () => {
   const input = snapshot();
-  const report = { id: "a0866416-8ea3-4f6a-81f9-6f855cd73947", segment_id: "primary-west", direction: "outbound", category: "unknown", observed_at: DEFAULT_DEMO_ANCHOR, received_at: DEFAULT_DEMO_ANCHOR, provenance: "simulated", location_provenance: "manual" };
+  const report = { id: "a0866416-8ea3-4f6a-81f9-6f855cd73947", episode_id: "66ee2d39-c477-42ad-a6b8-086781da03de", segment_id: "primary-west", direction: "outbound", category: "unknown", observed_at: DEFAULT_DEMO_ANCHOR, received_at: DEFAULT_DEMO_ANCHOR, provenance: "simulated", location_provenance: "manual" };
   input.reports = [report];
+  input.incident_episodes = [episodeSummary(report)];
   Object.assign(input.report_assessments.find(row => row.segment_id === report.segment_id), {
     report_count: 1, recent_report_count: 1, valid_until: "2026-10-15T04:20:00.000Z",
   });
@@ -82,6 +104,114 @@ test("public reports share the snapshot but never expose source identity or unsu
     const invalid = structuredClone(input); mutate(invalid);
     assert.throws(() => parseTrafficSnapshot(invalid));
   }
+});
+
+test("episode summaries preserve exact observation microseconds and admission time without leaking private fields", () => {
+  const input = episodeSnapshot();
+  input.incident_episodes[0].created_at = "2026-10-15 09:30:00.654321+0530";
+  input.incident_episodes[0].first_observed_at = "2026-10-15 09:29:00.123001+05:30";
+  const before = structuredClone(input);
+  const parsed = parseTrafficSnapshot(input);
+  assert.deepEqual(parsed.incident_episodes, [{ ...before.incident_episodes[0],
+    created_at: "2026-10-15T04:00:00.654321Z", first_observed_at: "2026-10-15T03:59:00.123001Z" }]);
+  assert.equal(parsed.incident_episodes[0].last_observed_at, "2026-10-15T03:59:00.123999Z");
+  assert.deepEqual(parsed.reports.map(report => report.observed_at), ["2026-10-15T03:59:00.123Z", "2026-10-15T03:59:00.123Z"]);
+  assert.deepEqual(Object.keys(parsed.incident_episodes[0]).sort(), ["id", "segment_id", "direction", "created_at", "first_observed_at", "last_observed_at", "report_count", "provenance"].sort());
+  assert.deepEqual(input, before);
+  assert.notEqual(parsed.incident_episodes[0], input.incident_episodes[0]);
+  input.reports.reverse();
+  assert.deepEqual(parseTrafficSnapshot(input).incident_episodes, parsed.incident_episodes);
+});
+
+test("episode arrays and summaries require exact bounded public contracts", () => {
+  for (const mutate of [
+    value => { delete value.incident_episodes; },
+    ...[null, {}, "episodes", Array(2001).fill({})].map(episodes => value => { value.incident_episodes = episodes; }),
+    ...[null, [], {}].map(episode => value => { value.incident_episodes = [episode]; }),
+    ...["id", "segment_id", "direction", "created_at", "first_observed_at", "last_observed_at", "report_count", "provenance"]
+      .map(field => value => { delete value.incident_episodes[0][field]; }),
+    ...["source_id", "owner_id", "request_id", "payload", "high_water_at", "lower_bound", "upper_bound", "multiple_sources", "cause"]
+      .map(field => value => { value.incident_episodes[0][field] = "private"; }),
+    ...[null, "", "bad", 1, episodeId.toUpperCase()].map(id => value => { value.incident_episodes[0].id = id; }),
+    ...[0, -1, 1.5, 2001, "2", null, NaN, Infinity].map(count => value => { value.incident_episodes[0].report_count = count; }),
+    value => { value.incident_episodes[0].provenance = "live"; },
+    value => { value.incident_episodes[0].segment_id = "missing"; },
+    value => { value.incident_episodes[0].direction = "sideways"; },
+  ]) {
+    const input = episodeSnapshot(); mutate(input);
+    assert.throws(() => parseTrafficSnapshot(input), undefined, mutate.toString());
+  }
+});
+
+test("episode timestamps reject invalid calendars, non-20xx dates and reversed microsecond ranges", () => {
+  for (const field of ["created_at", "first_observed_at", "last_observed_at"]) {
+    for (const time of [null, 0, "", "2026-02-30T04:00:00Z", "2026-10-15T24:00:00Z", "2026-10-15T04:00:60Z",
+      "2026-10-15T04:00:00", "2026-10-15T04:00:00.1234567Z", "2026-10-15T04:00:00+16:00", "2026-10-15T04:00:00+00:60",
+      "1999-12-31T23:59:59Z", "2100-01-01T00:00:00Z", "2000-01-01T00:00:00+01:00", "2099-12-31T23:59:59-01:00"]) {
+      const input = episodeSnapshot(); input.incident_episodes[0][field] = time;
+      assert.throws(() => parseTrafficSnapshot(input), undefined, `${field}: ${time}`);
+    }
+  }
+  for (const patch of [
+    { first_observed_at: "2026-10-15T03:59:00.123002Z" },
+    { last_observed_at: "2026-10-15T03:59:00.123998Z" },
+    { first_observed_at: "2026-10-15T03:59:00.123000Z" },
+    { last_observed_at: "2026-10-15T03:59:00.124000Z" },
+    { first_observed_at: "2026-10-15T03:59:00.123999Z", last_observed_at: "2026-10-15T03:59:00.123001Z" },
+  ]) {
+    const input = episodeSnapshot(); Object.assign(input.incident_episodes[0], patch);
+    assert.throws(() => parseTrafficSnapshot(input));
+  }
+});
+
+test("episode memberships reject missing, duplicate, orphan, cross-segment and cross-direction rows", () => {
+  for (const mutate of [
+    value => { value.incident_episodes = []; },
+    value => { value.incident_episodes.push({ ...value.incident_episodes[0] }); },
+    value => { value.incident_episodes.push({ ...value.incident_episodes[0], id: nextEpisodeId }); },
+    value => { value.reports[0].episode_id = nextEpisodeId; },
+    value => { delete value.reports[0].episode_id; },
+    value => { value.incident_episodes[0].segment_id = "alternative-west"; },
+    value => { value.reports[0].segment_id = "alternative-west"; },
+    value => { Object.assign(value.incident_episodes[0], { segment_id: "primary-west-inbound", direction: "inbound" }); },
+    value => { Object.assign(value.reports[0], { segment_id: "primary-west-inbound", direction: "inbound" }); },
+    value => { value.incident_episodes[0].direction = "inbound"; },
+    value => { value.incident_episodes[0].report_count = 1; },
+    value => { value.incident_episodes[0].report_count = 3; },
+    value => { value.reports[0].received_at = "2026-10-15T03:59:00.123000Z"; },
+  ]) {
+    const input = episodeSnapshot(); mutate(input);
+    assert.throws(() => parseTrafficSnapshot(input), undefined, mutate.toString());
+  }
+  const empty = { ...snapshot(), fixture: null, report_assessments: [] };
+  assert.deepEqual(parseTrafficSnapshot(empty), empty);
+  assert.throws(() => parseTrafficSnapshot({ ...empty, incident_episodes: episodeSnapshot().incident_episodes }));
+  assert.throws(() => parseTrafficSnapshot({ ...empty, reports: episodeSnapshot().reports }));
+  assert.throws(() => parseTrafficSnapshot({ ...empty, report_assessments: snapshot().report_assessments }));
+});
+
+test("multiple retained episodes on one direction leave L3 assessments directed-segment scoped", () => {
+  const input = episodeSnapshot();
+  input.reports.push(publicReport(3, { episode_id: nextEpisodeId }));
+  input.incident_episodes.push(episodeSummary(input.reports[2]));
+  Object.assign(input.report_assessments[0], { report_count: 3, recent_report_count: 3, eligible_report_count: 3,
+    eligible_source_count: 3, multiple_sources: true });
+  const parsed = parseTrafficSnapshot(input);
+  assert.equal(parsed.incident_episodes.length, 2);
+  assert.equal(parsed.report_assessments.length, 5);
+  assert.deepEqual(parsed.report_assessments, input.report_assessments);
+  assert.deepEqual(parsed.reports.map(report => report.episode_id), [episodeId, episodeId, nextEpisodeId]);
+});
+
+test("episode and member limits include exactly 2000 rows", () => {
+  const input = snapshot();
+  input.reports = Array.from({ length: 2000 }, (_, index) => publicReport(index));
+  input.incident_episodes = [episodeSummary(input.reports[0], { report_count: 2000 })];
+  Object.assign(input.report_assessments[0], { report_count: 2000, recent_report_count: 2000, valid_until: "2026-10-15T04:20:00.000Z" });
+  assert.deepEqual(parseTrafficSnapshot(input), input);
+  for (const report of input.reports) report.episode_id = report.id;
+  input.incident_episodes = input.reports.map(report => episodeSummary(report));
+  assert.deepEqual(parseTrafficSnapshot(input), input);
 });
 
 test("assessments exactly cover active directions and agree with all public rows", () => {
@@ -106,8 +236,9 @@ test("SQL microsecond window boundaries round-trip while display deadlines round
   ]) {
     const input = snapshot();
     input.read_at = "2026-10-15T04:00:00.000000Z";
-    input.reports = [{ id: "a0866416-8ea3-4f6a-81f9-6f855cd73947", segment_id: "primary-west", direction: "outbound",
+    input.reports = [{ id: "a0866416-8ea3-4f6a-81f9-6f855cd73947", episode_id: "66ee2d39-c477-42ad-a6b8-086781da03de", segment_id: "primary-west", direction: "outbound",
       category: "unknown", observed_at: `2026-10-15T${observed}Z`, received_at: `2026-10-15T${received}Z`, provenance: "simulated", location_provenance: "manual" }];
+    input.incident_episodes = [episodeSummary(input.reports[0])];
     Object.assign(input.report_assessments[0], { report_count: 1, recent_report_count: recent, eligible_report_count: eligible,
       eligible_source_count: eligible, valid_until: `2026-10-15T${deadline}Z` });
     const parsed = parseTrafficSnapshot(input);
@@ -267,7 +398,7 @@ test("server snapshot reader is public, request-time, bounded, uncached and safe
     assert.deepEqual(await readTrafficSnapshot(), { status: "unavailable" });
     state.response = { data: {}, error: null, status: 200 };
     assert.deepEqual(await readTrafficSnapshot(), { status: "invalid" });
-    state.response = { data: { read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], reporting_enabled: false, report_assessments: [] }, error: null, status: 200 };
+    state.response = { data: { read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], incident_episodes: [], reporting_enabled: false, report_assessments: [] }, error: null, status: 200 };
     assert.deepEqual(await readTrafficSnapshot(), { status: "ready", snapshot: state.response.data, slowdown_assessments: [] });
     state.requestError = true;
     assert.deepEqual(await readTrafficSnapshot(), { status: "unavailable" });

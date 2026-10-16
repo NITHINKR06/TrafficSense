@@ -1,6 +1,6 @@
 # Local synthetic reporting
 
-This bounded reporting flow supports **REPORT → VERIFY → ALERT → ANALYSE** without treating a submission as verified traffic. Reports are **SIMULATED · L1 Reported · unconfirmed**, manually located on one directed demonstration segment. No GPS, photo, free text, personal journey or employer sharing is collected. Current report groups expose limited source evidence, alongside separate synthetic slowdown assessments; persistent incident episodes, recovery, alerts and receipts have separate acceptance gates. Actual verification results belong in [progress.md](progress.md).
+This bounded reporting flow supports **REPORT → VERIFY → ALERT → ANALYSE** without treating a submission as verified traffic. Reports are **SIMULATED · L1 Reported · unconfirmed**, manually located on one directed demonstration segment. No GPS, photo, free text, personal journey or employer sharing is collected. Current report groups expose limited source evidence, alongside separate synthetic slowdown assessments and durable report-backed episode references. Episode-specific corroboration, supported recovery, alerts and receipts have separate acceptance gates. Actual verification results belong in [progress.md](progress.md).
 
 ## Use the demonstration
 
@@ -14,6 +14,16 @@ bash scripts/local-supabase.sh reports enable
 Open `/traffic`, select a directed segment and choose **Report a simulated problem**. `/reports/new` also supports one valid `?segment=` value. Choose **Continue as guest** or **Use current account**, select a category (including Unknown), review the manually entered Asia/Kolkata observation time and submit a synthetic example while stationary or as a passenger. The initial time is supplied by the database. New observations must be within the last twenty minutes and not in the future.
 
 Success means the database acknowledged persistence, not that congestion or the claimed cause was confirmed. Follow the saved-report link to the matching public segment. Map markers, list counts and details share the same snapshot; another open tab must refresh to see new data. Counts include stale and repeated-source reports, not independent witnesses. Details show the ten most recently received reports for that direction.
+
+## Durable report episode references
+
+Accepted reports and their acknowledgements include a database-generated `episode_id`. Expand **Report episode history** on the matching traffic segment to see each retained episode's ID, creation time, report count and first/latest retained observation times. The list, marker accessible description and details use the same retained-episode count. These are unconfirmed groupings, not active-incident counts. L3/L4 continue to assess the directed segment, not each episode; an observation span is not incident duration or measured delay.
+
+Episode assignment uses the exact directed segment and observation time, independent of category or source. A gap of at least twenty minutes from the latest episode's observation high-water mark creates a successor. Historical assignment intervals are lower-inclusive/upper-exclusive and then remain fixed. Late reports attach to their interval without merging episodes or moving previous memberships; arrival order can affect this synthetic grouping. Exactly twenty minutes belongs to the successor. An interval boundary, stale report, high speed or simulator reset never establishes clearance.
+
+Admission, episode allocation and report persistence share one serialized database transaction. Retries keep the original report and episode IDs. The public snapshot remains one read-only statement, and strict parsers check directed membership, counts and exact observation extrema. Internal assignment boundaries and high-water marks are denied to browser roles; the web application has no privileged key. Targeted source/Auth cleanup retains minimal synthetic grouping metadata but hides empty episodes. Full disabled reporting cleanup removes that metadata. There is a separate 2,000-episode metadata cap: at the cap, allocation is rate-limited, while eligible joins and retries remain possible.
+
+Apply the additive migration with `docker compose run --rm supabase migration up --local` and deploy the matching application parser together; old parsers deliberately reject the expanded projection. `bash scripts/local-supabase.sh test-episodes --backfill` is a rollback-only migration rehearsal for the pre-migration schema, not a command to rerun on an already migrated database. After application, `test-episodes` runs persistence and transactional boundary checks; `test-episodes --schema-only` performs the read-only projection probe. No reset or full cleanup is required to apply the migration.
 
 ## Current report-group assessments
 
@@ -48,7 +58,7 @@ Run `bash scripts/local-supabase.sh test-slowdown` for real persisted-fixture ch
 - Explicit guest preparation creates a Supabase anonymous identity in an HTTP-only, same-site `trafficsense-report-guest` cookie namespace, separate from `trafficsense-auth`. Guest reporting access expires 24 hours after first preparation; refreshing a token does not extend that period.
 - An existing account takes precedence. A broken account session never silently becomes a guest submission. Guest identities cannot read private account/organisation records or acquire private-route access, even if a malformed legacy profile exists.
 - Every submission and acknowledgement checks the current verified identity against the prepared source. Logout, cookie loss, expiry or account switching does not transfer a pending draft to a new source.
-- Public report fields are only `id`, `segment_id`, `direction`, `category`, `observed_at`, `received_at`, `provenance` and `location_provenance`. Source/user/request identifiers and canonical retry payloads remain private. Observation and receipt times are public; use synthetic examples only.
+- Public report fields are only `id`, `episode_id`, `segment_id`, `direction`, `category`, `observed_at`, `received_at`, `provenance` and `location_provenance`. Source/user/request identifiers and canonical retry payloads remain private. Observation and receipt times are public; use synthetic examples only.
 
 The application uses the unprivileged API key and verified session. A dedicated non-login, non-RLS-bypassing database executor owns narrow functions but not their tables. Direct client writes and private-table reads are denied. Guest identities are excluded from account profile creation and account-only policies. Local anonymous signup is limited to 30 per hour per IP; this and source quotas do not establish person-level abuse resistance. Public deployment needs separate security, abuse and privacy review.
 
@@ -70,9 +80,9 @@ bash scripts/local-supabase.sh reports cleanup --confirm
 bash scripts/local-supabase.sh reports cleanup-expired-guests --confirm
 ```
 
-Disabling blocks preparation, submission and acknowledgement checks but preserves public browsing and stored reports. Dataset cleanup requires reporting to be disabled and removes report rows/sources only; traffic fixtures and Auth accounts are preserved. It also removes retry records, so old references can no longer acknowledge earlier reports.
+Disabling blocks preparation, submission and acknowledgement checks but preserves public browsing and stored reports. Dataset cleanup requires reporting to be disabled and removes report rows, sources and all episode metadata; traffic fixtures and Auth accounts are preserved. It also removes retry records, so old references can no longer acknowledge earlier reports.
 
-Expired-guest cleanup verifies each selected Auth user is still anonymous before deletion, processes at most 100 per invocation and cascades that guest's reports. It preserves unrelated accounts and traffic fixtures. Guest expiry itself blocks access even before cleanup; no scheduled deletion or automatic retention period is claimed. Synthetic records otherwise remain until local cleanup. The local operator commands require the exact configured demo endpoint and receive privileged status only through stdin, never through the app environment. Errors can have unknown outcomes; inspect local state before retrying destructive operations.
+Expired-guest cleanup verifies each selected Auth user is still anonymous before deletion, processes at most 100 per invocation and cascades that guest's reports. It preserves unrelated accounts, traffic fixtures and minimal synthetic episode interval metadata; empty episodes are hidden, and remaining memberships never change. Guest expiry itself blocks access even before cleanup; no scheduled deletion or automatic retention period is claimed. Synthetic records otherwise remain until local cleanup. The local operator commands require the exact configured demo endpoint and receive privileged status only through stdin, never through the app environment. Errors can have unknown outcomes; inspect local state before retrying destructive operations.
 
 ## Checks
 
@@ -83,6 +93,7 @@ docker compose run --build --rm checks
 bash scripts/local-supabase.sh test-reports
 bash scripts/local-supabase.sh test-evidence
 bash scripts/local-supabase.sh test-slowdown
+bash scripts/local-supabase.sh test-episodes
 bash scripts/local-supabase.sh test-traffic
 bash scripts/local-supabase.sh test
 bash scripts/local-supabase.sh test-browser-recovery

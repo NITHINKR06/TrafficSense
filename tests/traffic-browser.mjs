@@ -122,6 +122,7 @@ function receive({ data }) {
   if (request && method === "Network.loadingFailed") {
     request.failed = true;
     request.blocked = params.blockedReason;
+    request.error = params.errorText;
   }
   const item = pending.get(message.id);
   if (!item) return;
@@ -344,7 +345,7 @@ async function samples(page, id, label, anchor) {
     assert.equal(await page.evaluate(`Array.from(document.querySelectorAll('#segment-details time')).some(time => Date.parse(time.dateTime) === ${Date.parse(anchor)})`), true, "Selected observations retain their fixture timestamp.");
     await page.text("Asia/Kolkata");
   } else {
-    assert.equal(await page.evaluate("Array.from(document.querySelectorAll('#segment-details time')).filter(element => !element.closest('#segment-reports')).length"), 0, "Missing samples must not invent an observation timestamp.");
+    assert.equal(await page.evaluate("Array.from(document.querySelectorAll('#segment-details time')).filter(element => !element.closest('#segment-reports, [data-incident-episode]')).length"), 0, "Missing samples must not invent an observation timestamp.");
   }
   if (await page.evaluate("!!document.querySelector('[data-map-state]')")) {
     await mapState(page, "ready");
@@ -382,7 +383,21 @@ async function scenario(page, value) {
   await page.waitFor(`document.querySelector(${quote(readySelector)})?.innerText.toLowerCase().includes(${quote(value)})`, `visible ${value} scenario`);
 }
 async function mapState(page, state) {
-  await page.waitFor(`document.querySelector('[data-map-state]')?.dataset.mapState === ${quote(state)}`, `map ${state}`, 60000);
+  try {
+    if (state === "ready") {
+      await page.waitFor("['ready', 'failed'].includes(document.querySelector('[data-map-state]')?.dataset.mapState)", "map attempt settles", 60000);
+      if (await page.evaluate("document.querySelector('[data-map-state]')?.dataset.mapState === 'failed'")) {
+        assert.ok(await page.evaluate("document.querySelectorAll('[data-segment-list] [data-segment-id]').length > 0"), "Failed external maps preserve usable segment selection.");
+        console.log(`RETRY ${base} ${page.width}px: one explicit user retry after map failure (${await page.evaluate("document.querySelector('[data-map-state]')?.dataset.mapFailure")})`);
+        await page.button("Retry map");
+      }
+    }
+    await page.waitFor(`document.querySelector('[data-map-state]')?.dataset.mapState === ${quote(state)}`, `map ${state}`, 60000);
+  } catch (error) {
+    const failures = page.requests.filter(request => isProvider(request.url) && (request.failed || request.status >= 400))
+      .map(request => ({ url: request.url, status: request.status, error: request.error, blocked: request.blocked }));
+    throw new Error(`${error.message}; map state: ${await page.evaluate("document.querySelector('[data-map-state]')?.dataset.mapState")}; reason: ${await page.evaluate("document.querySelector('[data-map-state]')?.dataset.mapFailure")}; public provider failures: ${JSON.stringify(failures)}`, { cause: error });
+  }
   assert.equal(await page.evaluate("window.__trafficProbe.mapStates.includes('loading')"), true, "Map attempts must expose a loading state.");
 }
 async function loadMap(page) {
@@ -563,6 +578,17 @@ async function happyPath(page) {
   await refresh(page);
   await mapState(page, "ready");
   await selected(page, secondId);
+  await page.evaluate(`window.__geometryCanvas = document.querySelector('.maplibregl-canvas'); window.__geometryMarker = document.querySelector('[data-map-segment="${secondId}"]'); window.__geometryPosition = window.__geometryMarker.getBoundingClientRect().y`);
+  const moved = structuredClone(fixture);
+  for (const segment of moved.segments) segment.geometry.coordinates = segment.geometry.coordinates.map(([longitude, latitude]) => [longitude, latitude + 0.001]);
+  await replace(moved); await refresh(page); await mapState(page, "ready");
+  await selected(page, secondId);
+  await page.waitFor(`!window.__geometryCanvas.isConnected && !window.__geometryMarker.isConnected
+    && window.__geometryCanvas !== document.querySelector('.maplibregl-canvas')
+    && Math.abs(document.querySelector('[data-map-segment="${secondId}"]').getBoundingClientRect().y - window.__geometryPosition) > 1
+    && document.querySelector('[data-map-segment="${secondId}"]').getAttribute('aria-pressed') === 'true'`, "geometry replacement disposes old rendering and moves the selected marker");
+  await screenshot(page, "geometry-replacement");
+  await replace(fixture); await refresh(page); await mapState(page, "ready"); await selected(page, secondId);
   await page.button("Hide map");
   page.mapConsent = false;
   await dataScenarios(page);

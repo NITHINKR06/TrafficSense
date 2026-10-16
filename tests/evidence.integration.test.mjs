@@ -15,7 +15,7 @@ const ownedUsers = [];
 const ownedSources = [];
 const fixture = createTrafficFixture("slowdown", "2026-10-15T04:00:00.000Z");
 const assessmentFields = ["segment_id", "direction", "report_count", "recent_report_count", "eligible_report_count", "eligible_source_count", "multiple_sources", "valid_until", "provenance"].sort();
-const reportFields = ["id", "segment_id", "direction", "category", "observed_at", "received_at", "provenance", "location_provenance"].sort();
+const reportFields = ["id", "episode_id", "segment_id", "direction", "category", "observed_at", "received_at", "provenance", "location_provenance"].sort();
 let previous;
 let prepared = false;
 
@@ -79,7 +79,7 @@ function expected(segment, reports, readAt, links) {
 }
 function verify(snapshot, links) {
   parseTrafficSnapshot(snapshot);
-  assert.deepEqual(Object.keys(snapshot).sort(), ["fixture", "read_at", "report_assessments", "reporting_enabled", "reports"]);
+  assert.deepEqual(Object.keys(snapshot).sort(), ["fixture", "incident_episodes", "read_at", "report_assessments", "reporting_enabled", "reports"]);
   assert.ok(Number.isFinite(Date.parse(snapshot.read_at)));
   assert.ok(Array.isArray(snapshot.report_assessments));
   const segments = snapshot.fixture?.segments ?? [];
@@ -202,6 +202,12 @@ test("aggregate projection is public without exposing private records, identifie
     for (const secret of [account.id, guest.id, account.preparation.source.id, guest.preparation.source.id, ...reports.map(report => report.id)]) {
       assert.ok(!serialized.includes(secret), "aggregate response excludes identifying values");
     }
+    for (const secret of [account.id, guest.id, account.preparation.source.id, guest.preparation.source.id]) {
+      assert.ok(!JSON.stringify(value).includes(secret), "snapshot excludes account and private source identifiers");
+    }
+    for (const episode of value.incident_episodes) {
+      assert.deepEqual(Object.keys(episode).sort(), ["created_at", "direction", "first_observed_at", "id", "last_observed_at", "provenance", "report_count", "segment_id"]);
+    }
     assert.ok((await who.rpc("read_report_assessments", { read_at: value.read_at })).error, "no public historical-clock overload");
   }
   for (const who of [anonymous, account.who, guest.who]) {
@@ -284,6 +290,7 @@ test("guest expiry invalidates evidence before cleanup while account evidence ha
 test("disabled writes preserve assessments and empty reset hides rather than deletes evidence", async () => {
   const current = await actor();
   const report = await submit(current);
+  const episodes = (await snapshot()).value.incident_episodes;
   await rpc(service, "set_reporting_enabled", { p_enabled: false });
   const disabled = await snapshot();
   assert.equal(disabled.value.reporting_enabled, false);
@@ -293,11 +300,14 @@ test("disabled writes preserve assessments and empty reset hides rather than del
   const empty = await snapshot();
   assert.equal(empty.value.fixture, null);
   assert.deepEqual(empty.value.report_assessments, []);
+  assert.deepEqual(empty.value.incident_episodes, []);
   assert.deepEqual(await rpc(client(), "read_report_assessments"), []);
   const retained = await service.from("public_traffic_reports").select("id").eq("id", report.id);
   assert.deepEqual(retained.data, [{ id: report.id }]);
   await rpc(service, "replace_traffic_demo", { p_fixture: fixture });
-  assert.ok((await snapshot()).value.reports.some(row => row.id === report.id));
+  const restored = (await snapshot()).value;
+  assert.ok(restored.reports.some(row => row.id === report.id));
+  assert.deepEqual(restored.incident_episodes, episodes);
 });
 
 test("concurrent public reads never mix report/assessment or fixture generations", async () => {

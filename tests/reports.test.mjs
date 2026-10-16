@@ -7,9 +7,10 @@ import {
 
 const source = "09dcbb78-060d-4ce2-8800-339a04771fbc";
 const request = "a0866416-8ea3-4f6a-81f9-6f855cd73947";
+const episode = "66ee2d39-c477-42ad-a6b8-086781da03de";
 const now = "2026-10-15T04:20:00.000Z";
 const input = () => ({ source_id: source, request_id: request, segment_id: "primary-west", direction: "outbound", category: "unknown", observed_at: now });
-const report = () => ({ id: request, segment_id: "primary-west", direction: "outbound", category: "unknown", observed_at: now, received_at: now, provenance: "simulated", location_provenance: "manual" });
+const report = () => ({ id: request, episode_id: episode, segment_id: "primary-west", direction: "outbound", category: "unknown", observed_at: now, received_at: now, provenance: "simulated", location_provenance: "manual" });
 
 test("report payload is exact, canonical and tied to a supported directed segment", () => {
   assert.deepEqual(parseReportInput(input()), input());
@@ -21,6 +22,28 @@ test("report payload is exact, canonical and tied to a supported directed segmen
     { ...input(), observed_at: "2026-10-15T09:50:00.000+05:30" }, { ...input(), category: "x".repeat(5000) }]) {
     assert.throws(() => parseReportInput(invalid));
   }
+});
+
+test("episode membership is required public metadata and never a client submission field", () => {
+  assert.deepEqual(Object.keys(parseReportInput(input())).sort(), ["source_id", "request_id", "segment_id", "direction", "category", "observed_at"].sort());
+  for (const episode_id of [episode, null, undefined, "bad"]) {
+    assert.throws(() => parseReportInput({ ...input(), episode_id }));
+  }
+  const missing = report(); delete missing.episode_id;
+  assert.throws(() => parsePublicReport(missing));
+  for (const episode_id of [null, undefined, "", "bad", request.toUpperCase(), 123, {}]) {
+    assert.throws(() => parsePublicReport({ ...report(), episode_id }));
+    assert.throws(() => parseSubmitResult({ status: "accepted", report: { ...report(), episode_id }, replayed: true }));
+  }
+  const first = parseSubmitResult({ status: "accepted", report: report(), replayed: false });
+  const replay = parseSubmitResult({ status: "accepted", report: report(), replayed: true });
+  assert.equal(first.report.episode_id, episode);
+  assert.deepEqual(replay.report, first.report);
+  assert.throws(() => parseSubmitResult({ status: "accepted", report: missing, replayed: false }));
+  const form = new FormData();
+  form.set("segment_id", "primary-west"); form.set("category", "unknown"); form.set("observed_local", "2026-10-15T09:50");
+  form.set("episode_id", episode);
+  assert.throws(() => reportInputFromForm(form, source, request));
 });
 
 test("new report times have exact exclusive twenty-minute and inclusive present boundaries", () => {

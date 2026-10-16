@@ -27,7 +27,7 @@ async function rpc(client, name, input) {
 }
 async function retainedReports() {
   const state = {};
-  for (const table of ["traffic_reports_private", "public_traffic_reports", "report_sources"]) {
+  for (const table of ["traffic_reports_private", "public_traffic_reports", "report_sources", "incident_episodes"]) {
     const rows = [];
     for (let offset = 0; ; offset += 500) {
       const page = await service.from(table).select("*").order("id").range(offset, offset + 499).abortSignal(AbortSignal.timeout(15000));
@@ -51,7 +51,7 @@ function canonical(timestamp) {
 }
 async function read() {
   const raw = await rpc(anonymous, "read_traffic_demo");
-  assert.deepEqual(Object.keys(raw).sort(), ["fixture", "read_at", "report_assessments", "reporting_enabled", "reports"]);
+  assert.deepEqual(Object.keys(raw).sort(), ["fixture", "incident_episodes", "read_at", "report_assessments", "reporting_enabled", "reports"]);
   const snapshot = parseTrafficSnapshot(raw);
   assert.equal(snapshot.read_at, canonical(raw.read_at), "the database clock must retain nonzero microseconds");
   const assessments = assessSlowdown(snapshot);
@@ -266,10 +266,12 @@ test("reset hides all assessments but preserves reports and restores the same fi
   assert.equal(empty.snapshot.fixture, null);
   assert.deepEqual(empty.snapshot.reports, []);
   assert.deepEqual(empty.snapshot.report_assessments, []);
+  assert.deepEqual(empty.snapshot.incident_episodes, []);
   assert.deepEqual(empty.assessments, []);
   assert.ok(JSON.stringify(await retainedReports()) === JSON.stringify(retained), "reset must not delete unrelated reports or retry records");
   const restored = await persist(fixture);
   assert.deepEqual(restored.snapshot.reports, prior.snapshot.reports);
+  assert.deepEqual(restored.snapshot.incident_episodes, prior.snapshot.incident_episodes);
   assert.deepEqual(restored.assessments, prior.assessments);
 });
 

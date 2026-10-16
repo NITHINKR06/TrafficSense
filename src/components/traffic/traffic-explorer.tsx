@@ -5,7 +5,7 @@ import Link from "next/link";
 import { reportCategories } from "@/lib/reports/rules";
 import { useSearchParams } from "next/navigation";
 import type { TrafficSnapshot } from "@/lib/traffic/snapshot";
-import { formatTrafficTime, latestSegmentSamples, resolveSegment, snapshotFreshness } from "@/lib/traffic/presentation";
+import { episodeSummary, formatTrafficTime, latestSegmentSamples, resolveSegment, snapshotFreshness } from "@/lib/traffic/presentation";
 import { assessmentView } from "@/lib/evidence/assessment";
 import type { SlowdownAssessment } from "@/lib/evidence/slowdown";
 import { slowdownView } from "@/lib/evidence/slowdown-presentation";
@@ -26,6 +26,8 @@ export function TrafficExplorer({ snapshot, slowdownAssessments }: { snapshot: T
     [row.segment_id, slowdownView(row, snapshot.read_at, elapsedMs)]));
   const assessments = Object.fromEntries(snapshot.report_assessments.map(row =>
     [row.segment_id, assessmentView(row, snapshot.read_at, elapsedMs)]));
+  const episodeCounts = Object.fromEntries((snapshot.fixture?.segments ?? []).map(segment =>
+    [segment.id, snapshot.incident_episodes.filter(episode => episode.segment_id === segment.id).length]));
   const [mapEnabled, setMapEnabled] = useState(false);
   const freshness = (observedAt: string | null) => snapshotFreshness(observedAt, snapshot.read_at, elapsedMs);
   const sampleLabel = (observedAt: string | null) => freshnessLabels[freshness(observedAt)];
@@ -45,6 +47,8 @@ export function TrafficExplorer({ snapshot, slowdownAssessments }: { snapshot: T
   );
   const selected = resolveSegment(fixture, params.getAll("segment"));
   const latest = selected ? latestSegmentSamples(fixture, selected.id) : null;
+  const selectedEpisodes = selected ? snapshot.incident_episodes.filter(episode => episode.segment_id === selected.id)
+    .sort((a, b) => b.created_at.localeCompare(a.created_at) || a.id.localeCompare(b.id)) : [];
   const selectedReports = selected ? snapshot.reports.filter(report => report.segment_id === selected.id)
     .sort((a, b) => b.received_at.localeCompare(a.received_at) || a.id.localeCompare(b.id)) : [];
   return (
@@ -77,6 +81,7 @@ export function TrafficExplorer({ snapshot, slowdownAssessments }: { snapshot: T
                   <span>{segment.direction} · SIMULATED</span>
                   <span>{sampleLabel(samples.observedAt)}</span>
                   <span data-segment-report-count={segment.id}>{snapshot.reports.filter(report => report.segment_id === segment.id).length} unconfirmed demo reports, including stale reports</span>
+                  <span data-segment-episodes={segment.id}>{episodeSummary(episodeCounts[segment.id])}</span>
                   <span data-segment-assessment={segment.id} data-assessment-state={assessments[segment.id].state}>{assessments[segment.id].label}</span>
                   <span data-segment-slowdown={segment.id} data-slowdown-state={slowdowns[segment.id].state}>
                     {slowdowns[segment.id].label}<br /><span>{slowdowns[segment.id].windowLabel}</span>
@@ -96,7 +101,7 @@ export function TrafficExplorer({ snapshot, slowdownAssessments }: { snapshot: T
               <button type="button" className="button" onClick={() => setMapEnabled(true)}>Load map</button>
             </div> : <>
               <button type="button" className="button secondary" onClick={() => setMapEnabled(false)}>Hide map</button>
-              <TrafficMap key={snapshot.read_at} fixture={fixture} reports={snapshot.reports} assessments={assessments} slowdowns={slowdowns} selectedId={selected?.id ?? null} onSelect={selectSegment} />
+              <TrafficMap fixture={fixture} reports={snapshot.reports} assessments={assessments} slowdowns={slowdowns} episodeCounts={episodeCounts} selectedId={selected?.id ?? null} onSelect={selectSegment} />
             </>}
           </section>
           <section id="segment-details" data-segment-id={selected?.id ?? ""} className="panel" aria-labelledby="segment-details-title" aria-live="polite">
@@ -132,14 +137,28 @@ export function TrafficExplorer({ snapshot, slowdownAssessments }: { snapshot: T
               <p>SIMULATED · Reports group by this segment and direction, not by cause or a confirmed incident. Recent reports are under twenty minutes old; eligible reports are under fifteen minutes old and linked to an eligible reporting source.</p>
               <p>Each source counts once across the rolling fifteen-minute window, including repeated reports and different categories. Expired guest sources no longer qualify. L3 Multiple sources requires at least three eligible sources, not three independent witnesses.</p>
               <p>All locations are manually selected: L1 Reported, without L2 location support. Multiple sources do not confirm congestion or any reported cause. L4 uses separate synthetic speed evidence above; recovery, measured delay and route savings remain unavailable. No reports does not mean the road is clear.</p>
+              <section aria-labelledby="episode-history-title" className={styles.reports}>
+                <h3 id="episode-history-title">Report episode history</h3>
+                <p data-episode-summary={selected.id}>{episodeSummary(episodeCounts[selected.id])}</p>
+                <p>Episodes preserve report membership for this direction. A gap of twenty minutes starts a successor; late reports do not merge existing episodes. Arrival order can affect grouping. Grouping does not confirm a cause or clearance.</p>
+                <p>L3 and L4 above assess the whole directed segment, not individual episodes. Stale reports, higher speeds and simulator reset do not resolve an episode.</p>
+                {selectedEpisodes.length ? selectedEpisodes.map(episode => <details key={episode.id} data-incident-episode={episode.id}>
+                  <summary>Episode {episode.id.slice(0, 8)} · {episode.report_count} retained reports · SIMULATED</summary>
+                  <p>Episode ID: <code>{episode.id}</code></p>
+                  <p>Created: <time dateTime={episode.created_at}>{formatTrafficTime(episode.created_at)}</time></p>
+                  <p>Retained observation window: <time dateTime={episode.first_observed_at}>{formatTrafficTime(episode.first_observed_at)}</time> to <time dateTime={episode.last_observed_at}>{formatTrafficTime(episode.last_observed_at)}</time>. This is not measured incident duration or travel delay.</p>
+                  <p>Latest retained report: {freshness(episode.last_observed_at) === "recent" ? "recent, unconfirmed" : freshness(episode.last_observed_at) === "stale" ? "stale, not cleared" : freshness(episode.last_observed_at) === "future" ? "future-dated, unsupported" : "freshness needs refresh"}.</p>
+                </details>) : <p>No report episodes are retained for this direction. This does not mean the road is clear.</p>}
+              </section>
               <div id="segment-reports" className={styles.reports} data-report-segment={selected.id}>
                 <h3>Unconfirmed demo reports</h3>
                 <p>{selectedReports.length} reports for this direction. Counts include repeated-source and stale reports, not independent witnesses. No reports does not mean the road is clear.</p>
                 {selectedReports.length > 10 && <p>Showing the ten most recently received reports.</p>}
                 {selectedReports.length ? <ul>
-                  {selectedReports.slice(0, 10).map(report => <li key={report.id} data-public-report={report.id}>
+                  {selectedReports.slice(0, 10).map(report => <li key={report.id} data-public-report={report.id} data-episode-id={report.episode_id}>
                     <strong>{reportCategories[report.category]} — reported, unconfirmed</strong>
                     <span>SIMULATED · Manually selected location · L1 Reported</span>
+                    <span>Report episode: <code>{report.episode_id}</code></span>
                     <span>{freshness(report.observed_at) === "unknown" ? "Report freshness needs refresh" : freshness(report.observed_at) === "recent" ? "Recent report" : freshness(report.observed_at) === "future" ? "Future-dated report" : "Stale report"}</span>
                     <span>Observed: <time dateTime={report.observed_at}>{formatTrafficTime(report.observed_at)}</time></span>
                     <span>Received: <time dateTime={report.received_at}>{formatTrafficTime(report.received_at)}</time></span>

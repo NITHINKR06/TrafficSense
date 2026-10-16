@@ -4,25 +4,28 @@ import { useEffect, useRef, useState } from "react";
 import type { Map as MapInstance, Marker } from "maplibre-gl";
 import type { TrafficFixture } from "@/lib/traffic/simulator";
 import type { PublicReport } from "@/lib/reports/rules";
+import { episodeSummary } from "@/lib/traffic/presentation";
 import type { AssessmentView } from "@/lib/evidence/assessment";
 import type { SlowdownView } from "@/lib/evidence/slowdown-presentation";
 import "maplibre-gl/dist/maplibre-gl.css";
 import styles from "./traffic.module.css";
 
 type MapProps = { fixture: TrafficFixture; reports: PublicReport[]; assessments: Record<string, AssessmentView>; slowdowns: Record<string, SlowdownView>;
-  selectedId: string | null; onSelect: (id: string) => void };
+  episodeCounts: Record<string, number>; selectedId: string | null; onSelect: (id: string) => void };
 
 export function TrafficMap(props: MapProps) {
   const [attempt, setAttempt] = useState(0);
-  return <MapAttempt key={attempt} {...props} onRetry={() => setAttempt(value => value + 1)} />;
+  const geometryKey = JSON.stringify(props.fixture.segments.map(({ id, name, direction, geometry }) => ({ id, name, direction, geometry })));
+  return <MapAttempt key={`${attempt}:${geometryKey}`} {...props} geometryKey={geometryKey} onRetry={() => setAttempt(value => value + 1)} />;
 }
 
-function MapAttempt({ fixture, reports, assessments, slowdowns, selectedId, onSelect, onRetry }: MapProps & { onRetry: () => void }) {
+function MapAttempt({ fixture, reports, assessments, slowdowns, episodeCounts, geometryKey, selectedId, onSelect, onRetry }: MapProps & { geometryKey: string; onRetry: () => void }) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
   const markers = useRef<Marker[]>([]);
   const selection = useRef(selectedId);
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
+  const [failure, setFailure] = useState<"timeout" | "resources" | "renderer" | "initialization" | null>(null);
   useEffect(() => {
     selection.current = selectedId;
     const map = mapRef.current;
@@ -40,9 +43,14 @@ function MapAttempt({ fixture, reports, assessments, slowdowns, selectedId, onSe
       const view = segment && assessments[segment.id];
       const slowdown = segment && slowdowns[segment.id];
       if (!segment || !view || !slowdown) continue;
+      const count = reports.filter(report => report.segment_id === segment.id).length;
+      button.dataset.reportCount = String(count);
+      const countBadge = button.querySelector<HTMLElement>("[data-report-badge]");
+      if (countBadge) { countBadge.textContent = String(count); countBadge.hidden = count === 0; }
       button.dataset.assessmentState = view.state;
       button.dataset.slowdownState = slowdown.state;
-      const label = `Select ${segment.name}, ${segment.direction}, simulated; ${button.dataset.reportCount} unconfirmed demo reports, including stale reports. ${view.label}. ${slowdown.label} ${slowdown.windowLabel}`;
+      button.dataset.episodeCount = String(episodeCounts[segment.id]);
+      const label = `Select ${segment.name}, ${segment.direction}, simulated; ${button.dataset.reportCount} unconfirmed demo reports, including stale reports. ${episodeSummary(episodeCounts[segment.id])}. ${view.label}. ${slowdown.label} ${slowdown.windowLabel}`;
       button.setAttribute("aria-label", label);
       button.title = label;
       const badge = button.querySelector<HTMLElement>("[data-evidence-badge]");
@@ -56,16 +64,18 @@ function MapAttempt({ fixture, reports, assessments, slowdowns, selectedId, onSe
         slowdownBadge.hidden = slowdown.state !== "supported" && slowdown.state !== "expired";
       }
     }
-  }, [assessments, slowdowns, fixture, state]);
+  }, [assessments, slowdowns, episodeCounts, fixture, reports, state]);
 
   useEffect(() => {
+    const segments = JSON.parse(geometryKey) as Pick<TrafficFixture["segments"][number], "id" | "name" | "direction" | "geometry">[];
     let disposed = false;
     let failed = false;
     let map: MapInstance | null = null;
-    const fail = () => {
+    const fail = (reason: "timeout" | "resources" | "renderer" | "initialization") => {
       if (disposed || failed) return;
       failed = true;
       clearTimeout(deadline);
+      setFailure(reason);
       setState("failed");
       mapRef.current = null;
       for (const marker of markers.current) marker.remove();
@@ -73,7 +83,7 @@ function MapAttempt({ fixture, reports, assessments, slowdowns, selectedId, onSe
       map?.remove();
       map = null;
     };
-    const deadline = setTimeout(fail, 20000);
+    const deadline = setTimeout(() => fail("timeout"), 20000);
     async function initialize() {
       try {
         const { Map, Marker, NavigationControl, setWorkerUrl } = await import("maplibre-gl");
@@ -90,13 +100,13 @@ function MapAttempt({ fixture, reports, assessments, slowdowns, selectedId, onSe
         });
         mapRef.current = map;
         map.addControl(new NavigationControl({ showCompass: false }), "top-right");
-        map.on("error", fail);
-        map.getCanvas().addEventListener("webglcontextlost", fail);
+        map.on("error", () => fail("resources"));
+        map.getCanvas().addEventListener("webglcontextlost", () => fail("renderer"));
         map.once("load", () => {
           if (disposed || failed || !map) return;
           map.addSource("synthetic-segments", {
             type: "geojson",
-            data: { type: "FeatureCollection", features: fixture.segments.map(segment => ({
+            data: { type: "FeatureCollection", features: segments.map(segment => ({
               type: "Feature", id: segment.id,
               properties: { id: segment.id, direction: segment.direction, alternative: segment.id.startsWith("alternative-") },
               geometry: segment.geometry,
@@ -112,22 +122,19 @@ function MapAttempt({ fixture, reports, assessments, slowdowns, selectedId, onSe
               "line-offset": ["case", ["==", ["get", "direction"], "inbound"], 8, 0],
             },
           });
-          for (const [index, segment] of fixture.segments.entries()) {
+          for (const [index, segment] of segments.entries()) {
             const button = document.createElement("button");
             button.type = "button";
             button.className = styles.marker;
             button.textContent = String(index + 1);
             button.dataset.mapSegment = segment.id;
-            const reportCount = reports.filter(report => report.segment_id === segment.id).length;
-            button.setAttribute("aria-label", `Select ${segment.name}, ${segment.direction}, simulated; ${reportCount} unconfirmed demo reports, including stale reports`);
-            button.dataset.reportCount = String(reportCount);
-            if (reportCount) {
-              const badge = document.createElement("span");
-              badge.className = styles.markerCount;
-              badge.textContent = String(reportCount);
-              badge.setAttribute("aria-hidden", "true");
-              button.append(badge);
-            }
+            button.setAttribute("aria-label", `Select ${segment.name}, ${segment.direction}, simulated; evidence loading`);
+            const countBadge = document.createElement("span");
+            countBadge.className = styles.markerCount;
+            countBadge.dataset.reportBadge = "";
+            countBadge.hidden = true;
+            countBadge.setAttribute("aria-hidden", "true");
+            button.append(countBadge);
             const evidenceBadge = document.createElement("span");
             evidenceBadge.className = styles.markerEvidence;
             evidenceBadge.dataset.evidenceBadge = "";
@@ -149,7 +156,7 @@ function MapAttempt({ fixture, reports, assessments, slowdowns, selectedId, onSe
           }
           map.on("click", "segment-lines", event => {
             const id = event.features?.[0]?.properties.id;
-            if (typeof id === "string" && fixture.segments.some(segment => segment.id === id)) onSelect(id);
+            if (typeof id === "string" && segments.some(segment => segment.id === id)) onSelect(id);
           });
           map.fitBounds([[74.839, 12.87], [74.86, 12.89]], { padding: 65, animate: false });
           map.once("idle", () => {
@@ -159,7 +166,7 @@ function MapAttempt({ fixture, reports, assessments, slowdowns, selectedId, onSe
           });
         });
       } catch {
-        fail();
+        fail("initialization");
       }
     }
     void initialize();
@@ -171,10 +178,10 @@ function MapAttempt({ fixture, reports, assessments, slowdowns, selectedId, onSe
       map?.remove();
       mapRef.current = null;
     };
-  }, [fixture, reports, onSelect]);
+  }, [geometryKey, onSelect]);
 
   return (
-    <div data-map-state={state} className={styles.mapRegion}>
+    <div data-map-state={state} data-map-failure={failure ?? undefined} className={styles.mapRegion}>
       <p role="status">{state === "loading" ? "Loading external background map… The segment list remains available."
         : state === "failed" ? "Map unavailable. The provider, network or WebGL could not load this view. The segment list and details remain available."
         : "Map loaded · SIMULATED segment overlay"}</p>

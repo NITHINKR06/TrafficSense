@@ -165,6 +165,7 @@ function HydratedReportForm({ segments, selectedId }: FormProps) {
     {saved && <div role="status" data-report-saved={saved.id}>
       <p><strong>SIMULATED · L1 — Reported, unconfirmed.</strong> The database confirmed persistence{result?.status === "accepted" && result.replayed ? " of the original request; no duplicate was created" : ""}.</p>
       <p>Reported category: {reportCategories[saved.category]}. Cause remains unconfirmed. Received: {formatTrafficTime(saved.received_at)}.</p>
+      <p data-report-episode={saved.episode_id}>Report episode: <code>{saved.episode_id}</code>. This is a durable grouping reference, not a confirmed incident.</p>
       <div className="actions">
         <Link className="button" href={`/traffic?segment=${encodeURIComponent(saved.segment_id)}#segment-reports`}>View report on traffic page</Link>
         <button type="button" className="button secondary" disabled={pending} onClick={startNew}>Prepare another report</button>

@@ -14,7 +14,7 @@ export type ReportInput = {
   category: ReportCategory; observed_at: string;
 };
 export type PublicReport = Omit<ReportInput, "source_id" | "request_id"> & {
-  id: string; received_at: string; provenance: "simulated"; location_provenance: "manual";
+  id: string; episode_id: string; received_at: string; provenance: "simulated"; location_provenance: "manual";
 };
 export type ReportSource = { id: string; kind: "account" | "guest"; expires_at: string | null };
 export const reportFailures = ["invalid", "disabled", "expired", "identity_changed", "conflict", "rate_limited",
@@ -70,11 +70,12 @@ export function parseReportInput(input: unknown): ReportInput {
     ...reportFields(value), observed_at: canonicalTime(value.observed_at) };
 }
 export function parsePublicReport(input: unknown): PublicReport {
-  const value = record(input, ["id", "segment_id", "direction", "category", "observed_at", "received_at", "provenance", "location_provenance"]);
+  const value = record(input, ["id", "episode_id", "segment_id", "direction", "category", "observed_at", "received_at", "provenance", "location_provenance"]);
   if (value.provenance !== "simulated" || value.location_provenance !== "manual") return invalid();
   const observed_at = reportTimestamp(value.observed_at), received_at = reportTimestamp(value.received_at);
   if (observed_at > received_at) return invalid();
-  return { id: reportUuid(value.id), ...reportFields(value), observed_at, received_at, provenance: "simulated", location_provenance: "manual" };
+  return { id: reportUuid(value.id), episode_id: reportUuid(value.episode_id), ...reportFields(value), observed_at, received_at,
+    provenance: "simulated", location_provenance: "manual" };
 }
 function failure(input: unknown): { status: ReportFailure } {
   const value = record(input, ["status"]);
