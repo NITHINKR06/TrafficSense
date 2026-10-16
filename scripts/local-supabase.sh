@@ -51,6 +51,15 @@ case "${1:-}" in
     docker compose build demo
     docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/tests/slowdown.integration.test.mjs
     ;;
+  speed-evidence)
+    docker compose build demo
+    docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/scripts/operate-speed-evidence.mjs "${@:2}"
+    ;;
+  test-speed-evidence)
+    docker compose build demo
+    docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/tests/speed-evidence.integration.test.mjs
+    docker exec -i supabase_db_trafficsense-local psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/speed-evidence-boundaries.sql
+    ;;
   test-episodes)
     case "${2:-}" in
       --backfill)
@@ -113,7 +122,7 @@ case "${1:-}" in
     docker compose run --rm supabase stop
     ;;
   *)
-    printf '%s\n' 'Usage: bash scripts/local-supabase.sh start|seed|test|test-traffic|test-reports|test-evidence|test-slowdown|test-browser-recovery|stop | test-episodes [--schema-only|--backfill] | simulate normal|slowdown|recovery [UTC-anchor] | simulate reset | reports enable|disable | reports cleanup|cleanup-expired-guests --confirm' >&2
+    printf '%s\n' 'Usage: bash scripts/local-supabase.sh start|seed|test|test-traffic|test-reports|test-evidence|test-slowdown|test-speed-evidence|test-browser-recovery|stop | speed-evidence capture|check <run-uuid> <batch-uuid> | speed-evidence cleanup <run-uuid> --confirm | test-episodes [--schema-only|--backfill] | simulate normal|slowdown|recovery [UTC-anchor] | simulate reset | reports enable|disable | reports cleanup|cleanup-expired-guests --confirm' >&2
     exit 2
     ;;
 esac

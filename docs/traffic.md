@@ -29,6 +29,31 @@ The command requires `DEMO_MODE=true`, the exact internal local Supabase URL and
 - Observations store km/h, UTC time and simulated provenance. Composite foreign keys bind each sample to its corridor, segment, source and anchor; unique keys reject duplicates. Geometry, baseline, speed, direction and time-window constraints reject malformed data.
 - All rows are public synthetic demonstration material. Never put private journeys, account identities, real GPS observations or reported incident evidence into these tables. Later private data needs separate schemas and authorization. Replacement retains only one synthetic scenario, not historical analytics.
 
+## Retained synthetic speed evidence
+
+`speed-evidence` is an explicit, local operator archive separate from the replaceable public fixture. Apply migrations first. Generate and retain a lowercase UUID for the run and another for the batch **before** capture; set them as `RUN_ID` and `BATCH_ID` below. A UUID is a synthetic archive reference, not an account, report episode or real incident identity. The default fixed simulator anchor is historical and will fail new-capture freshness admission. To demonstrate capture, explicitly install a current synthetic generation:
+
+```bash
+bash scripts/local-supabase.sh simulate recovery "$(date -u +%Y-%m-%dT%H:%M:%S.000Z)"
+bash scripts/local-supabase.sh speed-evidence capture "$RUN_ID" "$BATCH_ID"
+bash scripts/local-supabase.sh speed-evidence check "$RUN_ID" "$BATCH_ID"
+```
+
+Capture accepts only these IDs, copying the current owned database fixture while holding the same transaction lock as replacement/reset. It stores exact baseline components/label, directed segment and synthetic source bindings/labels, sample times/speeds, batch membership and database acceptance time. It does not ingest scenario names, geometry, reports, private identities or derived clearance/delay. First capture freezes the run's complete descriptor/source roster. A changed baseline, direction, source binding or roster requires a new run. Same source names in different runs never establish continuity or independent witnesses.
+
+An identical retained batch replay returns its original acknowledgement without allocating rows, including after its observations become stale. Overlapping batches share identical sample rows; conflicting speeds or changed descriptors reject atomically. A changed active generation with a reused batch UUID is a conflict, not a retry acknowledgement. **After a timeout, use `check` with the original IDs first**, including after fixture replacement/reset. A missing acknowledgement means none is currently retained; it is not proof that a deliberately deleted run never existed. Never silently generate replacement IDs to retry an unknown outcome. All requests have a 15-second client deadline, and credentials remain in process stdin/memory rather than arguments/output.
+
+New batches require every sample strictly newer than acceptance minus twenty minutes and no later than acceptance; exact timestamps are preserved. Anchors cannot regress within a run. Partial/off-grid sample collections may be retained when otherwise valid; storage is not proof of supported slowdown or recovery. Per batch limits are 50 segments, 500 sources and 5,000 samples. Global limits are 100 runs, 2,000 batches, 100,000 unique samples and 250,000 batch memberships. Capacity rejection allocates nothing and never evicts data; existing replay and check still work. An internal SHA-256 digest checks canonical replay content, not authenticity or a public signature.
+
+The `speed_evidence_*` archive is private to trusted local maintenance: ordinary guest/account roles cannot read it or invoke its RPCs. The service role can inspect records and call capture/check/scoped cleanup, but cannot mutate ledger tables directly. The dedicated executor uses forced row-level security; accepted rows reject updates. This is immutable **while retained**, not tamper-proof against database administration. Simulator reset/replacement, report cleanup and Auth deletion preserve retained evidence. Deliberate removal is a separate single-run action:
+
+```bash
+bash scripts/local-supabase.sh speed-evidence cleanup "$RUN_ID" --confirm
+bash scripts/local-supabase.sh test-speed-evidence
+```
+
+Cleanup preserves other runs, live fixtures, reporting settings, reports/episodes and Auth. It ends that run's replay guarantee; **never reuse a deliberately deleted run UUID**. Public reads neither expose nor write this ledger. Persistent lifecycle consumption, slowdown-only incidents, clearance and complete-traversal delay remain separate required work; archived samples alone do not create those states. See the [ingestion design and acceptance contract](plan.md#immutable-synthetic-speed-evidence-ingestion) and [actual verification status](progress.md).
+
 ## Public browsing and optional map
 
 Open `/demo` and choose **Browse synthetic traffic**, or open `/traffic` directly. A single `?segment=` parameter selects the same directed segment in the accessible list, details and optional map. Browser history and refresh preserve the selected ID; invalid or duplicate selections are explicit. Data refresh rereads the database but does not generate samples or change their timestamps. No sign-in, anonymous Auth session, location permission or private-table access is needed.
