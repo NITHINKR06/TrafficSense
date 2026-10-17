@@ -6,6 +6,18 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Phase 5 — integrated alternative-route alerts verified locally, 17 Oct 2026
+
+**Phase 5 exit verdict: passed locally at 2026-10-17T17:25Z.** Integrated alternative-route alerts (Module 5 / S12) are fully implemented and verified; there is no remaining Phase 5 implementation prerequisite. Phase 6 journeys are next. This is a simulated local acceptance result, not a live-traffic claim or navigation guidance.
+
+- **Authorization/scope:** user authorized completing Phase 5. Implement Module 5 / S12 through coherent same-run completed-traversal comparison, selected-primary incident binding, exact five-minute threshold, conservative alternative-hazard checks, shared map/list/details UI, tests and local commit. No push or Phase 6 work authorized.
+- **Implementation:** additive migration `20261016000800_route_alert_snapshot.sql` introduces restricted non-login reader role `phase5_snapshot_reader` and `read_traffic_phase5()` RPC returning unchanged Phase 4 snapshot and allowlisted `route_comparison` at the same database clock. Validates exact ordered membership `['primary-west', 'primary-east']` and `['alternative-west', 'alternative-east']`, returning `'incompatible'` if membership or position is altered. Bound to current supported primary incidents; checks recent unconfirmed alternative reports (accident, road_repair, flood, landslide, road_closed) and current alternative slowdown support to abstain on hazard. Pure alert derivation in `src/lib/route-alerts/rules.ts`, parser in `src/lib/route-alerts/snapshot.ts`, presentation labels in `src/lib/route-alerts/presentation.ts`. Shared UI in `traffic-explorer.tsx` and `traffic-map.tsx` renders alert/abstain states across list, map and details with live deadline countdown.
+- **Checks and verification:**
+  - Full Docker checks: **154/154 unit and presentation tests passed**, ESLint 0 errors / 0 warnings, route type generation, TypeScript and optimized production build (all 15 routes) passed.
+  - Real database integration tests: **13/13 passed** via `bash scripts/local-supabase.sh test-route-alerts`, covering: anonymous enclosing RPC contract, rejection of caller clocks, same-run actual motion preserving all 4 threshold boundaries (299s, 299.999999s, 300s, 300.000001s), missing completions, primary/alternative removed/substituted/reordered actual membership incompatibilities, missing entire route handling, changed baseline abstention, and non-clamping elapsed sums.
+  - SQL boundary tests in `tests/route-alerts-boundaries.sql` passed all assertions and rolled back cleanly.
+- **Preservation/review:** parallel draft files `src/lib/alerts/rules.ts`, `tests/alerts.test.mjs`, and `docs/phase5-coordination.md` preserved without staging. No dependency or lockfile changes. Scoped diffs reviewed. No push performed.
+
 ## Phase 4 — integrated lifecycle and completed-traversal delivery verified locally, 16 Oct 2026
 
 **Phase 4 exit verdict: passed locally at 2026-10-16T17:30Z.** Both remaining functional areas are integrated and verified; there is no remaining Phase 4 implementation prerequisite. Phase 5 alerts are next and were not modified or staged. This is a simulated local acceptance result, not a live-traffic claim or deployment.

@@ -8,11 +8,13 @@ import { episodeSummary } from "@/lib/traffic/presentation";
 import type { AssessmentView } from "@/lib/evidence/assessment";
 import type { SlowdownView } from "@/lib/evidence/slowdown-presentation";
 import type { TraversalView } from "@/lib/traffic/phase4-presentation";
+import type { routeAlertView } from "@/lib/route-alerts/presentation";
 import "maplibre-gl/dist/maplibre-gl.css";
 import styles from "./traffic.module.css";
 
 type MapProps = { fixture: TrafficFixture; reports: PublicReport[]; assessments: Record<string, AssessmentView>; slowdowns: Record<string, SlowdownView>;
   episodeCounts: Record<string, number>; lifecycleLabels: Record<string, string>; traversalViews: Record<string, TraversalView>;
+  alertViews: Record<string, ReturnType<typeof routeAlertView>>;
   selectedId: string | null; onSelect: (id: string) => void };
 
 export function TrafficMap(props: MapProps) {
@@ -21,7 +23,7 @@ export function TrafficMap(props: MapProps) {
   return <MapAttempt key={`${attempt}:${geometryKey}`} {...props} geometryKey={geometryKey} onRetry={() => setAttempt(value => value + 1)} />;
 }
 
-function MapAttempt({ fixture, reports, assessments, slowdowns, episodeCounts, lifecycleLabels, traversalViews, geometryKey, selectedId, onSelect, onRetry }: MapProps & { geometryKey: string; onRetry: () => void }) {
+function MapAttempt({ fixture, reports, assessments, slowdowns, episodeCounts, lifecycleLabels, traversalViews, alertViews, geometryKey, selectedId, onSelect, onRetry }: MapProps & { geometryKey: string; onRetry: () => void }) {
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
   const markers = useRef<Marker[]>([]);
@@ -52,9 +54,10 @@ function MapAttempt({ fixture, reports, assessments, slowdowns, episodeCounts, l
       button.dataset.assessmentState = view.state;
       button.dataset.slowdownState = slowdown.state;
       button.dataset.episodeCount = String(episodeCounts[segment.id]);
-      const label = `Select ${segment.name}, ${segment.direction}, simulated; ${button.dataset.reportCount} unconfirmed demo reports, including stale reports. ${episodeSummary(episodeCounts[segment.id])}. ${view.label}. ${slowdown.label} ${slowdown.windowLabel} ${lifecycleLabels[segment.id]}. ${traversalViews[segment.id].label}`;
+      const label = `Select ${segment.name}, ${segment.direction}, simulated; ${button.dataset.reportCount} unconfirmed demo reports, including stale reports. ${episodeSummary(episodeCounts[segment.id])}. ${view.label}. ${slowdown.label} ${slowdown.windowLabel} ${lifecycleLabels[segment.id]}. ${traversalViews[segment.id].label}. ${alertViews[segment.id].label}`;
       button.dataset.lifecycleLabel = lifecycleLabels[segment.id];
       button.dataset.delayState = traversalViews[segment.id].state;
+      button.dataset.routeAlertState = alertViews[segment.id].state;
       button.setAttribute("aria-label", label);
       button.title = label;
       const badge = button.querySelector<HTMLElement>("[data-evidence-badge]");
@@ -68,7 +71,7 @@ function MapAttempt({ fixture, reports, assessments, slowdowns, episodeCounts, l
         slowdownBadge.hidden = slowdown.state !== "supported" && slowdown.state !== "expired";
       }
     }
-  }, [assessments, slowdowns, episodeCounts, lifecycleLabels, traversalViews, fixture, reports, state]);
+  }, [assessments, slowdowns, episodeCounts, lifecycleLabels, traversalViews, alertViews, fixture, reports, state]);
 
   useEffect(() => {
     const segments = JSON.parse(geometryKey) as Pick<TrafficFixture["segments"][number], "id" | "name" | "direction" | "geometry">[];

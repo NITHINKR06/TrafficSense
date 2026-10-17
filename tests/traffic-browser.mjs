@@ -11,6 +11,8 @@ const reportSuite = process.env.REPORTS_BROWSER === "true";
 const evidenceSuite = process.env.EVIDENCE_BROWSER === "true";
 const slowdownSuite = process.env.SLOWDOWN_BROWSER === "true";
 const phase4Suite = process.env.PHASE4_BROWSER === "true";
+const routeAlertsSuite = process.env.ROUTE_ALERTS_BROWSER === "true";
+assert.ok(!routeAlertsSuite || !(phase4Suite || slowdownSuite || evidenceSuite || reportSuite || setupOnly || testFaults), "Route alert scenarios run separately.");
 assert.ok(!phase4Suite || !(slowdownSuite || evidenceSuite || reportSuite || setupOnly || testFaults), "Phase four scenarios run separately.");
 assert.ok(!slowdownSuite || !(evidenceSuite || reportSuite || setupOnly || testFaults), "Slowdown scenarios run separately from evidence, reporting, setup and fault suites.");
 assert.ok(!evidenceSuite || !(reportSuite || setupOnly || testFaults), "Evidence scenarios run separately from reporting, setup and fault suites.");
@@ -19,7 +21,7 @@ const ports = setupOnly ? [3004, 3005] : testFaults ? [3002, 3003] : [3000, 3001
 assert.ok(ports.some(port => base === `http://127.0.0.1:${port}`), "Use the local app ports assigned to this scenario.");
 assert.ok(["127.0.0.1", "localhost"].includes(new URL(debuggerUrl).hostname), "Chromium must be local.");
 const viewports = [[1440, 1000], [390, 844]];
-if (process.env.TRAFFIC_NARROW === "true" || evidenceSuite || slowdownSuite || phase4Suite) viewports.push([320, 740]);
+if (process.env.TRAFFIC_NARROW === "true" || evidenceSuite || slowdownSuite || phase4Suite || routeAlertsSuite) viewports.push([320, 740]);
 const readySelector = '[data-testid="traffic-ready"]';
 const listSelector = "[data-segment-list] a[data-segment-id]";
 const fixture = createTrafficFixture("slowdown", DEFAULT_DEMO_ANCHOR);
@@ -744,7 +746,7 @@ try {
       await page.text("Synthetic traffic corridor");
     });
     let account;
-    if (!evidenceSuite && !slowdownSuite && !phase4Suite) {
+    if (!evidenceSuite && !slowdownSuite && !phase4Suite && !routeAlertsSuite) {
       const accounts = JSON.parse(await readFile("supabase/.temp/demo-accounts.json", "utf8"));
       account = accounts.find(item => item.label === "commuter");
       assert.ok(account?.email && account?.password, "Seeded local commuter account is required.");
@@ -767,7 +769,11 @@ try {
       const { runEvidenceScenarios } = await import("./evidence-browser-scenarios.mjs");
       await runEvidenceScenarios({ base, status, viewports, withPage, createPage, disposePage, privacy, layout, ready, selected, selectList, loadMap, mapState, providerEvidence, refresh, screenshot, fixture });
     }
-    if (phase4Suite) {
+    if (routeAlertsSuite) {
+      const { runRouteAlertScenarios } = await import("./route-alerts-browser-scenarios.mjs");
+      await runRouteAlertScenarios({ base, status, viewports, withPage, createPage, disposePage, privacy, layout, ready,
+        selected, selectList, keyboardSelect, loadMap, mapState, providerEvidence, refresh, screenshot, fixture, snapshot, replace });
+    } else if (phase4Suite) {
       const { runPhase4Scenarios } = await import("./phase4-browser-scenarios.mjs");
       await runPhase4Scenarios({ base, status, viewports, withPage, createPage, disposePage, privacy, layout, ready,
         selected, selectList, keyboardSelect, loadMap, mapState, providerEvidence, refresh, screenshot, fixture, snapshot, replace });
@@ -775,7 +781,7 @@ try {
       const { runSlowdownScenarios } = await import("./slowdown-browser-scenarios.mjs");
       await runSlowdownScenarios({ base, status, viewports, withPage, createPage, disposePage, privacy, layout, ready, selected, selectList, keyboardSelect, loadMap, mapState, providerEvidence, refresh, screenshot, fixture, snapshot, replace });
     }
-    for (const [width, height] of reportSuite || evidenceSuite || slowdownSuite || phase4Suite ? [] : viewports) {
+    for (const [width, height] of reportSuite || evidenceSuite || slowdownSuite || phase4Suite || routeAlertsSuite ? [] : viewports) {
       let tileBlock;
       await withPage(width, height, {}, async page => { tileBlock = await happyPath(page); });
       await withPage(width, height, {}, page => blockedMap(page, "style", "*://tiles.openfreemap.org/styles/*"));

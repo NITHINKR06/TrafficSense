@@ -7,6 +7,9 @@ import { useSearchParams } from "next/navigation";
 import type { TrafficSnapshot } from "@/lib/traffic/snapshot";
 import type { PublicIncident, PublicTraversal } from "@/lib/traffic/phase4";
 import { incidentView, traversalView } from "@/lib/traffic/phase4-presentation";
+import type { RouteAlert } from "@/lib/route-alerts/rules";
+import type { RouteComparison } from "@/lib/route-alerts/snapshot";
+import { routeAlertView } from "@/lib/route-alerts/presentation";
 import { episodeSummary, formatTrafficTime, latestSegmentSamples, resolveSegment, snapshotFreshness } from "@/lib/traffic/presentation";
 import { assessmentView } from "@/lib/evidence/assessment";
 import type { SlowdownAssessment } from "@/lib/evidence/slowdown";
@@ -21,12 +24,15 @@ const freshnessLabels = {
   future: "Future-dated samples", missing: "No samples", unknown: "Sample freshness needs refresh",
 };
 
-export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, traversals }: {
+export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, traversals, routeComparison, routeAlerts }: {
   snapshot: TrafficSnapshot; slowdownAssessments: SlowdownAssessment[]; incidents: PublicIncident[]; traversals: PublicTraversal[];
+  routeComparison: RouteComparison; routeAlerts: RouteAlert[];
 }) {
   const params = useSearchParams();
-  const deadlines = useMemo(() => [...slowdownAssessments, ...incidents, ...traversals], [slowdownAssessments, incidents, traversals]);
+  const deadlines = useMemo(() => [...slowdownAssessments, ...incidents, ...traversals, ...routeAlerts],
+    [slowdownAssessments, incidents, traversals, routeAlerts]);
   const { elapsedMs, refreshStarted } = useAssessmentClock(snapshot, deadlines);
+  const alertViews = Object.fromEntries(routeAlerts.map(row => [row.segment_id, routeAlertView(row, snapshot.read_at, elapsedMs)]));
   const incidentViews = Object.fromEntries(incidents.map(row => [row.id, incidentView(row, snapshot.read_at, elapsedMs)]));
   const traversalViews = Object.fromEntries(traversals.map(row => [row.segment_id, traversalView(row, snapshot.read_at, elapsedMs)]));
   const lifecycleLabels = Object.fromEntries((snapshot.fixture?.segments ?? []).map(segment => {
@@ -103,6 +109,7 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
                   </span>
                   <span data-segment-lifecycle={segment.id}>{lifecycleLabels[segment.id]}</span>
                   <span data-segment-delay={segment.id} data-delay-state={traversalViews[segment.id].state}>{traversalViews[segment.id].label}</span>
+                  <span data-route-alert-segment={segment.id} data-route-alert-state={alertViews[segment.id].state}>{alertViews[segment.id].label}</span>
                 </a>
               </li>;
             })}
@@ -119,7 +126,7 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
             </div> : <>
               <button type="button" className="button secondary" onClick={() => setMapEnabled(false)}>Hide map</button>
               <TrafficMap fixture={fixture} reports={snapshot.reports} assessments={assessments} slowdowns={slowdowns} episodeCounts={episodeCounts}
-                lifecycleLabels={lifecycleLabels} traversalViews={traversalViews} selectedId={selected?.id ?? null} onSelect={selectSegment} />
+                lifecycleLabels={lifecycleLabels} traversalViews={traversalViews} alertViews={alertViews} selectedId={selected?.id ?? null} onSelect={selectSegment} />
             </>}
           </section>
           <section id="segment-details" data-segment-id={selected?.id ?? ""} className="panel" aria-labelledby="segment-details-title" aria-live="polite">
@@ -136,6 +143,18 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
                 <div><dt>Latest observation</dt><dd>{latest.observedAt ? <time dateTime={latest.observedAt}>{formatTrafficTime(latest.observedAt)}</time> : "Unavailable"}</dd></div>
               </dl>
               <p>{selected.baseline_label}</p>
+              <section className={styles.reports} aria-labelledby="route-alert-title">
+                <h3 id="route-alert-title">Fixed alternative comparison</h3>
+                <p data-route-alert-details={selected.id} data-route-alert-state={alertViews[selected.id].state}>
+                  <strong>{alertViews[selected.id].label}</strong>
+                </p>
+                <p>SIMULATED · Compares sums of completed segment durations from one retained simulation run. An alert requires a current supported incident on this primary segment, at least five minutes less on the fixed alternative, and no current supported slowdown or recent reported hazard on that alternative.</p>
+                <p>These independent segment traversals are not a continuous journey. No report does not establish a clear or safe road. Refresh to check for new evidence; an expired or suppressed comparison does not resume automatically.</p>
+                {alertViews[selected.id].state === "alert" && routeComparison.alternative_segment_ids[0] && <button
+                  type="button" className="button secondary" data-inspect-alternative
+                  onClick={() => selectSegment(routeComparison.alternative_segment_ids[0])}>Inspect fixed alternative</button>}
+                <p>Inspecting the alternative only changes the selected segment. It does not start a journey, navigation, tracking or sharing.</p>
+              </section>
               <h3>Latest synthetic samples</h3>
               <p>{latest.samples.length} synthetic sources at this timestamp. These are simulated devices, not independent witnesses.</p>
               {latest.samples.length ? <ul className={styles.samples}>
@@ -149,7 +168,7 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
               <p>SIMULATED · L4 requires the same three or more synthetic sources at six synchronized one-minute timestamps, spanning five complete minutes. Every required speed must be below 40% of the unrounded assumed baseline; every required sample must be under twenty minutes old.</p>
               <p>Baseline speed: {(selected.length_m / selected.baseline_seconds * 3.6).toLocaleString("en-GB", { maximumFractionDigits: 2 })} km/h (assumed). Missing or off-cadence samples are not filled in. The latest observed window is assessed, not an older favorable run.</p>
               <p>L4 is simulated slowdown support, not live or confirmed congestion. These synthetic sources are separate from reporting identities; L3 and L4 do not establish a reported cause or location support.</p>
-              <p>Loss of support, higher speeds alone and simulator reset do not establish recovery or clearance. Persisted incidents below use retained evidence from one simulation run; the replaceable scenario above is assessed separately. No route savings are calculated.</p>
+              <p>Loss of support, higher speeds alone and simulator reset do not establish recovery or clearance. Persisted incidents below use retained evidence from one simulation run; the replaceable scenario above is assessed separately. Only the separately qualified fixed alternative comparison above can produce a route alert.</p>
               <section className={styles.reports} aria-labelledby="lifecycle-title" data-lifecycle-history={selected.id}>
                 <h3 id="lifecycle-title">Persisted incident history</h3>
                 <p data-lifecycle-summary={selected.id}><strong>{lifecycleLabels[selected.id]}</strong></p>
@@ -177,7 +196,7 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
               <p data-report-assessment={selected.id} data-assessment-state={assessments[selected.id].state}><strong>{assessments[selected.id].label}</strong></p>
               <p>SIMULATED · Reports group by this segment and direction, not by cause or a confirmed incident. Recent reports are under twenty minutes old; eligible reports are under fifteen minutes old and linked to an eligible reporting source.</p>
               <p>Each source counts once across the rolling fifteen-minute window, including repeated reports and different categories. Expired guest sources no longer qualify. L3 Multiple sources requires at least three eligible sources, not three independent witnesses.</p>
-              <p>All locations are manually selected: L1 Reported, without L2 location support. Multiple sources do not confirm congestion or any reported cause. L4 and persisted recovery use separate synthetic speed evidence above. Completed simulated traversal excess is not measured personal delay; route savings remain unavailable. No reports does not mean the road is clear.</p>
+              <p>All locations are manually selected: L1 Reported, without L2 location support. Multiple sources do not confirm congestion or any reported cause. L4 and persisted recovery use separate synthetic speed evidence above. Completed simulated traversal excess is not measured personal delay; report counts alone cannot produce a route alert. No reports does not mean the road is clear.</p>
               <section aria-labelledby="episode-history-title" className={styles.reports}>
                 <h3 id="episode-history-title">Report episode history</h3>
                 <p data-episode-summary={selected.id}>{episodeSummary(episodeCounts[selected.id])}</p>

@@ -85,11 +85,28 @@ Excess time is `max(0, exited_at − entered_at − baseline_seconds)` using exa
 
 For each direction, the most recently accepted retained batch selects the run; baseline incompatibility and missing completions never fall back to older favorable records. Historical clearance remains historical. Simulator replacement/reset does not process or clear incidents. Reset hides history while the corridor is absent; restoring it makes retained compatible history visible again. The map marker labels, list, details and incident disclosures share one server result and conservative elapsed clock. Support and traversal delay expire on time or clock uncertainty without inventing recovery; a refresh is required for new positive evidence.
 
+## Fixed alternative-route alerts
+
+`read_traffic_phase5()` encloses the unchanged Phase 4 snapshot and an allowlisted comparison at the same database clock. Both fixed outbound routes must retain their exact ordered membership: primary west/east and alternative west/east. Missing, substituted or reordered members cannot shorten the comparison or omit a hazard. Every segment must select one identical latest retained run with fresh, compatible completed motion. Missing, stale, future, invalid, incompatible or mixed-run evidence yields explicit abstention without substituting baseline times or older favorable completions.
+
+The comparison sums actual entry-to-exit microseconds for each route, then subtracts the alternative sum from the primary sum. The difference must reach **300,000,000 microseconds** before display rounding. These are independent synthetic segment traversals, not one continuous end-to-end trip, measured commuter savings, navigation or a safety guarantee.
+
+An alert also requires a current supported persisted incident on the selected primary direction, privately bound to that run. Report counts and transient fixture slowdown cannot replace it. A supported alternative incident or a recent alternative report categorized accident, road repair, flood, landslide or road closed blocks the alert. Report timestamps use exact microseconds in `(read − 20 minutes, read]`; the reported hazard remains unconfirmed.
+
+List, map accessible labels and selected details use the same decision and conservative expiry clock. **Inspect fixed alternative** changes only the existing segment selection and browser history; it starts no journey, tracking or sharing. Positive alerts expire at the earliest supporting incident/completion deadline. Abstentions never become alerts merely because a report ages out; explicit refresh is required for changed evidence.
+
+```bash
+bash scripts/local-supabase.sh test-route-alerts
+bash scripts/local-supabase.sh test-route-alerts-browser
+```
+
+Apply migrations before using the reader. The database suite exercises exact thresholds, fixed membership, latest-run selection, unavailable states and restricted privileges. The browser suite requires local development and rebuilt production previews plus Chromium on port 9333; it runs serially at desktop/mobile widths and restores owned fixture/report/evidence mutations. Run it separately from other database or browser fixture suites. See [progress](progress.md) for results rather than inferring a pass from these commands.
+
 ## Public browsing and optional map
 
 Open `/demo` and choose **Browse synthetic traffic**, or open `/traffic` directly. A single `?segment=` parameter selects the same directed segment in the accessible list, details and optional map. Browser history and refresh preserve the selected ID; invalid or duplicate selections are explicit. Data refresh rereads the database but does not generate samples or change their timestamps. No sign-in, anonymous Auth session, location permission or private-table access is needed.
 
-The stored scenario is separate from sample freshness. Timestamps display in **Asia/Kolkata**. Samples at least twenty minutes old are stale; future-dated and missing samples have their own labels. Baselines and geometry are assumptions. Colours identify routes/direction, not congestion severity; synthetic sources are not independent witnesses. L3 report counts and L4 slowdown support remain separate indicators, not confirmation of a real incident or cause. Persisted synthetic recovery and completed-traversal excess time use the retained evidence described above; savings are not calculated.
+The stored scenario is separate from sample freshness. Timestamps display in **Asia/Kolkata**. Samples at least twenty minutes old are stale; future-dated and missing samples have their own labels. Baselines and geometry are assumptions. Colours identify routes/direction, not congestion severity; synthetic sources are not independent witnesses. L3 report counts and L4 slowdown support remain separate indicators, not confirmation of a real incident or cause. Persisted synthetic recovery, completed-traversal excess time and qualified fixed-route comparisons use the retained evidence described above; report counts alone cannot produce a route alert.
 
 **Load map** opts into external requests to OpenFreeMap and its delivery providers, following a privacy notice. MapLibre GL JS 6.14.0, CSS and the worker are bundled with the app; no runtime script CDN or API key is used. The Liberty background uses OpenStreetMap/OpenMapTiles data. Attribution remains below the canvas at narrow widths; `/map-notices.txt` contains the renderer license and provider/data/style notices. Provider terms and privacy are linked there. No offline/bulk download is implemented. The service has no uptime guarantee; failed provider requests or unavailable WebGL show **Retry map** while the list/details remain usable. **Hide map** releases map resources.
 

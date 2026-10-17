@@ -16,7 +16,7 @@ export default async function TrafficPage() {
       <p className="simulated-pill">SIMULATED · Public traffic data</p>
       <h1>Synthetic traffic corridor</h1>
       <p className="intro">Explore the Mangaluru demonstration without signing in. No device location is requested and no journey is started.</p>
-      {result.status === "ready" ? <TrafficExplorer snapshot={result.snapshot} slowdownAssessments={result.slowdown_assessments} incidents={result.incidents} traversals={result.traversals} /> : (
+      {result.status === "ready" ? <TrafficExplorer snapshot={result.snapshot} slowdownAssessments={result.slowdown_assessments} incidents={result.incidents} traversals={result.traversals} routeComparison={result.route_comparison} routeAlerts={result.route_alerts} /> : (
         <div className="panel" role="status">
           <h2>{result.status === "unconfigured" ? "Traffic data is not configured" : "Traffic data is unavailable"}</h2>
           <p>{result.status === "invalid" ? "The stored demonstration could not be validated. No partial traffic data is displayed."

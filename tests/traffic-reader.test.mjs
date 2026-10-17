@@ -362,7 +362,13 @@ test("server snapshot reader is public, request-time, bounded, uncached and safe
     const phase4 = { traffic: snapshot(), incidents: [], traversals: snapshot().fixture.segments.map(segment => ({
       segment_id: segment.id, direction: segment.direction, status: "missing", id: null, entered_at: null, exited_at: null,
       baseline_seconds: null, baseline_label: null, delay_seconds: null, valid_until: null, provenance: "simulated" })) };
-    state.response = { data: phase4, error: null, status: 200 };
+    const route_comparison = { status: "missing", primary_route_id: "primary", alternative_route_id: "alternative", direction: "outbound",
+      primary_segment_ids: ["primary-west", "primary-east"], alternative_segment_ids: ["alternative-west", "alternative-east"],
+      primary_duration_us: null, alternative_duration_us: null, savings_us: null, valid_until: null, supported_incident_ids: [], provenance: "simulated" };
+    const route_alerts = phase4.traffic.fixture.segments.map(segment => ({ segment_id: segment.id, direction: segment.direction,
+      kind: "abstain", reason: route_comparison.primary_segment_ids.includes(segment.id) ? "missing" : "unrelated_selection",
+      savings_us: null, valid_until: null, incident_id: null, provenance: "simulated" }));
+    state.response = { data: { phase4, route_comparison }, error: null, status: 200 };
     state.fetch = true;
     const requestController = new AbortController();
     state.init = { cache: "force-cache", signal: requestController.signal };
@@ -374,9 +380,9 @@ test("server snapshot reader is public, request-time, bounded, uncached and safe
       status: segment.id === "primary-west" ? "supported" : "not_supported", window_start: "2026-10-15T03:55:00.000Z",
       window_end: DEFAULT_DEMO_ANCHOR, complete_source_count: 3, slow_source_count: segment.id === "primary-west" ? 3 : 0,
       valid_until: "2026-10-15T04:15:00.000Z", provenance: "simulated" }));
-    assert.deepEqual(await readTrafficSnapshot(), { status: "ready", snapshot: snapshot(), slowdown_assessments: expectedSlowdowns, incidents: [], traversals: phase4.traversals });
+    assert.deepEqual(await readTrafficSnapshot(), { status: "ready", snapshot: snapshot(), slowdown_assessments: expectedSlowdowns, incidents: [], traversals: phase4.traversals, route_comparison, route_alerts });
     assert.deepEqual(state.events, ["connection", "sdk"]);
-    assert.equal(state.rpc, "read_traffic_phase4");
+    assert.equal(state.rpc, "read_traffic_phase5");
     assert.equal(state.url, process.env.SUPABASE_URL);
     assert.equal(state.key, process.env.SUPABASE_ANON_KEY);
     assert.deepEqual(state.options.auth, { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false });
@@ -401,8 +407,9 @@ test("server snapshot reader is public, request-time, bounded, uncached and safe
     assert.deepEqual(await readTrafficSnapshot(), { status: "unavailable" });
     state.response = { data: {}, error: null, status: 200 };
     assert.deepEqual(await readTrafficSnapshot(), { status: "invalid" });
-    state.response = { data: { traffic: { read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], incident_episodes: [], reporting_enabled: false, report_assessments: [] }, incidents: [], traversals: [] }, error: null, status: 200 };
-    assert.deepEqual(await readTrafficSnapshot(), { status: "ready", snapshot: state.response.data.traffic, slowdown_assessments: [], incidents: [], traversals: [] });
+    const emptyComparison = { ...route_comparison, status: "no_routes", primary_segment_ids: [], alternative_segment_ids: [] };
+    state.response = { data: { phase4: { traffic: { read_at: DEFAULT_DEMO_ANCHOR, fixture: null, reports: [], incident_episodes: [], reporting_enabled: false, report_assessments: [] }, incidents: [], traversals: [] }, route_comparison: emptyComparison }, error: null, status: 200 };
+    assert.deepEqual(await readTrafficSnapshot(), { status: "ready", snapshot: state.response.data.phase4.traffic, slowdown_assessments: [], incidents: [], traversals: [], route_comparison: emptyComparison, route_alerts: [] });
     state.requestError = true;
     assert.deepEqual(await readTrafficSnapshot(), { status: "unavailable" });
     state.requestError = false;
