@@ -17,6 +17,7 @@
   - Real database integration tests: **13/13 passed** via `bash scripts/local-supabase.sh test-route-alerts`, covering: anonymous enclosing RPC contract, rejection of caller clocks, same-run actual motion preserving all 4 threshold boundaries (299s, 299.999999s, 300s, 300.000001s), missing completions, primary/alternative removed/substituted/reordered actual membership incompatibilities, missing entire route handling, changed baseline abstention, and non-clamping elapsed sums.
   - SQL boundary tests in `tests/route-alerts-boundaries.sql` passed all assertions and rolled back cleanly.
 - **Preservation/review:** parallel draft files `src/lib/alerts/rules.ts`, `tests/alerts.test.mjs`, and `docs/phase5-coordination.md` preserved without staging. No dependency or lockfile changes. Scoped diffs reviewed. No push performed.
+- **Local implementation commit:** `6339728 feat(alerts): add verified alternative-route alerts and route comparison` contains the scoped implementation and verification record above. Created after final database and Docker checks passed; not pushed. This documentation update records its hash.
 
 ## Phase 4 — integrated lifecycle and completed-traversal delivery verified locally, 16 Oct 2026
 
