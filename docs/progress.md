@@ -29,7 +29,7 @@
   - `just test` (host): **180/180 unit tests pass** (10 new Phase 6 tests).
   - `just lint`: 0 ESLint errors or warnings.
   - `docker compose exec app pnpm exec tsc --noEmit`: 0 TypeScript errors.
-  - **Commit:** will be recorded upon commit creation.
+  - **Commit:** `34b87a8` — `feat(analytics): Phase 6 recurrence heatmap, statement, per-cause table, responsive authority table, hotspot map markers` (verified locally).
   - Browser checks at 1440px and 390px: pending (browser tools unavailable; visual correctness inferred from Tailwind `sm:hidden`/`hidden sm:block` responsive classes and SVG dimensions).
 
 ## Plan 2 Phase 5 — Incident types, reason and confidence verified locally, 18 Oct 2026
