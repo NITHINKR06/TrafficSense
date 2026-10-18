@@ -9,9 +9,9 @@ import {
   stopSharingJourneyWithEmployer,
 } from "@/lib/journeys/server";
 
-export async function handleStartJourney(): Promise<void> {
+export async function handleStartJourney(corridorName?: string): Promise<void> {
   const { supabase } = await requireViewer();
-  await startCommuterJourney(supabase);
+  await startCommuterJourney(supabase, corridorName);
   revalidatePath("/workspace");
 }
 

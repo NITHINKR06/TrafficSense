@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useTransition } from "react";
+import Link from "next/link";
 import type { Map as MapInstance, Marker as MarkerInstance } from "maplibre-gl";
 import { formatRouteDuration, formatRouteDistance, type RouteOption } from "@/lib/routing/types";
 import { reportCategories, reportCategoryIcons, type ReportCategory } from "@/lib/reports/rules";
@@ -694,6 +695,19 @@ export function RoutePlanner() {
                 {r.incidents_on_route.length > 0 && (
                   <div className="pt-1 text-[11px] text-amber-700 dark:text-amber-300">
                     ⚠️ Passes near {r.incidents_on_route.length} reported incident ({r.incidents_on_route[0].label})
+                  </div>
+                )}
+
+                {isSelected && (
+                  <div className="pt-2 border-t border-surface-container flex items-center justify-between">
+                    <span className="text-[11px] text-surface-on-variant">Ready to commute?</span>
+                    <Link
+                      href="/workspace"
+                      className="text-xs font-semibold px-3 py-1 rounded bg-primary text-primary-on hover:opacity-90 transition"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Track this journey →
+                    </Link>
                   </div>
                 )}
               </div>

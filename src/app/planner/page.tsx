@@ -37,6 +37,9 @@ export default function PlannerPage() {
           <Link className="text-primary hover:underline" href="/traffic">
             ← Fixed corridor demonstration
           </Link>
+          <Link className="text-primary hover:underline font-semibold" href="/workspace">
+            Commuter journeys &amp; employer shares →
+          </Link>
           <Link className="text-surface-on-variant hover:underline" href="/demo">
             Guest overview
           </Link>

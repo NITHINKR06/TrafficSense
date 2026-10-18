@@ -49,6 +49,9 @@ export default async function WorkspacePage() {
       <div className="pt-4 border-t border-surface-container space-y-3">
         <h2 className="text-md font-bold">Role access navigation</h2>
         <div className="flex flex-wrap gap-2">
+          <Link className="button" href="/planner">
+            City Route Planner
+          </Link>
           <Link className="button" href="/traffic">
             Public Traffic Map & Details
           </Link>

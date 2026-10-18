@@ -6,6 +6,21 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Plan 4 (revised) Journey Tracking & Commuter-Employer Workflow Integration, 18 Oct 2026
+
+**Task exit verdict: passed locally at 2026-10-18T18:15Z.** Integrated the end-to-end Commuter Journey Tracking and Employer Sharing flow directly into the Route Planner and Workspace UI. Commuters can plan routes on the interactive map, seamlessly initiate journey tracking from selected routes, monitor active trips with consent-governed delay evidence, and share allowlisted delay summaries with verified employers (`/employer/[orgId]`) without exposing raw GPS samples or sensitive trip coordinates. Verified at 194/194 unit tests, 0 ESLint errors, 0 TypeScript errors, Next.js Turbopack production build (19/19 routes), and full RLS enforcement.
+
+- **Implementation:**
+  - `src/components/routing/route-planner.tsx`: Added interactive "Track this journey →" action directly on selected routes linking seamlessly to the commuter journey workspace.
+  - `src/app/workspace/actions.ts`: Extended `handleStartJourney` to accept dynamic route/corridor names from route selections.
+  - `src/app/workspace/page.tsx`: Added direct link to `City Route Planner` in the Role Access Navigation panel.
+  - `src/app/planner/page.tsx`: Added reciprocal navigation link to commuter journey tracking and employer sharing in the footer.
+- **Verification:**
+  - `docker compose exec -T app pnpm exec tsc --noEmit`: 0 TypeScript errors.
+  - `docker compose exec -T app pnpm lint`: 0 ESLint errors.
+  - `docker compose exec -T app pnpm test`: 194/194 unit tests pass across 8 test suites.
+  - `docker compose exec -T app pnpm build`: Production build succeeded in 3.9s across 19 routes.
+
 ## Native Mobile Architecture & Multi-File Planning Suite, 18 Oct 2026
 
 **Task exit verdict: passed locally at 2026-10-18T17:15Z.** Created modular, multi-file native mobile engineering specification in `docs/mobile/` covering React Native / Expo architecture, offline SQLite / WatermelonDB data pipelines, UI design system with daylight contrast tokens, feature specifications (1-tap report, dynamic routing detours, delay receipts), native performance optimizations (120 FPS, zero-drain GNSS protocol, cold start <800ms), and a 5-phase implementation roadmap with Jest and Maestro testing strategies. Linked in `README.md` TOC and Section 10.
