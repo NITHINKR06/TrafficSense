@@ -62,4 +62,48 @@ describe("Phase 6 — Journeys and consent-based employer sharing", () => {
     // Both ended and stopped
     assert.equal(isEmployerVisible({ journey_status: "ended", share_status: "stopped" }), false);
   });
+
+  it("journey operations invoke secure RPCs rather than raw table mutations", async () => {
+    const {
+      startCommuterJourney,
+      endCommuterJourney,
+      shareJourneyWithEmployer,
+      stopSharingJourneyWithEmployer,
+    } = await import("../src/lib/journeys/server.ts");
+
+    const rpcCalls = [];
+    const mockSupabase = {
+      rpc: async (name, params) => {
+        rpcCalls.push({ name, params });
+        if (name === "start_commuter_journey") {
+          return { data: { ok: true, journeyId: "test-journey-1" }, error: null };
+        }
+        return { data: { ok: true }, error: null };
+      },
+    };
+
+    const startRes = await startCommuterJourney(mockSupabase, "Test Corridor");
+    assert.equal(startRes.ok, true);
+    assert.equal(startRes.journeyId, "test-journey-1");
+    assert.equal(rpcCalls[0].name, "start_commuter_journey");
+    assert.equal(rpcCalls[0].params.p_corridor_name, "Test Corridor");
+
+    const endRes = await endCommuterJourney(mockSupabase, "test-journey-1");
+    assert.equal(endRes.ok, true);
+    assert.equal(rpcCalls[1].name, "end_commuter_journey");
+    assert.equal(rpcCalls[1].params.p_journey_id, "test-journey-1");
+
+    const shareRes = await shareJourneyWithEmployer(mockSupabase, "test-journey-1", "org-uuid-1");
+    assert.equal(shareRes.ok, true);
+    assert.equal(rpcCalls[2].name, "share_commuter_journey");
+    assert.equal(rpcCalls[2].params.p_journey_id, "test-journey-1");
+    assert.equal(rpcCalls[2].params.p_org_id, "org-uuid-1");
+
+    const stopRes = await stopSharingJourneyWithEmployer(mockSupabase, "test-journey-1", "org-uuid-1");
+    assert.equal(stopRes.ok, true);
+    assert.equal(rpcCalls[3].name, "stop_sharing_commuter_journey");
+    assert.equal(rpcCalls[3].params.p_journey_id, "test-journey-1");
+    assert.equal(rpcCalls[3].params.p_org_id, "org-uuid-1");
+  });
 });
+

@@ -43,39 +43,23 @@ export async function startCommuterJourney(
   supabase: SupabaseClient,
   corridorName = "Mangaluru Central Demonstration Corridor"
 ): Promise<{ ok: boolean; journeyId?: string; error?: string }> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "Authentication required" };
-
-  const { data, error } = await supabase
-    .from("commuter_journeys")
-    .insert({
-      user_id: user.id,
-      corridor_id: "mangaluru-central-v1",
-      corridor_name: corridorName,
-      status: "active",
-      estimated_delay_seconds: 480, // simulated 8-minute delay demonstration
-      evidence_level: "L3",
-      provenance: "simulated",
-    })
-    .select("id")
-    .single();
+  const { data, error } = await supabase.rpc("start_commuter_journey", {
+    p_corridor_name: corridorName,
+  });
 
   if (error || !data) {
     return { ok: false, error: error?.message ?? "Failed to start journey" };
   }
-  return { ok: true, journeyId: data.id };
+  return { ok: true, journeyId: (data as { journeyId?: string }).journeyId };
 }
 
 export async function endCommuterJourney(
   supabase: SupabaseClient,
   journeyId: string
 ): Promise<{ ok: boolean; error?: string }> {
-  const { error } = await supabase
-    .from("commuter_journeys")
-    .update({ status: "ended", ended_at: new Date().toISOString() })
-    .eq("id", journeyId);
+  const { error } = await supabase.rpc("end_commuter_journey", {
+    p_journey_id: journeyId,
+  });
 
   if (error) return { ok: false, error: error.message };
   return { ok: true };
@@ -86,23 +70,10 @@ export async function shareJourneyWithEmployer(
   journeyId: string,
   orgId: string
 ): Promise<{ ok: boolean; error?: string }> {
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return { ok: false, error: "Authentication required" };
-
-  const { error } = await supabase.from("journey_employer_shares").upsert(
-    {
-      journey_id: journeyId,
-      org_id: orgId,
-      user_id: user.id,
-      status: "active",
-      shared_at: new Date().toISOString(),
-      stopped_at: null,
-      provenance: "simulated",
-    },
-    { onConflict: "journey_id,org_id" }
-  );
+  const { error } = await supabase.rpc("share_commuter_journey", {
+    p_journey_id: journeyId,
+    p_org_id: orgId,
+  });
 
   if (error) return { ok: false, error: error.message };
   return { ok: true };
@@ -113,11 +84,10 @@ export async function stopSharingJourneyWithEmployer(
   journeyId: string,
   orgId: string
 ): Promise<{ ok: boolean; error?: string }> {
-  const { error } = await supabase
-    .from("journey_employer_shares")
-    .update({ status: "stopped", stopped_at: new Date().toISOString() })
-    .eq("journey_id", journeyId)
-    .eq("org_id", orgId);
+  const { error } = await supabase.rpc("stop_sharing_commuter_journey", {
+    p_journey_id: journeyId,
+    p_org_id: orgId,
+  });
 
   if (error) return { ok: false, error: error.message };
   return { ok: true };

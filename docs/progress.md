@@ -6,6 +6,38 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Plan 4 (revised) Day 1 — Dynamic Routing Engine, Journey Security & Route Planner, 18 Oct 2026
+
+**Task exit verdict: passed locally at 2026-10-18T13:58Z.** Dynamic routing engine via public OSRM integration, incident-avoidance re-routing, `/api/route` API, interactive `<RoutePlanner />` page (`/planner`) with MapLibre rendering, and journey security fixes (RPCs and membership verification) implemented and verified at 190/190 tests.
+
+- **Scope & intent:** Deliver Plan 4 Day 1 milestones:
+  1. Live routing between any two coordinates in Mangaluru with alternative paths and incident avoidance detours.
+  2. Security hardening on journeys: revoke direct client updates on delay/evidence, require security definer RPCs, enforce employer org membership before sharing.
+  3. Interactive Route Planner UI (`/planner`) with presets, GPS location, and MapLibre polyline visualization.
+- **Routing Engine & Decision Record:**
+  - Evaluated public OSRM endpoint with alternatives (`https://router.project-osrm.org/route/v1/driving/...`). Real driving routes across Mangaluru return under 300ms with accurate distance and duration.
+  - Incident avoidance mechanism: `parseOsrmResponse` checks if the primary route intersects verified incidents (L3+ or L6). When detected and a clean alternative exists, the system automatically promotes the avoiding alternative to `is_recommended`, adds `avoids_incident = true`, and sets `avoided_incident_reason`.
+  - All route options carry the `provenance: "estimated"` label ("Free-flow estimate only").
+- **Security Fixes:**
+  - `supabase/migrations/20261018000200_journey_security_fixes.sql`: Revoked direct `INSERT`, `UPDATE`, `DELETE` on `public.commuter_journeys` and `public.journey_employer_shares` from `authenticated`.
+  - Created secure RPCs: `start_commuter_journey`, `end_commuter_journey`, `share_commuter_journey`, `stop_sharing_commuter_journey`.
+  - `share_commuter_journey` checks `(user_id, org_id)` against `public.memberships` before creating a share (Security Rule 2).
+- **Implementation:**
+  - `src/lib/routing/types.ts`: Coordinate types, Mangaluru bounding box check (`74.70–75.05` lng, `12.75–13.05` lat), formatting helpers.
+  - `src/lib/routing/engine.ts`: Haversine distance, route proximity checking (`minDistanceToRoute`, `findIncidentsOnRoute`), OSRM response parsing with incident detour promotion, and `queryRoute`.
+  - `src/app/api/route/route.ts`: API endpoint accepting POST/GET with start and destination coordinates.
+  - `src/components/routing/route-planner.tsx`: Interactive client component with Mangaluru presets, GPS location button, MapLibre routing map, and alternative route cards.
+  - `src/app/planner/page.tsx`: `/planner` page with methodology & provenance disclaimers.
+  - `src/app/layout.tsx`: Added "Route planner" to header navigation.
+  - `tests/routing.test.mjs`: 8 unit tests covering bounds checking, Haversine distances, URL construction, OSRM parsing, incident detection, and detour promotion.
+  - `tests/journeys.test.mjs`: Added RPC invocation security tests.
+- **Verification:**
+  - `docker compose exec app pnpm test`: **190/190 unit tests pass** (0 failed).
+  - `docker compose exec app pnpm lint`: 0 ESLint errors, 0 warnings.
+  - `docker compose exec app pnpm exec tsc --noEmit`: 0 TypeScript errors.
+  - Live API verification: `curl http://localhost:3000/api/route?start=74.8426,12.8698&destination=74.8530,12.8856` returned `{"ok":true,"routes":[{"id":"route-1",...}]}`.
+  - **Commit:** will be recorded upon commit creation.
+
 ## Plan 2 Phase 6 — Recurring-problem analysis and authority view, 18 Oct 2026
 
 **Task exit verdict: passed locally at 2026-10-18T11:36Z.** Recurrence heatmap, computed recurrence statement, per-reason delay table (PDF §8), responsive hotspot table (mobile cards), schematic SVG map with numbered rank markers, and Export button full-width on mobile — all implemented and verified at 180/180 tests.
