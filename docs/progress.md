@@ -22,7 +22,7 @@
   - `docker compose exec app pnpm test`: **194/194 unit tests pass** across 8 test suites.
   - `docker compose exec app pnpm lint`: 0 ESLint errors or warnings.
   - `docker compose exec app pnpm exec tsc --noEmit`: 0 TypeScript errors.
-  - **Commit:** will be recorded upon commit creation.
+  - **Commit:** `75c91c8` — `feat(analytics): Plan 4 Day 3 authority analytics with live incident data and demo history toggle` (verified locally).
 
 ## Plan 4 (revised) Day 2 — Live Incident Reporting, Server Verification (L1–L4, L6) & Real-Time Detours, 18 Oct 2026
 
