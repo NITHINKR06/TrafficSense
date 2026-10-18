@@ -388,9 +388,12 @@ just down
 
 # Stop all containers including local Supabase backend
 just stop-all
+
+# Start free Cloudflare Tunnel for public internet / mobile access
+just tunnel
 ```
 
-Run `just` or `just --list` to view all available commands.
+Run `just` or `just --list` to view all available commands. Complete installation and Cloudflare tunnel setup instructions are documented in [docs/setup.md](docs/setup.md).
 
 ### 2. Manual Docker Compose Execution
 

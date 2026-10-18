@@ -6,6 +6,18 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Setup Documentation & Cloudflare Tunnel Recipes, 18 Oct 2026
+
+**Task exit verdict: passed locally at 2026-10-18T17:00Z.** Created comprehensive `docs/setup.md` explaining exact host prerequisites (Git + Docker Engine only; no host Node/pnpm/Postgres needed), step-by-step local execution commands, instructions for creating and running a Cloudflare Tunnel via Docker (`docker run cloudflare/cloudflared`) and host binary, service management, and troubleshooting. Added `just tunnel` and `just tunnel-stop` recipes to `justfile` and linked setup documentation in `README.md`.
+
+- **Files added/modified:**
+  - `docs/setup.md` (new): Complete setup and deployment guide.
+  - `justfile`: Added `tunnel` and `tunnel-stop` recipes for instant Docker Cloudflare Tunnel management.
+  - `README.md`: Linked `docs/setup.md` in Section 9.
+- **Verification:**
+  - `just --list`: Recipes verified and listed.
+  - `docker logs trafficsense-tunnel`: Cloudflare tunnel active and serving traffic on `trycloudflare.com`.
+
 ## MapLibre Web Worker Loading Fix on Route Planner & Traffic Map, 18 Oct 2026
 
 **Task exit verdict: passed locally at 2026-10-18T16:45Z.** Fixed "Worker failed to load. Check that the worker URL is correct" error in Next.js Turbopack by copying `maplibre-gl-worker.mjs` directly into `public/`, configuring explicit static worker URLs (`setWorkerUrl("/maplibre-gl-worker.mjs")`) in both `RoutePlanner` (`src/components/routing/route-planner.tsx`) and `TrafficMap` (`src/components/traffic/traffic-map.tsx`), adding `isStyleLoaded()` defensive guard with automatic fallback to bundled schematic basemap, and ignoring vendor bundles in ESLint. Verified at 194/194 unit tests, 0 ESLint errors, 0 TypeScript errors, Next.js Turbopack production build (19/19 routes), and HTTP 200 on `/planner` and `/maplibre-gl-worker.mjs`.

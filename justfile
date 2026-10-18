@@ -115,3 +115,19 @@ check:
 # Clean up stopped project containers
 clean:
     docker compose --profile production --profile tools down --remove-orphans
+
+# Start a free Cloudflare Tunnel exposing http://localhost:3000 to the internet
+tunnel:
+    @echo "==> Starting Cloudflare Tunnel for http://localhost:3000..."
+    @docker rm -f trafficsense-tunnel 2>/dev/null || true
+    @docker run -d --name trafficsense-tunnel --network host cloudflare/cloudflared:latest tunnel --no-autoupdate --url http://localhost:3000
+    @sleep 3
+    @echo "==> Tunnel created! Public HTTPS URL:"
+    @docker logs trafficsense-tunnel 2>&1 | grep -o 'https://.*\.trycloudflare\.com' | head -n 1 || docker logs trafficsense-tunnel
+
+# Stop the Cloudflare Tunnel
+tunnel-stop:
+    @echo "==> Stopping Cloudflare Tunnel..."
+    @docker rm -f trafficsense-tunnel 2>/dev/null || true
+    @echo "==> Tunnel stopped."
+
