@@ -6,6 +6,31 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Plan 2 Phase 5 — Incident types, reason and confidence verified locally, 18 Oct 2026
+
+**Task exit verdict: passed locally at 2026-10-18T11:29Z.** Category allowlist expanded to all 17 PDF §2 types with emoji icons; "Reported cause" agreement line shown on every incident card; no confidence percentages anywhere; `Unknown — reported, unconfirmed` preserved as default per `docs/plan-2-modification.md`.
+
+- **Scope & intent:** Match the report category allowlist to the PDF's 17 incident types, add an emoji icon for each, display a "Reported cause" agreement count on each persisted incident ("Reported as Accident by 3 of 4 reports, unconfirmed"), and confirm no invented percentage is shown anywhere.
+- **PDF §2 categories vs old allowlist:**
+  - **Old (11):** accident, road_repair, flood, landslide, festival, strike, vip_movement, heavy_traffic, road_closed, other, unknown
+  - **Added (6):** `heavy_rain`, `signal_failure`, `breakdown`, `bridge_maintenance`, `police_restriction`, `fallen_tree`
+  - **17 categories now match PDF §2 exactly**
+- **Implementation:**
+  - `src/lib/reports/rules.ts`: Expanded `reportCategories` to 17 entries; added `reportCategoryIcons` with emoji for each (💥🚧🎪🪧🚔⛰️🌧️🌊🚦🚗⛔🌉🛡️🌲🚙⚠️❓).
+  - `src/lib/reports/incident-cause.ts` (new): `getIncidentCauseBreakdown()` — pure function computing leading category, agreement count and total from temporally associated reports. Returns a plain-language `summary` ("Reported as X by N of M reports, unconfirmed") and `detail`. Never invents percentages.
+  - `src/components/traffic/traffic-explorer.tsx`: Integrated `getIncidentCauseBreakdown` in incident `<details>`; shows `Reported cause:` line with icon and summary; icon on report list items via `reportCategoryIcons`.
+  - `src/components/reports/report-form.tsx`: Shows icons in category `<select>` options, draft preview, and saved confirmation.
+  - `supabase/migrations/20261018000100_all_incident_categories.sql`: Migration expanding the DB constraint to 17 categories and replacing `submit_traffic_report()` accordingly; applied to local Supabase via `supabase_admin`.
+  - `tests/incident-cause.test.mjs`: 5 new unit tests — all 17 categories and icons defined, no-report unknown fallback, single-report summary, majority consensus, and tie-breaking (specific category beats unknown).
+  - `package.json`: Registered `tests/incident-cause.test.mjs` in test script.
+- **No confidence percentages:** grep across `src/` and `tests/` confirms no numeric confidence is rendered; `/about#privacy-title` already states "fabricated confidence percentages or pseudo-probabilistic guarantees are shown" are absent.
+- **Verification:**
+  - `just test`: **170/170 unit tests passed** (5 new Phase 5 tests).
+  - `just lint`: 0 ESLint errors or warnings.
+  - `docker compose exec app pnpm exec tsc --noEmit`: 0 TypeScript errors.
+  - `docker compose run --rm checks`: All unit tests, ESLint, typegen, tsc, and Next.js production build (15/15 routes) succeeded with 0 errors.
+  - **Commit:** will be recorded upon commit creation.
+
 ## Plan 2 Phase 4 — Verification ladder aligned with the PDF verified locally, 18 Oct 2026
 
 **Task exit verdict: passed locally at 2026-10-18T11:15Z.** Verification evidence ladder (L1–L6) aligned with product brief §4 implemented with visual step indicators in `#segment-details`, active vs planned status clearly delineated, documented in `docs/traffic.md`, and unit tests passing per `docs/plan-2-modification.md`.

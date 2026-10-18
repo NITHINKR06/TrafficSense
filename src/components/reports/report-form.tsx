@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useRef, useState, useSyncExternalStore, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { prepareReport, submitReport, checkReport } from "@/app/reports/actions";
-import { parseReportInput, reportCategories, reportInputFromForm, toReportLocalTime,
+import { parseReportInput, reportCategories, reportCategoryIcons, reportInputFromForm, toReportLocalTime,
   type ReportInput, type ReportFailure, type PrepareResult, type SubmitResult } from "@/lib/reports/rules";
 import type { DemoSegment } from "@/lib/traffic/simulator";
 import { formatTrafficTime } from "@/lib/traffic/presentation";
@@ -152,7 +152,11 @@ function HydratedReportForm({ segments, selectedId }: FormProps) {
       </label>
       <label>Reported category — unconfirmed
         <select name="category" defaultValue="unknown" required disabled={pending}>
-          {Object.entries(reportCategories).map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+          {Object.entries(reportCategories).map(([id, label]) => (
+            <option key={id} value={id}>
+              {reportCategoryIcons[id as keyof typeof reportCategoryIcons] ?? ""} {label}
+            </option>
+          ))}
         </select>
       </label>
       <label>Observation time — Asia/Kolkata
@@ -162,12 +166,12 @@ function HydratedReportForm({ segments, selectedId }: FormProps) {
       <button className="button" disabled={pending} type="submit">Submit simulated report</button>
     </form>}
     {draft && <div className={styles.draft} data-report-draft>
-      <p><strong>{reportCategories[draft.category]}</strong> · {draft.segment_id} · {draft.direction}</p>
+      <p><strong>{reportCategoryIcons[draft.category]} {reportCategories[draft.category]}</strong> · {draft.segment_id} · {draft.direction}</p>
       <p>Observation: {formatTrafficTime(draft.observed_at)}. The submitted fields and request reference stay unchanged while its outcome is checked.</p>
     </div>}
     {saved && <div role="status" data-report-saved={saved.id}>
       <p><strong>SIMULATED · L1 — Reported, unconfirmed.</strong> The database confirmed persistence{result?.status === "accepted" && result.replayed ? " of the original request; no duplicate was created" : ""}.</p>
-      <p>Reported category: {reportCategories[saved.category]}. Cause remains unconfirmed. Received: {formatTrafficTime(saved.received_at)}.</p>
+      <p>Reported category: {reportCategoryIcons[saved.category]} {reportCategories[saved.category]}. Cause remains unconfirmed. Received: {formatTrafficTime(saved.received_at)}.</p>
       <p data-report-episode={saved.episode_id}>Report episode: <code>{saved.episode_id}</code>. This is a durable grouping reference, not a confirmed incident.</p>
       <div className="actions">
         <Link className="button" href={`/traffic?segment=${encodeURIComponent(saved.segment_id)}#segment-reports`}>View report on traffic page</Link>

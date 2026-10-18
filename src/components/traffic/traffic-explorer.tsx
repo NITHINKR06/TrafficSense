@@ -2,7 +2,8 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import { reportCategories } from "@/lib/reports/rules";
+import { reportCategories, reportCategoryIcons } from "@/lib/reports/rules";
+import { getIncidentCauseBreakdown } from "@/lib/reports/incident-cause";
 import { useSearchParams } from "next/navigation";
 import type { TrafficSnapshot } from "@/lib/traffic/snapshot";
 import type { PublicIncident, PublicTraversal } from "@/lib/traffic/phase4";
@@ -303,16 +304,22 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
               <section className={styles.reports} aria-labelledby="lifecycle-title" data-lifecycle-history={selected.id}>
                 <h3 id="lifecycle-title">Persisted incident history</h3>
                 <p data-lifecycle-summary={selected.id}><strong>{lifecycleLabels[selected.id]}</strong></p>
-                {selectedIncidents.map(incident => <details key={incident.id} data-lifecycle-incident={incident.id} data-lifecycle-state={incidentViews[incident.id].state}>
-                  <summary>Incident {incident.id.slice(0, 8)} · {incidentViews[incident.id].label}</summary>
-                  <p>Incident ID: <code>{incident.id}</code></p>
-                  <p>First supported window began: <time dateTime={incident.started_at}>{formatTrafficTime(incident.started_at)}</time>.</p>
-                  <p>Latest supported window ended: <time dateTime={incident.last_supported_at}>{formatTrafficTime(incident.last_supported_at)}</time> · {incident.supporting_source_count} synthetic sources.</p>
-                  {incident.cleared_at && <p>Historical clearance recorded: <time dateTime={incident.cleared_at}>{formatTrafficTime(incident.cleared_at)}</time> · {incident.recovered_source_count} continuous synthetic sources. This does not establish current road safety.</p>}
-                  {incident.prior_incident_id && <p>Reopened after incident: <code>{incident.prior_incident_id}</code>.</p>}
-                  <p>Cause: unknown. {incident.report_episode_ids.length ? "Temporally associated report episodes (not confirmed causes):" : "No retained report episode is temporally associated."}</p>
-                  {incident.report_episode_ids.map(id => <p key={id}><code>{id}</code></p>)}
-                </details>)}
+                {selectedIncidents.map(incident => {
+                  const causeBreakdown = getIncidentCauseBreakdown(incident, snapshot.reports);
+                  return (
+                    <details key={incident.id} data-lifecycle-incident={incident.id} data-lifecycle-state={incidentViews[incident.id].state}>
+                      <summary>Incident {incident.id.slice(0, 8)} · {causeBreakdown.icon} {incidentViews[incident.id].label}</summary>
+                      <p>Incident ID: <code>{incident.id}</code></p>
+                      <p><strong>Reported cause:</strong> {causeBreakdown.summary}</p>
+                      <p>First supported window began: <time dateTime={incident.started_at}>{formatTrafficTime(incident.started_at)}</time>.</p>
+                      <p>Latest supported window ended: <time dateTime={incident.last_supported_at}>{formatTrafficTime(incident.last_supported_at)}</time> · {incident.supporting_source_count} synthetic sources.</p>
+                      {incident.cleared_at && <p>Historical clearance recorded: <time dateTime={incident.cleared_at}>{formatTrafficTime(incident.cleared_at)}</time> · {incident.recovered_source_count} continuous synthetic sources. This does not establish current road safety.</p>}
+                      {incident.prior_incident_id && <p>Reopened after incident: <code>{incident.prior_incident_id}</code>.</p>}
+                      <p>Cause: unknown. {causeBreakdown.detail}. {incident.report_episode_ids.length ? "Temporally associated report episodes (not confirmed causes):" : "No retained report episode is temporally associated."}</p>
+                      {incident.report_episode_ids.map(id => <p key={id}><code>{id}</code></p>)}
+                    </details>
+                  );
+                })}
                 {!selectedIncidents.length && <p>No persisted slowdown incident is available for this direction. Missing history does not mean clearance.</p>}
               </section>
               <section className={styles.reports} aria-labelledby="traversal-title" data-completed-traversal={selected.id} data-delay-state={traversalViews[selected.id].state}>
@@ -340,7 +347,7 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
                 {selectedReports.length > 10 && <p>Showing the ten most recently received reports.</p>}
                 {selectedReports.length ? <ul>
                   {selectedReports.slice(0, 10).map(report => <li key={report.id} data-public-report={report.id} data-episode-id={report.episode_id}>
-                    <strong>{reportCategories[report.category]} — reported, unconfirmed</strong>
+                    <strong><span aria-hidden="true">{reportCategoryIcons[report.category] ?? ""} </span>{reportCategories[report.category]} — reported, unconfirmed</strong>
                     <span>SIMULATED · Manually selected location · L1 Reported</span>
                     <span>Report episode: <code>{report.episode_id}</code></span>
                     <span>{freshness(report.observed_at) === "unknown" ? "Report freshness needs refresh" : freshness(report.observed_at) === "recent" ? "Recent report" : freshness(report.observed_at) === "future" ? "Future-dated report" : "Stale report"}</span>
