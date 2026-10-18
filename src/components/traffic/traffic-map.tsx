@@ -9,6 +9,7 @@ import type { AssessmentView } from "@/lib/evidence/assessment";
 import type { SlowdownView } from "@/lib/evidence/slowdown-presentation";
 import type { TraversalView } from "@/lib/traffic/phase4-presentation";
 import type { routeAlertView } from "@/lib/route-alerts/presentation";
+import { createFallbackStyle, MANGALURU_BASEMAP_GEOJSON } from "@/lib/traffic/mangaluru-basemap";
 import "maplibre-gl/dist/maplibre-gl.css";
 import styles from "./traffic.module.css";
 
@@ -77,6 +78,7 @@ function MapAttempt({ fixture, reports, assessments, slowdowns, episodeCounts, l
     const segments = JSON.parse(geometryKey) as Pick<TrafficFixture["segments"][number], "id" | "name" | "direction" | "geometry">[];
     let disposed = false;
     let failed = false;
+    let fallbackUsed = false;
     let map: MapInstance | null = null;
     const fail = (reason: "timeout" | "resources" | "renderer" | "initialization") => {
       if (disposed || failed) return;
@@ -90,7 +92,82 @@ function MapAttempt({ fixture, reports, assessments, slowdowns, episodeCounts, l
       map?.remove();
       map = null;
     };
-    const deadline = setTimeout(() => fail("timeout"), 20000);
+    const deadline = setTimeout(() => {
+      if (!fallbackUsed && map) {
+        fallbackUsed = true;
+        try {
+          map.setStyle(createFallbackStyle());
+          return;
+        } catch {
+          // Fall through to fail if fallback style also fails
+        }
+      }
+      fail("timeout");
+    }, 15000);
+
+    const setupLayers = (mapInstance: MapInstance) => {
+      if (!mapInstance.getSource("mangaluru-basemap")) {
+        mapInstance.addSource("mangaluru-basemap", {
+          type: "geojson",
+          data: MANGALURU_BASEMAP_GEOJSON,
+        });
+        if (!mapInstance.getLayer("schematic-water")) {
+          mapInstance.addLayer({
+            id: "schematic-water",
+            type: "fill",
+            source: "mangaluru-basemap",
+            filter: ["==", ["get", "kind"], "water"],
+            paint: { "fill-color": "#cfe2fe", "fill-opacity": 0.8 },
+          });
+        }
+        if (!mapInstance.getLayer("schematic-secondary")) {
+          mapInstance.addLayer({
+            id: "schematic-secondary",
+            type: "line",
+            source: "mangaluru-basemap",
+            filter: ["==", ["get", "kind"], "secondary"],
+            paint: { "line-color": "#cbd5e1", "line-width": 3 },
+          });
+        }
+        if (!mapInstance.getLayer("schematic-arterial-casing")) {
+          mapInstance.addLayer({
+            id: "schematic-arterial-casing",
+            type: "line",
+            source: "mangaluru-basemap",
+            filter: ["==", ["get", "kind"], "arterial"],
+            paint: { "line-color": "#94a3b8", "line-width": 6 },
+          });
+          mapInstance.addLayer({
+            id: "schematic-arterial-core",
+            type: "line",
+            source: "mangaluru-basemap",
+            filter: ["==", ["get", "kind"], "arterial"],
+            paint: { "line-color": "#ffffff", "line-width": 3.5 },
+          });
+        }
+      }
+      if (!mapInstance.getSource("synthetic-segments")) {
+        mapInstance.addSource("synthetic-segments", {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: segments.map(segment => ({
+            type: "Feature", id: segment.id,
+            properties: { id: segment.id, direction: segment.direction, alternative: segment.id.startsWith("alternative-") },
+            geometry: segment.geometry,
+          })) },
+        });
+        mapInstance.addLayer({ id: "segment-lines", type: "line", source: "synthetic-segments", paint: {
+          "line-color": ["case", ["==", ["get", "direction"], "inbound"], "#904d00", ["get", "alternative"], "#6616d7", "#005c55"],
+          "line-width": 5,
+          "line-offset": ["case", ["==", ["get", "direction"], "inbound"], 8, 0],
+        } });
+        mapInstance.addLayer({ id: "selected-segment", type: "line", source: "synthetic-segments",
+          filter: ["==", ["get", "id"], selection.current ?? ""], paint: { "line-color": "#131b2e", "line-width": 3, "line-dasharray": [2, 2],
+            "line-offset": ["case", ["==", ["get", "direction"], "inbound"], 8, 0],
+          },
+        });
+      }
+    };
+
     async function initialize() {
       try {
         const { Map, Marker, NavigationControl, setWorkerUrl } = await import("maplibre-gl");
@@ -107,28 +184,25 @@ function MapAttempt({ fixture, reports, assessments, slowdowns, episodeCounts, l
         });
         mapRef.current = map;
         map.addControl(new NavigationControl({ showCompass: false }), "top-right");
-        map.on("error", () => fail("resources"));
+        map.on("error", () => {
+          if (!fallbackUsed && map) {
+            fallbackUsed = true;
+            try {
+              map.setStyle(createFallbackStyle());
+              return;
+            } catch {
+              // Ignore fallback error
+            }
+          }
+        });
         map.getCanvas().addEventListener("webglcontextlost", () => fail("renderer"));
+        map.on("style.load", () => {
+          if (disposed || failed || !map) return;
+          setupLayers(map);
+        });
         map.once("load", () => {
           if (disposed || failed || !map) return;
-          map.addSource("synthetic-segments", {
-            type: "geojson",
-            data: { type: "FeatureCollection", features: segments.map(segment => ({
-              type: "Feature", id: segment.id,
-              properties: { id: segment.id, direction: segment.direction, alternative: segment.id.startsWith("alternative-") },
-              geometry: segment.geometry,
-            })) },
-          });
-          map.addLayer({ id: "segment-lines", type: "line", source: "synthetic-segments", paint: {
-            "line-color": ["case", ["==", ["get", "direction"], "inbound"], "#904d00", ["get", "alternative"], "#6616d7", "#005c55"],
-            "line-width": 5,
-            "line-offset": ["case", ["==", ["get", "direction"], "inbound"], 8, 0],
-          } });
-          map.addLayer({ id: "selected-segment", type: "line", source: "synthetic-segments",
-            filter: ["==", ["get", "id"], selection.current ?? ""], paint: { "line-color": "#131b2e", "line-width": 3, "line-dasharray": [2, 2],
-              "line-offset": ["case", ["==", ["get", "direction"], "inbound"], 8, 0],
-            },
-          });
+          setupLayers(map);
           for (const [index, segment] of segments.entries()) {
             const button = document.createElement("button");
             button.type = "button";
@@ -189,18 +263,44 @@ function MapAttempt({ fixture, reports, assessments, slowdowns, episodeCounts, l
 
   return (
     <div data-map-state={state} data-map-failure={failure ?? undefined} className={styles.mapRegion}>
-      <p role="status">{state === "loading" ? "Loading external background map… The segment list remains available."
-        : state === "failed" ? "Map unavailable. The provider, network or WebGL could not load this view. The segment list and details remain available."
-        : "Map loaded · SIMULATED segment overlay"}</p>
-      {state === "failed" && <button type="button" className="button secondary" onClick={onRetry}>Retry map</button>}
-      <div ref={container} className={styles.mapCanvas} style={state === "failed" ? { display: "none" } : undefined}
-        role="region" aria-label="Optional map with synthetic segment selection" />
-      <p>Teal: primary · Violet: fixed alternative · Brown: opposite direction. Dashed line and pressed marker: selected segment. Marker numbers match the list. Small badges count unconfirmed demo reports, including stale and repeated-source reports; colours and counts are not congestion evidence. L3 badges mean at least three eligible reporting sources as of the data read, not independent witnesses or confirmed congestion. L4 badges mean simulated slowdown support from the stated sample window, not confirmed congestion or cause. A ↻ badge means the corresponding assessment needs refresh; loss of a badge does not mean clearance.</p>
+      <div className={styles.mapHeaderRow}>
+        <p role="status" className={styles.mapStatus}>
+          {state === "loading" ? "Loading interactive traffic map…"
+            : state === "failed" ? "Map fallback active · Segment list and details available"
+            : "Live Interactive Map · SIMULATED corridor overlay"}
+        </p>
+      </div>
+      {state === "failed" && <button type="button" className="button secondary mb-2" onClick={onRetry}>Retry map</button>}
+      <div ref={container} className={styles.mapCanvas}
+        role="region" aria-label="Interactive map with synthetic segment selection" />
+      <div className={styles.legendRow}>
+        <div className={styles.legend}>
+          <span className={styles.legendChip} data-legend="primary">
+            <span className={styles.legendColor} style={{ backgroundColor: "#005c55" }} />
+            Primary route
+          </span>
+          <span className={styles.legendChip} data-legend="alternative">
+            <span className={styles.legendColor} style={{ backgroundColor: "#6616d7" }} />
+            Fixed alternative
+          </span>
+          <span className={styles.legendChip} data-legend="inbound">
+            <span className={styles.legendColor} style={{ backgroundColor: "#904d00" }} />
+            Opposite direction
+          </span>
+          <span className={styles.legendChip} data-legend="selected">
+            <span className={`${styles.legendColor} ${styles.legendColorSelected}`} />
+            Selected segment
+          </span>
+        </div>
+      </div>
+      <p className={styles.mapNotice}>
+        Background roads: OpenStreetMap via OpenFreeMap. Coloured lines are schematic demonstration geometry.{" "}
+        <a href="/map-notices.txt" target="_blank" rel="noreferrer">Map notices &amp; licenses</a>
+      </p>
       <div className={styles.attribution} aria-label="Map attribution">
         <a href="https://openfreemap.org" target="_blank" rel="noreferrer">OpenFreeMap</a>
         <a href="https://www.openmaptiles.org/" target="_blank" rel="noreferrer">© OpenMapTiles</a>
         <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">© OpenStreetMap contributors</a>
-        <a href="/map-notices.txt" target="_blank" rel="noreferrer">Map licenses and notices</a>
       </div>
     </div>
   );

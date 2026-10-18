@@ -2,33 +2,83 @@
 .summary { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; }
 .summary > div { min-width: 0; }
 .timestamp { font-size: 0.85rem; overflow-wrap: anywhere; }
-.grid { display: grid; grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.7fr); gap: 1.5rem; align-items: start; }
+
+.heroGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
 .list ul { list-style: none; padding: 0; display: grid; gap: 0.75rem; }
 .list a { display: grid; gap: 0.3rem; border: 1px solid var(--outline-variant); border-radius: 0.75rem; padding: 1rem; text-decoration: none; overflow-wrap: anywhere; }
 .list a span { font-size: 0.8rem; color: var(--on-surface-variant); }
 .list a[aria-current="true"] { border: 2px solid var(--primary); padding: calc(1rem - 1px); background: var(--surface-container-low); }
-.rightColumn { min-width: 0; display: grid; gap: 1.5rem; }
-.mapPanel { min-width: 0; }
-.mapConsent { display: grid; justify-items: start; gap: 0.75rem; }
-.mapConsent p { margin-bottom: 0; }
-.mapConsent a { display: inline-flex; align-items: center; min-height: 44px; }
-.mapRegion { min-width: 0; margin-top: 1rem; }
-.mapCanvas { height: 420px; width: 100%; border: 1px solid var(--outline-variant); border-radius: 0.75rem; overflow: hidden; }
+
+.mapPanel { min-width: 0; display: flex; flex-direction: column; gap: 1rem; }
+.mapHeader { display: flex; align-items: center; justify-content: space-between; }
+.mapHeaderRow { margin-bottom: 0.25rem; }
+.mapStatus { font-size: 0.85rem; color: var(--on-surface-variant); margin: 0; }
+
+.mapRegion { min-width: 0; }
+.mapCanvas { height: 520px; width: 100%; border: 1px solid var(--outline-variant); border-radius: 0.75rem; overflow: hidden; }
 .mapCanvas :global(.maplibregl-ctrl-group) button { width: 44px; height: 44px; }
 .mapCanvas :global(.maplibregl-ctrl-group) button:focus-visible { outline: 3px solid var(--primary); outline-offset: -3px; }
-.marker { width: 44px; height: 44px; border: 2px solid var(--primary); border-radius: 50%; background: white; color: var(--primary); font-weight: 800; box-shadow: 0 2px 6px #131b2e33; }
+
+.marker { width: 44px; height: 44px; border: 2px solid var(--primary); border-radius: 50%; background: white; color: var(--primary); font-weight: 800; box-shadow: 0 2px 6px #131b2e33; cursor: pointer; }
 .marker[aria-pressed="true"] { background: var(--primary); color: white; border: 3px solid white; box-shadow: 0 0 0 3px var(--on-surface); z-index: 1; }
 .marker:focus-visible { outline: 3px solid var(--tertiary); outline-offset: 4px; }
-.attribution { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; font-size: 0.8rem; }
+
+.legendRow { margin-top: 0.75rem; }
+.legend { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.legendChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  font-weight: 500;
+  padding: 0.25rem 0.6rem;
+  background: var(--surface-container-low);
+  border: 1px solid var(--outline-variant);
+  border-radius: 9999px;
+  color: var(--on-surface);
+}
+.legendColor { display: inline-block; width: 10px; height: 10px; border-radius: 50%; }
+.legendColorSelected { background: #131b2e; border: 1px dashed white; box-shadow: 0 0 0 1px #131b2e; }
+
+.mapNotice { font-size: 0.8rem; color: var(--on-surface-variant); margin: 0.5rem 0 0.25rem 0; }
+
+.attribution { display: flex; flex-wrap: wrap; gap: 0.25rem 1rem; font-size: 0.8rem; margin-top: 0.25rem; }
 .attribution a { display: inline-flex; align-items: center; min-height: 44px; overflow-wrap: anywhere; }
+
+.directionToggle {
+  display: inline-flex;
+  gap: 0.25rem;
+  background: var(--surface-container-low);
+  padding: 0.2rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--outline-variant);
+}
+.directionToggle button {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.5rem;
+  min-height: 36px;
+  border-radius: 0.35rem;
+}
+.toggleActive { background: var(--primary) !important; color: white !important; }
+
+.detailsPanel { margin-top: 0.5rem; }
+
 .facts { display: grid; gap: 0.75rem; }
 .facts div { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); gap: 1rem; }
 .facts dt { color: var(--on-surface-variant); }
 .facts dd { margin: 0; overflow-wrap: anywhere; }
+
 .samples { list-style: none; padding: 0; display: grid; gap: 0.75rem; }
 .samples li { display: flex; justify-content: space-between; gap: 1rem; padding-bottom: 0.75rem; border-bottom: 1px solid var(--outline-variant); }
 .samples span { overflow-wrap: anywhere; }
 .samples strong { white-space: nowrap; }
+
 .reports { margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--outline-variant); scroll-margin-top: 1rem; }
 .reports ul { list-style: none; padding: 0; display: grid; gap: 1rem; }
 .reports details { margin-block: 0.75rem; padding: 0.75rem; border: 1px solid var(--outline-variant); border-radius: 0.75rem; overflow-wrap: anywhere; }
@@ -36,16 +86,18 @@
 .reports summary:focus-visible { outline: 3px solid var(--primary); outline-offset: 3px; }
 .reports li { display: grid; gap: 0.35rem; padding: 1rem; border: 1px solid var(--outline-variant); border-radius: 0.75rem; overflow-wrap: anywhere; }
 .reports li span { font-size: 0.85rem; }
+
 .markerEvidence { position: absolute; bottom: -12px; left: -9px; background: var(--on-surface); color: white; border-radius: 0.4rem; padding: 0.1rem 0.3rem; font-size: 0.7rem; line-height: 1.3; }
 .markerSlowdown { position: absolute; bottom: -12px; right: -13px; background: var(--primary); color: white; border-radius: 0.4rem; padding: 0.1rem 0.3rem; font-size: 0.7rem; line-height: 1.3; }
 .markerCount { position: absolute; top: -9px; right: -12px; background: var(--tertiary); color: white; border-radius: 0.5rem; padding: 0.1rem 0.3rem; min-width: 22px; font-size: 0.7rem; line-height: 1.3; }
-@media (max-width: 800px) {
-  .grid { grid-template-columns: minmax(0, 1fr); }
+
+@media (max-width: 960px) {
+  .heroGrid { grid-template-columns: minmax(0, 1fr); }
   .summary { flex-direction: column; }
-  .mapCanvas { height: 360px; }
+  .mapCanvas { height: 380px; }
 }
-@media (max-width: 400px) {
+@media (max-width: 480px) {
   .facts div { grid-template-columns: minmax(0, 1fr); gap: 0.2rem; }
   .samples li { flex-direction: column; gap: 0.25rem; }
-  .mapCanvas { height: 320px; }
+  .mapCanvas { height: 300px; }
 }

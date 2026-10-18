@@ -6,6 +6,22 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Plan 2 Phase 1 — Map first verified locally, 18 Oct 2026
+
+**Task exit verdict: passed locally at 2026-10-18T08:58Z.** Interactive map visible on first load with offline-resilient schematic fallback, 4-chip legend, direction toggle, and responsive hero layout per `docs/plan-2-modification.md`.
+
+- **Scope & intent:** Make `/traffic` visual-first by loading the interactive map by default (removing "Load map" / "Hide map" gate), resolving blank canvas risk (U2) with bundled Mangaluru schematic GeoJSON basemap fallback, introducing a 4-chip status legend, adding an explicit direction filter (All / Outbound / Inbound), and restructuring the layout so the map is prominent (520px desktop, 300px mobile).
+- **Implementation:**
+  - `src/lib/traffic/mangaluru-basemap.ts`: Created bundled GeoJSON basemap with Netravati/Gurupura water polygons, arterial roads (KS Rao, MG Road, Bejai Main, Balmatta, Bunts Hostel), secondary connectors, and landmark points (Hampankatta, Ambedkar Circle, Lalbagh, Bejai Circle, Ladyhill). Provides typed `createFallbackStyle(): StyleSpecification`.
+  - `src/components/traffic/traffic-map.tsx`: Set map active by default; added automatic fallback to `createFallbackStyle()` on provider load errors or timeouts; overlaid underlying schematic arterial roads so streets are always visible even if vector tiles fail; replaced long paragraph with 4-chip legend (Primary, Alternative, Opposite direction, Selected) and one-line notice linking to `/map-notices.txt`.
+  - `src/components/traffic/traffic-explorer.tsx`: Removed `mapEnabled` toggle and consent blockade; added `directionFilter` toggle (All / Outbound / Inbound) with active counts; restructured into `.heroGrid` (Map on left, Segment list on right on desktop; stacked on mobile) with `#segment-details` below; preserved all test and reporting data attributes.
+  - `src/components/traffic/traffic.module.css`: Added responsive `.heroGrid`, `.mapCanvas` (520px desktop, 380px tablet, 300px mobile), `.legendChip`, `.directionToggle`, and `.toggleActive`.
+  - `tests/traffic-browser.mjs`: Updated browser test suite to reflect default map load and updated privacy assertions.
+- **Verification:**
+  - Full Docker checks passed via isolated container: **160/160 unit tests passed**, ESLint 0 errors / 0 warnings, route typegen, TypeScript compilation, and Next.js production build (15/15 routes) passed.
+  - HTML verification in app container confirms `Corridor Map: true`, `Filter segments by direction: true`, `legend: true`, `Load map button: false`.
+- **Commit:** `4cc21ed` — `feat(traffic): Phase 1 map first with schematic fallback, 4-chip legend and direction toggle` (verified locally).
+
 ## Plan 2 Phase 0 — Baseline and cleanup verified locally, 18 Oct 2026
 
 **Task exit verdict: passed locally at 2026-10-18T07:54Z.** Baseline cleanup and quantitative page metrics established per `docs/plan-2-modification.md`.

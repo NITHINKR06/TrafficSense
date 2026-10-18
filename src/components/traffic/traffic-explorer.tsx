@@ -46,7 +46,7 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
     [row.segment_id, assessmentView(row, snapshot.read_at, elapsedMs)]));
   const episodeCounts = Object.fromEntries((snapshot.fixture?.segments ?? []).map(segment =>
     [segment.id, snapshot.incident_episodes.filter(episode => episode.segment_id === segment.id).length]));
-  const [mapEnabled, setMapEnabled] = useState(false);
+  const [directionFilter, setDirectionFilter] = useState<"all" | "outbound" | "inbound">("all");
   const freshness = (observedAt: string | null) => snapshotFreshness(observedAt, snapshot.read_at, elapsedMs);
   const sampleLabel = (observedAt: string | null) => freshnessLabels[freshness(observedAt)];
   const selectSegment = useCallback((id: string) => {
@@ -65,6 +65,7 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
   );
   const selected = resolveSegment(fixture, params.getAll("segment"));
   const latest = selected ? latestSegmentSamples(fixture, selected.id) : null;
+  const visibleSegments = fixture.segments.filter(s => directionFilter === "all" || s.direction === directionFilter);
   const selectedEpisodes = selected ? snapshot.incident_episodes.filter(episode => episode.segment_id === selected.id)
     .sort((a, b) => b.created_at.localeCompare(a.created_at) || a.id.localeCompare(b.id)) : [];
   const selectedIncidents = selected ? incidents.filter(row => row.segment_id === selected.id)
@@ -84,12 +85,51 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
         </div>
         <RefreshTraffic onRefresh={refreshStarted} />
       </div>
-      <div className={styles.grid}>
+
+      <div className={styles.heroGrid}>
+        <section className={`panel ${styles.mapPanel}`} aria-labelledby="map-title">
+          <div className={styles.mapHeader}>
+            <h2 id="map-title" className="m-0 text-xl font-bold">Corridor Map</h2>
+            <span className="simulated-pill">SIMULATED · INTERACTIVE</span>
+          </div>
+          <TrafficMap fixture={fixture} reports={snapshot.reports} assessments={assessments} slowdowns={slowdowns} episodeCounts={episodeCounts}
+            lifecycleLabels={lifecycleLabels} traversalViews={traversalViews} alertViews={alertViews} selectedId={selected?.id ?? null} onSelect={selectSegment} />
+        </section>
+
         <section className={`panel ${styles.list}`} aria-labelledby="segment-list-title">
-          <h2 id="segment-list-title">Directed segments</h2>
-          <p>Choose a segment to match its map highlight and details. Speeds are synthetic inputs, not corroborated incidents.</p>
+          <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
+            <h2 id="segment-list-title" className="m-0 text-lg font-bold">Directed segments</h2>
+            <div className={styles.directionToggle} role="group" aria-label="Filter segments by direction">
+              <button
+                type="button"
+                className={`button ${directionFilter === "all" ? styles.toggleActive : "secondary"}`}
+                onClick={() => setDirectionFilter("all")}
+                aria-pressed={directionFilter === "all"}
+              >
+                All ({fixture.segments.length})
+              </button>
+              <button
+                type="button"
+                className={`button ${directionFilter === "outbound" ? styles.toggleActive : "secondary"}`}
+                onClick={() => setDirectionFilter("outbound")}
+                aria-pressed={directionFilter === "outbound"}
+              >
+                Outbound ({fixture.segments.filter(s => s.direction === "outbound").length})
+              </button>
+              <button
+                type="button"
+                className={`button ${directionFilter === "inbound" ? styles.toggleActive : "secondary"}`}
+                onClick={() => setDirectionFilter("inbound")}
+                aria-pressed={directionFilter === "inbound"}
+              >
+                Inbound ({fixture.segments.filter(s => s.direction === "inbound").length})
+              </button>
+            </div>
+          </div>
+          <p className="text-xs text-surface-on-variant mb-3">Choose a segment to match its map highlight and details. Speeds are synthetic inputs, not corroborated incidents.</p>
           <ul data-segment-list>
-            {fixture.segments.map((segment, index) => {
+            {visibleSegments.map((segment) => {
+              const originalIndex = fixture.segments.findIndex(s => s.id === segment.id);
               const samples = latestSegmentSamples(fixture, segment.id);
               return <li key={segment.id}>
                 <a href={`/traffic?segment=${encodeURIComponent(segment.id)}`} data-segment-id={segment.id}
@@ -98,7 +138,7 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
                     if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
                     event.preventDefault(); selectSegment(segment.id);
                   }}>
-                  <strong>{index + 1}. {segment.name}</strong>
+                  <strong>{originalIndex + 1}. {segment.name}</strong>
                   <span>{segment.direction} · SIMULATED</span>
                   <span>{sampleLabel(samples.observedAt)}</span>
                   <span data-segment-report-count={segment.id}>{snapshot.reports.filter(report => report.segment_id === segment.id).length} unconfirmed demo reports, including stale reports</span>
@@ -115,21 +155,9 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
             })}
           </ul>
         </section>
-        <div className={styles.rightColumn}>
-          <section className={`panel ${styles.mapPanel}`} aria-labelledby="map-title">
-            <h2 id="map-title">Optional background map</h2>
-            <p>Background roads come from OpenStreetMap. Our coloured lines are schematic demonstration geometry, not surveyed road paths or navigation guidance.</p>
-            {!mapEnabled ? <div className={styles.mapConsent}>
-              <p>Loading the map sends map-view requests and your network address to OpenFreeMap and its delivery providers. It does not request your device location.</p>
-              <a href="https://openfreemap.org/privacy/" target="_blank" rel="noreferrer">Read the map provider’s privacy policy</a>
-              <button type="button" className="button" onClick={() => setMapEnabled(true)}>Load map</button>
-            </div> : <>
-              <button type="button" className="button secondary" onClick={() => setMapEnabled(false)}>Hide map</button>
-              <TrafficMap fixture={fixture} reports={snapshot.reports} assessments={assessments} slowdowns={slowdowns} episodeCounts={episodeCounts}
-                lifecycleLabels={lifecycleLabels} traversalViews={traversalViews} alertViews={alertViews} selectedId={selected?.id ?? null} onSelect={selectSegment} />
-            </>}
-          </section>
-          <section id="segment-details" data-segment-id={selected?.id ?? ""} className="panel" aria-labelledby="segment-details-title" aria-live="polite">
+      </div>
+
+      <section id="segment-details" data-segment-id={selected?.id ?? ""} className={`panel ${styles.detailsPanel}`} aria-labelledby="segment-details-title" aria-live="polite">
             {selected && latest ? <>
               <p className="simulated-pill">SIMULATED · {selected.direction}</p>
               <h2 id="segment-details-title">{selected.name}</h2>
@@ -232,8 +260,6 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
               <p>The requested segment is not in this snapshot, or the URL contains multiple segment selections. Choose a segment from the list.</p>
             </>}
           </section>
-        </div>
-      </div>
     </div>
   );
 }
