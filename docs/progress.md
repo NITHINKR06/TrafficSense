@@ -6,6 +6,25 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Plan 2 Phase 2 — Visual status instead of text verified locally, 18 Oct 2026
+
+**Task exit verdict: passed locally at 2026-10-18T10:15Z.** Segment cards simplified to compact visual status cards (<20 words default), horizontal corridor overview strip added, and two-bar route comparison visual implemented per `docs/plan-2-modification.md`.
+
+- **Scope & intent:** Transform the text-heavy segment cards into glanceable visual representations. Introduce:
+  1. Segment card visual simplification: Direction arrow (`→`/`←`), bold name, single unified status chip (Clear, Slowdown L4, Reported L1, Multiple L3, Alert, No data), delay badge (e.g. `+4m` or `—`), and colored freshness dot (green/amber/grey). Move technical details (evidence ladder, episodes, speed, etc.) behind a clean `<details>` disclosure with `<summary>Technical details</summary>`, preserving 100% test attribute compatibility (`data-segment-*`).
+  2. Corridor status strip: Linear horizontal schematic strip above the map displaying the corridor segments (Primary, Alternative, and Inbound Return) with travel arrows, status chips, and delay indicators, clickable to select segments.
+  3. Route comparison visual: Replace text-only alternative comparison with a two-bar visual comparing primary vs alternative route durations, delta savings badge (`⚡ ALERT: SAVE ~X MIN`), and dynamic bar fills (red/amber for delayed, green for alternative).
+- **Implementation:**
+  - `src/lib/traffic/segment-status.ts`: Central status derivation function `deriveSegmentStatus()` computing unified status kinds, chip styling, delay metrics, and freshness indicator dots.
+  - `src/components/traffic/corridor-strip.tsx` & `corridor-strip.module.css`: Horizontal corridor overview strip mapping primary, alternative, and inbound routes as connected interactive nodes.
+  - `src/components/traffic/route-comparison-bar.tsx` & `route-comparison-bar.module.css`: Two-bar route comparison visualization with alert status pills, duration bars, and quick alternative inspection.
+  - `src/components/traffic/traffic-explorer.tsx`: Integrated `CorridorStrip`, `RouteComparisonBar`, `segmentStatuses` computation, and updated `<ul data-segment-list>` with compact cards and `<details className={styles.cardDetails}>` disclosure.
+  - `src/components/traffic/traffic.module.css`: Added card styling (`.cardTop`, `.cardHeader`, `.cardArrow`, `.cardName`, `.cardChip`, `.cardMetrics`, `.cardDelay`, `.cardAge`, `.dotGreen`, `.dotAmber`, `.dotGrey`, `.cardDetails`, `.cardDetailsContent`).
+- **Verification:**
+  - Docker isolated check container (`docker compose run --rm checks`): **160/160 unit tests passed**, ESLint passed with 0 errors/0 warnings, route typegen passed, TypeScript check passed, and Next.js production build succeeded for all 15 routes.
+  - HTML rendering verification in dev container: `has ready: true`, `has corridor strip: true`, `has route comparison: true`, `has Clear chip: true`, `has Technical details: true`, `has data-segment-list: true`, `has data-segment-slowdown: true`.
+  - **Commit:** `f2eab66` — `feat(traffic): Phase 2 visual status chips, corridor strip, and route comparison bars` (verified locally).
+
 ## Plan 2 Phase 1 — Map first verified locally, 18 Oct 2026
 
 **Task exit verdict: passed locally at 2026-10-18T08:58Z.** Interactive map visible on first load with offline-resilient schematic fallback, 4-chip legend, direction toggle, and responsive hero layout per `docs/plan-2-modification.md`.

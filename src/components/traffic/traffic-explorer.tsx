@@ -14,6 +14,9 @@ import { episodeSummary, formatTrafficTime, latestSegmentSamples, resolveSegment
 import { assessmentView } from "@/lib/evidence/assessment";
 import type { SlowdownAssessment } from "@/lib/evidence/slowdown";
 import { slowdownView } from "@/lib/evidence/slowdown-presentation";
+import { deriveSegmentStatus } from "@/lib/traffic/segment-status";
+import { CorridorStrip } from "./corridor-strip";
+import { RouteComparisonBar } from "./route-comparison-bar";
 import { useAssessmentClock } from "./use-assessment-clock";
 import { RefreshTraffic } from "./refresh-traffic";
 import { TrafficMap } from "./traffic-map";
@@ -47,14 +50,47 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
   const episodeCounts = Object.fromEntries((snapshot.fixture?.segments ?? []).map(segment =>
     [segment.id, snapshot.incident_episodes.filter(episode => episode.segment_id === segment.id).length]));
   const [directionFilter, setDirectionFilter] = useState<"all" | "outbound" | "inbound">("all");
-  const freshness = (observedAt: string | null) => snapshotFreshness(observedAt, snapshot.read_at, elapsedMs);
+  const freshness = useCallback(
+    (observedAt: string | null) => snapshotFreshness(observedAt, snapshot.read_at, elapsedMs),
+    [snapshot.read_at, elapsedMs]
+  );
   const sampleLabel = (observedAt: string | null) => freshnessLabels[freshness(observedAt)];
   const selectSegment = useCallback((id: string) => {
     const url = new URL(window.location.href);
     url.searchParams.set("segment", id);
     window.history.pushState(null, "", url);
   }, []);
+
   const fixture = snapshot.fixture;
+
+  const segmentStatuses = useMemo(() => {
+    if (!fixture) return {};
+    return Object.fromEntries(
+      fixture.segments.map(segment => {
+        const samples = latestSegmentSamples(fixture, segment.id);
+        const segmentFreshness = freshness(samples.observedAt);
+        const traversal = traversalViews[segment.id];
+        const delaySeconds = traversal?.delaySeconds ?? null;
+        const segmentReports = snapshot.reports.filter(r => r.segment_id === segment.id);
+        const hasRecentReport = segmentReports.some(r => freshness(r.observed_at) === "recent");
+        const hasAlert = alertViews[segment.id]?.state === "alert";
+
+        return [
+          segment.id,
+          deriveSegmentStatus({
+            direction: segment.direction,
+            hasAlert,
+            slowdownState: slowdowns[segment.id]?.state,
+            assessmentState: assessments[segment.id]?.state,
+            hasRecentReport,
+            delaySeconds,
+            freshness: segmentFreshness,
+          }),
+        ];
+      })
+    );
+  }, [fixture, alertViews, slowdowns, assessments, traversalViews, snapshot.reports, freshness]);
+
   if (!fixture) return (
     <div className="panel" role="status">
       <h2>No synthetic traffic data</h2>
@@ -73,6 +109,7 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
   const selectedTraversal = selected ? traversals.find(row => row.segment_id === selected.id) : null;
   const selectedReports = selected ? snapshot.reports.filter(report => report.segment_id === selected.id)
     .sort((a, b) => b.received_at.localeCompare(a.received_at) || a.id.localeCompare(b.id)) : [];
+
   return (
     <div data-testid="traffic-ready" className={styles.explorer}>
       <div className={`panel ${styles.summary}`}>
@@ -85,6 +122,13 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
         </div>
         <RefreshTraffic onRefresh={refreshStarted} />
       </div>
+
+      <CorridorStrip
+        fixture={fixture}
+        statuses={segmentStatuses}
+        selectedId={selected?.id ?? null}
+        onSelect={selectSegment}
+      />
 
       <div className={styles.heroGrid}>
         <section className={`panel ${styles.mapPanel}`} aria-labelledby="map-title">
@@ -131,6 +175,13 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
             {visibleSegments.map((segment) => {
               const originalIndex = fixture.segments.findIndex(s => s.id === segment.id);
               const samples = latestSegmentSamples(fixture, segment.id);
+              const status = segmentStatuses[segment.id] ?? deriveSegmentStatus({
+                direction: segment.direction,
+                hasAlert: false,
+                delaySeconds: null,
+                hasRecentReport: false,
+                freshness: "unknown",
+              });
               return <li key={segment.id}>
                 <a href={`/traffic?segment=${encodeURIComponent(segment.id)}`} data-segment-id={segment.id}
                   aria-current={selected?.id === segment.id ? "true" : undefined}
@@ -138,18 +189,57 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
                     if (event.button || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
                     event.preventDefault(); selectSegment(segment.id);
                   }}>
-                  <strong>{originalIndex + 1}. {segment.name}</strong>
-                  <span>{segment.direction} · SIMULATED</span>
-                  <span>{sampleLabel(samples.observedAt)}</span>
-                  <span data-segment-report-count={segment.id}>{snapshot.reports.filter(report => report.segment_id === segment.id).length} unconfirmed demo reports, including stale reports</span>
-                  <span data-segment-episodes={segment.id}>{episodeSummary(episodeCounts[segment.id])}</span>
-                  <span data-segment-assessment={segment.id} data-assessment-state={assessments[segment.id].state}>{assessments[segment.id].label}</span>
-                  <span data-segment-slowdown={segment.id} data-slowdown-state={slowdowns[segment.id].state}>
-                    {slowdowns[segment.id].label}<br /><span>{slowdowns[segment.id].windowLabel}</span>
-                  </span>
-                  <span data-segment-lifecycle={segment.id}>{lifecycleLabels[segment.id]}</span>
-                  <span data-segment-delay={segment.id} data-delay-state={traversalViews[segment.id].state}>{traversalViews[segment.id].label}</span>
-                  <span data-route-alert-segment={segment.id} data-route-alert-state={alertViews[segment.id].state}>{alertViews[segment.id].label}</span>
+                  <div className={styles.cardTop}>
+                    <div className={styles.cardHeader}>
+                      <span className={styles.cardArrow} aria-hidden="true">{status.directionArrow}</span>
+                      <strong className={styles.cardName}>{originalIndex + 1}. {segment.name}</strong>
+                    </div>
+                    <span
+                      className={styles.cardChip}
+                      style={{
+                        color: status.color,
+                        backgroundColor: status.bgColor,
+                        borderColor: status.borderColor,
+                      }}
+                    >
+                      {status.chipLabel}
+                    </span>
+                  </div>
+
+                  <div className={styles.cardMetrics}>
+                    <span className={styles.cardDelay} style={{ color: status.delayMinutes && status.delayMinutes > 0 ? status.color : "inherit" }}>
+                      Delay: {status.delayText}
+                    </span>
+                    <span className={styles.cardAge}>
+                      <span
+                        className={`${styles.ageDot} ${
+                          status.ageDot === "green" ? styles.dotGreen : status.ageDot === "amber" ? styles.dotAmber : styles.dotGrey
+                        }`}
+                        aria-hidden="true"
+                      />
+                      <span>{status.ageLabel}</span>
+                    </span>
+                  </div>
+
+                  <details
+                    className={styles.cardDetails}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <summary onClick={e => e.stopPropagation()}>Technical details</summary>
+                    <div className={styles.cardDetailsContent}>
+                      <span>{segment.direction} · SIMULATED</span>
+                      <span>{sampleLabel(samples.observedAt)}</span>
+                      <span data-segment-report-count={segment.id}>{snapshot.reports.filter(report => report.segment_id === segment.id).length} unconfirmed demo reports, including stale reports</span>
+                      <span data-segment-episodes={segment.id}>{episodeSummary(episodeCounts[segment.id])}</span>
+                      <span data-segment-assessment={segment.id} data-assessment-state={assessments[segment.id].state}>{assessments[segment.id].label}</span>
+                      <span data-segment-slowdown={segment.id} data-slowdown-state={slowdowns[segment.id].state}>
+                        {slowdowns[segment.id].label}<br /><span>{slowdowns[segment.id].windowLabel}</span>
+                      </span>
+                      <span data-segment-lifecycle={segment.id}>{lifecycleLabels[segment.id]}</span>
+                      <span data-segment-delay={segment.id} data-delay-state={traversalViews[segment.id].state}>{traversalViews[segment.id].label}</span>
+                      <span data-route-alert-segment={segment.id} data-route-alert-state={alertViews[segment.id].state}>{alertViews[segment.id].label}</span>
+                    </div>
+                  </details>
                 </a>
               </li>;
             })}
@@ -173,6 +263,13 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
               <p>{selected.baseline_label}</p>
               <section className={styles.reports} aria-labelledby="route-alert-title">
                 <h3 id="route-alert-title">Fixed alternative comparison</h3>
+                <RouteComparisonBar
+                  routeComparison={routeComparison}
+                  alert={routeAlerts.find(a => a.segment_id === selected.id)}
+                  readAt={snapshot.read_at}
+                  elapsedMs={elapsedMs}
+                  onInspectAlternative={selectSegment}
+                />
                 <p data-route-alert-details={selected.id} data-route-alert-state={alertViews[selected.id].state}>
                   <strong>{alertViews[selected.id].label}</strong>
                 </p>

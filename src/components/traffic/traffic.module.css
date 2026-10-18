@@ -11,9 +11,89 @@
 }
 
 .list ul { list-style: none; padding: 0; display: grid; gap: 0.75rem; }
-.list a { display: grid; gap: 0.3rem; border: 1px solid var(--outline-variant); border-radius: 0.75rem; padding: 1rem; text-decoration: none; overflow-wrap: anywhere; }
+.list a { display: grid; gap: 0.3rem; border: 1px solid var(--outline-variant); border-radius: 0.75rem; padding: 0.85rem; text-decoration: none; overflow-wrap: anywhere; transition: border-color 0.15s ease; }
 .list a span { font-size: 0.8rem; color: var(--on-surface-variant); }
-.list a[aria-current="true"] { border: 2px solid var(--primary); padding: calc(1rem - 1px); background: var(--surface-container-low); }
+.list a[aria-current="true"] { border: 2px solid var(--primary); padding: calc(0.85rem - 1px); background: var(--surface-container-low); }
+
+.cardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+.cardHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.cardArrow {
+  font-size: 0.95rem;
+  font-weight: 800;
+  color: var(--primary);
+}
+.cardName {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--on-surface);
+}
+.cardChip {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.45rem;
+  border-radius: 0.35rem;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.cardMetrics {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.2rem;
+  font-size: 0.8rem;
+}
+.cardDelay {
+  font-family: var(--font-jetbrains-mono, monospace);
+  font-weight: 700;
+}
+.cardAge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--on-surface-variant);
+  font-size: 0.75rem;
+}
+.ageDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.dotGreen { background-color: #10b981; box-shadow: 0 0 0 2px #d1fae5; }
+.dotAmber { background-color: #f59e0b; box-shadow: 0 0 0 2px #fef3c7; }
+.dotGrey { background-color: #94a3b8; }
+
+.cardDetails {
+  margin-top: 0.4rem;
+  padding-top: 0.35rem;
+  border-top: 1px dashed var(--outline-variant);
+  font-size: 0.75rem;
+}
+.cardDetails summary {
+  font-size: 0.72rem;
+  color: var(--on-surface-variant);
+  cursor: pointer;
+  padding: 0.15rem 0;
+  user-select: none;
+}
+.cardDetails summary:hover {
+  color: var(--primary);
+}
+.cardDetailsContent {
+  display: grid;
+  gap: 0.25rem;
+  margin-top: 0.35rem;
+  color: var(--on-surface-variant);
+}
 
 .mapPanel { min-width: 0; display: flex; flex-direction: column; gap: 1rem; }
 .mapHeader { display: flex; align-items: center; justify-content: space-between; }
