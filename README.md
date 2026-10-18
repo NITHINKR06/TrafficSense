@@ -45,6 +45,21 @@ Modern urban transit is plagued by two extremes: **unverified citizen noise** on
 3. **Conservative Decision Discipline (Abstention)**: If evidence is stale, conflicting, below threshold, or if an alternative path is blocked by hazards, the system explicitly **abstains** rather than providing misleading advice.
 4. **Separation of Delay and Blame**: Traffic delay calculations measure verified excess physical traversal time across arterial segments; they do not adjudicate personal tardiness or employee intent.
 
+### 1.1 System Provenance: What Is Real, Estimated, and Simulated
+
+Per our strict honesty rules, every number and status in TrafficSense carries an explicit provenance indicator:
+
+| Subsystem | Operational Status | Provenance Label in UI |
+|---|---|---|
+| **Map, roads & places** | Real (OpenStreetMap via hosted vector tiles & OpenFreeMap) | OSM attribution on every map |
+| **Routes & alternatives** | Real routing across Mangaluru road network (OSRM), **free-flow estimate** | `ESTIMATED · Free-flow only` |
+| **Incident reporting** | Real rows from real users at real GPS coordinates | Verification level shown (L1–L3) |
+| **Verification engine** | Real rules run and enforced by the PostgreSQL server (PostGIS) | Level + reason shown |
+| **Journey excess time** | Real trip time minus free-flow estimate computed by server | `Time over free-flow estimate` |
+| **Live speed for every road** | **Not available** (requires millions of users or proprietary feeds) | Never claimed |
+| **Corridor multi-month history** | Real rows from live database + optional synthetic history | Labelled `LIVE DATA` or `SIMULATED` |
+| **Authority confirmation** | Role-checked database function with immutable audit logging | `L6 · Officially Confirmed` |
+
 ---
 
 ## 2. The Problem Landscape: Why Conventional Traffic Systems Fail
