@@ -29,7 +29,7 @@
   - `just lint`: 0 ESLint errors or warnings.
   - `docker compose exec app pnpm exec tsc --noEmit`: 0 TypeScript errors.
   - `docker compose run --rm checks`: All unit tests, ESLint, typegen, tsc, and Next.js production build (15/15 routes) succeeded with 0 errors.
-  - **Commit:** will be recorded upon commit creation.
+  - **Commit:** `70c4171` — `feat(reports): Phase 5 all 17 incident categories, icons, and reported cause agreement` (verified locally).
 
 ## Plan 2 Phase 4 — Verification ladder aligned with the PDF verified locally, 18 Oct 2026
 
