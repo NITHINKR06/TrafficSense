@@ -23,7 +23,7 @@
 - **Verification:**
   - Docker isolated check container (`docker compose run --rm checks`): **160/160 unit tests passed**, ESLint passed with 0 errors/0 warnings, route typegen passed, TypeScript check passed, and Next.js production build succeeded for all 15 routes.
   - HTML rendering verification in dev container: `has ready: true`, `has corridor strip: true`, `has route comparison: true`, `has Clear chip: true`, `has Technical details: true`, `has data-segment-list: true`, `has data-segment-slowdown: true`.
-  - **Commit:** `f2eab66` — `feat(traffic): Phase 2 visual status chips, corridor strip, and route comparison bars` (verified locally).
+  - **Commit:** `ce2f203` — `feat(traffic): Phase 2 visual status chips, corridor strip, and route comparison bars` (verified locally).
 
 ## Plan 2 Phase 1 — Map first verified locally, 18 Oct 2026
 
