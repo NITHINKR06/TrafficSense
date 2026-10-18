@@ -6,7 +6,33 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
-## Phase 7 — hotspots and monthly analytics verified locally, 18 Oct 2026
+## Docker orchestration via Justfile — verified locally, 18 Oct 2026
+
+**Task exit verdict: passed locally at 2026-10-18T03:52Z.** Unified command orchestration for Docker development, testing, local Supabase, and production preview was implemented in `justfile`.
+
+- **Scope & intent:** provide single-command shortcuts (`just up`, `just test`, `just check`, `just status`, etc.) wrapping Docker Compose and local Supabase shell scripts without host Node/pnpm dependencies.
+- **Recipes provided:**
+  - `up`: starts local Supabase backend, seeds demo accounts, and launches dev container on `http://localhost:3000`.
+  - `dev`: runs dev container in foreground with live log streaming.
+  - `prod`: launches production preview container on `http://localhost:3001`.
+  - `down` / `stop` / `restart`: container lifecycle management without destroying database volumes.
+  - `stop-all`: cleanly stops dev/prod containers and the local Supabase stack.
+  - `status`: displays running TrafficSense and Supabase containers (isolating unrelated Docker projects).
+  - `logs [service]` / `shell [service]`: container log inspection and interactive shell access.
+  - `db-start` / `db-seed` / `db-stop` / `db-reset`: local Supabase management.
+  - `simulate [scenario]` / `simulate-reset`: runs synthetic traffic simulator scenarios.
+  - `test`: executes 160 unit tests inside Docker (`docker compose exec app pnpm test` with fallback to one-off container).
+  - `lint`: executes ESLint inside Docker.
+  - `test-integration`: runs Supabase auth, traffic, and report policy integration suites.
+  - `check`: executes full checks container (`pnpm test && pnpm lint && pnpm exec next typegen && pnpm exec tsc --noEmit && pnpm build`).
+  - `clean`: tears down stopped project containers.
+- **Verification:**
+  - `just --list` parses cleanly and prints full recipe documentation.
+  - `just status` successfully isolated and printed running TrafficSense app, production, and Supabase containers.
+  - `just test` executed inside the container in 5.5s with **160/160 passing tests**.
+  - `just lint` executed inside the container and passed with 0 errors / 0 warnings.
+  - Expanded `docs/whatthis.md` with comprehensive application route directory (12 pages), 6 synthetic demo accounts with login instructions, Mangaluru Central corridor physical topology & 5-minute alert math, live simulator scenario transitions, and PostgreSQL zero-knowledge privacy architecture.
+- **Commit:** `5c48978` — `build(docker): add justfile and comprehensive project details documentation` (verified locally).
 
 **Phase 7 exit verdict: passed locally at 2026-10-18T02:50Z.** Traffic hotspots and monthly analytics (Module 7 / S14) are fully implemented and verified; there is no remaining core module prerequisite. Core scope (Modules 1–7: REPORT → VERIFY → ALERT → ANALYSE) is complete.
 

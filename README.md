@@ -348,7 +348,37 @@ graph LR
 
 The entire application runs inside reproducible Docker containers. No host package dependencies or global databases are required.
 
-### 1. Quick Start
+### 1. Quick Start with `just` (Recommended)
+
+If you have `just` installed, manage the entire lifecycle with single commands:
+
+```bash
+# Start local Supabase, seed synthetic accounts, and launch dev app on :3000
+just up
+
+# Inspect container health and port bindings
+just status
+
+# Run the 160 unit tests inside Docker
+just test
+
+# Run ESLint inside Docker
+just lint
+
+# Run full checks suite (tests, linter, typecheck, Next.js production build)
+just check
+
+# Stop dev & prod containers (preserving database and volume caches)
+just down
+
+# Stop all containers including local Supabase backend
+just stop-all
+```
+
+Run `just` or `just --list` to view all available commands.
+
+### 2. Manual Docker Compose Execution
+
 ```bash
 # 1. Start local Supabase PostgreSQL database
 bash scripts/local-supabase.sh start
@@ -363,7 +393,8 @@ docker compose up --build -d app
 docker compose --profile production up --build -d production
 ```
 
-### 2. Verification Suite Execution
+### 3. Verification Suite Execution
+
 ```bash
 # Run the complete automated test suite (160 unit tests, ESLint, TypeScript, Production Build)
 docker compose run --build --rm checks

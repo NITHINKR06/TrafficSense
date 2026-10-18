@@ -160,7 +160,7 @@ Core modules take priority. Confirm employer preference/minimum fields before im
 1. Read scope, this phase, design/contracts and progress; preserve unrelated work. Load only relevant AI resources.
 2. Record task scope, source module, affected readers and acceptance checks in progress before implementation.
 3. Write meaningful rule/policy tests first and build the smallest usable end-to-end slice.
-4. Run all package/runtime/check commands in Docker with pinned pnpm. Keep one Next.js + Supabase app, no additional backend framework.
+4. Run all package/runtime/check commands in Docker with pinned pnpm. Use `just test`, `just check`, `just lint` (from the repository `justfile`) or raw `docker compose` commands. Keep one Next.js + Supabase app, no additional backend framework.
 5. Exercise all affected browser readers and negative/recovery paths; check desktop/mobile for visual changes. A build, screenshot, stub or optimistic toast is not completion.
 6. Fix and re-test failures; review diff, update technical docs/progress and make a scoped local commit. Obtain user review at phase/design boundaries; report the hash and never push implicitly.
 7. Advance after exit checks or an explicit approved scope change. Unavailable browser tooling permits substitute checks with stated limits, not an invented browser pass.

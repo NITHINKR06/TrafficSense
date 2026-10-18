@@ -1,6 +1,6 @@
 # Testing and Browser Verification
 
-Inspect `package.json`, the relevant test files, and [Docker commands](../../docs/docker.md) for the configured checks; do not assume tests are absent or that a script covers every verification layer. Run project tests and checks in Docker with the pinned pnpm version. Consult [docs/progress.md](../../docs/progress.md) for actual results and blockers, not these instructions.
+Inspect `package.json`, the relevant test files, and [Docker commands](../../docs/docker.md) for the configured checks; do not assume tests are absent or that a script covers every verification layer. Run project tests and checks in Docker with the pinned pnpm version — use `just test` (unit tests), `just check` (full suite), `just lint`, or `just test-integration` from the repository `justfile`, or the raw `docker compose` commands documented in `docs/docker.md`. Consult [docs/progress.md](../../docs/progress.md) for actual results and blockers, not these instructions.
 
 ## Automated Tests
 
@@ -29,7 +29,7 @@ Run relevant checks at each phase gate and record each layer's outcome separatel
 
 ## Mandatory Browser Workflow for Web Changes
 
-1. Start the app using its documented command and open it with available browser tools.
+1. Start the app using `just dev` (foreground) or `just up` (background), then open it with available browser tools.
 2. Exercise the changed behavior as a user: click, type, submit, navigate, and inspect the actual outcome.
 3. Visit every page or route sharing the changed components, state, or data. Verify consistency after navigation and reload.
 4. Actively test affected edge states and surrounding existing flows. A screenshot or successful render alone is insufficient.

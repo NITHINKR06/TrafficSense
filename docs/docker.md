@@ -2,7 +2,22 @@
 
 Docker Engine with Compose is the only required host runtime. Node.js 24 and pnpm 11.11.0 run inside the images. Keep editing source files in your normal editor; use Docker for package commands, development, checks and production previews.
 
-## Start development
+## Quick Start with Just
+
+If you have `just` installed, use the repository `justfile` commands:
+
+```bash
+just up         # Starts Supabase, seeds accounts, and launches dev server on :3000
+just status     # Inspect container health and port bindings
+just test       # Run test suite inside the container
+just check      # Run full checks suite (tests, linter, typecheck, build)
+just down       # Stop app containers while preserving backend state
+just stop-all   # Stop all containers including local Supabase backend
+```
+
+Run `just` or `just --list` to view all available shortcuts.
+
+## Start development (Manual)
 
 From the repository root:
 

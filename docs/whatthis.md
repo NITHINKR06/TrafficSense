@@ -210,7 +210,122 @@ TrafficSense employs a **4-tier evidence model**:
 
 ---
 
-## 5. UI / UX Design System
+## 5. Comprehensive Application Route Directory
+
+TrafficSense organizes its features into 12 dedicated pages adhering strictly to role permissions:
+
+| URL Route | Access / Role | Primary Purpose & Key Features |
+|---|---|---|
+| `/` | Public (All) | **Platform Orientation & Landing Page**: Hero section, architecture diagrams, role cards, links to map, reports, and dashboards. |
+| `/traffic` | Public / Guest / Commuter | **Traffic Corridor Explorer**: Interactive MapLibre GL map, outbound/inbound toggles, segment speed inspector, active Route Alert card with live countdown timer. |
+| `/demo` | Public (All) | **Guided Demonstration Showcase**: Step-by-step walkthrough of L1–L4 evidence progression, duplicate attack mitigation, and alternative route comparison. |
+| `/reports/new` | Public / Guest / Commuter | **Citizen Incident Reporting Form**: Category selection, segment binding, abuse prevention rate-limiting, and instant submission. |
+| `/workspace` | Commuter (`commuter`) | **Commuter Personal Dashboard**: Live commute session tracker, real-time corridor delay metrics, employer sharing dropdown, and instant "Stop Sharing" controls. |
+| `/employer` | Employer (`employer`) | **Employer Organisation Selector**: Directory of organisations the logged-in user belongs to; routes directly to active dashboard. |
+| `/employer/[orgId]` | Employer (`employer`) | **Consented Employee Delay Portal**: Displays active employee delay summaries (corridor, delay duration, corroboration tier); physically excludes GPS/coordinates. |
+| `/authority` | Authority (`authority`) | **Civic Intelligence Portal**: Multi-month junction congestion analytics, delay-hour hotspot rankings, cause breakdown progress bars, and CSV export. |
+| `/admin` | Admin (`admin`) | **System Administration & Audit**: Platform diagnostic overview, system health indicators, and boundary verification logs. |
+| `/login` | Public (All) | **Authentication Portal**: Email and password login via Supabase Auth; sets secure HTTP-only session cookies. |
+| `/register` | Public (All) | **Commuter Account Registration**: Creates new commuter account with initial zero-privilege defaults. |
+| `/access-denied` | Public (All) | **Unauthorized Fallback Page**: Graceful error handling when a user attempts to access an unauthorized portal (e.g. commuter visiting `/authority`). |
+
+---
+
+## 6. Synthetic Demo Accounts & Role Playbook
+
+When the local Supabase stack is seeded (`just db-seed` or `just up`), 6 synthetic accounts are automatically provisioned. Their dynamic passwords are generated securely in the ignored local file:
+📁 `supabase/.temp/demo-accounts.json`
+
+| Demo Account Email | Role | Accessible Portals | Testing Purpose |
+|---|---|---|---|
+| `commuter@demo.trafficsense.test` | `commuter` | `/traffic`, `/reports/new`, `/workspace` | Commuter incident reporting, personal journey tracking, and consenting to share delays with employers. |
+| `employer-a@demo.trafficsense.test` | `employer` | `/employer`, `/employer/10000000-0000-4000-8000-000000000001` | Managing "Harbour employer" organisation; viewing consented employee delay reports. |
+| `employer-b@demo.trafficsense.test` | `employer` | `/employer`, `/employer/10000000-0000-4000-8000-000000000002` | Multi-tenant isolation testing; verifies Employer B cannot see Employer A's shared journeys. |
+| `employer-unassigned@demo.trafficsense.test` | `employer` | `/employer` (empty state) | Negative boundary testing: an employer with no active organisation membership. |
+| `authority@demo.trafficsense.test` | `authority` | `/authority` | Municipal traffic engineering review; hotspot delay-hour rankings, cause distribution, CSV export. |
+| `admin@demo.trafficsense.test` | `admin` | `/admin` | Platform administrative review and audit tracking. |
+
+> **Quick Login Tip**: Run `cat supabase/.temp/demo-accounts.json` in your terminal to view the generated passwords, then navigate to `http://localhost:3000/login` to sign in as any role.
+
+---
+
+## 7. Physical Corridor Geometry & Delay Mathematics
+
+TrafficSense grounds all calculations in physical corridor segments along the Mangaluru Central transit spine (`mangaluru-central-v1`):
+
+```
+                                PRIMARY ROUTE (Total: 2500m · Baseline: 300s = 5m 00s)
+               [primary-west: 1500m @ 30 km/h = 180s]        [primary-east: 1000m @ 30 km/h = 120s]
+          Hampankatta Junction ───────────────────────► Ambedkar Circle ───────────────────────► KSRTC Bejai
+                    │                                             ▲                                  ▲
+                    │                                             │                                  │
+                    ▼                                             │                                  │
+          [alternative-west: 2200m @ 33 km/h = 240s] ─────────────┘                                  │
+             (via Falnir & Balmatta Bypass)                                                          │
+                                                                                                     │
+                    [alternative-east: 1200m @ 33 km/h = 131s] (via Ladyhill Junction) ──────────────┘
+                               ALTERNATIVE ROUTE (Total: 3400m · Baseline: 371s = 6m 11s)
+```
+
+### The Math of the 5-Minute Alert:
+1. **Free-Flow Baseline**:
+   * Primary route baseline travel time: $180\text{s} + 120\text{s} = 300\text{s}$ (5 minutes).
+   * Alternative route baseline travel time: $240\text{s} + 131\text{s} = 371\text{s}$ (6 minutes 11 seconds).
+   * Free-flow difference: Alternative is **71 seconds slower** under normal conditions.
+2. **During Congestion Slowdown (`primary-west`)**:
+   * Synthetic slowdown drops speed on `primary-west` from $30\text{ km/h}$ to $9\text{ km/h}$.
+   * Traversal time for $1500\text{ m}$ at $9\text{ km/h}$ becomes **675 seconds**.
+   * Excess traversal delay on `primary-west`: $675\text{s} - 180\text{s} = \mathbf{+495\text{s}}$ (~8m 15s).
+   * Total primary route traversal time: $675\text{s} + 120\text{s} = \mathbf{795\text{s}}$.
+   * Alternative route remains clear at baseline: $\mathbf{371\text{s}}$.
+3. **Net Traversal Difference**:
+   $$\text{Savings} = 795\text{s} - 371\text{s} = \mathbf{424\text{s}}\quad (\approx 7\text{m }04\text{s})$$
+4. **The Decision**:
+   $$\text{Since } 424\text{s} \ge 300\text{s}\text{ (5 minutes threshold) and alternative has no hazards} \implies \mathbf{ACTIVE\ ROUTE\ ALERT!}$$
+
+---
+
+## 8. Traffic Simulator Playbook (Live Demo Scenarios)
+
+The built-in synthetic traffic simulator allows testing all corroboration and route alert states in real time:
+
+| Simulator Command | What Happens Under the Hood | Observable UI Result |
+|---|---|---|
+| `just simulate normal` | Injects baseline speed observations (30 km/h primary, 33 km/h alternative). | Map shows green segments; Route Alert panel **abstains** ("No active incident"). |
+| `just simulate slowdown` | Drops `primary-west` to 9 km/h for 6 intervals; persists L4 quantitative proof. | Map shows red segment with **+8m 15s delay**; Route Alert panel triggers: **⚡ 7m 04s faster via Alternative Route**! |
+| `just simulate recovery` | Injects post-congestion recovery observations returning speed to 30 km/h. | Alert clears; status shifts to "Traffic Recovered"; cooldown countdown starts. |
+| `just simulate-reset` | Wipes synthetic observations for the corridor. | Map returns to baseline defaults without altering user accounts or database schema. |
+
+---
+
+## 9. Database Architecture & Zero-Knowledge Privacy RPCs
+
+TrafficSense executes all sensitive operations inside PostgreSQL 17 via strict Row-Level Security (RLS) and Security-Definer stored functions:
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                 POSTGRESQL 17 DATABASE                                 │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│  Tables:                                                                               │
+│  • profiles                   - User roles (commuter, employer, authority, admin)      │
+│  • organisations              - Registered employer entities                           │
+│  • memberships                - Tenant isolation binding users to employers            │
+│  • traffic_reports_public     - Anonymized citizen reports                             │
+│  • traffic_reports_private    - Ingestion metadata (IP hash, submission clocks)        │
+│  • commuter_journeys          - Commuter session tracking (private to commuter)        │
+│  • journey_employer_shares    - Consented employer visibility links                    │
+│  • speed_evidence_observations- Synthetic physical speed measurements                  │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│  Security Definer RPCs (Search Path = ''):                                            │
+│  1. read_traffic_phase5()     - Public projection of L1–L4 corroboration & alert       │
+│  2. read_employer_shared_journeys() - Zero-GPS allowlisted summary for employers      │
+│  3. project_completed_traversal()   - Traversal integration rejecting client clocks   │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 10. UI / UX Design System
 
 The user interface follows modern, human-centric design principles tailored for high-stress traffic situations:
 
@@ -250,7 +365,7 @@ The user interface follows modern, human-centric design principles tailored for 
 
 ---
 
-## 6. Engineering & Algorithmic Efficiency
+## 11. Engineering & Algorithmic Efficiency
 
 | Aspect | Architectural Decision | Benefit |
 |---|---|---|
@@ -263,7 +378,7 @@ The user interface follows modern, human-centric design principles tailored for 
 
 ---
 
-## 7. Security, Trust & Privacy Guarantees
+## 12. Security, Trust & Privacy Guarantees
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────┐
@@ -292,7 +407,7 @@ The user interface follows modern, human-centric design principles tailored for 
 
 ---
 
-## 8. Technology Stack
+## 13. Technology Stack
 
 * **Frontend Framework**: Next.js 16.4.0 (Turbopack, App Router, Server Actions)
 * **UI & Styling**: React 19.3.0, Tailwind CSS v4, Lucide-style SVG icons
@@ -300,11 +415,26 @@ The user interface follows modern, human-centric design principles tailored for 
 * **Backend & Database**: Local Supabase (PostgreSQL 17.11, PostgREST v16.4, GoTrue v2.197, Kong API Gateway)
 * **Runtime & Package Manager**: Node.js 24 LTS, pnpm 11.11.0
 * **Test Suite**: Native Node.js Test Runner (`node --test`), 160 unit/integration tests, zero external testing bloat
-* **Infrastructure**: Docker Compose with isolated network bridges and automated healthchecks
+* **Infrastructure & Orchestration**: Docker Engine with Compose, automated healthchecks, and unified `justfile` task runner
 
 ---
 
-## 9. Summary & Vision
+## 14. Running TrafficSense Locally
+
+The repository includes a `justfile` orchestrating all development, database, and testing actions:
+
+```bash
+just up         # Starts Supabase, seeds synthetic demo accounts, launches dev app on :3000
+just status     # Inspect container health and port bindings
+just test       # Run 160 unit tests inside the container
+just check      # Run full checks suite (tests, linter, typecheck, Next.js build)
+just down       # Stop app containers while preserving database state
+just stop-all   # Stop all containers including local Supabase backend
+```
+
+---
+
+## 15. Summary & Vision
 
 TrafficSense represents a balanced, highly ethical model for 21st-century urban smart cities:
 * **Commuters** get honest, unmanipulated route savings and privacy-preserving commute proof.
