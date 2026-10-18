@@ -27,7 +27,7 @@
 - **Verification:**
   - Full Docker checks (`docker compose run --rm checks`): **160/160 unit tests passed**, ESLint 0 errors / 0 warnings, route type generation passed, TypeScript compilation passed, and Next.js production build succeeded for all routes.
   - Quantitative measurement confirms reduction across public pages and zero loss of rule documentation.
-  - **Commit:** `ede1bf3` — `feat(content): Phase 3 cut redundant text, single top banner, and /about methodology page` (verified locally).
+  - **Commit:** `e2677ce` — `feat(content): Phase 3 cut redundant text, single top banner, and /about methodology page` (verified locally).
 
 ## Plan 2 Phase 2 — Visual status instead of text verified locally, 18 Oct 2026
 
