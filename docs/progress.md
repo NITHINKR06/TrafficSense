@@ -21,7 +21,7 @@
   - Full Docker checks: **157/157 unit tests passed** (including new `tests/journeys.test.mjs` verifying allowlisted shape, privacy bounds, and lifecycle rules).
   - ESLint 0 errors / 0 warnings.
   - Route type generation, TypeScript compilation, and Next.js production build (15/15 routes) passed.
-- **Local implementation commit:** created locally after checks passed. No push performed.
+- **Local implementation commit:** `9138fed feat(journeys): add verified commuter journeys and consent-based employer sharing` contains the scoped implementation and verification record above. Created after Docker checks and database migration passed; not pushed. This documentation update records its hash.
 
 ## Phase 5 — integrated alternative-route alerts verified locally, 17 Oct 2026
 
