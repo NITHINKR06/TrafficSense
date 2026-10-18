@@ -19,7 +19,7 @@ export default async function OrganisationPage({ params }: PageProps<"/employer/
     <section className="panel space-y-6">
       <div className="panel-heading">
         <p className="eyebrow m-0">Organisation Dashboard</p>
-        <span className="simulated-pill">MEMBER VERIFIED</span>
+        <span className="simulated-pill">SIMULATED</span>
       </div>
       <div>
         <h1 className="text-2xl font-bold">{org.name}</h1>

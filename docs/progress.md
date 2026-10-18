@@ -6,7 +6,27 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
-## Docker orchestration via Justfile — verified locally, 18 Oct 2026
+## Plan 2 Phase 0 — Baseline and cleanup verified locally, 18 Oct 2026
+
+**Task exit verdict: passed locally at 2026-10-18T07:54Z.** Baseline cleanup and quantitative page metrics established per `docs/plan-2-modification.md`.
+
+- **Scope & intent:** Establish baseline word counts and disclaimer sentence counts across key public and authenticated views, remove internal development phase labels (U7), replace overstated "Member verified" badge with truthful "SIMULATED" badge (U9), and confirm Next.js dev overlay indicator behavior in production preview (U10).
+- **Baseline page metrics recorded (measured across rendered views):**
+  - `/` (Home): 438 words, 8 disclaimer sentences
+  - `/traffic` (Traffic Explorer): 1,641 words, 34 disclaimer sentences
+  - `/demo` (Demo overview): 197 words, 4 disclaimer sentences
+  - `/reports/new` (Incident report form): 93 words, 4 disclaimer sentences
+  - `/authority` (Civic Authority dashboard): 731 words, 6 disclaimer sentences
+  - `/employer/[orgId]` (Consented organisation view): 139 words, 4 disclaimer sentences
+  - *Observation:* `/traffic` carries over 50% of the entire site's word count and 34 disclaimer sentences, validating the need for Phase 1 (map-first) and Phase 2/3 (visual status & text reduction).
+- **Cleanup actions:**
+  - `src/app/authority/page.tsx`: Removed internal `· Phase 7` label from footer. No "Phase N" labels remain in any UI screen.
+  - `src/app/employer/[orgId]/page.tsx`: Replaced overstated `MEMBER VERIFIED` pill badge with `SIMULATED`.
+  - Next.js development overlay indicator (U10): Verified completely absent in production container preview (`trafficsense-production` on port 3001, confirmed `nextjs-portal` not present).
+- **Verification:**
+  - Full Docker checks passed via isolated container: **160/160 unit tests passed**, ESLint 0 errors / 0 warnings, route typegen, TypeScript compilation, and Next.js production build (15/15 routes) passed.
+- **Commit:** `c84a215` — `chore(cleanup): Phase 0 baseline metrics, remove Phase 7 label and Member verified badge` (verified locally).
+
 
 **Task exit verdict: passed locally at 2026-10-18T03:52Z.** Unified command orchestration for Docker development, testing, local Supabase, and production preview was implemented in `justfile`.
 

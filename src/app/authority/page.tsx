@@ -31,7 +31,7 @@ export default async function AuthorityPage() {
         <Link className="button" href="/workspace">
           ← Back to your account
         </Link>
-        <span className="text-xs text-surface-on-variant font-mono">Mangaluru Smart Mobility Demo · Phase 7</span>
+        <span className="text-xs text-surface-on-variant font-mono">Mangaluru Smart Mobility Demo</span>
       </div>
     </section>
   );
