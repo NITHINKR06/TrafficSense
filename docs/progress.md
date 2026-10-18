@@ -20,7 +20,7 @@
   - Full Docker checks: **160/160 unit tests passed** (including new `tests/analytics.test.mjs` verifying delay positivity, sorting, percentage reconciliation, and month filtering).
   - ESLint: 0 errors / 0 warnings.
   - Route type generation, TypeScript compilation, and Next.js production build (15/15 routes) passed.
-- **Local implementation commit:** created locally after checks passed. No push performed.
+- **Local implementation commit:** `42785fb feat(analytics): add verified traffic hotspots and monthly analytics dashboard` contains the scoped implementation and verification record above. Created after Docker checks and build passed; not pushed. This documentation update records its hash.
 
 ## Phase 6 — journeys and consent-based employer sharing verified locally, 18 Oct 2026
 
