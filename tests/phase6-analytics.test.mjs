@@ -115,4 +115,35 @@ describe("Phase 6 – per-cause delay summary", () => {
       );
     }
   });
+
+  it("computes analytics over custom live incident list when provided", () => {
+    const customIncidents = [
+      {
+        id: "live-1",
+        junction_id: "hampankatta",
+        junction_name: "Hampankatta Junction",
+        segment_id: "primary-west",
+        direction: "outbound",
+        occurred_at: "2026-10-19T08:30:00.000Z",
+        duration_minutes: 40,
+        commuter_delay_minutes: 25,
+        cause: "accident",
+        month: "2026-10",
+        peak_window: "08:00-10:00",
+        provenance: "simulated",
+      },
+    ];
+
+    const data = computeAnalytics("all", customIncidents);
+    assert.equal(data.total_incidents, 1);
+    assert.equal(data.top_hotspot, "Hampankatta Junction");
+    assert.equal(data.primary_cause, "Traffic Collisions");
+
+    const heatmap = computeRecurrenceHeatmap("all", customIncidents);
+    assert.ok(heatmap[0]);
+
+    const statement = computeRecurrenceStatement("all", "hampankatta", customIncidents);
+    assert.match(statement, /Congested on 1 of the last 1 weekdays/i);
+  });
 });
+

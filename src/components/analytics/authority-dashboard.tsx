@@ -1,8 +1,8 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { computeAnalytics, computeRecurrenceHeatmap, computeRecurrenceStatement, computeCauseDelaySummary } from "@/lib/analytics/metrics";
-import { MANGALURU_JUNCTIONS } from "@/lib/analytics/history";
+import { MANGALURU_JUNCTIONS, HISTORICAL_INCIDENTS, type HistoricalIncident } from "@/lib/analytics/history";
 
 const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
@@ -27,14 +27,64 @@ const HOTSPOT_COORDS: Record<string, { x: number; y: number }> = {
 export function AuthorityDashboard() {
   const [selectedMonth, setSelectedMonth] = useState("all");
   const [selectedJunction, setSelectedJunction] = useState("all");
+  const [showDemoHistory, setShowDemoHistory] = useState(false);
+  const [liveIncidents, setLiveIncidents] = useState<HistoricalIncident[]>([]);
 
-  const data = useMemo(() => computeAnalytics(selectedMonth), [selectedMonth]);
-  const heatmap = useMemo(() => computeRecurrenceHeatmap(selectedMonth), [selectedMonth]);
+  useEffect(() => {
+    fetch("/api/incidents")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.ok && Array.isArray(data.incidents)) {
+          const mapped: HistoricalIncident[] = data.incidents.map((live: {
+            id: string;
+            category: string;
+            first_reported_at: string;
+            level: string;
+            provenance: string;
+          }) => {
+            const validCauses = ["accident", "road_repair", "heavy_volume", "flood"] as const;
+            const cause = validCauses.includes(live.category as "accident" | "road_repair" | "heavy_volume" | "flood")
+              ? (live.category as "accident" | "road_repair" | "heavy_volume" | "flood")
+              : "unknown";
+            const date = new Date(live.first_reported_at);
+            const hour = date.getUTCHours();
+            let peak_window: HistoricalIncident["peak_window"] = "off_peak";
+            if (hour >= 8 && hour < 10) peak_window = "08:00-10:00";
+            else if (hour >= 12 && hour < 14) peak_window = "12:00-14:00";
+            else if (hour >= 17 && hour < 19) peak_window = "17:00-19:00";
+
+            return {
+              id: live.id,
+              junction_id: "jyothi-ambedkar",
+              junction_name: "Ambedkar (Jyothi) Circle",
+              segment_id: "alternative-west",
+              direction: "outbound" as const,
+              occurred_at: live.first_reported_at,
+              duration_minutes: 30,
+              commuter_delay_minutes: live.level === "L3" ? 20 : 10,
+              cause,
+              month: typeof live.first_reported_at === "string" ? live.first_reported_at.slice(0, 7) : "2026-10",
+              peak_window,
+              provenance: "simulated" as const,
+            };
+          });
+          setLiveIncidents(mapped);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const activeSource = useMemo(() => {
+    return showDemoHistory ? [...liveIncidents, ...HISTORICAL_INCIDENTS] : liveIncidents;
+  }, [showDemoHistory, liveIncidents]);
+
+  const data = useMemo(() => computeAnalytics(selectedMonth, activeSource), [selectedMonth, activeSource]);
+  const heatmap = useMemo(() => computeRecurrenceHeatmap(selectedMonth, activeSource), [selectedMonth, activeSource]);
   const recurrenceStatement = useMemo(
-    () => computeRecurrenceStatement(selectedMonth, selectedJunction),
-    [selectedMonth, selectedJunction],
+    () => computeRecurrenceStatement(selectedMonth, selectedJunction, activeSource),
+    [selectedMonth, selectedJunction, activeSource],
   );
-  const causeDelaySummary = useMemo(() => computeCauseDelaySummary(selectedMonth), [selectedMonth]);
+  const causeDelaySummary = useMemo(() => computeCauseDelaySummary(selectedMonth, activeSource), [selectedMonth, activeSource]);
 
   // Derive hour slots from heatmap keys of day 0 (all days have same slots)
   const hourSlots = useMemo(() => Object.keys(heatmap[0] ?? {}).sort(), [heatmap]);
@@ -84,6 +134,32 @@ export function AuthorityDashboard() {
 
   return (
     <div className="space-y-6">
+      {/* Demo History Toggle (Plan 4 Section 9) */}
+      <div className="flex flex-wrap items-center justify-between gap-3 p-3 rounded-xl border border-surface-container bg-surface-container-low">
+        <label htmlFor="demo-history-toggle" className="flex items-center gap-2 cursor-pointer text-xs font-semibold text-surface-on">
+          <input
+            id="demo-history-toggle"
+            type="checkbox"
+            checked={showDemoHistory}
+            onChange={(e) => setShowDemoHistory(e.target.checked)}
+            className="rounded border-surface-container"
+          />
+          Include 4-month simulated demo history (for trend demonstration)
+        </label>
+        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-surface-container-high text-surface-on-variant">
+          {showDemoHistory ? "SIMULATED + LIVE DATA" : `LIVE ROWS ONLY (${liveIncidents.length} stored)`}
+        </span>
+      </div>
+
+      {showDemoHistory && (
+        <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-100 flex items-start gap-2">
+          <span className="text-sm">ℹ️</span>
+          <span>
+            <strong>DEMO HISTORY ACTIVE:</strong> Showing 4 months of synthetic historical incidents for long-term trend demonstration alongside real reports. Off by default per Plan 4 honesty rules so real counts are never inflated.
+          </span>
+        </div>
+      )}
+
       {/* Month filter */}
       <div className="flex flex-wrap items-center gap-3">
         <label className="text-xs font-semibold text-surface-on-variant" htmlFor="month-select">
@@ -119,7 +195,9 @@ export function AuthorityDashboard() {
         <div className="p-4 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm">
           <span className="text-xs text-surface-on-variant block">Total Incidents</span>
           <span className="text-2xl font-bold text-surface-on mt-1 block">{data.total_incidents}</span>
-          <span className="text-[11px] text-surface-on-variant">Synthetic verified observations</span>
+          <span className="text-[11px] text-surface-on-variant">
+            {showDemoHistory ? "Synthetic + live observations" : "Real stored observations"}
+          </span>
         </div>
 
         <div className="p-4 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm">

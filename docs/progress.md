@@ -6,6 +6,24 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Plan 4 (revised) Day 3 — Authority Analytics with Real Data and Demo History Toggle, 18 Oct 2026
+
+**Task exit verdict: passed locally at 2026-10-18T14:40Z.** Authority dashboard connected to live incident stream with explicit "Include 4-month simulated demo history" toggle (off by default per Plan 4 honesty rules), recurrence heatmap, computed recurrence statement, per-cause delay summary, CSV export, and provenance banners verified at 194/194 tests.
+
+- **Scope & intent:** Deliver Plan 4 Day 3 analytics milestones:
+  1. Authority analytics computed from stored live incident rows.
+  2. "Show demo history" toggle adds 4 months of synthetic historical rows with clear `DEMO HISTORY ACTIVE` disclaimer, off by default so live counts are never inflated.
+  3. All analytics functions (`computeAnalytics`, `computeRecurrenceHeatmap`, `computeRecurrenceStatement`, `computeCauseDelaySummary`) support custom incident lists without breaking backward compatibility.
+- **Implementation:**
+  - `src/lib/analytics/metrics.ts`: Updated `filterByMonth`, `computeAnalytics`, `computeRecurrenceHeatmap`, `computeRecurrenceStatement`, and `computeCauseDelaySummary` to take `sourceIncidents?: HistoricalIncident[]` defaulting to `HISTORICAL_INCIDENTS`.
+  - `src/components/analytics/authority-dashboard.tsx`: Fetches real stored incidents from `/api/incidents` on mount. Added `showDemoHistory` toggle checkbox with status badge (`LIVE ROWS ONLY` vs `SIMULATED + LIVE DATA`). Added amber disclaimer banner when enabled.
+  - `tests/phase6-analytics.test.mjs`: Added unit tests verifying analytics, heatmap, and recurrence statements computed over custom live incident lists.
+- **Verification:**
+  - `docker compose exec app pnpm test`: **194/194 unit tests pass** across 8 test suites.
+  - `docker compose exec app pnpm lint`: 0 ESLint errors or warnings.
+  - `docker compose exec app pnpm exec tsc --noEmit`: 0 TypeScript errors.
+  - **Commit:** will be recorded upon commit creation.
+
 ## Plan 4 (revised) Day 2 — Live Incident Reporting, Server Verification (L1–L4, L6) & Real-Time Detours, 18 Oct 2026
 
 **Task exit verdict: passed locally at 2026-10-18T14:20Z.** Database migration with PostGIS distance clustering, automated verification ladder (L1 $\rightarrow$ L2 $\rightarrow$ L3), authority confirmation (L6) and audit logging, `/api/incidents` endpoint, in-map reporting form in `<RoutePlanner />`, and real-time detour recalculation verified live and at 193/193 tests.

@@ -68,14 +68,20 @@ const HOUR_SLOTS: string[] = (() => {
   return slots;
 })();
 
-function filterByMonth(selectedMonth: string): HistoricalIncident[] {
+function filterByMonth(
+  selectedMonth: string,
+  source: HistoricalIncident[] = HISTORICAL_INCIDENTS
+): HistoricalIncident[] {
   return selectedMonth === "all"
-    ? HISTORICAL_INCIDENTS
-    : HISTORICAL_INCIDENTS.filter((inc) => inc.month === selectedMonth);
+    ? source
+    : source.filter((inc) => inc.month === selectedMonth);
 }
 
-export function computeAnalytics(selectedMonth = "all"): AnalyticsSummary {
-  const filtered = filterByMonth(selectedMonth);
+export function computeAnalytics(
+  selectedMonth = "all",
+  sourceIncidents?: HistoricalIncident[]
+): AnalyticsSummary {
+  const filtered = filterByMonth(selectedMonth, sourceIncidents);
 
   const totalIncidents = filtered.length;
   const totalDelayMinutes = filtered.reduce((acc, inc) => acc + inc.commuter_delay_minutes, 0);
@@ -152,7 +158,10 @@ export function computeAnalytics(selectedMonth = "all"): AnalyticsSummary {
  * Returns {dayOfWeek: {"HH:MM": count}} for all IST day/slot combinations present in incidents.
  * All 7 day keys (0–6) are always returned with every slot initialised to 0.
  */
-export function computeRecurrenceHeatmap(selectedMonth = "all"): RecurrenceHeatmap {
+export function computeRecurrenceHeatmap(
+  selectedMonth = "all",
+  sourceIncidents?: HistoricalIncident[]
+): RecurrenceHeatmap {
   // Initialise an empty heatmap
   const heatmap: RecurrenceHeatmap = {};
   for (let d = 0; d <= 6; d++) {
@@ -164,7 +173,7 @@ export function computeRecurrenceHeatmap(selectedMonth = "all"): RecurrenceHeatm
 
   const IST_OFFSET_MS = 5.5 * 60 * 60 * 1000; // +05:30
 
-  for (const inc of filterByMonth(selectedMonth)) {
+  for (const inc of filterByMonth(selectedMonth, sourceIncidents)) {
     const utcMs = Date.parse(inc.occurred_at);
     const istMs = utcMs + IST_OFFSET_MS;
     const istDate = new Date(istMs);
@@ -197,8 +206,12 @@ export function computeRecurrenceHeatmap(selectedMonth = "all"): RecurrenceHeatm
  *
  * If junctionId is "all" or not found, uses all junctions combined.
  */
-export function computeRecurrenceStatement(selectedMonth = "all", junctionId = "all"): string {
-  const filtered = filterByMonth(selectedMonth).filter((inc) =>
+export function computeRecurrenceStatement(
+  selectedMonth = "all",
+  junctionId = "all",
+  sourceIncidents?: HistoricalIncident[]
+): string {
+  const filtered = filterByMonth(selectedMonth, sourceIncidents).filter((inc) =>
     junctionId === "all" || inc.junction_id === junctionId,
   );
 
@@ -268,8 +281,11 @@ export function computeRecurrenceStatement(selectedMonth = "all", junctionId = "
  * Phase 6: Per-cause total delay summary (PDF §8 per-reason table).
  * Returns array sorted descending by total_delay_hours.
  */
-export function computeCauseDelaySummary(selectedMonth = "all"): CauseDelaySummary[] {
-  const filtered = filterByMonth(selectedMonth);
+export function computeCauseDelaySummary(
+  selectedMonth = "all",
+  sourceIncidents?: HistoricalIncident[]
+): CauseDelaySummary[] {
+  const filtered = filterByMonth(selectedMonth, sourceIncidents);
   const map = new Map<string, { count: number; totalDelayMinutes: number }>();
 
   for (const inc of filtered) {
