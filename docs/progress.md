@@ -6,6 +6,23 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Phase 6 — journeys and consent-based employer sharing verified locally, 18 Oct 2026
+
+**Phase 6 exit verdict: passed locally at 2026-10-17T18:45Z.** Commuter journey tracking and consent-based employer sharing (Module 6 / S13) are fully implemented and verified; there is no remaining Phase 6 prerequisite. Phase 7 hotspots and monthly analytics are next.
+
+- **Authorization/scope:** user authorized proceeding with Phase 6 in a fast-track manner without excessive test suites. Implement commuter journeys, explicit consent-based employer sharing, strict privacy guarantees (allowlisted delay/status summaries only; no GPS/coordinates/route geometry), and stop-sharing/journey-end enforcement.
+- **Implementation:**
+  - Additive migration `20261017000100_journeys_and_sharing.sql` creates `commuter_journeys` and `journey_employer_shares` with RLS policies ensuring commuters manage only their own data.
+  - Implemented secure RPC `read_employer_shared_journeys(p_org_id uuid)`: enforces employer role and active organisation membership; returns only allowlisted fields (`journey_id`, `corridor_name`, `status`, `estimated_delay_seconds`, `evidence_level`, `shared_at`, `provenance: "simulated"`). Never delivers coordinates, geometry, route history, unrelated journeys, or raw observations.
+  - `src/lib/journeys/server.ts` & `src/lib/journeys/rules.ts`: commuter journey start/end, consent-to-share, stop-sharing, and employer query helpers.
+  - UI in `src/components/journeys/journey-manager.tsx` and `src/app/workspace/page.tsx`: commuter dashboard with live delay display, consent dropdown, and instant stop-sharing buttons.
+  - UI in `src/app/employer/[orgId]/page.tsx`: employer dashboard showing active employee delay shares, clearing immediately when sharing is stopped or commute ends.
+- **Checks and verification:**
+  - Full Docker checks: **157/157 unit tests passed** (including new `tests/journeys.test.mjs` verifying allowlisted shape, privacy bounds, and lifecycle rules).
+  - ESLint 0 errors / 0 warnings.
+  - Route type generation, TypeScript compilation, and Next.js production build (15/15 routes) passed.
+- **Local implementation commit:** created locally after checks passed. No push performed.
+
 ## Phase 5 — integrated alternative-route alerts verified locally, 17 Oct 2026
 
 **Phase 5 exit verdict: passed locally at 2026-10-17T17:25Z.** Integrated alternative-route alerts (Module 5 / S12) are fully implemented and verified; there is no remaining Phase 5 implementation prerequisite. Phase 6 journeys are next. This is a simulated local acceptance result, not a live-traffic claim or navigation guidance.

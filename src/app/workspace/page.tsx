@@ -1,44 +1,79 @@
 import Link from "next/link";
 import { requireViewer } from "@/lib/auth/server";
 import { SignOut } from "@/components/sign-out";
+import { JourneyManager } from "@/components/journeys/journey-manager";
+import { getCommuterJourneys, getAvailableOrganisations } from "@/lib/journeys/server";
 
 export default async function WorkspacePage() {
   const viewer = await requireViewer();
+
+  const journeys = viewer.role === "commuter" ? await getCommuterJourneys(viewer.supabase) : [];
+  const organisations = viewer.role === "commuter" ? await getAvailableOrganisations(viewer.supabase) : [];
+
   return (
-    <section className="panel">
+    <section className="panel space-y-6">
       <div className="panel-heading">
         <p className="eyebrow m-0">Your account</p>
         <span className="simulated-pill">ROLE: {viewer.role.toUpperCase()}</span>
       </div>
-      <h1>Account workspace</h1>
-      <p className="account-email">Signed in as <strong>{viewer.email}</strong></p>
-      <dl className="facts">
+      <div>
+        <h1 className="text-2xl font-bold">Account workspace</h1>
+        <p className="account-email text-sm text-surface-on-variant mt-1">
+          Signed in as <strong>{viewer.email}</strong>
+        </p>
+      </div>
+
+      <dl className="facts grid grid-cols-2 gap-4 p-4 rounded-xl bg-surface-container-low border border-surface-container">
         <div>
-          <dt>Assigned role</dt>
-          <dd>{viewer.role}</dd>
+          <dt className="text-xs text-surface-on-variant uppercase font-semibold">Assigned role</dt>
+          <dd className="text-sm font-bold capitalize mt-0.5">{viewer.role}</dd>
         </div>
         <div>
-          <dt>Location sharing</dt>
-          <dd>Off · no collection implemented</dd>
+          <dt className="text-xs text-surface-on-variant uppercase font-semibold">Location privacy</dt>
+          <dd className="text-sm font-bold text-success mt-0.5">Consent-enforced · No GPS tracking</dd>
         </div>
       </dl>
+
       {process.env.DEMO_MODE === "true" && (
-        <p className="notice">SIMULATED demo accounts. Authentication and access checks use the local Supabase service.</p>
+        <p className="notice text-xs p-3 rounded-lg bg-surface-container border border-surface-container-high">
+          SIMULATED demo accounts. Authentication and access checks use the local Supabase service.
+        </p>
       )}
-      <h2>Available access</h2>
+
       {viewer.role === "commuter" && (
-        <p>Your commuter account is ready. Traffic reporting, maps, and journeys are not implemented yet.</p>
+        <div className="pt-2">
+          <JourneyManager journeys={journeys} organisations={organisations} />
+        </div>
       )}
-      {viewer.role === "employer" && (
-        <Link className="button" href="/employer">View your organisations</Link>
-      )}
-      {viewer.role === "authority" && (
-        <Link className="button" href="/authority">Open authority access</Link>
-      )}
-      {viewer.role === "admin" && (
-        <Link className="button" href="/admin">Open admin access</Link>
-      )}
-      <div className="section-space">
+
+      <div className="pt-4 border-t border-surface-container space-y-3">
+        <h2 className="text-md font-bold">Role access navigation</h2>
+        <div className="flex flex-wrap gap-2">
+          <Link className="button" href="/traffic">
+            Public Traffic Map & Details
+          </Link>
+          <Link className="button" href="/reports/new">
+            Submit Incident Report
+          </Link>
+          {viewer.role === "employer" && (
+            <Link className="button" href="/employer">
+              View your organisations
+            </Link>
+          )}
+          {viewer.role === "authority" && (
+            <Link className="button" href="/authority">
+              Open authority access
+            </Link>
+          )}
+          {viewer.role === "admin" && (
+            <Link className="button" href="/admin">
+              Open admin access
+            </Link>
+          )}
+        </div>
+      </div>
+
+      <div className="section-space pt-4 border-t border-surface-container">
         <SignOut />
       </div>
     </section>
