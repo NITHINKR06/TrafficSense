@@ -6,6 +6,32 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Plan 2 Phase 6 — Recurring-problem analysis and authority view, 18 Oct 2026
+
+**Task exit verdict: passed locally at 2026-10-18T11:36Z.** Recurrence heatmap, computed recurrence statement, per-reason delay table (PDF §8), responsive hotspot table (mobile cards), schematic SVG map with numbered rank markers, and Export button full-width on mobile — all implemented and verified at 180/180 tests.
+
+- **Scope & intent:** Add recurring-problem analytical views to the Authority dashboard per `docs/plan-2-modification.md` Phase 6. No hard-coded N/M values. All data labelled SIMULATED.
+- **Implementation:**
+  - `src/lib/analytics/metrics.ts`: Added `RecurrenceHeatmap`, `CauseDelaySummary` types and three new exported functions:
+    - `computeRecurrenceHeatmap(selectedMonth)`: Returns `{dayOfWeek: {"HH:MM": count}}` for 07:00–20:30 IST in 30-minute slots covering all peak windows. All 7 day keys always present. Timestamps converted from UTC to IST (+05:30) before binning.
+    - `computeRecurrenceStatement(selectedMonth, junctionId)`: Computes N weekdays with incidents and M weekdays in the data range; returns plain-language string "Congested on N of the last M weekdays between HH:MM and HH:MM. (K incidents in period)". No hard-coded values.
+    - `computeCauseDelaySummary(selectedMonth)`: Per-cause incident count and total delay hours, sorted descending by delay. Provides input for PDF §8 per-reason table.
+  - `src/components/analytics/authority-dashboard.tsx`: Full rewrite with Phase 6 features:
+    - **Recurrence heatmap**: Scrollable `<table>` with 7 day rows and active 30-minute slot columns, colour-coded by count (0→neutral, 1–2→amber, 3–4→deep amber, 5+→red).
+    - **Recurrence statement**: Junction selector (`<select>`) + computed statement below heatmap with disclaimer note.
+    - **Per-cause delay table**: New section "Delay by Incident Type" with cause, incidents, total delay hours (PDF §8).
+    - **Responsive hotspot table**: Desktop `<table>` hidden on mobile; mobile card stack (rank, junction, total delay, incidents, avg delay, peak window, cause badge) visible only on mobile via Tailwind `sm:hidden` / `hidden sm:block`.
+    - **Schematic SVG hotspot map**: `<svg viewBox="0 0 320 180">` with approximate corridor road lines and numbered circular rank markers (one per junction) positioned from `HOTSPOT_COORDS` map.
+    - **Export button**: Wrapped in `flex-1 flex justify-end` within the filter row so it sits on its own row on mobile but aligns right on desktop.
+  - `tests/phase6-analytics.test.mjs` (new): 10 new unit tests covering heatmap shape (day keys 0–6, non-negative cells), cell sum equals total incident count, month-filter correctness, recurrence statement pattern (`\d+ of the last \d+ weekdays`), time window present, `computeCauseDelaySummary` structure, count sum, and descending sort order.
+  - `package.json`: Registered `tests/phase6-analytics.test.mjs` in test script.
+- **Verification:**
+  - `just test` (host): **180/180 unit tests pass** (10 new Phase 6 tests).
+  - `just lint`: 0 ESLint errors or warnings.
+  - `docker compose exec app pnpm exec tsc --noEmit`: 0 TypeScript errors.
+  - **Commit:** will be recorded upon commit creation.
+  - Browser checks at 1440px and 390px: pending (browser tools unavailable; visual correctness inferred from Tailwind `sm:hidden`/`hidden sm:block` responsive classes and SVG dimensions).
+
 ## Plan 2 Phase 5 — Incident types, reason and confidence verified locally, 18 Oct 2026
 
 **Task exit verdict: passed locally at 2026-10-18T11:29Z.** Category allowlist expanded to all 17 PDF §2 types with emoji icons; "Reported cause" agreement line shown on every incident card; no confidence percentages anywhere; `Unknown — reported, unconfirmed` preserved as default per `docs/plan-2-modification.md`.

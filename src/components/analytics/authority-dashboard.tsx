@@ -1,12 +1,48 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { computeAnalytics } from "@/lib/analytics/metrics";
+import { computeAnalytics, computeRecurrenceHeatmap, computeRecurrenceStatement, computeCauseDelaySummary } from "@/lib/analytics/metrics";
+import { MANGALURU_JUNCTIONS } from "@/lib/analytics/history";
+
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+// Colour scale for heatmap cells: 0→transparent, 1-2→light amber, 3-4→medium amber, 5+→strong red
+function heatCellStyle(count: number): string {
+  if (count === 0) return "bg-surface-container";
+  if (count <= 2) return "bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-100";
+  if (count <= 4) return "bg-amber-300 dark:bg-amber-800 text-amber-900 dark:text-amber-100 font-semibold";
+  return "bg-red-400 dark:bg-red-700 text-white font-bold";
+}
+
+// Corridor hotspot schematic: simplified coordinate map for numbered marker overlay
+// These are relative positions (% of a 320×180 viewBox) approximating the Mangaluru corridor.
+const HOTSPOT_COORDS: Record<string, { x: number; y: number }> = {
+  "hampankatta": { x: 60, y: 90 },
+  "ksrtc-bejai": { x: 200, y: 70 },
+  "jyothi-ambedkar": { x: 100, y: 130 },
+  "ladyhill": { x: 240, y: 140 },
+  "pumpwell": { x: 30, y: 60 },
+};
 
 export function AuthorityDashboard() {
   const [selectedMonth, setSelectedMonth] = useState("all");
+  const [selectedJunction, setSelectedJunction] = useState("all");
 
   const data = useMemo(() => computeAnalytics(selectedMonth), [selectedMonth]);
+  const heatmap = useMemo(() => computeRecurrenceHeatmap(selectedMonth), [selectedMonth]);
+  const recurrenceStatement = useMemo(
+    () => computeRecurrenceStatement(selectedMonth, selectedJunction),
+    [selectedMonth, selectedJunction],
+  );
+  const causeDelaySummary = useMemo(() => computeCauseDelaySummary(selectedMonth), [selectedMonth]);
+
+  // Derive hour slots from heatmap keys of day 0 (all days have same slots)
+  const hourSlots = useMemo(() => Object.keys(heatmap[0] ?? {}).sort(), [heatmap]);
+  // Show only slots that contain any incident across all days for compactness
+  const activeSlots = useMemo(
+    () => hourSlots.filter((slot) => Object.values(heatmap).some((dayRow) => (dayRow[slot] ?? 0) > 0)),
+    [hourSlots, heatmap],
+  );
 
   function exportCsv() {
     const headers = [
@@ -48,39 +84,38 @@ export function AuthorityDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Month Filter & Export */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-surface-container-low border border-surface-container">
-        <div>
-          <span className="text-xs uppercase font-bold text-surface-on-variant">Analysis Period</span>
-          <div className="flex items-center gap-2 mt-1">
-            <select
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-              className="p-2 text-sm rounded-lg bg-surface-container border border-surface-container-high text-surface-on font-semibold"
-            >
-              <option value="all">All Months (July – October 2026)</option>
-              <option value="2026-10">October 2026 (Recent)</option>
-              <option value="2026-09">September 2026</option>
-              <option value="2026-08">August 2026 (Monsoon Peak)</option>
-              <option value="2026-07">July 2026</option>
-            </select>
-            <span className="text-xs text-surface-on-variant">
-              ({data.total_incidents} incidents analyzed)
-            </span>
-          </div>
-        </div>
-
-        <button
-          type="button"
-          onClick={exportCsv}
-          className="button text-xs px-3 py-2 rounded-lg bg-secondary text-secondary-on font-semibold hover:opacity-90 flex items-center gap-1.5"
+      {/* Month filter */}
+      <div className="flex flex-wrap items-center gap-3">
+        <label className="text-xs font-semibold text-surface-on-variant" htmlFor="month-select">
+          Analysis period
+        </label>
+        <select
+          id="month-select"
+          className="text-xs rounded-lg border border-surface-container bg-surface-container-lowest px-3 py-1.5 text-surface-on"
+          value={selectedMonth}
+          onChange={(e) => setSelectedMonth(e.target.value)}
         >
-          <span>↓ Export CSV</span>
-        </button>
+          <option value="all">All months (Jul – Oct 2026)</option>
+          <option value="2026-07">July 2026</option>
+          <option value="2026-08">August 2026</option>
+          <option value="2026-09">September 2026</option>
+          <option value="2026-10">October 2026</option>
+        </select>
+        {/* Export on its own row on mobile, inline on desktop */}
+        <div className="flex-1 flex justify-end">
+          <button
+            className="button text-xs px-4 py-1.5"
+            onClick={exportCsv}
+            title="Download incident log as CSV"
+            aria-label="Export CSV"
+          >
+            ↓ Export CSV
+          </button>
+        </div>
       </div>
 
-      {/* KPI Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <div className="p-4 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm">
           <span className="text-xs text-surface-on-variant block">Total Incidents</span>
           <span className="text-2xl font-bold text-surface-on mt-1 block">{data.total_incidents}</span>
@@ -112,7 +147,66 @@ export function AuthorityDashboard() {
         </div>
       </div>
 
-      {/* Hotspots Ranking Table */}
+      {/* Hotspot map — schematic SVG with numbered rank markers */}
+      <div className="p-5 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm space-y-3">
+        <div>
+          <h2 className="text-base font-bold text-surface-on">Corridor Hotspot Map</h2>
+          <p className="text-xs text-surface-on-variant">
+            Ranked markers overlaid on the Mangaluru corridor schematic. Numbers indicate delay-based rank (1 = worst). SIMULATED data.
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <svg
+            viewBox="0 0 320 180"
+            aria-label="Mangaluru corridor hotspot map schematic"
+            className="w-full max-w-lg border border-surface-container rounded-lg bg-surface-container-low"
+            style={{ minWidth: "240px" }}
+          >
+            {/* Schematic road lines */}
+            <line x1="20" y1="90" x2="280" y2="90" stroke="currentColor" strokeOpacity="0.2" strokeWidth="6" strokeLinecap="round" />
+            <line x1="80" y1="50" x2="260" y2="150" stroke="currentColor" strokeOpacity="0.15" strokeWidth="4" strokeLinecap="round" />
+            <text x="8" y="85" fontSize="7" className="fill-current opacity-40">Primary route →</text>
+            <text x="62" y="45" fontSize="6" className="fill-current opacity-30">Alt →</text>
+            {/* Ranked hotspot markers */}
+            {data.hotspots.map((h, index) => {
+              const coords = HOTSPOT_COORDS[h.junction_id];
+              if (!coords) return null;
+              return (
+                <g key={h.junction_id}>
+                  <circle
+                    cx={coords.x}
+                    cy={coords.y}
+                    r="14"
+                    className="fill-primary opacity-90"
+                  />
+                  <text
+                    x={coords.x}
+                    y={coords.y + 1}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fontSize="10"
+                    fontWeight="bold"
+                    className="fill-white"
+                  >
+                    #{index + 1}
+                  </text>
+                  <text
+                    x={coords.x}
+                    y={coords.y + 22}
+                    textAnchor="middle"
+                    fontSize="6"
+                    className="fill-current opacity-70"
+                  >
+                    {h.junction_name.split(" ")[0]}
+                  </text>
+                </g>
+              );
+            })}
+          </svg>
+        </div>
+      </div>
+
+      {/* Hotspots Ranking Table — responsive: table on desktop, cards on mobile */}
       <div className="p-5 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm space-y-3">
         <div className="flex items-center justify-between">
           <div>
@@ -121,10 +215,11 @@ export function AuthorityDashboard() {
               Junctions prioritized by total commuter delay-hours and recurrence frequency.
             </p>
           </div>
-          <span className="text-xs font-mono text-primary font-bold">SORT: TOTAL DELAY (DESC)</span>
+          <span className="text-xs font-mono text-primary font-bold hidden sm:block">SORT: TOTAL DELAY (DESC)</span>
         </div>
 
-        <div className="overflow-x-auto">
+        {/* Desktop table — hidden on mobile */}
+        <div className="hidden sm:block overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
               <tr className="border-b border-surface-container text-surface-on-variant">
@@ -151,6 +246,138 @@ export function AuthorityDashboard() {
                       {h.primary_cause}
                     </span>
                   </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Mobile cards — visible only on mobile */}
+        <div className="sm:hidden space-y-3">
+          {data.hotspots.map((h, index) => (
+            <div
+              key={h.junction_id}
+              className="rounded-lg border border-surface-container bg-surface-container-low p-3 space-y-1.5"
+            >
+              <div className="flex items-center justify-between">
+                <span className="font-mono font-bold text-primary text-sm">#{index + 1}</span>
+                <span className="text-[10px] font-mono bg-surface-container px-2 py-0.5 rounded text-surface-on-variant">
+                  {h.primary_window}
+                </span>
+              </div>
+              <p className="font-semibold text-surface-on text-sm leading-tight">{h.junction_name}</p>
+              <div className="flex items-center gap-4 text-xs text-surface-on-variant">
+                <span>
+                  <span className="font-bold text-warning-on-container">{h.total_delay_hours} hrs</span> total delay
+                </span>
+                <span>{h.incident_count} events</span>
+              </div>
+              <div className="text-xs text-surface-on-variant">
+                Avg <span className="font-semibold">~{h.average_delay_minutes} min</span> ·{" "}
+                <span className="px-1.5 py-0.5 rounded bg-surface-container text-surface-on font-medium">
+                  {h.primary_cause}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Recurrence heatmap */}
+      <div className="p-5 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm space-y-3">
+        <div>
+          <h2 className="text-base font-bold text-surface-on">Recurrence Heatmap</h2>
+          <p className="text-xs text-surface-on-variant">
+            Incident frequency by weekday and 30-minute time slot (IST). Darker cells indicate higher recurrence.
+            Data is SIMULATED.
+          </p>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="text-[10px] border-collapse" aria-label="Incident recurrence heatmap">
+            <thead>
+              <tr>
+                <th className="py-1 px-2 text-left text-surface-on-variant font-medium">Day \ Slot</th>
+                {activeSlots.map((slot) => (
+                  <th key={slot} className="py-1 px-1 font-mono text-surface-on-variant font-normal whitespace-nowrap">
+                    {slot}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {DAY_LABELS.map((label, dayIdx) => (
+                <tr key={dayIdx}>
+                  <td className="py-1 px-2 font-medium text-surface-on whitespace-nowrap">{label}</td>
+                  {activeSlots.map((slot) => {
+                    const count = heatmap[dayIdx]?.[slot] ?? 0;
+                    return (
+                      <td
+                        key={slot}
+                        title={`${label} ${slot}: ${count} incident${count !== 1 ? "s" : ""}`}
+                        className={`py-1 px-1 text-center rounded transition ${heatCellStyle(count)}`}
+                        style={{ minWidth: "28px" }}
+                      >
+                        {count > 0 ? count : "·"}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Recurrence statement */}
+        <div className="pt-2 space-y-2">
+          <div className="flex flex-wrap items-center gap-3">
+            <label className="text-xs font-semibold text-surface-on-variant" htmlFor="junction-select">
+              Recurrence for:
+            </label>
+            <select
+              id="junction-select"
+              className="text-xs rounded-lg border border-surface-container bg-surface-container-lowest px-3 py-1.5 text-surface-on"
+              value={selectedJunction}
+              onChange={(e) => setSelectedJunction(e.target.value)}
+            >
+              <option value="all">All junctions</option>
+              {MANGALURU_JUNCTIONS.map((j) => (
+                <option key={j.id} value={j.id}>{j.name}</option>
+              ))}
+            </select>
+          </div>
+          <p className="text-sm text-surface-on font-medium border-l-4 border-primary pl-3 py-1 bg-surface-container-low rounded-r-lg">
+            {recurrenceStatement}
+          </p>
+          <p className="text-[10px] text-surface-on-variant">
+            N and M computed from synthetic incident timestamps in Asia/Kolkata. Not a prediction.
+          </p>
+        </div>
+      </div>
+
+      {/* Per-cause delay table (PDF §8) */}
+      <div className="p-5 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm space-y-3">
+        <div>
+          <h2 className="text-base font-bold text-surface-on">Delay by Incident Type</h2>
+          <p className="text-xs text-surface-on-variant">
+            Per-reason incident count and total delay hours, sorted by delay impact. As described in PDF §8.
+          </p>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-surface-container text-surface-on-variant">
+                <th className="py-2 px-3">Cause</th>
+                <th className="py-2 px-3 text-right">Incidents</th>
+                <th className="py-2 px-3 text-right">Total Delay (hrs)</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-surface-container">
+              {causeDelaySummary.map((row) => (
+                <tr key={row.cause} className="hover:bg-surface-container-low transition">
+                  <td className="py-2.5 px-3 font-semibold text-surface-on">{row.label}</td>
+                  <td className="py-2.5 px-3 text-right font-mono">{row.count}</td>
+                  <td className="py-2.5 px-3 text-right font-bold text-warning-on-container">{row.total_delay_hours}</td>
                 </tr>
               ))}
             </tbody>
