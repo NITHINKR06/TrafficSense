@@ -62,6 +62,19 @@ Clearance requires the same three or more sources across adjacent six-tick slowd
 
 Report episodes remain separate immutable groupings. Temporal associations require the entire proof window to fit their immutable directed assignment interval; associations neither verify the reported cause nor turn segment-wide L3 into episode-specific corroboration. Cleanup of reports hides their public association without erasing retained transition evidence.
 
+## Verification evidence ladder (L1–L6)
+
+Aligned with the product brief §4, TrafficSense classifies segment corroboration into six hierarchical verification levels. Active implemented rules are strictly separated from planned specification tiers:
+
+- **L1 — Reported (Active)**: A citizen or demo user submits a problem report with an explicitly selected segment (`/reports/new`). This tier indicates user awareness but carries unconfirmed evidential weight.
+- **L2 — Location support (Planned)**: Spatial verification matching the reporter's coarse or device position to the corridor segment without storing personal track logs or background GPS.
+- **L3 — Multiple sources (Active)**: Corroboration threshold requiring $\ge 3$ independent source reports on the same directed segment within a rolling 15-minute window (`assessSegmentReports()`).
+- **L4 — Speed slowdown (Active / Simulated)**: Telemetry evidence requiring $\ge 3$ synthetic continuous sources across a 5-minute rolling window falling strictly below 40% of the baseline traversal speed (`evaluateSlowdown()`).
+- **L5 — Photo/video evidence (Planned)**: Citizen-submitted media with automated client-side EXIF/metadata stripping and privacy-preserving visual confirmation of road obstruction.
+- **L6 — Authority action (Planned)**: Official on-site confirmation, police or municipal agency dispatch, or verified physical clearance logged by authorized public bodies.
+
+Each level represents independent qualification; achieving L4 does not imply L5 or L6. Unimplemented tiers are styled with dashed indicators and explicitly labelled `planned` across the UI and technical disclosures.
+
 ## Completed synthetic traversal delay
 
 The local operator generates explicit piecewise forward motion from entry distance zero to exact segment exit using the authored schedule validated against a retained batch. A speed change integrates both motion intervals. A partial journey is not a completion; length divided by the latest sample is never substituted. Completion ingestion freezes exact entry/exit timestamps against the retained source, direction, full segment distance and named baseline. The database independently integrates the referenced batch/source's entire contiguous schedule (at least six exact one-minute samples), holding each speed until the next sample and the last speed only through anchor plus twenty minutes. It accepts only the exact first microsecond reaching the exit. Forged durations, stationary/incomplete/gapped/off-grid schedules and incompatible legacy completions cannot become available delay.

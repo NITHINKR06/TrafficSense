@@ -6,6 +6,31 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Plan 2 Phase 4 — Verification ladder aligned with the PDF verified locally, 18 Oct 2026
+
+**Task exit verdict: passed locally at 2026-10-18T11:15Z.** Verification evidence ladder (L1–L6) aligned with product brief §4 implemented with visual step indicators in `#segment-details`, active vs planned status clearly delineated, documented in `docs/traffic.md`, and unit tests passing per `docs/plan-2-modification.md`.
+
+- **Scope & intent:** Replace the confusing 4-tier / partial evidence wording with the authoritative 6-tier ladder from Traffic_JAM.pdf §4:
+  - L1: Reported (citizen report with manual segment selection) — Active
+  - L2: Location support (reporter in segment corridor without personal GPS storage) — Planned
+  - L3: Multiple sources (≥3 independent source reports in 15-minute window) — Active
+  - L4: Speed slowdown (≥3 continuous sources below 40% baseline speed across 5 min) — Active (simulated)
+  - L5: Photo/video evidence (client-side EXIF/metadata-scrubbed media proof) — Planned
+  - L6: Authority action (on-site official confirmation, dispatch, or verified clearance) — Planned
+- **Implementation:**
+  - `src/lib/evidence/verification-ladder.ts`: Pure evaluation function `evaluateSegmentLadder()` returning ordered tier states (achieved, current, planned, unachieved) and active promotion logic based on reports, consensus, and slowdown data.
+  - `src/components/traffic/verification-ladder.tsx` & `verification-ladder.module.css`: Visual ladder component displaying vertical steps with distinct badges for achieved, current, planned (dashed outline), and unachieved tiers.
+  - `src/components/traffic/traffic-explorer.tsx`: Integrated `VerificationLadder` in `#segment-details` under segment name, passing report existence, L3 consensus state, and L4 slowdown qualification.
+  - `docs/traffic.md`: Added dedicated section `## Verification evidence ladder (L1–L6)` mapping each tier's evidential weight and separating active implementation from planned extensions.
+  - `src/lib/traffic/mangaluru-basemap.ts`: Added explicit `BasemapFeature` and `BasemapFeatureCollection` types with Point support, resolving external GeoJSON type dependencies.
+  - `tests/verification-ladder.test.mjs`: Added unit tests covering all 6 tiers, baseline evaluation, L1 activation, L3 multi-source promotion, and L4 telemetry slowdown.
+  - `package.json`: Registered `tests/verification-ladder.test.mjs` in test script.
+- **Verification:**
+  - `just test`: **165/165 unit tests passed** (including 5 new ladder verification tests).
+  - `just lint`: 0 ESLint errors or warnings.
+  - `docker compose run --rm checks`: All unit tests, ESLint, Next.js route typegen, TypeScript typecheck (`tsc --noEmit`), and Next.js production build succeeded with zero errors across all 15 routes.
+  - **Commit:** will be recorded upon commit creation.
+
 ## Plan 2 Phase 3 — Cut the text verified locally, 18 Oct 2026
 
 **Task exit verdict: passed locally at 2026-10-18T11:05Z.** Single simulation banner per page linking to `/about`, methodology and rules extracted to new `/about` page, boilerplate disclaimers cut, and quantitative reduction targets met per `docs/plan-2-modification.md`.

@@ -21,6 +21,7 @@ import { useAssessmentClock } from "./use-assessment-clock";
 import { RefreshTraffic } from "./refresh-traffic";
 import { TrafficMap } from "./traffic-map";
 import { SimulatedBanner } from "../simulated-banner";
+import { VerificationLadder } from "./verification-ladder";
 import styles from "./traffic.module.css";
 
 const freshnessLabels = {
@@ -256,6 +257,12 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
                 <Link href="/about" className="text-xs text-primary underline">Methodology rules →</Link>
               </div>
               <h2 id="segment-details-title">{selected.name}</h2>
+              <VerificationLadder
+                segmentName={selected.name}
+                hasReport={selectedReports.length > 0}
+                isMultipleSources={assessments[selected.id]?.state === "multiple"}
+                isSlowdownSupported={slowdowns[selected.id]?.state === "supported"}
+              />
               <p><strong>{sampleLabel(latest.observedAt)}</strong></p>
               <dl className={styles.facts}>
                 <div><dt>Segment ID</dt><dd><code>{selected.id}</code></dd></div>

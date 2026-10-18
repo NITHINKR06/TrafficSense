@@ -1,9 +1,22 @@
 // Bundled schematic GeoJSON basemap for the Mangaluru central corridor
 // Used as guaranteed offline-ready basemap fallback when external tiles are unavailable.
-import type { GeoJSON } from "geojson";
 import type { StyleSpecification } from "maplibre-gl";
 
-export const MANGALURU_BASEMAP_GEOJSON: GeoJSON = {
+export type BasemapFeature = {
+  type: "Feature";
+  properties: { kind: string; name: string };
+  geometry: {
+    type: "Polygon" | "LineString" | "Point";
+    coordinates: number[] | number[][] | number[][][];
+  };
+};
+
+export type BasemapFeatureCollection = {
+  type: "FeatureCollection";
+  features: BasemapFeature[];
+};
+
+export const MANGALURU_BASEMAP_GEOJSON: BasemapFeatureCollection = {
   type: "FeatureCollection",
   features: [
     // Water bodies (Arabian Sea / Gurupura river schematic)
