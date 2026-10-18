@@ -32,7 +32,7 @@
     - Report 2 (with GPS accuracy 12.5m, fix 10s old) submitted within 300m $\rightarrow$ Server promoted cluster to **L2** (`distinct_reporters: 2`).
     - Report 3 (third distinct reporter) submitted $\rightarrow$ Server promoted cluster to **L3** (`distinct_reporters: 3`).
     - Route between Hampankatta and Kadri Temple queried $\rightarrow$ Path intersecting Jyothi Circle was flagged with incident warning (`distance_to_route_m: 36`), and the clean alternative detour was automatically selected as recommended!
-  - **Commit:** will be recorded upon commit creation.
+  - **Commit:** `8ad0c6d` — `feat(incidents): Plan 4 Day 2 live incident reporting, verification ladder (L1-L3, L6), and real-time detour recalculation` (verified locally).
 
 ## Plan 4 (revised) Day 1 — Dynamic Routing Engine, Journey Security & Route Planner, 18 Oct 2026
 
