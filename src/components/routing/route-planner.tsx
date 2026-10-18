@@ -171,6 +171,13 @@ export function RoutePlanner() {
     selectedId: string | null,
     incidentList: LiveIncident[]
   ) => {
+    if (!map.isStyleLoaded()) {
+      map.once("style.load", () => {
+        renderRoutesOnMap(map, routeList, selectedId, incidentList);
+      });
+      return;
+    }
+
     // Clear old markers
     for (const m of markersRef.current) m.remove();
     markersRef.current = [];
@@ -315,12 +322,15 @@ export function RoutePlanner() {
     let disposed = false;
 
     async function initMap() {
-      const { Map, NavigationControl, AttributionControl } = await import("maplibre-gl");
+      const { Map, NavigationControl, AttributionControl, setWorkerUrl } = await import("maplibre-gl");
       if (disposed || !mapContainer.current) return;
 
+      setWorkerUrl("/maplibre-gl-worker.mjs");
+
+      let fallbackUsed = false;
       const map = new Map({
         container: mapContainer.current,
-        style: createFallbackStyle(),
+        style: "https://tiles.openfreemap.org/styles/liberty",
         center: [74.85, 12.875],
         zoom: 12.5,
         attributionControl: false,
@@ -329,9 +339,25 @@ export function RoutePlanner() {
       map.addControl(new NavigationControl({ showCompass: false }), "top-right");
       map.addControl(new AttributionControl({ compact: true }), "bottom-right");
 
+      map.on("error", () => {
+        if (!fallbackUsed && map) {
+          fallbackUsed = true;
+          try {
+            map.setStyle(createFallbackStyle());
+          } catch {
+            // Ignore fallback error
+          }
+        }
+      });
+
       map.on("load", () => {
         if (disposed) return;
         mapRef.current = map;
+        renderRoutesOnMap(map, routes, selectedRouteId, liveIncidents);
+      });
+
+      map.on("style.load", () => {
+        if (disposed || !mapRef.current) return;
         renderRoutesOnMap(map, routes, selectedRouteId, liveIncidents);
       });
     }

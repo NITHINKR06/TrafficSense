@@ -172,7 +172,7 @@ function MapAttempt({ fixture, reports, assessments, slowdowns, episodeCounts, l
       try {
         const { Map, Marker, NavigationControl, setWorkerUrl } = await import("maplibre-gl");
         if (disposed || failed || !container.current) return;
-        setWorkerUrl(new URL("maplibre-gl/dist/maplibre-gl-worker.mjs", import.meta.url).toString());
+        setWorkerUrl("/maplibre-gl-worker.mjs");
         map = new Map({
           container: container.current,
           style: "https://tiles.openfreemap.org/styles/liberty",

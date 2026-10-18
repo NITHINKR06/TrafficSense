@@ -6,6 +6,23 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## MapLibre Web Worker Loading Fix on Route Planner & Traffic Map, 18 Oct 2026
+
+**Task exit verdict: passed locally at 2026-10-18T16:45Z.** Fixed "Worker failed to load. Check that the worker URL is correct" error in Next.js Turbopack by copying `maplibre-gl-worker.mjs` directly into `public/`, configuring explicit static worker URLs (`setWorkerUrl("/maplibre-gl-worker.mjs")`) in both `RoutePlanner` (`src/components/routing/route-planner.tsx`) and `TrafficMap` (`src/components/traffic/traffic-map.tsx`), adding `isStyleLoaded()` defensive guard with automatic fallback to bundled schematic basemap, and ignoring vendor bundles in ESLint. Verified at 194/194 unit tests, 0 ESLint errors, 0 TypeScript errors, Next.js Turbopack production build (19/19 routes), and HTTP 200 on `/planner` and `/maplibre-gl-worker.mjs`.
+
+- **Root cause:** In Next.js with Turbopack, dynamic chunk bundling breaks `new URL("maplibre-gl/dist/maplibre-gl-worker.mjs", import.meta.url)` because `import.meta.url` points inside `/_next/static/chunks/` where the worker file does not exist, causing a 404 and emitting a "Worker failed to load" console error which blocked canvas rendering.
+- **Implementation:**
+  - `public/maplibre-gl-worker.mjs`: Added standalone MapLibre worker script served directly by Next.js static files.
+  - `src/components/routing/route-planner.tsx`: Added `setWorkerUrl("/maplibre-gl-worker.mjs")`, OpenFreeMap primary style with offline schematic fallback, and defensive `map.isStyleLoaded()` guard on layer updates.
+  - `src/components/traffic/traffic-map.tsx`: Updated `setWorkerUrl` to `"/maplibre-gl-worker.mjs"`.
+  - `eslint.config.mjs`: Added `public/**` to `globalIgnores` to avoid linting vendor minified scripts.
+- **Verification:**
+  - `docker compose exec -T app pnpm exec tsc --noEmit`: 0 TypeScript errors.
+  - `docker compose exec -T app pnpm lint`: 0 ESLint errors / 0 warnings.
+  - `docker compose exec -T app pnpm test`: 194/194 tests pass across 8 test suites.
+  - `docker compose exec -T app pnpm build`: Production build succeeded in 4.7s across 19 routes.
+  - HTTP checks: `/planner` $\rightarrow$ 200, `/maplibre-gl-worker.mjs` $\rightarrow$ 200 (`application/javascript`).
+
 ## Data Provenance & Source Proof on /about Page, 18 Oct 2026
 
 **Task exit verdict: passed locally at 2026-10-18T14:50Z.** Updated `/about` (`src/app/about/page.tsx` and `src/app/about/about.module.css`) with comprehensive data provenance breakdowns, authoritative source proofs with clickable license links (OpenStreetMap, OpenFreeMap, Project OSRM, PostGIS, Supabase), an explicit matrix separating Real Data, Free-Flow Physics Estimates, and Simulated Demo fixtures, and a 4-step independent verification guide for users and auditors. Verified at 194/194 unit tests, 0 ESLint errors, 0 TypeScript errors, and HTTP 200 SSR response.
