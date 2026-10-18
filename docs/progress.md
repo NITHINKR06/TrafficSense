@@ -6,6 +6,34 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Plan 4 (revised) Day 2 — Live Incident Reporting, Server Verification (L1–L4, L6) & Real-Time Detours, 18 Oct 2026
+
+**Task exit verdict: passed locally at 2026-10-18T14:20Z.** Database migration with PostGIS distance clustering, automated verification ladder (L1 $\rightarrow$ L2 $\rightarrow$ L3), authority confirmation (L6) and audit logging, `/api/incidents` endpoint, in-map reporting form in `<RoutePlanner />`, and real-time detour recalculation verified live and at 193/193 tests.
+
+- **Scope & intent:** Deliver Plan 4 Day 2 milestones:
+  1. Real GPS/preset incident reporting with all 17 PDF categories.
+  2. Server-enforced verification ladder: L1 (reported), L2 (verified location by GPS fix $\le 50\text{m}$, $< 2\text{min}$ old, within $200\text{m}$), L3 ($\ge 3$ distinct commuters within $300\text{m}$ and $15\text{min}$), L6 (authority confirmation with audit log).
+  3. Automatic clustering within $300\text{m}$ for identical incident categories.
+  4. Automatic 3-hour expiry for unconfirmed incidents.
+  5. Live integration: reporting immediately surfaces markers on MapLibre and triggers route avoidance detours via `/api/route`.
+- **Implementation:**
+  - `supabase/migrations/20261018000300_live_incidents_and_verification.sql`: Created `incidents`, `incident_reports`, and `incident_audit_log` tables with PostGIS and strict RLS. Added `submit_live_incident_report`, `authority_update_incident`, and `read_active_live_incidents` security definer RPCs.
+  - `src/lib/incidents/server.ts`: Server helpers for submitting reports, reading active incidents, and executing authority confirmation/resolution.
+  - `src/app/api/incidents/route.ts`: API route for GET and POST incident operations.
+  - `src/app/api/route/route.ts`: Integrated `getActiveLiveIncidents` to supply real verified incidents to `queryRoute`.
+  - `src/components/routing/route-planner.tsx`: Integrated in-map expandable reporting form (with 17 categories and GPS support) and rendered real-time incident markers (`💥 L3`) directly on MapLibre.
+  - `tests/live-incidents.test.mjs`: 3 new unit tests verifying incident reporting, retrieval, and authority update RPC invocations.
+- **Verification:**
+  - `docker compose exec app pnpm test`: **193/193 unit tests pass** across 8 test suites.
+  - `docker compose exec app pnpm lint`: 0 ESLint errors or warnings.
+  - `docker compose exec app pnpm exec tsc --noEmit`: 0 TypeScript errors.
+  - **Live End-to-End Verification:**
+    - Report 1 (commuter without GPS) submitted at Jyothi Circle $\rightarrow$ Server created cluster at **L1** (`distinct_reporters: 1`).
+    - Report 2 (with GPS accuracy 12.5m, fix 10s old) submitted within 300m $\rightarrow$ Server promoted cluster to **L2** (`distinct_reporters: 2`).
+    - Report 3 (third distinct reporter) submitted $\rightarrow$ Server promoted cluster to **L3** (`distinct_reporters: 3`).
+    - Route between Hampankatta and Kadri Temple queried $\rightarrow$ Path intersecting Jyothi Circle was flagged with incident warning (`distance_to_route_m: 36`), and the clean alternative detour was automatically selected as recommended!
+  - **Commit:** will be recorded upon commit creation.
+
 ## Plan 4 (revised) Day 1 — Dynamic Routing Engine, Journey Security & Route Planner, 18 Oct 2026
 
 **Task exit verdict: passed locally at 2026-10-18T13:58Z.** Dynamic routing engine via public OSRM integration, incident-avoidance re-routing, `/api/route` API, interactive `<RoutePlanner />` page (`/planner`) with MapLibre rendering, and journey security fixes (RPCs and membership verification) implemented and verified at 190/190 tests.

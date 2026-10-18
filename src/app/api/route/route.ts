@@ -1,6 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { queryRoute, type VerifiedIncident } from "@/lib/routing/engine";
 import { readTrafficSnapshot } from "@/lib/traffic/server";
+import { getActiveLiveIncidents } from "@/lib/incidents/server";
 
 export async function POST(req: NextRequest) {
   try {
@@ -25,6 +27,27 @@ export async function POST(req: NextRequest) {
 
     // Collect verified incidents to test for route avoidance
     const incidents: VerifiedIncident[] = [];
+
+    // 1. Fetch live reported incidents from Supabase
+    try {
+      const url = process.env.SUPABASE_URL;
+      const key = process.env.SUPABASE_ANON_KEY;
+      if (url && key) {
+        const client = createClient(url, key, { auth: { persistSession: false } });
+        const liveIncidents = await getActiveLiveIncidents(client);
+        for (const inc of liveIncidents) {
+          incidents.push({
+            id: inc.id,
+            category: inc.category,
+            level: inc.level,
+            point: [inc.lng, inc.lat],
+            label: `${inc.category.replace(/_/g, " ")} (${inc.level})`,
+          });
+        }
+      }
+    } catch {
+      // Continue if Supabase client not reachable
+    }
     try {
       const snapshotResult = await readTrafficSnapshot();
       if (snapshotResult.status === "ready") {
