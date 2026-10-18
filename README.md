@@ -23,6 +23,7 @@
 7. [Module-by-Module Feature Breakdown](#7-module-by-module-feature-breakdown)
 8. [Comparative Evaluation: TrafficSense vs Traditional Platforms](#8-comparative-evaluation-trafficsense-vs-traditional-platforms)
 9. [Local Execution, Docker Setup & Verification Suite](#9-local-execution-docker-setup--verification-suite)
+10. [Native Mobile Application Architecture & Plan](#10-native-mobile-application-architecture--plan)
 
 ---
 
@@ -420,6 +421,19 @@ docker compose run --build --rm checks
 # Run the database-level integration & boundary rollback suite
 bash scripts/local-supabase.sh test-route-alerts
 ```
+
+---
+
+## 10. Native Mobile Application Architecture & Plan
+
+For high-performance mobile execution (iOS & Android) with hardware GNSS precision, 120 FPS native vector rendering, offline SQLite persistence, and driver safety ergonomics, a comprehensive multi-file mobile engineering specification is available in [`docs/mobile/`](docs/mobile/):
+
+- 📖 **[Master Vision & Technology Stack](docs/mobile/README.md):** Technology evaluation (React Native + Expo), non-negotiable principles, monorepo code sharing.
+- 🏗️ **[System Architecture & Data Pipelines](docs/mobile/architecture.md):** Layer diagram, WatermelonDB SQLite schema, hardware GNSS policy, session security.
+- 🎨 **[UI/UX Design System & Tokens](docs/mobile/ui-design-system.md):** Daylight driving contrast tokens, typography, bottom sheets, 1-tap category grid, haptics.
+- 📱 **[Core Feature Specifications](docs/mobile/feature-specs.md):** 1-tap reporting flow, dynamic OSRM routing & detours, delay receipts & employer QR pass, authority mode.
+- 🚀 **[Native Optimizations: Better & Best](docs/mobile/native-optimizations.md):** Native MapLibre vs webview, zero-drain battery protocol, 120 FPS Reanimated 3, cold start <800ms.
+- 🗺️ **[5-Phase Implementation Roadmap](docs/mobile/roadmap.md):** Detailed timeline, exit acceptance criteria, Jest & Maestro testing strategy, EAS CI/CD.
 
 ---
 
