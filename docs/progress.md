@@ -36,7 +36,7 @@
   - `docker compose exec app pnpm lint`: 0 ESLint errors, 0 warnings.
   - `docker compose exec app pnpm exec tsc --noEmit`: 0 TypeScript errors.
   - Live API verification: `curl http://localhost:3000/api/route?start=74.8426,12.8698&destination=74.8530,12.8856` returned `{"ok":true,"routes":[{"id":"route-1",...}]}`.
-  - **Commit:** will be recorded upon commit creation.
+  - **Commit:** `196613d` — `feat(routing): Plan 4 Day 1 dynamic routing engine, journey security fixes, and route planner` (verified locally).
 
 ## Plan 2 Phase 6 — Recurring-problem analysis and authority view, 18 Oct 2026
 
