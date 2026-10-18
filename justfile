@@ -8,6 +8,10 @@ set shell := ["bash", "-cu"]
 default:
     @just --list
 
+# Display available recipes (alias)
+list:
+    @just --list
+
 # Start development environment (Supabase backend + seed + dev app)
 up:
     @echo "==> Starting local Supabase backend..."

@@ -3,7 +3,7 @@
 -- Employers can only read allowlisted delay/status summaries for active shared journeys.
 -- No coordinates, no geometry, no route history, no raw observations.
 
-create table public.commuter_journeys (
+create table if not exists public.commuter_journeys (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles (id) on delete cascade,
   corridor_id text not null default 'mangaluru-central-v1',
@@ -16,7 +16,7 @@ create table public.commuter_journeys (
   provenance text not null default 'simulated' check (provenance = 'simulated')
 );
 
-create table public.journey_employer_shares (
+create table if not exists public.journey_employer_shares (
   id uuid primary key default gen_random_uuid(),
   journey_id uuid not null references public.commuter_journeys (id) on delete cascade,
   user_id uuid not null references public.profiles (id) on delete cascade,
@@ -36,18 +36,21 @@ grant select, insert, update on public.commuter_journeys, public.journey_employe
 grant all on public.commuter_journeys, public.journey_employer_shares to service_role;
 
 -- Commuters only select/insert/update their own journeys
+drop policy if exists "Commuters manage their own journeys" on public.commuter_journeys;
 create policy "Commuters manage their own journeys" on public.commuter_journeys
   for all to authenticated
   using ((select auth.uid()) = user_id)
   with check ((select auth.uid()) = user_id);
 
 -- Commuters only manage their own journey shares
+drop policy if exists "Commuters manage their own shares" on public.journey_employer_shares;
 create policy "Commuters manage their own shares" on public.journey_employer_shares
   for all to authenticated
   using ((select auth.uid()) = user_id)
   with check ((select auth.uid()) = user_id);
 
 -- Employers read active shares for their assigned organisations
+drop policy if exists "Employers read active organisation shares" on public.journey_employer_shares;
 create policy "Employers read active organisation shares" on public.journey_employer_shares
   for select to authenticated
   using (
