@@ -1,0 +1,144 @@
+.aboutContainer {
+  max-width: 900px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding: 0.5rem 0 2rem 0;
+}
+
+.header {
+  border-bottom: 1px solid var(--outline-variant, #cbd5e1);
+  padding-bottom: 1.5rem;
+}
+
+.title {
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--on-surface, #131b2e);
+  letter-spacing: -0.02em;
+  margin: 0.4rem 0 0.75rem 0;
+  line-height: 1.2;
+}
+
+.lead {
+  font-size: 1.1rem;
+  color: var(--on-surface-variant, #3e4947);
+  line-height: 1.6;
+  margin: 0;
+}
+
+.section {
+  background: var(--surface-container-lowest, #ffffff);
+  border: 1px solid var(--outline-variant, #cbd5e1);
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+  box-shadow: 0 1px 3px rgba(19, 27, 46, 0.04);
+}
+
+.sectionTitle {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--primary, #005c55);
+  margin: 0 0 1rem 0;
+  border-bottom: 1px solid var(--surface-container-high, #e2e7ff);
+  padding-bottom: 0.5rem;
+}
+
+.text {
+  font-size: 0.95rem;
+  color: var(--on-surface-variant, #3e4947);
+  line-height: 1.6;
+  margin: 0 0 1rem 0;
+}
+
+.bulletList {
+  list-style: disc;
+  padding-left: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  font-size: 0.925rem;
+  color: var(--on-surface, #131b2e);
+  line-height: 1.6;
+}
+
+.bulletList strong {
+  color: var(--on-surface, #131b2e);
+}
+
+.ladderGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.ladderCard {
+  background: var(--surface-container-low, #f2f3ff);
+  border: 1px solid var(--outline-variant, #cbd5e1);
+  border-radius: 0.6rem;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.ladderHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.ladderHeader h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0;
+  color: var(--on-surface, #131b2e);
+}
+
+.ladderBadgeActive {
+  font-size: 0.75rem;
+  font-weight: 800;
+  background: #005c55;
+  color: white;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.35rem;
+}
+
+.ladderBadgePending {
+  font-size: 0.75rem;
+  font-weight: 800;
+  background: #94a3b8;
+  color: white;
+  padding: 0.15rem 0.5rem;
+  border-radius: 0.35rem;
+}
+
+.ladderCard p {
+  font-size: 0.85rem;
+  color: var(--on-surface-variant, #3e4947);
+  margin: 0;
+  line-height: 1.45;
+}
+
+.statusIndicatorActive {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #047857;
+}
+
+.statusIndicatorPending {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.footer {
+  text-align: center;
+  padding: 1.5rem 0;
+  border-top: 1px solid var(--outline-variant, #cbd5e1);
+  color: var(--on-surface-variant, #3e4947);
+  font-size: 0.875rem;
+}

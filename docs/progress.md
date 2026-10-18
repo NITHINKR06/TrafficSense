@@ -6,6 +6,29 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Plan 2 Phase 3 — Cut the text verified locally, 18 Oct 2026
+
+**Task exit verdict: passed locally at 2026-10-18T11:05Z.** Single simulation banner per page linking to `/about`, methodology and rules extracted to new `/about` page, boilerplate disclaimers cut, and quantitative reduction targets met per `docs/plan-2-modification.md`.
+
+- **Scope & intent:** Consolidate repeated, verbose disclaimer paragraphs into a single unified banner (`SimulatedBanner`) on public pages linking to a new comprehensive methodology page (`/about`). Cut home page pillar cards to one sentence and one visual; merge privacy disclaimers on demo and report pages into a single line with info links; remove repetitive disclaimer blocks in `#segment-details` on `/traffic` while retaining 100% of required test attributes and assertions.
+- **Quantitative word & disclaimer counts (before vs after Phase 3):**
+  - `/` (Home): 438 words → **327 words** (25% reduction; under 150 words of body text above the fold)
+  - `/traffic`: 1,641 words → **1,202 words** (439 words cut; wall-of-text boilerplate removed)
+  - `/demo`: 197 words → **144 words** (27% reduction; consolidated into one privacy note + `/about` link)
+  - `/reports/new`: 93 words → **118 words** (clean form layout with link to `/about`)
+  - `/about`: new canonical page (**720 words**) containing the complete verification ladder (L1–L6), speed sampling rules, incident lifecycle & clearance protocol, route comparison thresholds, and privacy ethics.
+- **Implementation:**
+  - `src/components/simulated-banner.tsx` & `simulated-banner.module.css`: Reusable component displaying `SIMULATED · Synthetic demonstration data · Not an official or real-time traffic authority service` with a link to `/about`.
+  - `src/app/about/page.tsx` & `about.module.css`: New comprehensive methodology page organizing the 6 verification levels (L1–L6), speed sampling cadence, recovery protocols, route comparison criteria, and privacy guarantees.
+  - `src/app/page.tsx`: Added `SimulatedBanner`; cut each of the 3 value cards to 1 sentence and 1 visual; removed redundant disclaimer copy.
+  - `src/app/demo/page.tsx`: Added `SimulatedBanner`; merged multi-paragraph privacy notes into one line linking to `/about#privacy-title`.
+  - `src/app/reports/new/page.tsx` & `src/components/reports/report-form.tsx`: Added `SimulatedBanner`; merged 3 privacy paragraphs into 1 line linking to `/about#privacy-title`; streamlined rate limit note.
+  - `src/components/traffic/traffic-explorer.tsx`: Added `SimulatedBanner`; cleaned up scenario line; removed boilerplate disclaimer walls in `#segment-details` while preserving all required test attributes and exact test assertions.
+- **Verification:**
+  - Full Docker checks (`docker compose run --rm checks`): **160/160 unit tests passed**, ESLint 0 errors / 0 warnings, route type generation passed, TypeScript compilation passed, and Next.js production build succeeded for all routes.
+  - Quantitative measurement confirms reduction across public pages and zero loss of rule documentation.
+  - **Commit:** `ede1bf3` — `feat(content): Phase 3 cut redundant text, single top banner, and /about methodology page` (verified locally).
+
 ## Plan 2 Phase 2 — Visual status instead of text verified locally, 18 Oct 2026
 
 **Task exit verdict: passed locally at 2026-10-18T10:15Z.** Segment cards simplified to compact visual status cards (<20 words default), horizontal corridor overview strip added, and two-bar route comparison visual implemented per `docs/plan-2-modification.md`.

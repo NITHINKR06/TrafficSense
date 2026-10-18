@@ -1,38 +1,42 @@
 import Link from "next/link";
+import { SimulatedBanner } from "@/components/simulated-banner";
 
 export default function GuestDemoPage() {
   return (
     <section className="hero">
+      <SimulatedBanner />
+
       <div className="flex items-center gap-2 mb-2">
         <span className="simulated-pill">
           <span className="pulse-dot"></span>
-          Public preview · no sign-in needed
+          Public preview · No sign-in required
         </span>
       </div>
       <h1>Explore TrafficSense as a guest</h1>
       <p className="intro">
-        An account is optional. This public preview does not start a journey, collect your location, or give access to anyone’s private information.
+        Browse freely without an account. TrafficSense never requests background geolocation, runs tracking cookies, or accesses private data.
       </p>
 
       <div className="panel section-space">
         <div className="flex items-center gap-2">
           <span className="w-2.5 h-2.5 rounded-full bg-primary"></span>
-          <h2 className="text-lg font-bold text-on-surface m-0">Synthetic traffic corridor</h2>
+          <h2 className="text-lg font-bold text-on-surface m-0">Demonstration features</h2>
         </div>
         <p className="text-sm mt-2 text-on-surface-variant">
-          Browse directed segments, synthetic samples and an optional background map without signing in. The corridor uses schematic geometry and assumed baselines, not live traffic. When enabled by the local operator, try a simulated, unconfirmed report with an account or an explicitly created temporary guest identity. Corroboration and relevant route alerts remain planned.
+          Explore the Mangaluru test corridor with interactive map visualization, segment status chips, and route alert evaluations.
         </p>
 
         <div className="pt-4 mt-4 border-t border-surface-container-high">
           <div className="flex items-center gap-2">
             <span className="w-2.5 h-2.5 rounded-full bg-tertiary"></span>
-            <h2 className="text-lg font-bold text-on-surface m-0">When an account is useful</h2>
+            <h2 className="text-lg font-bold text-on-surface m-0">Privacy & Accounts</h2>
           </div>
           <p className="text-sm mt-2 text-on-surface-variant">
-            Sign in for your account and assigned organisation access. Saved journeys and sharing with an employer are planned account-based features; sharing will require your explicit permission.
-          </p>
-          <p className="text-sm mt-2 text-on-surface-variant">
-            You can return to the public preview at any time. Browsing as a guest does not assign an employer, authority, or administrator role.
+            Guest reporting creates a temporary 24-hour token. Signing in is optional and only required for role-based features (Employer, Authority). See the full{" "}
+            <Link href="/about#privacy-title" className="font-semibold text-primary underline">
+              Privacy & Verification Policy
+            </Link>{" "}
+            for complete rules.
           </p>
         </div>
       </div>
@@ -40,8 +44,7 @@ export default function GuestDemoPage() {
       <div className="actions section-space">
         <Link className="button" href="/traffic">Browse synthetic traffic</Link>
         <Link className="button secondary" href="/reports/new">Try a simulated report</Link>
-        <Link className="button secondary" href="/login">Sign in — optional</Link>
-        <Link className="button secondary" href="/register">Create an account — optional</Link>
+        <Link className="button secondary" href="/about">System methodology</Link>
         <Link href="/">Return home</Link>
       </div>
     </section>

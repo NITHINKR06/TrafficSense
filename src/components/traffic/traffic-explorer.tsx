@@ -20,6 +20,7 @@ import { RouteComparisonBar } from "./route-comparison-bar";
 import { useAssessmentClock } from "./use-assessment-clock";
 import { RefreshTraffic } from "./refresh-traffic";
 import { TrafficMap } from "./traffic-map";
+import { SimulatedBanner } from "../simulated-banner";
 import styles from "./traffic.module.css";
 
 const freshnessLabels = {
@@ -112,10 +113,11 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
 
   return (
     <div data-testid="traffic-ready" className={styles.explorer}>
+      <SimulatedBanner />
       <div className={`panel ${styles.summary}`}>
         <div>
           <h2>{fixture.corridor.name}</h2>
-          <p><strong>Stored scenario: {fixture.corridor.scenario}</strong> · SIMULATED, not current road conditions</p>
+          <p><strong>Stored scenario: {fixture.corridor.scenario}</strong></p>
           <p>{fixture.corridor.geometry_note}</p>
           <p className={styles.timestamp}>Scenario anchor: <time dateTime={fixture.corridor.anchor_at}>{formatTrafficTime(fixture.corridor.anchor_at)}</time></p>
           <p className={styles.timestamp}>Data read: <time dateTime={snapshot.read_at}>{formatTrafficTime(snapshot.read_at)}</time></p>
@@ -249,10 +251,12 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
 
       <section id="segment-details" data-segment-id={selected?.id ?? ""} className={`panel ${styles.detailsPanel}`} aria-labelledby="segment-details-title" aria-live="polite">
             {selected && latest ? <>
-              <p className="simulated-pill">SIMULATED · {selected.direction}</p>
+              <div className="flex items-center justify-between gap-2 flex-wrap mb-2">
+                <span className="simulated-pill">SIMULATED · {selected.direction.toUpperCase()}</span>
+                <Link href="/about" className="text-xs text-primary underline">Methodology rules →</Link>
+              </div>
               <h2 id="segment-details-title">{selected.name}</h2>
               <p><strong>{sampleLabel(latest.observedAt)}</strong></p>
-              <p>Samples are stale at twenty minutes old; future-dated samples are not current evidence. Refreshing this page does not make old observations recent.</p>
               <dl className={styles.facts}>
                 <div><dt>Segment ID</dt><dd><code>{selected.id}</code></dd></div>
                 <div><dt>Route membership</dt><dd>{fixture.route_segments.filter(row => row.segment_id === selected.id).map(row => fixture.routes.find(route => route.id === row.route_id)?.name).join(", ") || "Separate opposite-direction segment"}</dd></div>
@@ -273,15 +277,12 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
                 <p data-route-alert-details={selected.id} data-route-alert-state={alertViews[selected.id].state}>
                   <strong>{alertViews[selected.id].label}</strong>
                 </p>
-                <p>SIMULATED · Compares sums of completed segment durations from one retained simulation run. An alert requires a current supported incident on this primary segment, at least five minutes less on the fixed alternative, and no current supported slowdown or recent reported hazard on that alternative.</p>
-                <p>These independent segment traversals are not a continuous journey. No report does not establish a clear or safe road. Refresh to check for new evidence; an expired or suppressed comparison does not resume automatically.</p>
                 {alertViews[selected.id].state === "alert" && routeComparison.alternative_segment_ids[0] && <button
                   type="button" className="button secondary" data-inspect-alternative
                   onClick={() => selectSegment(routeComparison.alternative_segment_ids[0])}>Inspect fixed alternative</button>}
-                <p>Inspecting the alternative only changes the selected segment. It does not start a journey, navigation, tracking or sharing.</p>
               </section>
               <h3>Latest synthetic samples</h3>
-              <p>{latest.samples.length} synthetic sources at this timestamp. These are simulated devices, not independent witnesses.</p>
+              <p>{latest.samples.length} synthetic sources at this timestamp.</p>
               {latest.samples.length ? <ul className={styles.samples}>
                 {latest.samples.map(row => <li key={row.source_id}><span>{fixture.sources.find(source => source.id === row.source_id)?.label}</span><strong>{row.speed_kph} km/h</strong></li>)}
               </ul> : <p>No samples are available for this segment. Speed, delay and congestion are not inferred.</p>}
@@ -290,14 +291,11 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
                 <p><strong>{slowdowns[selected.id].label}</strong></p>
                 <p>{slowdowns[selected.id].windowLabel}</p>
               </div>
-              <p>SIMULATED · L4 requires the same three or more synthetic sources at six synchronized one-minute timestamps, spanning five complete minutes. Every required speed must be below 40% of the unrounded assumed baseline; every required sample must be under twenty minutes old.</p>
-              <p>Baseline speed: {(selected.length_m / selected.baseline_seconds * 3.6).toLocaleString("en-GB", { maximumFractionDigits: 2 })} km/h (assumed). Missing or off-cadence samples are not filled in. The latest observed window is assessed, not an older favorable run.</p>
-              <p>L4 is simulated slowdown support, not live or confirmed congestion. These synthetic sources are separate from reporting identities; L3 and L4 do not establish a reported cause or location support.</p>
-              <p>Loss of support, higher speeds alone and simulator reset do not establish recovery or clearance. Persisted incidents below use retained evidence from one simulation run; the replaceable scenario above is assessed separately. Only the separately qualified fixed alternative comparison above can produce a route alert.</p>
+              <p>Baseline speed: {(selected.length_m / selected.baseline_seconds * 3.6).toLocaleString("en-GB", { maximumFractionDigits: 2 })} km/h (assumed).</p>
+              <p>Persisted incidents below use retained evidence from one simulation run; higher speeds alone and simulator reset do not establish recovery or clearance.</p>
               <section className={styles.reports} aria-labelledby="lifecycle-title" data-lifecycle-history={selected.id}>
                 <h3 id="lifecycle-title">Persisted incident history</h3>
                 <p data-lifecycle-summary={selected.id}><strong>{lifecycleLabels[selected.id]}</strong></p>
-                <p>SIMULATED · A slowdown can create an incident without a report. Clearance requires the same three or more sources across adjacent five-minute slowdown and recovery windows, with recovery strictly above 70% of the assumed baseline and no qualifying conflicting slowdown cohort. Reopening creates a new incident reference.</p>
                 {selectedIncidents.map(incident => <details key={incident.id} data-lifecycle-incident={incident.id} data-lifecycle-state={incidentViews[incident.id].state}>
                   <summary>Incident {incident.id.slice(0, 8)} · {incidentViews[incident.id].label}</summary>
                   <p>Incident ID: <code>{incident.id}</code></p>
@@ -315,29 +313,23 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
                 <p><strong>{traversalViews[selected.id].label}</strong></p>
                 {selectedTraversal?.entered_at && selectedTraversal.exited_at && <p>Completed entry-to-exit window: <time dateTime={selectedTraversal.entered_at}>{formatTrafficTime(selectedTraversal.entered_at)}</time> to <time dateTime={selectedTraversal.exited_at}>{formatTrafficTime(selectedTraversal.exited_at)}</time>.</p>}
                 {selectedTraversal?.baseline_label && <p>Frozen assumed baseline: {selectedTraversal.baseline_seconds} seconds · {selectedTraversal.baseline_label}.</p>}
-                <p>Excess time is the completed simulated entry-to-exit duration minus its named baseline, with a minimum of zero. Partial movement is unavailable, not zero. This is one synthetic traversal, not incident-caused delay, an average commute or promised savings. The selected evidence run is the most recently accepted run for this direction; older favorable records are not substituted.</p>
               </section>
               <h3>Report-group evidence</h3>
               <p data-report-assessment={selected.id} data-assessment-state={assessments[selected.id].state}><strong>{assessments[selected.id].label}</strong></p>
-              <p>SIMULATED · Reports group by this segment and direction, not by cause or a confirmed incident. Recent reports are under twenty minutes old; eligible reports are under fifteen minutes old and linked to an eligible reporting source.</p>
-              <p>Each source counts once across the rolling fifteen-minute window, including repeated reports and different categories. Expired guest sources no longer qualify. L3 Multiple sources requires at least three eligible sources, not three independent witnesses.</p>
-              <p>All locations are manually selected: L1 Reported, without L2 location support. Multiple sources do not confirm congestion or any reported cause. L4 and persisted recovery use separate synthetic speed evidence above. Completed simulated traversal excess is not measured personal delay; report counts alone cannot produce a route alert. No reports does not mean the road is clear.</p>
               <section aria-labelledby="episode-history-title" className={styles.reports}>
                 <h3 id="episode-history-title">Report episode history</h3>
                 <p data-episode-summary={selected.id}>{episodeSummary(episodeCounts[selected.id])}</p>
-                <p>Episodes preserve report membership for this direction. A gap of twenty minutes starts a successor; late reports do not merge existing episodes. Arrival order can affect grouping. Grouping does not confirm a cause or clearance.</p>
-                <p>L3 and L4 above assess the whole directed segment, not individual episodes. Stale reports, higher speeds and simulator reset do not resolve an episode.</p>
                 {selectedEpisodes.length ? selectedEpisodes.map(episode => <details key={episode.id} data-incident-episode={episode.id}>
                   <summary>Episode {episode.id.slice(0, 8)} · {episode.report_count} retained reports · SIMULATED</summary>
                   <p>Episode ID: <code>{episode.id}</code></p>
                   <p>Created: <time dateTime={episode.created_at}>{formatTrafficTime(episode.created_at)}</time></p>
-                  <p>Retained observation window: <time dateTime={episode.first_observed_at}>{formatTrafficTime(episode.first_observed_at)}</time> to <time dateTime={episode.last_observed_at}>{formatTrafficTime(episode.last_observed_at)}</time>. This is not measured incident duration or travel delay.</p>
+                  <p>Retained observation window: <time dateTime={episode.first_observed_at}>{formatTrafficTime(episode.first_observed_at)}</time> to <time dateTime={episode.last_observed_at}>{formatTrafficTime(episode.last_observed_at)}</time>.</p>
                   <p>Latest retained report: {freshness(episode.last_observed_at) === "recent" ? "recent, unconfirmed" : freshness(episode.last_observed_at) === "stale" ? "stale, not cleared" : freshness(episode.last_observed_at) === "future" ? "future-dated, unsupported" : "freshness needs refresh"}.</p>
-                </details>) : <p>No report episodes are retained for this direction. This does not mean the road is clear.</p>}
+                </details>) : <p>No report episodes are retained for this direction.</p>}
               </section>
               <div id="segment-reports" className={styles.reports} data-report-segment={selected.id}>
                 <h3>Unconfirmed demo reports</h3>
-                <p>{selectedReports.length} reports for this direction. Counts include repeated-source and stale reports, not independent witnesses. No reports does not mean the road is clear.</p>
+                <p>{selectedReports.length} reports for this direction.</p>
                 {selectedReports.length > 10 && <p>Showing the ten most recently received reports.</p>}
                 {selectedReports.length ? <ul>
                   {selectedReports.slice(0, 10).map(report => <li key={report.id} data-public-report={report.id} data-episode-id={report.episode_id}>

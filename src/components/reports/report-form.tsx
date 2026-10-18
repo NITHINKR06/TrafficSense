@@ -130,9 +130,12 @@ function HydratedReportForm({ segments, selectedId }: FormProps) {
   const saved = result?.status === "accepted" ? result.report : null;
   return <div className={`panel ${styles.formPanel}`} data-report-form>
     <h2>{saved ? "Demo report saved" : draft ? "Keep this request for a safe retry" : "Prepare a demo report"}</h2>
-    <p>Use this demonstration while stationary or as a passenger. Submit synthetic examples only, not actual incidents or personal location.</p>
-    <p>The selected segment and direction, reported category, observation time and receipt time become public. The location is selected manually, not checked by GPS. A report does not confirm congestion or its cause.</p>
-    <p>Guest reporting creates a temporary identity after your explicit action. Its reporting access lasts 24 hours; clearing cookies loses access to its acknowledgement. Synthetic reports and retry records remain until a local operator clears them. Account reports use your current account without giving it extra evidential weight.</p>
+    <p>
+      Submit synthetic reports to evaluate L1–L4 evidence ladders. Locations are manually selected; no GPS or personal data is collected.{" "}
+      <Link href="/about#privacy-title" className="text-primary underline">
+        Learn about verification & privacy →
+      </Link>
+    </p>
     {!prepared && !draft ? <div className="actions">
       <button type="button" className="button" disabled={pending} onClick={() => begin("guest")}>Continue as guest</button>
       <button type="button" className="button secondary" disabled={pending} onClick={() => begin("account")}>Use current account</button>
@@ -182,6 +185,6 @@ function HydratedReportForm({ segments, selectedId }: FormProps) {
     </div>}
     {message && <p role="alert">{message}</p>}
     {pending && <p role="status">Waiting for the server… This is not a confirmation that the report was saved.</p>}
-    <p className={styles.limit}>Demo limits: five new reports per source in fifteen minutes, 300 per hour across the demo, and 2,000 retained reports. Retries of the same accepted request do not add reports. These limits do not establish independent witnesses or general spoof resistance.</p>
+    <p className={styles.limit}>Demo limits: 5 new reports per source in 15 minutes, 300 per hour across demo. See <Link href="/about#episodes-title" className="underline">rate limiting rules</Link>.</p>
   </div>;
 }
