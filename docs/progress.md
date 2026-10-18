@@ -6,6 +6,26 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Data Provenance & Source Proof on /about Page, 18 Oct 2026
+
+**Task exit verdict: passed locally at 2026-10-18T14:50Z.** Updated `/about` (`src/app/about/page.tsx` and `src/app/about/about.module.css`) with comprehensive data provenance breakdowns, authoritative source proofs with clickable license links (OpenStreetMap, OpenFreeMap, Project OSRM, PostGIS, Supabase), an explicit matrix separating Real Data, Free-Flow Physics Estimates, and Simulated Demo fixtures, and a 4-step independent verification guide for users and auditors. Verified at 194/194 unit tests, 0 ESLint errors, 0 TypeScript errors, and HTTP 200 SSR response.
+
+- **Scope & intent:** Provide full transparency and verifiable proof on whether data across TrafficSense is real or simulated:
+  1. Clearly delineate what is 100% Real (OSM roads, OSRM routing calculations, live citizen incident submissions, and PostGIS verification rules).
+  2. Clearly delineate what is Estimated (free-flow driving travel times derived from legal road speed baselines rather than intrusive tracking).
+  3. Clearly delineate what is Simulated for Demo (the 4-month historical incident trends on `/authority` and the 60-second speed drop cohort simulator on `/traffic`).
+  4. Provide authoritative source citations and external links to OpenStreetMap (ODbL), OpenFreeMap, Project OSRM, and PostGIS.
+  5. Provide a 4-step user guide detailing how anyone can independently verify the network calls, database records, and simulation toggles.
+  6. Update L2 and L6 ladder status badges to reflect active implementation in PostgreSQL/PostGIS.
+- **Implementation:**
+  - `src/app/about/page.tsx`: Rewrote Section 1 to "Data Provenance: Real Data vs. Demo Simulation" featuring a 3-category overview grid, an 8-row Authoritative Source & Verification Matrix table with direct external links, and an actionable verification guide box.
+  - `src/app/about/about.module.css`: Added responsive styles for provenance cards, status badges (`badgeReal`, `badgeEstimated`, `badgeSimulated`), responsive table wrappers, external source links, and verification steps list.
+- **Verification:**
+  - `docker compose exec -T app pnpm exec tsc --noEmit`: 0 TypeScript errors.
+  - `docker compose exec -T app pnpm lint`: 0 ESLint errors.
+  - `docker compose exec -T app pnpm test`: **194/194 unit tests pass** across 8 test suites.
+  - Container SSR runtime verification: HTTP 200 response with rendered provenance content verified.
+
 ## Plan 4 (revised) Day 3 — Authority Analytics with Real Data and Demo History Toggle, 18 Oct 2026
 
 **Task exit verdict: passed locally at 2026-10-18T14:40Z.** Authority dashboard connected to live incident stream with explicit "Include 4-month simulated demo history" toggle (off by default per Plan 4 honesty rules), recurrence heatmap, computed recurrence statement, per-cause delay summary, CSV export, and provenance banners verified at 194/194 tests.

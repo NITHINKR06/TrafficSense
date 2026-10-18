@@ -3,9 +3,9 @@ import Link from "next/link";
 import styles from "./about.module.css";
 
 export const metadata: Metadata = {
-  title: "Methodology & Verification Rules · TrafficSense Mangaluru",
+  title: "Data Provenance, Methodology & Proof · TrafficSense Mangaluru",
   description:
-    "Engineering methodology, verification ladder, incident lifecycle, route comparison rules, and privacy assurances for TrafficSense.",
+    "Complete transparency on data provenance: what is 100% real, what is estimated, and what is simulated demo data, with verifiable source proofs.",
 };
 
 export default function AboutPage() {
@@ -13,27 +13,280 @@ export default function AboutPage() {
     <div className={styles.aboutContainer}>
       <header className={styles.header}>
         <div className="flex items-center gap-2 mb-2">
-          <span className="simulated-pill">SYSTEM METHODOLOGY</span>
-          <span className="text-xs text-on-surface-variant font-medium">Mangaluru Corridor Demonstration</span>
+          <span className="simulated-pill">SYSTEM PROVENANCE & METHODOLOGY</span>
+          <span className="text-xs text-on-surface-variant font-medium">Radical Transparency & Proof</span>
         </div>
-        <h1 className={styles.title}>TrafficSense Methodology & System Rules</h1>
+        <h1 className={styles.title}>TrafficSense Data Sources, Provenance & System Rules</h1>
         <p className={styles.lead}>
-          TrafficSense replaces ambiguous crowdsourcing with a verifiable, ladder-based evidence framework (L1–L6)
-          grounded in statistical discipline, privacy preservation, and explicit uncertainty boundaries.
+          TrafficSense replaces ambiguous crowdsourcing and invasive corporate tracking with an explainable,
+          evidence-based framework. Per our strict honesty rules, this page details exactly what data is real,
+          what is mathematically estimated, what is simulated for demonstration, and where each data source comes from for proof.
         </p>
         <div className="actions mt-3">
-          <Link className="button" href="/traffic">
-            Open Traffic Explorer →
+          <Link className="button" href="/planner">
+            Try Live Route Planner →
           </Link>
-          <Link className="button secondary" href="/">
-            Return Home
+          <Link className="button secondary" href="/traffic">
+            Open Traffic Explorer
+          </Link>
+          <Link className="button secondary" href="/authority">
+            Authority Dashboard
           </Link>
         </div>
       </header>
 
+      {/* SECTION 1: PROVENANCE & PROOF */}
+      <section className={styles.section} aria-labelledby="provenance-title">
+        <h2 id="provenance-title" className={styles.sectionTitle}>
+          1. Data Provenance: Real Data vs. Demo Simulation
+        </h2>
+        <p className={styles.text}>
+          To uphold our fundamental tenet of <strong>Explainable Truth Over Blind Prediction</strong>, we explicitly
+          disclose the origin and nature of every data layer used in TrafficSense:
+        </p>
+
+        <div className={styles.provenanceOverviewGrid}>
+          <div className={styles.provenanceOverviewCard}>
+            <h3>
+              Real Infrastructure & Live Data
+              <span className={styles.badgeReal}>● 100% Real</span>
+            </h3>
+            <p>
+              Actual geospatial roads, real turn-by-turn routing calculations, real citizen incident reports, and real
+              server-enforced PostgreSQL verification rules.
+            </p>
+            <ul>
+              <li><strong>Road network & coordinates:</strong> Real OpenStreetMap geometries for Mangaluru.</li>
+              <li><strong>Routing calculation:</strong> Real shortest-path graph traversal via Project OSRM.</li>
+              <li><strong>Live user reports:</strong> Real database records with browser GPS coordinates.</li>
+              <li><strong>PostGIS verification:</strong> Real geospatial distance queries (L1 → L2 → L3).</li>
+              <li><strong>Authority audit logs:</strong> Real authenticated state transitions in PostgreSQL.</li>
+            </ul>
+          </div>
+
+          <div className={styles.provenanceOverviewCard}>
+            <h3>
+              Free-Flow Physics Estimates
+              <span className={styles.badgeEstimated}>~ Estimated</span>
+            </h3>
+            <p>
+              Durations on unobstructed roads are derived mathematically from legal road-class speed baselines rather
+              than pervasive personal tracking.
+            </p>
+            <ul>
+              <li><strong>Free-flow travel time:</strong> Baseline duration assuming speed limits for road class.</li>
+              <li><strong>Honesty boundary:</strong> We do not track continuous personal probes on every side street.</li>
+              <li><strong>Excess delay:</strong> Calculated as actual physical trip time minus the free-flow baseline.</li>
+            </ul>
+          </div>
+
+          <div className={styles.provenanceOverviewCard}>
+            <h3>
+              Simulated Demonstration Data
+              <span className={styles.badgeSimulated}>✦ Synthetic Demo</span>
+            </h3>
+            <p>
+              Pre-computed synthetic fixtures used exclusively to demonstrate multi-month municipal trends and algorithmic
+              slowdown detection without waiting months.
+            </p>
+            <ul>
+              <li><strong>4-month hotspot trends:</strong> July–Oct 2026 fixture on Authority page (isolated by toggle).</li>
+              <li><strong>Multi-source speed drops:</strong> 60-second cohort simulator on Explorer page for L4 testing.</li>
+              <li><strong>Visual isolation:</strong> Every simulated artifact is clearly labelled <code>SIMULATED</code>.</li>
+            </ul>
+          </div>
+        </div>
+
+        <h3 className="text-base font-bold text-on-surface mt-4 mb-2">
+          Authoritative Data Source & Verification Matrix
+        </h3>
+
+        <div className={styles.tableWrapper}>
+          <table className={styles.provenanceTable}>
+            <thead>
+              <tr>
+                <th>Subsystem / Layer</th>
+                <th>Status & Provenance</th>
+                <th>Authoritative Source & License</th>
+                <th>Verifiable Proof / Inspection Method</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Road Network & Places</strong></td>
+                <td><span className={styles.badgeReal}>● Real Public Data</span></td>
+                <td>
+                  <a
+                    href="https://www.openstreetmap.org/copyright"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.sourceLink}
+                  >
+                    OpenStreetMap Contributors ↗
+                  </a>
+                  <br />
+                  <span className="text-xs text-on-surface-variant">Open Database License (ODbL)</span>
+                </td>
+                <td>
+                  Real Mangaluru arterial corridors (Hampankatta, Lalbagh, Kadri, Bunts Hostel, Kankanady). Nodes,
+                  ways, and geometries directly match OSM geographic features.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Vector Tiles & Basemap</strong></td>
+                <td><span className={styles.badgeReal}>● Real Vector Tiles</span></td>
+                <td>
+                  <a
+                    href="https://openfreemap.org"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.sourceLink}
+                  >
+                    OpenFreeMap ↗
+                  </a>
+                  <br />
+                  <span className="text-xs text-on-surface-variant">Hosted vector tile service + MapLibre GL</span>
+                </td>
+                <td>
+                  Vector tiles streamed over HTTPS from <code>tiles.openfreemap.org</code>. Includes bundled offline
+                  schematic backup in <code>src/lib/traffic/mangaluru-basemap.ts</code>. Zero tracking or API keys.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Turn-by-Turn Driving Engine</strong></td>
+                <td><span className={styles.badgeReal}>● Real Engine (Free-Flow Est)</span></td>
+                <td>
+                  <a
+                    href="https://project-osrm.org"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.sourceLink}
+                  >
+                    Project OSRM ↗
+                  </a>
+                  <br />
+                  <span className="text-xs text-on-surface-variant">Open Source Routing Machine (BSD 2-Clause)</span>
+                </td>
+                <td>
+                  The <code>/api/route</code> endpoint forwards real coordinates to OSRM driving servers, computing
+                  physical driving distance, polyline geometry, and free-flow duration. Inspectable in browser DevTools.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Live Incident Reporting & GPS</strong></td>
+                <td><span className={styles.badgeReal}>● Real User Data</span></td>
+                <td>
+                  <a
+                    href="https://postgis.net"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.sourceLink}
+                  >
+                    W3C Geolocation API & PostGIS ↗
+                  </a>
+                  <br />
+                  <span className="text-xs text-on-surface-variant">HTML5 Navigator + PostGIS Extension</span>
+                </td>
+                <td>
+                  Real device coordinates captured on report submission. Stored in <code>public.incident_reports</code> and
+                  geofenced against road segments using PostGIS <code>meter_distance</code> (&le; 50m check).
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Multi-Source Corroboration</strong></td>
+                <td><span className={styles.badgeReal}>● Real Server Logic</span></td>
+                <td>
+                  <a
+                    href="https://supabase.com"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.sourceLink}
+                  >
+                    PostgreSQL 17 / Supabase ↗
+                  </a>
+                  <br />
+                  <span className="text-xs text-on-surface-variant">Deterministic SQL triggers & functions</span>
+                </td>
+                <td>
+                  The database function <code>evaluate_incident_verification_level()</code> automatically enforces L1 (submitted)
+                  &rarr; L2 (device GPS &le; 50m) &rarr; L3 (&ge; 3 distinct reporters in 15 mins).
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Authority Verification & Audit</strong></td>
+                <td><span className={styles.badgeReal}>● Real Database Logs</span></td>
+                <td>
+                  PostgreSQL Row-Level Security
+                  <br />
+                  <span className="text-xs text-on-surface-variant">Immutable change triggers & audit log table</span>
+                </td>
+                <td>
+                  Verifications executed via <code>verify_incident_by_authority()</code> store immutable timestamped records in
+                  <code>public.incident_audit_log</code> with controller IDs and reason codes.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>4-Month Historical Trends</strong></td>
+                <td><span className={styles.badgeSimulated}>✦ Simulated Demo Baseline</span></td>
+                <td>
+                  Synthetic Fixture
+                  <br />
+                  <span className="text-xs text-on-surface-variant">Deterministic seed in src/lib/analytics/history.ts</span>
+                </td>
+                <td>
+                  Allows testing municipal hotspot charts and recurrence indexes without waiting months. On <code>/authority</code>,
+                  an explicit toggle allows users to view 100% clean live rows or include the 4-month simulated demo history.
+                </td>
+              </tr>
+              <tr>
+                <td><strong>Multi-Source Speed Drops</strong></td>
+                <td><span className={styles.badgeSimulated}>✦ Simulated Demo Cohort</span></td>
+                <td>
+                  Deterministic Speed Model
+                  <br />
+                  <span className="text-xs text-on-surface-variant">src/lib/traffic/simulator.ts</span>
+                </td>
+                <td>
+                  Demonstrates L4 slowdown detection on <code>/traffic</code> by generating 6 consecutive 60-second synchronized
+                  observations without requiring physical road blockades during evaluation.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div className={styles.verificationGuideBox}>
+          <h3>
+            <span>🔍</span> How You Can Verify the Proof Yourself
+          </h3>
+          <ol className={styles.verificationStepsList}>
+            <li>
+              <strong>Inspect Live Route Calculation:</strong> Open the <Link href="/planner" className={styles.sourceLink}>Route Planner</Link>,
+              select any two Mangaluru locations (e.g. Hampankatta to Kadri Park), and inspect the network request to <code>/api/route</code> in
+              your browser DevTools. You will see the real polyline geometry and distances calculated directly by OSRM over OpenStreetMap.
+            </li>
+            <li>
+              <strong>Submit a Live Verified Incident:</strong> Click &ldquo;Report an Incident&rdquo; in the Route Planner. Your browser will prompt
+              for device geolocation. Submit the report and watch it appear in the database with a real timestamp, GPS accuracy check (&le; 50m),
+              and verification badge.
+            </li>
+            <li>
+              <strong>Inspect Authority Audit Records:</strong> Visit the <Link href="/authority" className={styles.sourceLink}>Authority Dashboard</Link>.
+              Toggle the switch &ldquo;Include 4-month simulated demo history&rdquo; to OFF. The dashboard immediately purges simulated records
+              and displays exclusively real incident rows created during your session.
+            </li>
+            <li>
+              <strong>Audit the Open Source SQL Functions:</strong> Inspect the repository migration files in <code>supabase/migrations/</code>.
+              Every verification rule, spatial query, and RLS security boundary is written in standard, auditable PostGIS SQL.
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      {/* SECTION 2: VERIFICATION LADDER */}
       <section className={styles.section} aria-labelledby="ladder-title">
         <h2 id="ladder-title" className={styles.sectionTitle}>
-          1. Verification Evidence Ladder (L1–L6)
+          2. Verification Evidence Ladder (L1–L6)
         </h2>
         <p className={styles.text}>
           Crowdsourced incident reports alone cannot prove road obstruction. TrafficSense structures evidence across six
@@ -54,13 +307,14 @@ export default function AboutPage() {
 
           <div className={styles.ladderCard}>
             <div className={styles.ladderHeader}>
-              <span className={styles.ladderBadgePending}>L2</span>
+              <span className={styles.ladderBadgeActive}>L2</span>
               <h3>Location Support</h3>
             </div>
             <p>
-              Confirmation that the report origin matches the selected road segment without collecting background GPS traces.
+              Server verification that the reporter&apos;s physical GPS coordinates match the incident location within &le; 50 meters
+              and fresh device timestamp (&lt; 2 min).
             </p>
-            <span className={styles.statusIndicatorPending}>○ Planned specification</span>
+            <span className={styles.statusIndicatorActive}>● Active via PostGIS</span>
           </div>
 
           <div className={styles.ladderCard}>
@@ -81,8 +335,8 @@ export default function AboutPage() {
               <h3>Slowdown Evidence</h3>
             </div>
             <p>
-              Synchronized multi-source speed drop. Requires ≥3 independent sources across 6 consecutive 1-minute intervals (5
-              full minutes) with speed &lt;40% of baseline.
+              Synchronized multi-source speed drop. Requires &ge; 3 independent sources across 6 consecutive 1-minute intervals (5
+              full minutes) with speed &lt; 40% of baseline.
             </p>
             <span className={styles.statusIndicatorActive}>● Active in demonstration</span>
           </div>
@@ -100,20 +354,22 @@ export default function AboutPage() {
 
           <div className={styles.ladderCard}>
             <div className={styles.ladderHeader}>
-              <span className={styles.ladderBadgePending}>L6</span>
+              <span className={styles.ladderBadgeActive}>L6</span>
               <h3>Authority Action</h3>
             </div>
             <p>
-              Official verification, on-site civic response, or dispatch logged by certified municipal traffic controllers.
+              Official verification, on-site civic response, or dispatch logged by certified municipal traffic controllers with
+              immutable audit logging.
             </p>
-            <span className={styles.statusIndicatorPending}>○ Planned authority flow</span>
+            <span className={styles.statusIndicatorActive}>● Active in demonstration</span>
           </div>
         </div>
       </section>
 
+      {/* SECTION 3: SPEED EVIDENCE */}
       <section className={styles.section} aria-labelledby="speed-title">
         <h2 id="speed-title" className={styles.sectionTitle}>
-          2. Speed Evidence & Observation Windows
+          3. Speed Evidence & Observation Windows
         </h2>
         <ul className={styles.bulletList}>
           <li>
@@ -135,9 +391,10 @@ export default function AboutPage() {
         </ul>
       </section>
 
+      {/* SECTION 4: INCIDENT LIFECYCLE */}
       <section className={styles.section} aria-labelledby="lifecycle-title">
         <h2 id="lifecycle-title" className={styles.sectionTitle}>
-          3. Incident Lifecycle & Clearance Protocol
+          4. Incident Lifecycle & Clearance Protocol
         </h2>
         <ul className={styles.bulletList}>
           <li>
@@ -145,7 +402,7 @@ export default function AboutPage() {
             across the corridor, even in the absence of manual citizen reports.
           </li>
           <li>
-            <strong>Verified Clearance:</strong> Recovery requires the same ≥3 sources across adjacent 5-minute slowdown and
+            <strong>Verified Clearance:</strong> Recovery requires the same &ge; 3 sources across adjacent 5-minute slowdown and
             recovery windows, with speeds strictly above 70% of the baseline and no conflicting slowdown cohort.
           </li>
           <li>
@@ -159,9 +416,10 @@ export default function AboutPage() {
         </ul>
       </section>
 
+      {/* SECTION 5: ROUTE INTELLIGENCE */}
       <section className={styles.section} aria-labelledby="routing-title">
         <h2 id="routing-title" className={styles.sectionTitle}>
-          4. Route Intelligence & Alternative Route Alerts
+          5. Route Intelligence & Alternative Route Alerts
         </h2>
         <ul className={styles.bulletList}>
           <li>
@@ -187,9 +445,10 @@ export default function AboutPage() {
         </ul>
       </section>
 
+      {/* SECTION 6: EPISODES & RATE LIMITS */}
       <section className={styles.section} aria-labelledby="episodes-title">
         <h2 id="episodes-title" className={styles.sectionTitle}>
-          5. Report Grouping, Episodes & Rate Limits
+          6. Report Grouping, Episodes & Rate Limits
         </h2>
         <ul className={styles.bulletList}>
           <li>
@@ -207,9 +466,10 @@ export default function AboutPage() {
         </ul>
       </section>
 
+      {/* SECTION 7: PRIVACY & DATA ETHICS */}
       <section className={styles.section} aria-labelledby="privacy-title">
         <h2 id="privacy-title" className={styles.sectionTitle}>
-          6. Privacy, Anonymity & Data Ethics
+          7. Privacy, Anonymity & Data Ethics
         </h2>
         <ul className={styles.bulletList}>
           <li>
@@ -234,7 +494,9 @@ export default function AboutPage() {
       <footer className={styles.footer}>
         <p>TrafficSense Mangaluru · Prototype for verifiable civic traffic intelligence</p>
         <div className="actions mt-2">
-          <Link href="/traffic">Back to Traffic Explorer</Link>
+          <Link href="/planner">Route Planner</Link>
+          <Link href="/traffic">Traffic Explorer</Link>
+          <Link href="/authority">Authority Dashboard</Link>
           <Link href="/demo">Guest Demo Overview</Link>
           <Link href="/">Home</Link>
         </div>
