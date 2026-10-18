@@ -29,7 +29,7 @@
   - `just test`: **165/165 unit tests passed** (including 5 new ladder verification tests).
   - `just lint`: 0 ESLint errors or warnings.
   - `docker compose run --rm checks`: All unit tests, ESLint, Next.js route typegen, TypeScript typecheck (`tsc --noEmit`), and Next.js production build succeeded with zero errors across all 15 routes.
-  - **Commit:** will be recorded upon commit creation.
+  - **Commit:** `2ccd3d4` — `feat(evidence): Phase 4 verification ladder L1-L6 aligned with brief` (verified locally).
 
 ## Plan 2 Phase 3 — Cut the text verified locally, 18 Oct 2026
 
