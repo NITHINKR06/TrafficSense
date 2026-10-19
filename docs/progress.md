@@ -6,6 +6,13 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Authority incident review workflow — verified without browser interaction, 19 Oct 2026
+
+- **Scope:** Add the PDF's authority incident-management action to the existing role-protected dashboard. Authority users can refresh active incidents, mark a record authority-confirmed (L6), or resolve it after an explicit browser confirmation.
+- **Implementation:** `PATCH /api/incidents` validates an incident UUID and a `confirm`/`resolve` action, rejects unauthenticated or anonymous callers, and delegates authorization and mutation to the existing `authority_update_incident` security-definer RPC. The new dashboard panel exposes only active incident metadata and refreshes after an accepted action.
+- **Verification:** `docker compose exec -T app pnpm exec tsc --noEmit`, `just lint`, and `docker compose exec -T app node --test tests/live-incidents.test.mjs` passed (3/3 focused tests).
+- **Limitation:** Browser login, confirmation dialog, success/error rendering, and role-denial interaction remain unverified because no browser-control tool is connected.
+
 ## Planner report-location GPS correction — verified without browser interaction, 19 Oct 2026
 
 - **Scope:** Correct the route planner's incident-report GPS control and evidence wording. This is a reporting/verification UX correction; it does not add background tracking or change server authorization.

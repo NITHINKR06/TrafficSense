@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { submitIncidentReport, getActiveLiveIncidents, type SubmitIncidentInput } from "@/lib/incidents/server";
+import { authorityUpdateIncident, submitIncidentReport, getActiveLiveIncidents, type SubmitIncidentInput } from "@/lib/incidents/server";
 import type { ReportCategory } from "@/lib/reports/rules";
 
 async function getSupabase() {
@@ -82,5 +82,31 @@ export async function POST(req: NextRequest) {
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Internal server error";
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });
+  }
+}
+
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const incidentId = body?.incident_id;
+    const action = body?.action;
+    if (
+      typeof incidentId !== "string" ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(incidentId) ||
+      (action !== "confirm" && action !== "resolve")
+    ) {
+      return NextResponse.json({ ok: false, error: "A valid incident and review action are required." }, { status: 400 });
+    }
+
+    const supabase = await getSupabase();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user || user.is_anonymous) {
+      return NextResponse.json({ ok: false, error: "Authority sign-in is required." }, { status: 401 });
+    }
+
+    const result = await authorityUpdateIncident(supabase, incidentId, action);
+    return NextResponse.json(result, { status: result.ok ? 200 : 403 });
+  } catch {
+    return NextResponse.json({ ok: false, error: "Could not update this incident." }, { status: 500 });
   }
 }

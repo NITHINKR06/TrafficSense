@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { requireRole } from "@/lib/auth/server";
 import { AuthorityDashboard } from "@/components/analytics/authority-dashboard";
+import { IncidentReviewPanel } from "@/components/analytics/incident-review-panel";
 
 export default async function AuthorityPage() {
   await requireRole("authority");
@@ -26,6 +27,8 @@ export default async function AuthorityPage() {
       </div>
 
       <AuthorityDashboard />
+
+      <IncidentReviewPanel />
 
       <div className="pt-4 border-t border-surface-container-high flex items-center justify-between">
         <Link className="button" href="/workspace">
