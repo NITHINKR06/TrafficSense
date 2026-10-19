@@ -6,6 +6,12 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Reliable quick-tunnel URL output — verified locally, 19 Oct 2026
+
+- **Scope:** Make the existing `just tunnel` helper print the temporary Cloudflare quick-tunnel URL rather than returning before Cloudflare has published it.
+- **Implementation:** Replaced the fixed three-second wait with a bounded 15-second log poll and a whitespace-safe URL match. If Cloudflare has not supplied a URL, the command fails with a direct log-inspection command instead of claiming success.
+- **Verification:** Ran `just tunnel`; it printed the generated `trycloudflare.com` HTTPS URL. The URL is intentionally temporary and changes whenever a new quick tunnel is created.
+
 ## Plain-language verification ladder — verified without browser interaction, 19 Oct 2026
 
 - **Scope:** Make the map's L1–L6 explanation match the implemented reporting, device-location, corroboration, telemetry, and authority-review boundaries without fabricating confidence or witness independence.
