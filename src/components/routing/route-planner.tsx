@@ -541,7 +541,7 @@ export function RoutePlanner() {
           </div>
 
           <p className="text-xs text-surface-on-variant">
-            A recent device location is recorded as L2 location support; it does not prove the cause or congestion. When 3 distinct commuters report within 300m and 15 minutes, the server promotes the incident to L3 and can offer a route that avoids the reported area.
+            Sign in with a commuter account to submit. A recent device location is recorded as L2 location support; it does not prove the cause or congestion. When 3 distinct signed-in commuters report within 300m and 15 minutes, the server promotes the incident to L3 and can offer a route that avoids the reported area.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

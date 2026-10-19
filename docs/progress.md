@@ -6,6 +6,13 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Signed-in live reporting boundary — verified locally, 19 Oct 2026
+
+- **Scope:** Ensure an anonymous browser session cannot submit a live incident or contribute to L3 corroboration; preserve the signed-in commuter reporting path.
+- **Implementation:** Migration `20261019000300_signed_in_live_reports.sql` removes retained anonymous live reports, renames the original implementation to a private function, and wraps it with a security-definer signed-in check. The UI API now rejects missing/anonymous sessions instead of creating anonymous users, and the report form explains that L3 requires three distinct signed-in commuters.
+- **Verification:** Local migration applied and `just db-seed` completed. An unauthenticated `POST /api/incidents` returned the expected sign-in rejection. `just test-core-loop` passed with signed-in reporters. `docker compose exec -T app pnpm exec tsc --noEmit`, `just lint`, and focused routing/live-incident tests passed (12/12). Database grant check returned `false:true:false` for anonymous wrapper access, authenticated wrapper access, and authenticated internal-function access respectively.
+- **Limitation:** The anonymous direct-RPC probe could not run because the project’s nested container socket isolation blocks the one-off status helper. The API rejection, database wrapper/grants, and signed-in core-loop checks were verified.
+
 ## Honest journey and employer summaries — verified without browser interaction, 19 Oct 2026
 
 - **Scope:** Implement the approved reduced-scope journey option: consent-based corridor/status sharing remains, but this build makes no measured-delay or journey-evidence claim.

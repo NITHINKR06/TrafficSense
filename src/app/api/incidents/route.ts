@@ -38,19 +38,16 @@ export async function POST(req: NextRequest) {
   try {
     const supabase = await getSupabase();
 
-    // Ensure session (sign in anonymously if not signed in)
+    // Live corroboration requires a named account; anonymous sessions cannot count toward L3.
     const {
       data: { user },
     } = await supabase.auth.getUser();
 
-    if (!user) {
-      const { error: anonError } = await supabase.auth.signInAnonymously();
-      if (anonError) {
-        return NextResponse.json(
-          { ok: false, error: "Anonymous guest session required to submit reports." },
-          { status: 401 }
-        );
-      }
+    if (!user || user.is_anonymous) {
+      return NextResponse.json(
+        { ok: false, error: "Sign in with a commuter account to submit an incident. Anonymous reports cannot establish corroboration." },
+        { status: 401 }
+      );
     }
 
     const body = await req.json();
