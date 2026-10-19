@@ -1,23 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { formatJourneyDuration } from "../src/lib/journeys/rules.ts";
-
 describe("Phase 6 — Journeys and consent-based employer sharing", () => {
-  it("formats journey delays cleanly with minutes and seconds", () => {
-    assert.equal(formatJourneyDuration(0), "No estimated delay");
-    assert.equal(formatJourneyDuration(-10), "No estimated delay");
-    assert.equal(formatJourneyDuration(60), "~1 min delay (60s)");
-    assert.equal(formatJourneyDuration(480), "~8 min delay (480s)");
-    assert.equal(formatJourneyDuration(495), "~8 min delay (495s)");
-  });
-
-  it("employer response shape contains only allowlisted fields without location tracking", () => {
+  it("employer response contains only an unmeasured status summary without location tracking", () => {
     const employerSample = {
       journey_id: "7b43a992-1234-4567-890a-bcdef1234567",
       corridor_name: "Mangaluru Central Demonstration Corridor",
       status: "active",
-      estimated_delay_seconds: 480,
-      evidence_level: "L3",
       shared_at: "2026-10-17T18:00:00Z",
       provenance: "simulated",
     };
@@ -26,8 +14,6 @@ describe("Phase 6 — Journeys and consent-based employer sharing", () => {
       "journey_id",
       "corridor_name",
       "status",
-      "estimated_delay_seconds",
-      "evidence_level",
       "shared_at",
       "provenance",
     ];
@@ -42,6 +28,8 @@ describe("Phase 6 — Journeys and consent-based employer sharing", () => {
     assert.equal(raw.includes("longitude"), false);
     assert.equal(raw.includes("user_id"), false);
     assert.equal(raw.includes("email"), false);
+    assert.equal(raw.includes("delay"), false);
+    assert.equal(raw.includes("evidence"), false);
   });
 
   it("sharing lifecycle stops access when ended or stopped", () => {
@@ -106,4 +94,3 @@ describe("Phase 6 — Journeys and consent-based employer sharing", () => {
     assert.equal(rpcCalls[3].params.p_org_id, "org-uuid-1");
   });
 });
-

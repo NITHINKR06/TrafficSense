@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/auth/server";
 import { getEmployerSharedJourneys } from "@/lib/journeys/server";
-import { formatJourneyDuration } from "@/lib/journeys/rules";
 
 export default async function OrganisationPage({ params }: PageProps<"/employer/[orgId]">) {
   const { supabase } = await requireRole("employer");
@@ -31,7 +30,7 @@ export default async function OrganisationPage({ params }: PageProps<"/employer/
       <div className="p-4 rounded-xl bg-surface-container-low border border-surface-container text-xs space-y-1">
         <p className="font-semibold text-surface-on">Privacy &amp; Data Safeguards</p>
         <p className="text-surface-on-variant">
-          Employees must explicitly consent to share each journey. Only delay, corridor, and status summaries are disclosed. Exact GPS coordinates, home addresses, device identities, and historical trip routes are never recorded or provided.
+          Employees must explicitly consent to share each journey. Only corridor and current status summaries are disclosed; delay is not measured in this build. Exact GPS coordinates, home addresses, device identities, and historical trip routes are never recorded or provided.
         </p>
         <p className="text-surface-on-variant">
           If an employee stops sharing or completes their commute, subsequent refreshes immediately remove the entry.
@@ -78,14 +77,12 @@ export default async function OrganisationPage({ params }: PageProps<"/employer/
                     <span className="font-semibold text-surface-on">{j.corridor_name}</span>
                   </div>
                   <div>
-                    <span className="text-xs text-surface-on-variant block">Simulated delay</span>
-                    <span className="font-semibold text-warning-on-container">
-                      {formatJourneyDuration(j.estimated_delay_seconds)}
-                    </span>
+                    <span className="text-xs text-surface-on-variant block">Delay measurement</span>
+                    <span className="font-semibold text-surface-on">Delay not measured</span>
                   </div>
                   <div>
-                    <span className="text-xs text-surface-on-variant block">Verification</span>
-                    <span className="font-semibold text-surface-on">{j.evidence_level} Evidence</span>
+                    <span className="text-xs text-surface-on-variant block">Journey evidence</span>
+                    <span className="font-semibold text-surface-on">Not collected</span>
                   </div>
                 </div>
 

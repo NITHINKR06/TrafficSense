@@ -11,8 +11,6 @@ export async function getCommuterJourneys(supabase: SupabaseClient): Promise<Com
       status,
       started_at,
       ended_at,
-      estimated_delay_seconds,
-      evidence_level,
       provenance
     `)
     .order("started_at", { ascending: false });

@@ -2,7 +2,6 @@
 
 import { useTransition } from "react";
 import type { CommuterJourney } from "@/lib/journeys/rules";
-import { formatJourneyDuration } from "@/lib/journeys/rules";
 import {
   handleStartJourney,
   handleEndJourney,
@@ -26,9 +25,9 @@ export function JourneyManager({
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-surface-container-low border border-surface-container">
         <div>
-          <h2 className="text-lg font-bold">Commute & Journey Tracking</h2>
+          <h2 className="text-lg font-bold">Commute & Journey Sharing</h2>
           <p className="text-sm text-surface-on-variant">
-            Track synthetic commute delays. Journeys are private to your account until explicitly shared with an employer.
+            Start and stop a private journey, then explicitly share its corridor and status with an employer. Journey timing is not measured in this build.
           </p>
         </div>
         <button
@@ -84,14 +83,12 @@ export function JourneyManager({
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
                   <div>
-                    <span className="text-xs text-surface-on-variant block">Estimated delay</span>
-                    <span className="font-semibold text-warning-on-container">
-                      {formatJourneyDuration(j.estimated_delay_seconds)}
-                    </span>
+                    <span className="text-xs text-surface-on-variant block">Delay measurement</span>
+                    <span className="font-semibold text-surface-on">Not measured</span>
                   </div>
                   <div>
-                    <span className="text-xs text-surface-on-variant block">Evidence level</span>
-                    <span className="font-semibold">{j.evidence_level} Corroborated</span>
+                    <span className="text-xs text-surface-on-variant block">Journey evidence</span>
+                    <span className="font-semibold text-surface-on">Not collected</span>
                   </div>
                   <div>
                     <span className="text-xs text-surface-on-variant block">Started at</span>
@@ -156,7 +153,7 @@ export function JourneyManager({
                         required
                         className="text-xs p-2 rounded bg-surface-container border border-surface-container-high text-surface-on flex-1"
                       >
-                        <option value="">Select organisation to share delay summary...</option>
+                        <option value="">Select organisation to share journey status...</option>
                         {organisations.map((org) => (
                           <option key={org.id} value={org.id}>
                             {org.name}
@@ -173,7 +170,7 @@ export function JourneyManager({
                     </form>
                   )}
                   <p className="text-[11px] text-surface-on-variant">
-                    Privacy Guarantee: Only delay, corridor, and status are shared. Exact coordinates, GPS, route history, and device identity are NEVER disclosed.
+                    Privacy Guarantee: Only corridor and current journey status are shared. Delay is not measured. Exact coordinates, GPS, route history, and device identity are NEVER disclosed.
                   </p>
                 </div>
               </div>
@@ -201,9 +198,7 @@ export function JourneyManager({
                   <span className="px-2 py-0.5 rounded bg-surface-container-high text-surface-on-variant font-mono">
                     ENDED
                   </span>
-                  <span className="font-medium text-surface-on">
-                    {formatJourneyDuration(j.estimated_delay_seconds)}
-                  </span>
+                  <span className="font-medium text-surface-on">Delay not measured</span>
                 </div>
               </div>
             ))}

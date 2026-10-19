@@ -6,6 +6,13 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Honest journey and employer summaries — verified without browser interaction, 19 Oct 2026
+
+- **Scope:** Implement the approved reduced-scope journey option: consent-based corridor/status sharing remains, but this build makes no measured-delay or journey-evidence claim.
+- **Implementation:** Migration `20261019000200_unmeasured_journey_summaries.sql` removes defaults and `NOT NULL` constraints from the old measurement columns, clears existing fabricated values, creates future journeys without them, and removes them from the employer reader RPC. Commuter and employer views now state “Delay not measured” / “Not collected” and retain only consent, corridor, and current journey status.
+- **Verification:** `docker compose exec -T app pnpm exec tsc --noEmit`, `just lint`, and `docker compose exec -T app node --test tests/journeys.test.mjs` passed (3/3). The local migration applied successfully. A direct schema check confirmed `estimated_delay_seconds:YES:none` and `evidence_level:YES:none`; relevant application paths contain no remaining measured-delay/evidence fields.
+- **Limitation:** Browser sharing, stopping a share, and employer refresh after revocation remain unverified because no browser-control tool is connected.
+
 ## Map incident details and selected-route warning — verified without browser interaction, 19 Oct 2026
 
 - **Scope:** Make the planner map-first and actionable using the already available incident data: selectable markers, incident detail, and an in-app warning when the selected route intersects a reported incident.
