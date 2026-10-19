@@ -6,6 +6,13 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Authority problem report and honest live analytics — verified without browser interaction, 19 Oct 2026
+
+- **Scope:** Turn the authority view into bounded decision support and eliminate fabricated live delay values.
+- **Implementation:** Live incident rows now carry zero internal delay/duration and `reported` provenance instead of invented 10/20-minute values. Live-only summaries show delay as “Not measured”; numeric delay remains limited to the explicit synthetic-history mode. A new Authority Problem Report card presents priority location, reported cause mix, recurrence limits, delay-evidence status, and a cause-specific suggested investigation while stating that it is neither a cause finding nor an engineering mandate.
+- **Verification:** `docker compose exec -T app pnpm exec tsc --noEmit`, `just lint`, and analytics/Phase 6 tests passed (14/14).
+- **Limitation:** The visual layout and toggle behavior remain unverified in a browser because no browser-control tool is connected.
+
 ## Signed-in live reporting boundary — verified locally, 19 Oct 2026
 
 - **Scope:** Ensure an anonymous browser session cannot submit a live incident or contribute to L3 corroboration; preserve the signed-in commuter reporting path.

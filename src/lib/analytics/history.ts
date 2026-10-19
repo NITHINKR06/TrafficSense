@@ -13,7 +13,7 @@ export type HistoricalIncident = {
   cause: "accident" | "road_repair" | "flood" | "heavy_volume" | "unknown";
   month: string; // YYYY-MM
   peak_window: "08:00-10:00" | "12:00-14:00" | "17:00-19:00" | "off_peak";
-  provenance: "simulated";
+  provenance: "simulated" | "reported";
 };
 
 export const MANGALURU_JUNCTIONS = [

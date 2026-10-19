@@ -24,6 +24,14 @@ const HOTSPOT_COORDS: Record<string, { x: number; y: number }> = {
   "pumpwell": { x: 30, y: 60 },
 };
 
+function suggestedInvestigation(cause: string): string {
+  if (/waterlogging|flood/i.test(cause)) return "Inspect drainage and flood-response readiness around the reported corridor.";
+  if (/maintenance|road repair/i.test(cause)) return "Coordinate works scheduling and safe diversion signage with the road-maintenance team.";
+  if (/collision|accident/i.test(cause)) return "Review junction operations, conflict points, and emergency-response access with the competent authority.";
+  if (/closure|restriction/i.test(cause)) return "Confirm closure controls, public notices, and an appropriate signed diversion.";
+  return "Collect a longer observation window before commissioning a traffic-engineering investigation.";
+}
+
 export function AuthorityDashboard() {
   const [selectedMonth, setSelectedMonth] = useState("all");
   const [selectedJunction, setSelectedJunction] = useState("all");
@@ -60,12 +68,12 @@ export function AuthorityDashboard() {
               segment_id: "alternative-west",
               direction: "outbound" as const,
               occurred_at: live.first_reported_at,
-              duration_minutes: 30,
-              commuter_delay_minutes: live.level === "L3" ? 20 : 10,
+              duration_minutes: 0,
+              commuter_delay_minutes: 0,
               cause,
               month: typeof live.first_reported_at === "string" ? live.first_reported_at.slice(0, 7) : "2026-10",
               peak_window,
-              provenance: "simulated" as const,
+              provenance: "reported" as const,
             };
           });
           setLiveIncidents(mapped);
@@ -85,6 +93,7 @@ export function AuthorityDashboard() {
     [selectedMonth, selectedJunction, activeSource],
   );
   const causeDelaySummary = useMemo(() => computeCauseDelaySummary(selectedMonth, activeSource), [selectedMonth, activeSource]);
+  const investigation = useMemo(() => suggestedInvestigation(data.primary_cause), [data.primary_cause]);
 
   // Derive hour slots from heatmap keys of day 0 (all days have same slots)
   const hourSlots = useMemo(() => Object.keys(heatmap[0] ?? {}).sort(), [heatmap]);
@@ -203,9 +212,9 @@ export function AuthorityDashboard() {
         <div className="p-4 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm">
           <span className="text-xs text-surface-on-variant block">Total Commuter Delay</span>
           <span className="text-2xl font-bold text-warning-on-container mt-1 block">
-            {data.total_delay_hours} hrs
+            {showDemoHistory ? `${data.total_delay_hours} hrs` : "Not measured"}
           </span>
-          <span className="text-[11px] text-surface-on-variant">Summed simulated excess time</span>
+          <span className="text-[11px] text-surface-on-variant">{showDemoHistory ? "Synthetic history only" : "Live reports do not measure delay"}</span>
         </div>
 
         <div className="p-4 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm">
@@ -224,6 +233,21 @@ export function AuthorityDashboard() {
           <span className="text-[11px] text-surface-on-variant">Most frequent trigger</span>
         </div>
       </div>
+
+      <section className="p-5 rounded-xl bg-surface-container-lowest border border-primary/30 shadow-sm space-y-3" aria-labelledby="problem-report-title">
+        <div>
+          <p className="text-[10px] font-mono text-primary">AUTHORITY PROBLEM REPORT</p>
+          <h2 id="problem-report-title" className="text-base font-bold text-surface-on">Where to investigate next</h2>
+          <p className="text-xs text-surface-on-variant">This is a decision-support summary, not a confirmed cause finding or an engineering mandate.</p>
+        </div>
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+          <div className="rounded-lg bg-surface-container-low p-3"><dt className="text-xs text-surface-on-variant">Priority location</dt><dd className="font-semibold text-surface-on mt-1">{data.top_hotspot}</dd></div>
+          <div className="rounded-lg bg-surface-container-low p-3"><dt className="text-xs text-surface-on-variant">Reported cause mix</dt><dd className="font-semibold text-surface-on mt-1">{data.primary_cause}</dd></div>
+          <div className="rounded-lg bg-surface-container-low p-3"><dt className="text-xs text-surface-on-variant">Recurrence</dt><dd className="font-semibold text-surface-on mt-1">{showDemoHistory ? recurrenceStatement : "Live-only records; collect a longer time window."}</dd></div>
+          <div className="rounded-lg bg-surface-container-low p-3"><dt className="text-xs text-surface-on-variant">Delay evidence</dt><dd className="font-semibold text-surface-on mt-1">{showDemoHistory ? "Synthetic history only" : "Not measured for live reports"}</dd></div>
+        </dl>
+        <p className="text-xs border-l-4 border-primary bg-surface-container-low px-3 py-2 rounded-r-lg text-surface-on"><strong>Suggested investigation:</strong> {investigation}</p>
+      </section>
 
       {/* Hotspot map — schematic SVG with numbered rank markers */}
       <div className="p-5 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm space-y-3">
@@ -529,11 +553,11 @@ export function AuthorityDashboard() {
                   <td className="py-2 px-3 font-medium">{inc.junction_name}</td>
                   <td className="py-2 px-3 capitalize">{inc.direction}</td>
                   <td className="py-2 px-3 capitalize">{inc.cause.replace("_", " ")}</td>
-                  <td className="py-2 px-3 font-bold text-warning-on-container">{inc.commuter_delay_minutes} min</td>
-                  <td className="py-2 px-3">{inc.duration_minutes} min</td>
+                  <td className="py-2 px-3 font-bold text-warning-on-container">{inc.provenance === "simulated" ? `${inc.commuter_delay_minutes} min` : "Not measured"}</td>
+                  <td className="py-2 px-3">{inc.provenance === "simulated" ? `${inc.duration_minutes} min` : "Not measured"}</td>
                   <td className="py-2 px-3">
                     <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-container">
-                      SIMULATED
+                      {inc.provenance.toUpperCase()}
                     </span>
                   </td>
                 </tr>
