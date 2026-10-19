@@ -5,6 +5,7 @@ import {
   type RouteIncidentWarning,
   isWithinMangaluruBounds,
 } from "./types.ts";
+import type { TrafficSnapshot } from "../traffic/snapshot.ts";
 
 export type VerifiedIncident = {
   id: string;
@@ -13,6 +14,32 @@ export type VerifiedIncident = {
   point: Coordinate; // [lng, lat]
   label?: string;
 };
+
+/**
+ * Turns current multi-source report assessments into route warnings without
+ * exposing report identities. These are L3 corroboration indicators, not
+ * confirmed causes or measured congestion.
+ */
+export function reportAssessmentRouteIncidents(snapshot: TrafficSnapshot): VerifiedIncident[] {
+  if (!snapshot.fixture) return [];
+  const readAt = Date.parse(snapshot.read_at);
+
+  return snapshot.report_assessments.flatMap((assessment) => {
+    if (!assessment.multiple_sources || !assessment.valid_until || Date.parse(assessment.valid_until) <= readAt) return [];
+    const segment = snapshot.fixture.segments.find(
+      (candidate) => candidate.id === assessment.segment_id && candidate.direction === assessment.direction
+    );
+    if (!segment) return [];
+    const coordinates = segment.geometry.coordinates;
+    return [{
+      id: `report-assessment-${segment.id}`,
+      category: "traffic_slowdown",
+      level: "L3",
+      point: coordinates[Math.floor(coordinates.length / 2)],
+      label: `${segment.name} (L3 multiple sources)`,
+    }];
+  });
+}
 
 /**
  * Calculates Haversine distance in meters between two [lng, lat] coordinates.
@@ -206,18 +233,17 @@ export async function queryRoute(
       return {
         ok: false,
         routes: [],
-        error: `Routing service error: HTTP ${res.status}`,
+        error: "Routing unavailable. Please try again later.",
       };
     }
 
     const data = (await res.json()) as RawOsrmResponse;
     return parseOsrmResponse(data, incidents);
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : "Routing network failure";
+  } catch {
     return {
       ok: false,
       routes: [],
-      error: msg,
+      error: "Routing unavailable. Please try again later.",
     };
   }
 }

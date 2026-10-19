@@ -108,6 +108,10 @@ test-integration:
     bash scripts/local-supabase.sh test-traffic
     bash scripts/local-supabase.sh test-reports
 
+# Run the report → verification → route-alert proof against local Supabase.
+test-core-loop:
+    bash scripts/local-supabase.sh test-core-loop
+
 # Run full checks suite (test + lint + typegen + tsc + build) in isolated container
 check:
     docker compose run --build --rm checks
@@ -130,4 +134,3 @@ tunnel-stop:
     @echo "==> Stopping Cloudflare Tunnel..."
     @docker rm -f trafficsense-tunnel 2>/dev/null || true
     @echo "==> Tunnel stopped."
-

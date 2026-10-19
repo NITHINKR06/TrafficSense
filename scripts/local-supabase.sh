@@ -88,6 +88,10 @@ case "${1:-}" in
     docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/tests/route-alerts.integration.test.mjs
     docker exec -i supabase_db_trafficsense-local psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/route-alerts-boundaries.sql
     ;;
+  test-core-loop)
+    docker compose build demo
+    docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/tests/core-loop.integration.test.mjs
+    ;;
   test-route-alerts-browser)
     docker compose build demo
     for port in 3000 3001; do
@@ -172,7 +176,7 @@ case "${1:-}" in
     docker compose run --rm supabase stop
     ;;
   *)
-    printf '%s\n' 'Usage: bash scripts/local-supabase.sh start|seed|test|test-traffic|test-reports|test-evidence|test-slowdown|test-speed-evidence|test-lifecycle|test-traversals|test-phase4|test-phase4-browser|test-route-alerts|test-route-alerts-browser|test-browser-recovery|stop | traversals generate <run-uuid> <batch-uuid> <source-id> <traversal-uuid> <entered-at> <until> | traversals check <traversal-uuid> | speed-evidence capture|check <run-uuid> <batch-uuid> | speed-evidence cleanup <run-uuid> --confirm | test-episodes [--schema-only|--backfill] | simulate normal|slowdown|recovery [UTC-anchor] | simulate reset | reports enable|disable | reports cleanup|cleanup-expired-guests --confirm' >&2
+    printf '%s\n' 'Usage: bash scripts/local-supabase.sh start|seed|test|test-traffic|test-reports|test-evidence|test-slowdown|test-speed-evidence|test-lifecycle|test-traversals|test-phase4|test-phase4-browser|test-route-alerts|test-core-loop|test-route-alerts-browser|test-browser-recovery|stop | traversals generate <run-uuid> <batch-uuid> <source-id> <traversal-uuid> <entered-at> <until> | traversals check <traversal-uuid> | speed-evidence capture|check <run-uuid> <batch-uuid> | speed-evidence cleanup <run-uuid> --confirm | test-episodes [--schema-only|--backfill] | simulate normal|slowdown|recovery [UTC-anchor] | simulate reset | reports enable|disable | reports cleanup|cleanup-expired-guests --confirm' >&2
     exit 2
     ;;
 esac

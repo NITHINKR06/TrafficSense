@@ -1,4 +1,4 @@
-grant traffic_report_executor to postgres;
+grant traffic_report_executor to postgres with set true;
 grant create on schema public to traffic_report_executor;
 
 create or replace function public.submit_traffic_report(p_input jsonb)

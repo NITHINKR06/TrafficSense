@@ -6,6 +6,22 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Decision Gate — 19 Oct 2026 00:36 IST
+
+Date: 2026-10-19 00:36 IST
+Goal: Record four required decisions before beginning any WP.
+
+| Decision | Choice | Reason |
+|---|---|---|
+| Deadline | Target 20 Oct 2026 23:59 IST (finish 1 day early before ~21 Oct). Submission: repo link + deployed URL + demo clip. Exact time unconfirmed from organiser — treating 21 Oct 2026 as hard cutoff. | Conservative; will update when confirmed |
+| Journey feature | **Option B** — Remove hardcoded 480 s / L3 evidence, null out delay fields, show "Delay not measured" on employer page, add banner on commuter page | Day 1 schedule does not permit Option A; security fixes preserved |
+| Routing provider | **OSRM public demo** (current, already working). Rate limit added server-side. Label routes "Estimated · free-flow only". | No ORS key ready; OSRM works for all Mangaluru pairs tested |
+| Scope mode | **Honest-reduced** — all WP1–WP10 attempted in order; WP6 Option B; cut line in plan-of-action.md section 4 applies | One builder + AI; 3 days remaining |
+
+Verdict: **Gate passed** — all four decisions recorded. WP1 begins immediately.
+
+---
+
 ## Plan 4 (revised) Journey Tracking & Commuter-Employer Workflow Integration, 18 Oct 2026
 
 **Task exit verdict: passed locally at 2026-10-18T18:15Z.** Integrated the end-to-end Commuter Journey Tracking and Employer Sharing flow directly into the Route Planner and Workspace UI. Commuters can plan routes on the interactive map, seamlessly initiate journey tracking from selected routes, monitor active trips with consent-governed delay evidence, and share allowlisted delay summaries with verified employers (`/employer/[orgId]`) without exposing raw GPS samples or sensitive trip coordinates. Verified at 194/194 unit tests, 0 ESLint errors, 0 TypeScript errors, Next.js Turbopack production build (19/19 routes), and full RLS enforcement.

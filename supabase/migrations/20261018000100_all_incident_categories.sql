@@ -1,6 +1,9 @@
 -- Migration: 20261018000100_all_incident_categories.sql
 -- Expand public traffic report categories to all 17 types specified in Traffic_JAM.pdf §2.
 
+grant traffic_report_executor to postgres with set true;
+grant usage, create on schema public to traffic_report_executor;
+
 alter table public.public_traffic_reports
   drop constraint if exists public_traffic_reports_category_check;
 
@@ -12,6 +15,8 @@ alter table public.public_traffic_reports
     'road_closed', 'bridge_maintenance', 'police_restriction', 'fallen_tree',
     'heavy_traffic', 'other', 'unknown'
   ));
+
+set local role traffic_report_executor;
 
 create or replace function public.submit_traffic_report(p_input jsonb)
 returns jsonb
@@ -99,4 +104,4 @@ $$;
 alter function public.submit_traffic_report(jsonb) owner to traffic_report_executor;
 revoke all on function public.submit_traffic_report(jsonb) from public, anon, authenticated, service_role;
 grant execute on function public.submit_traffic_report(jsonb) to authenticated;
-
+reset role;

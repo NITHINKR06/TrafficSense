@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { queryRoute, type VerifiedIncident } from "@/lib/routing/engine";
+import { queryRoute, reportAssessmentRouteIncidents, type VerifiedIncident } from "@/lib/routing/engine";
 import { readTrafficSnapshot } from "@/lib/traffic/server";
 import { getActiveLiveIncidents } from "@/lib/incidents/server";
 
@@ -51,6 +51,7 @@ export async function POST(req: NextRequest) {
     try {
       const snapshotResult = await readTrafficSnapshot();
       if (snapshotResult.status === "ready") {
+        incidents.push(...reportAssessmentRouteIncidents(snapshotResult.snapshot));
         for (const inc of snapshotResult.incidents) {
           if (inc.is_current && (inc.state === "supported" || inc.state === "unconfirmed")) {
             const seg = snapshotResult.snapshot.fixture?.segments.find(
@@ -80,7 +81,8 @@ export async function POST(req: NextRequest) {
       incidents
     );
 
-    return NextResponse.json(routeResult, { status: routeResult.ok ? 200 : 400 });
+    const status = routeResult.ok ? 200 : routeResult.error?.startsWith("Routing unavailable") ? 503 : 400;
+    return NextResponse.json(routeResult, { status });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Internal server error";
     return NextResponse.json({ ok: false, error: msg }, { status: 500 });

@@ -356,7 +356,7 @@ graph LR
 | **Verification Basis** | Proprietary black-box machine learning algorithms. | Manual operator confirmation (slow, high overhead). | **Transparent L1–L4 Corroboration Engine** with inspectable proofs. |
 | **Re-routing Philosophy** | Reroutes traffic for fractional (e.g. 30s) theoretical savings. | No real-time routing provided. | **Conservative Arterial Comparison**; requires $\ge 5$ min verified savings. |
 | **Employer Tardiness Verification** | None; employees take screenshots or photos of traffic. | Inaccessible to private sector employers. | **Allowlisted Delay Summary**: verifiable, consented, zero GPS disclosure. |
-| **Civic Data Usability** | Proprietary data locked behind expensive commercial APIs. | Infrequent, delayed municipal PDF reports. | **Interactive Authority Dashboard** with live hotspot rankings & CSV export. |
+| **Civic Data Usability** | Proprietary data locked behind expensive commercial APIs. | Infrequent, delayed municipal PDF reports. | **Interactive Authority Dashboard** with hotspot rankings from real report counts & CSV export. |
 
 ---
 
@@ -375,7 +375,7 @@ just up
 # Inspect container health and port bindings
 just status
 
-# Run the 160 unit tests inside Docker
+# Run the 194 unit tests inside Docker
 just test
 
 # Run ESLint inside Docker
@@ -415,7 +415,7 @@ docker compose --profile production up --build -d production
 ### 3. Verification Suite Execution
 
 ```bash
-# Run the complete automated test suite (160 unit tests, ESLint, TypeScript, Production Build)
+# Run the complete automated test suite (194 unit tests, ESLint, TypeScript, Production Build)
 docker compose run --build --rm checks
 
 # Run the database-level integration & boundary rollback suite
