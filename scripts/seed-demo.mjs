@@ -20,6 +20,8 @@ const existing = await supabase.auth.admin.listUsers({ page: 1, perPage: 1000 })
 if (existing.error) throw new Error("Could not inspect synthetic accounts.");
 const definitions = [
   { label: "commuter", role: "commuter" },
+  { label: "commuter-b", role: "commuter" },
+  { label: "commuter-c", role: "commuter" },
   { label: "employer-a", role: "employer", orgId: orgA },
   { label: "employer-b", role: "employer", orgId: orgB },
   { label: "employer-unassigned", role: "employer" },
@@ -57,4 +59,47 @@ if (demo.error) throw new Error("Could not seed the synthetic traffic corridor."
 const reporting = await supabase.rpc("set_reporting_enabled", { p_enabled: true });
 if (reporting.error) throw new Error("Could not enable synthetic traffic reporting.");
 
-console.log("Created six synthetic accounts and a normal-traffic corridor. Local passwords are in the ignored supabase/.temp/demo-accounts.json file; do not publish it.");
+const reportScenarios = [
+  {
+    category: "accident",
+    lat: 12.8715,
+    lng: 74.8465,
+    note: "SIMULATED: collision reported near Ambedkar (Jyothi) Circle.",
+    reporters: ["commuter", "commuter-b", "commuter-c"],
+  },
+  {
+    category: "flood",
+    lat: 12.855,
+    lng: 74.8685,
+    note: "SIMULATED: waterlogging reported near Pumpwell.",
+    reporters: ["commuter"],
+  },
+  {
+    category: "road_closed",
+    lat: 12.8856,
+    lng: 74.853,
+    note: "SIMULATED: road closure reported near KSRTC / Bejai Circle.",
+    reporters: ["commuter-b"],
+  },
+];
+
+for (const scenario of reportScenarios) {
+  for (const label of scenario.reporters) {
+    const account = accounts.find((candidate) => candidate.label === label);
+    if (!account) throw new Error(`Missing seeded reporter ${label}.`);
+    const reporter = createClient(internalSupabaseUrl, status.ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false } });
+    const signIn = await reporter.auth.signInWithPassword({ email: account.email, password: account.password });
+    if (signIn.error) throw new Error(`Could not sign in seeded reporter ${label}.`);
+    const submitted = await reporter.rpc("submit_live_incident_report", {
+      p_category: scenario.category,
+      p_lat: scenario.lat,
+      p_lng: scenario.lng,
+      p_gps_accuracy_m: null,
+      p_gps_fix_at: null,
+      p_note: scenario.note,
+    });
+    if (submitted.error) throw new Error(`Could not seed ${scenario.category} incident.`);
+  }
+}
+
+console.log("Created eight synthetic accounts, a normal-traffic corridor, and three labelled incident scenarios. Local passwords are in the ignored supabase/.temp/demo-accounts.json file; do not publish it.");

@@ -6,6 +6,13 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Seeded report → verify → alert demo scenarios — verified locally, 19 Oct 2026
+
+- **Scope:** Make the public planner demonstrable immediately after local setup using explicitly synthetic incident scenarios, without representing them as live traffic.
+- **Implementation:** Local seeding now creates three commuter demo identities in addition to the existing accounts, loads the normal corridor, enables reporting, and submits an accident at Ambedkar (Jyothi) Circle from three accounts (L3), plus single-source flood and road-closure reports at Pumpwell and KSRTC/Bejai (L1). All seed notes are labelled `SIMULATED`.
+- **Verification:** Freshly rebuilt the exact project-local database volume, applied all migrations, ran `just db-seed`, then checked `/api/incidents`: three active incidents returned with `accident: L3`, `flood: L1`, and `road_closed: L1`. `docker compose exec -T app pnpm exec tsc --noEmit`, `just lint`, and `just test` passed (194/194). `just test-core-loop` then passed against the fresh database.
+- **Isolation note:** A repeated core-loop run before rebuilding the local database failed because retained legacy synthetic report rows violated its one-report precondition. The clean rebuild restored isolation; the test then passed.
+
 ## Authority incident review workflow — verified without browser interaction, 19 Oct 2026
 
 - **Scope:** Add the PDF's authority incident-management action to the existing role-protected dashboard. Authority users can refresh active incidents, mark a record authority-confirmed (L6), or resolve it after an explicit browser confirmation.
