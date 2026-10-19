@@ -54,7 +54,7 @@ export function RoutePlanner() {
   const activeDest: [number, number] = MANGALURU_PRESETS[destIndex].coords;
 
   // Request browser GPS position
-  function handleRequestGps() {
+  function handleRequestGps(target: "start" | "report" = "start") {
     setGpsError(null);
     if (!navigator.geolocation) {
       setGpsError("Geolocation is not supported by your browser.");
@@ -66,11 +66,19 @@ export function RoutePlanner() {
         const coords: [number, number] = [pos.coords.longitude, pos.coords.latitude];
         setUserLocation(coords);
         setGpsAccuracy(pos.coords.accuracy);
-        setUseGpsStart(true);
+        if (target === "report") {
+          setUseGpsReport(true);
+        } else {
+          setUseGpsStart(true);
+        }
       },
       (err) => {
-        setGpsError(`GPS fix unavailable: ${err.message}. Using preset.`);
-        setUseGpsStart(false);
+        setGpsError(`GPS fix unavailable: ${err.message}. Using the selected preset instead.`);
+        if (target === "report") {
+          setUseGpsReport(false);
+        } else {
+          setUseGpsStart(false);
+        }
       },
       { enableHighAccuracy: true, timeout: 8000 }
     );
@@ -406,7 +414,7 @@ export function RoutePlanner() {
               </label>
               <button
                 type="button"
-                onClick={handleRequestGps}
+                onClick={() => handleRequestGps("start")}
                 className="text-[11px] text-primary hover:underline font-medium"
               >
                 📍 My location
@@ -511,7 +519,7 @@ export function RoutePlanner() {
           </div>
 
           <p className="text-xs text-surface-on-variant">
-            Reports with device GPS fix under 2 minutes old advance to L2 immediately. When 3 distinct commuters report within 300m and 15 minutes, the server promotes the incident to L3 and triggers automatic re-routing.
+            A recent device location is recorded as L2 location support; it does not prove the cause or congestion. When 3 distinct commuters report within 300m and 15 minutes, the server promotes the incident to L3 and can offer a route that avoids the reported area.
           </p>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -542,10 +550,10 @@ export function RoutePlanner() {
                 </label>
                 <button
                   type="button"
-                  onClick={handleRequestGps}
+                  onClick={() => handleRequestGps("report")}
                   className="text-[11px] text-primary hover:underline font-medium"
                 >
-                  📍 Use device GPS (L2)
+                  📍 Use device GPS
                 </button>
               </div>
               {useGpsReport && userLocation ? (

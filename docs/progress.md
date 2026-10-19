@@ -6,6 +6,13 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Planner report-location GPS correction — verified without browser interaction, 19 Oct 2026
+
+- **Scope:** Correct the route planner's incident-report GPS control and evidence wording. This is a reporting/verification UX correction; it does not add background tracking or change server authorization.
+- **Implementation:** The report form now passes an explicit report target when requesting a device GPS fix, so a successful fix is submitted as the incident location instead of silently changing only the route origin. L2 wording now says location support and explicitly does not claim proof of cause or congestion.
+- **Verification:** `docker compose exec -T app pnpm exec tsc --noEmit`, `just lint`, and `docker compose exec -T app node --test tests/live-incidents.test.mjs` passed (3/3 focused tests).
+- **Limitation:** No browser-control tool is available in this session, so the device-permission, selected-location and submitted-payload interaction remains unverified in a real browser.
+
 ## Fresh local Supabase bootstrap and core-loop verification — passed, 19 Oct 2026
 
 - **Scope:** Rebuilt the isolated local Supabase database, applied every repository migration, seeded the demo, then ran the report → corroboration → route-avoidance integration proof. The build and tests remained Docker-only.
