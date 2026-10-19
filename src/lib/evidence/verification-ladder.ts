@@ -25,15 +25,15 @@ export const LADDER_SPEC: Record<VerificationLevel, {
   },
   L2: {
     name: "Location Support",
-    source: "Spatial Match",
-    status: "planned",
-    description: "Spatial verification that report matches current road segment without GPS tracking.",
+    source: "Reporter Device Location",
+    status: "implemented",
+    description: "A recent device location supports where the report was made. It does not prove congestion or the reported cause.",
   },
   L3: {
     name: "Multiple Sources",
     source: "Corroboration",
     status: "implemented",
-    description: "≥3 independent reporting sources within rolling 15-minute window on same segment.",
+    description: "At least three distinct signed-in reporting accounts within the rolling 15-minute window. Distinct accounts do not prove independent witnesses.",
   },
   L4: {
     name: "Speed Slowdown",
@@ -49,27 +49,29 @@ export const LADDER_SPEC: Record<VerificationLevel, {
   },
   L6: {
     name: "Authority Action",
-    source: "Civic Command",
-    status: "planned",
-    description: "Official municipal traffic police on-site confirmation or dispatch action.",
+    source: "Authority Review",
+    status: "implemented",
+    description: "An authorised authority user has recorded a confirmation. This is an application action, not proof of on-site attendance.",
   },
 };
 
 export function evaluateSegmentLadder(params: {
   hasReport: boolean;
+  hasLocationSupport?: boolean;
   isMultipleSources: boolean;
   isSlowdownSupported: boolean;
+  isAuthorityConfirmed?: boolean;
 }): {
   currentLevel: VerificationLevel | null;
   currentLabel: string;
   tiers: LadderTier[];
 } {
   const l1Achieved = params.hasReport;
-  const l2Achieved = false; // Planned specification
+  const l2Achieved = params.hasLocationSupport ?? false;
   const l3Achieved = params.isMultipleSources;
   const l4Achieved = params.isSlowdownSupported;
   const l5Achieved = false; // Planned extension
-  const l6Achieved = false; // Planned authority action
+  const l6Achieved = params.isAuthorityConfirmed ?? false;
 
   const tiers: LadderTier[] = [
     { ...LADDER_SPEC.L6, level: "L6", achieved: l6Achieved },
@@ -83,7 +85,10 @@ export function evaluateSegmentLadder(params: {
   let currentLevel: VerificationLevel | null = null;
   let currentLabel = "Normal baseline flow";
 
-  if (l4Achieved) {
+  if (l6Achieved) {
+    currentLevel = "L6";
+    currentLabel = "L6 Authority Confirmed";
+  } else if (l4Achieved) {
     currentLevel = "L4";
     currentLabel = "L4 Speed Slowdown Supported";
   } else if (l3Achieved) {

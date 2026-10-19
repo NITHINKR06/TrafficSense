@@ -6,6 +6,13 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Plain-language verification ladder — verified without browser interaction, 19 Oct 2026
+
+- **Scope:** Make the map's L1–L6 explanation match the implemented reporting, device-location, corroboration, telemetry, and authority-review boundaries without fabricating confidence or witness independence.
+- **Implementation:** L2 is now labelled “Location Support” and explains that a device location supports the place of a report but does not prove its cause. L3 names the required three distinct signed-in accounts and its limitation. L6 is labelled “Authority Action” and makes clear that a recorded authority confirmation is an in-application action, not proof of on-site attendance. The evaluation helper accepts explicit location-support and authority-confirmed inputs; L5 photo evidence remains planned.
+- **Verification:** `docker compose exec -T app node --test tests/verification-ladder.test.mjs`, TypeScript, ESLint, and whitespace checks passed after the focused tests were expanded to cover the separate L2 and L6 states. Final Docker validation also passed: `just test` (194/194), `just test-core-loop`, and `just check`.
+- **Limitation:** The existing corridor display does not yet supply a live device-location or authority-confirmed value to this explanatory helper, so interaction and visual state remain unverified in a browser.
+
 ## Authority problem report and honest live analytics — verified without browser interaction, 19 Oct 2026
 
 - **Scope:** Turn the authority view into bounded decision support and eliminate fabricated live delay values.
