@@ -6,6 +6,13 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Map incident details and selected-route warning — verified without browser interaction, 19 Oct 2026
+
+- **Scope:** Make the planner map-first and actionable using the already available incident data: selectable markers, incident detail, and an in-app warning when the selected route intersects a reported incident.
+- **Implementation:** Incident markers are keyboard-accessible controls. Selecting one shows its reported cause, report count, evidence level/provenance, status, first-report time, evidence explanation, and the server's three-hour inactivity expiry rule. Selecting an affected route now displays a clear warning and points the commuter to the recommended alternative without claiming a safety guarantee.
+- **Verification:** `docker compose exec -T app pnpm exec tsc --noEmit`, `just lint`, and `docker compose exec -T app node --test tests/routing.test.mjs tests/live-incidents.test.mjs` passed (12/12 focused tests).
+- **Limitation:** No browser-control tool is connected, so marker click/keyboard interaction, drawer layout, and responsive map behavior remain unverified in a real browser.
+
 ## Seeded report → verify → alert demo scenarios — verified locally, 19 Oct 2026
 
 - **Scope:** Make the public planner demonstrable immediately after local setup using explicitly synthetic incident scenarios, without representing them as live traffic.

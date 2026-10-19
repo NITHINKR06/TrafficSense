@@ -31,6 +31,7 @@ export function RoutePlanner() {
   const [routes, setRoutes] = useState<RouteOption[]>([]);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [liveIncidents, setLiveIncidents] = useState<LiveIncident[]>([]);
+  const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
 
@@ -268,8 +269,19 @@ export function RoutePlanner() {
         const incEl = document.createElement("div");
         const icon = reportCategoryIcons[inc.category] ?? "⚠️";
         incEl.className = "px-1.5 py-0.5 rounded-full bg-surface-container-lowest/95 border border-surface-container shadow flex items-center gap-1 text-[11px] font-bold cursor-pointer";
-        incEl.title = `${reportCategories[inc.category] ?? inc.category} (${inc.level}): ${inc.level_reason}`;
+        incEl.title = `Show details: ${reportCategories[inc.category] ?? inc.category} (${inc.level}): ${inc.level_reason}`;
+        incEl.setAttribute("role", "button");
+        incEl.setAttribute("tabindex", "0");
+        incEl.setAttribute("aria-label", `Show details for ${reportCategories[inc.category] ?? inc.category}, ${inc.level}, ${inc.report_count} reports`);
         incEl.innerHTML = `<span>${icon}</span><span class="text-[9px] px-1 rounded bg-amber-500 text-white">${inc.level}</span>`;
+        const selectIncident = () => setSelectedIncidentId(inc.id);
+        incEl.addEventListener("click", selectIncident);
+        incEl.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" || event.key === " ") {
+            event.preventDefault();
+            selectIncident();
+          }
+        });
 
         const incMarker = new Marker({ element: incEl })
           .setLngLat([inc.lng, inc.lat])
@@ -388,6 +400,16 @@ export function RoutePlanner() {
   }, [routes, selectedRouteId, liveIncidents]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeRoute = routes.find((r) => r.id === (selectedRouteId ?? routes[0]?.id));
+  const selectedIncident = liveIncidents.find((incident) => incident.id === selectedIncidentId) ?? null;
+  const selectedRouteWarnings = activeRoute?.incidents_on_route ?? [];
+  const formatIncidentTime = (value: string) => new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata",
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).format(new Date(value));
 
   return (
     <div className="space-y-4">
@@ -628,6 +650,16 @@ export function RoutePlanner() {
         </div>
       )}
 
+      {selectedRouteWarnings.length > 0 && !activeRoute?.avoids_incident && (
+        <div role="alert" className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950 border border-rose-300 dark:border-rose-800 flex items-start gap-3">
+          <span className="text-xl">⚠️</span>
+          <div className="space-y-0.5">
+            <p className="text-xs font-bold text-rose-900 dark:text-rose-100">Your selected route intersects a reported incident</p>
+            <p className="text-xs text-rose-800 dark:text-rose-200">{selectedRouteWarnings[0].label}. Inspect the recommended alternative before travelling; this is not a safety guarantee.</p>
+          </div>
+        </div>
+      )}
+
       {/* Incident Avoidance Banner (when re-routing triggered) */}
       {activeRoute?.avoids_incident && (
         <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950 border border-amber-400 dark:border-amber-800 flex items-start gap-3">
@@ -641,6 +673,26 @@ export function RoutePlanner() {
             </p>
           </div>
         </div>
+      )}
+
+      {selectedIncident && (
+        <section className="p-4 rounded-xl bg-surface-container-lowest border border-primary/30 shadow-sm space-y-3" aria-labelledby="selected-incident-title">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-[10px] font-mono text-surface-on-variant">SELECTED MAP INCIDENT</p>
+              <h3 id="selected-incident-title" className="text-base font-bold text-surface-on">{reportCategoryIcons[selectedIncident.category]} {reportCategories[selectedIncident.category]}</h3>
+            </div>
+            <button type="button" className="text-xs text-primary hover:underline" onClick={() => setSelectedIncidentId(null)}>Close details</button>
+          </div>
+          <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+            <div><dt className="text-surface-on-variant">Verification</dt><dd className="font-semibold text-surface-on mt-0.5">{selectedIncident.level} · {selectedIncident.provenance}</dd></div>
+            <div><dt className="text-surface-on-variant">Reports</dt><dd className="font-semibold text-surface-on mt-0.5">{selectedIncident.report_count}</dd></div>
+            <div><dt className="text-surface-on-variant">First reported</dt><dd className="font-semibold text-surface-on mt-0.5">{formatIncidentTime(selectedIncident.first_reported_at)} IST</dd></div>
+            <div><dt className="text-surface-on-variant">Status</dt><dd className="font-semibold text-surface-on mt-0.5 capitalize">{selectedIncident.status}</dd></div>
+          </dl>
+          <p className="text-xs text-surface-on-variant">{selectedIncident.level_reason}</p>
+          <p className="text-[11px] text-surface-on-variant">This open incident expires if it receives no new confirmation by {formatIncidentTime(new Date(Date.parse(selectedIncident.last_confirmed_at) + 3 * 60 * 60 * 1000).toISOString())} IST.</p>
+        </section>
       )}
 
       {/* Map display */}
