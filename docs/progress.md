@@ -6,6 +6,14 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Fresh local Supabase bootstrap and core-loop verification — passed, 19 Oct 2026
+
+- **Scope:** Rebuilt the isolated local Supabase database, applied every repository migration, seeded the demo, then ran the report → corroboration → route-avoidance integration proof. The build and tests remained Docker-only.
+- **Reset performed:** The dedicated `supabase_db_trafficsense-local` volume was absent before startup; app dependency and Next.js cache volumes were preserved. Fresh startup applied all migrations through `20261019000100_report_submission_executor.sql` successfully.
+- **Seed correction:** `scripts/seed-demo.mjs` previously created accounts only, leaving the public traffic frontend empty after `just up`. It now loads a normal synthetic corridor and enables synthetic reporting through the existing restricted RPCs.
+- **Verification:** `docker compose exec -T app pnpm exec tsc --noEmit` passed. `just test-core-loop` passed its real local Supabase integration: one report stayed L1, three distinct sources reached L3, and the clean OSRM alternative became the recommended route.
+- **Remaining:** This verifies the core loop and startup seeding only. The other integration suites and browser interaction checks remain to be run separately.
+
 ## Decision Gate — 19 Oct 2026 00:36 IST
 
 Date: 2026-10-19 00:36 IST

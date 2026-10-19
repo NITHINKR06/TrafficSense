@@ -21,12 +21,13 @@ export type VerifiedIncident = {
  * confirmed causes or measured congestion.
  */
 export function reportAssessmentRouteIncidents(snapshot: TrafficSnapshot): VerifiedIncident[] {
-  if (!snapshot.fixture) return [];
+  const fixture = snapshot.fixture;
+  if (!fixture) return [];
   const readAt = Date.parse(snapshot.read_at);
 
   return snapshot.report_assessments.flatMap((assessment) => {
     if (!assessment.multiple_sources || !assessment.valid_until || Date.parse(assessment.valid_until) <= readAt) return [];
-    const segment = snapshot.fixture.segments.find(
+    const segment = fixture.segments.find(
       (candidate) => candidate.id === assessment.segment_id && candidate.direction === assessment.direction
     );
     if (!segment) return [];

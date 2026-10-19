@@ -2,6 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { randomBytes } from "node:crypto";
 import { mkdir, writeFile, chmod } from "node:fs/promises";
 import { readLocalStatus, internalSupabaseUrl } from "./local-status.mjs";
+import { createTrafficFixture } from "../src/lib/traffic/simulator.ts";
 
 if (process.env.DEMO_MODE !== "true" || process.env.SUPABASE_URL !== internalSupabaseUrl) {
   throw new Error("Synthetic seeding is restricted to the configured local demo.");
@@ -49,4 +50,11 @@ for (const definition of definitions) {
 await mkdir("supabase/.temp", { recursive: true, mode: 0o700 });
 await writeFile("supabase/.temp/demo-accounts.json", `${JSON.stringify(accounts, null, 2)}\n`, { mode: 0o600 });
 await chmod("supabase/.temp/demo-accounts.json", 0o600);
-console.log("Created six synthetic accounts. Local passwords are in the ignored supabase/.temp/demo-accounts.json file; do not publish it.");
+
+const fixture = createTrafficFixture("normal", new Date().toISOString());
+const demo = await supabase.rpc("replace_traffic_demo", { p_fixture: fixture });
+if (demo.error) throw new Error("Could not seed the synthetic traffic corridor.");
+const reporting = await supabase.rpc("set_reporting_enabled", { p_enabled: true });
+if (reporting.error) throw new Error("Could not enable synthetic traffic reporting.");
+
+console.log("Created six synthetic accounts and a normal-traffic corridor. Local passwords are in the ignored supabase/.temp/demo-accounts.json file; do not publish it.");
