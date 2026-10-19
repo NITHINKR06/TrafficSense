@@ -6,6 +6,12 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Logs helper accepts documented service syntax — verified locally, 19 Oct 2026
+
+- **Scope:** Repair the `just logs service="app"` invocation shown by the recipe parameter name.
+- **Implementation:** The logs helper now normalizes either `just logs app` or `just logs service=app` before passing the Docker Compose service name.
+- **Verification:** Dry-run output for `just logs service=app` resolves to the `app` service rather than the invalid literal `service=app`.
+
 ## Reliable quick-tunnel URL output — verified locally, 19 Oct 2026
 
 - **Scope:** Make the existing `just tunnel` helper print the temporary Cloudflare quick-tunnel URL rather than returning before Cloudflare has published it.

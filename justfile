@@ -62,7 +62,7 @@ status:
 
 # Stream logs for a container (default: app)
 logs service="app":
-    docker compose logs -f {{service}}
+    @service_name="{{service}}"; service_name="${service_name#service=}"; docker compose logs -f "$service_name"
 
 # Open an interactive shell inside a container (default: app)
 shell service="app":
