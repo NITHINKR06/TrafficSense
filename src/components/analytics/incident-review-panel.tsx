@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { reportCategories, reportCategoryIcons } from "@/lib/reports/rules";
-import type { LiveIncident } from "@/lib/incidents/server";
+import type { AuthorityIncidentHistoryItem, LiveIncident } from "@/lib/incidents/server";
 
 function formatIncidentTime(value: string): string {
   return new Intl.DateTimeFormat("en-GB", {
@@ -17,6 +17,7 @@ function formatIncidentTime(value: string): string {
 
 export function IncidentReviewPanel() {
   const [incidents, setIncidents] = useState<LiveIncident[]>([]);
+  const [history, setHistory] = useState<AuthorityIncidentHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingIncidentId, setPendingIncidentId] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -30,11 +31,21 @@ export function IncidentReviewPanel() {
     return data.incidents;
   }, []);
 
+  const fetchHistory = useCallback(async (): Promise<AuthorityIncidentHistoryItem[]> => {
+    const response = await fetch("/api/incidents?scope=authority-history", { cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok || !data.ok || !Array.isArray(data.history)) throw new Error("Unable to load incident history.");
+    return data.history;
+  }, []);
+
   useEffect(() => {
     let active = true;
-    void fetchIncidents()
-      .then((loaded) => {
-        if (active) setIncidents(loaded);
+    void Promise.all([fetchIncidents(), fetchHistory()])
+      .then(([loaded, loadedHistory]) => {
+        if (active) {
+          setIncidents(loaded);
+          setHistory(loadedHistory);
+        }
       })
       .catch(() => {
         if (active) setMessage("Active incidents could not be loaded. Refresh to retry.");
@@ -45,13 +56,15 @@ export function IncidentReviewPanel() {
     return () => {
       active = false;
     };
-  }, [fetchIncidents]);
+  }, [fetchHistory, fetchIncidents]);
 
   async function loadIncidents() {
     setIsLoading(true);
     setMessage(null);
     try {
-      setIncidents(await fetchIncidents());
+      const [loaded, loadedHistory] = await Promise.all([fetchIncidents(), fetchHistory()]);
+      setIncidents(loaded);
+      setHistory(loadedHistory);
     } catch {
       setMessage("Active incidents could not be loaded. Refresh to retry.");
     } finally {
@@ -59,8 +72,8 @@ export function IncidentReviewPanel() {
     }
   }
 
-  async function updateIncident(incident: LiveIncident, action: "confirm" | "resolve") {
-    const actionLabel = action === "confirm" ? "confirm" : "resolve";
+  async function updateIncident(incident: LiveIncident, action: "confirm" | "resolve" | "reject") {
+    const actionLabel = action === "confirm" ? "confirm" : action === "resolve" ? "resolve" : "reject";
     if (!window.confirm(`Are you sure you want to ${actionLabel} this ${reportCategories[incident.category]} incident?`)) return;
 
     setPendingIncidentId(incident.id);
@@ -73,8 +86,9 @@ export function IncidentReviewPanel() {
       });
       const result = await response.json();
       if (!response.ok || !result.ok) throw new Error(result.error ?? "Update failed.");
-      setMessage(action === "confirm" ? "Incident marked as authority-confirmed (L6)." : "Incident resolved and removed from active review.");
+      setMessage(action === "confirm" ? "Incident marked as authority-confirmed (L6)." : action === "resolve" ? "Incident resolved and removed from active review." : "Incident rejected and removed from public active views.");
       await loadIncidents();
+      window.dispatchEvent(new Event("trafficsense:incidents-changed"));
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not update this incident.");
     } finally {
@@ -115,12 +129,27 @@ export function IncidentReviewPanel() {
                 <div className="flex flex-wrap gap-2">
                   {incident.level !== "L6" && <button type="button" className="button text-xs px-3 py-1.5" disabled={isPending} onClick={() => void updateIncident(incident, "confirm")}>{isPending ? "Saving…" : "Confirm (L6)"}</button>}
                   <button type="button" className="button secondary text-xs px-3 py-1.5" disabled={isPending} onClick={() => void updateIncident(incident, "resolve")}>{isPending ? "Saving…" : "Resolve incident"}</button>
+                  <button type="button" className="button secondary text-xs px-3 py-1.5" disabled={isPending} onClick={() => void updateIncident(incident, "reject")}>{isPending ? "Saving…" : "Reject report"}</button>
                 </div>
               </li>
             );
           })}
         </ul>
       )}
+
+      <div className="border-t border-surface-container pt-3 space-y-2" aria-labelledby="incident-timeline-title">
+        <h3 id="incident-timeline-title" className="text-sm font-semibold text-surface-on">Recent authority timeline</h3>
+        {history.length === 0 ? <p className="text-xs text-surface-on-variant">No authority actions have been recorded yet.</p> : (
+          <ol className="space-y-2" aria-label="Recent authority incident actions">
+            {history.map((item) => (
+              <li key={item.id} className="border-l-2 border-primary/40 pl-3 text-xs text-surface-on-variant">
+                <span className="font-semibold text-surface-on">{item.action.replace("_incident", "").replace(/^./, (letter) => letter.toUpperCase())}</span>{" "}
+                {reportCategories[item.category] ?? item.category} · {formatIncidentTime(item.created_at)} IST
+              </li>
+            ))}
+          </ol>
+        )}
+      </div>
     </section>
   );
 }

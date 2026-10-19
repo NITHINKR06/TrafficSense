@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
-import { authorityUpdateIncident, submitIncidentReport, getActiveLiveIncidents, type SubmitIncidentInput } from "@/lib/incidents/server";
+import { authorityUpdateIncident, submitIncidentReport, getActiveLiveIncidents, getAuthorityIncidentHistory, type SubmitIncidentInput } from "@/lib/incidents/server";
 import type { ReportCategory } from "@/lib/reports/rules";
 
 async function getSupabase() {
@@ -23,9 +23,17 @@ async function getSupabase() {
   });
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     const supabase = await getSupabase();
+    if (new URL(req.url).searchParams.get("scope") === "authority-history") {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || user.is_anonymous) {
+        return NextResponse.json({ ok: false, error: "Authority sign-in is required." }, { status: 401 });
+      }
+      const history = await getAuthorityIncidentHistory(supabase);
+      return NextResponse.json({ ok: true, history });
+    }
     const incidents = await getActiveLiveIncidents(supabase);
     return NextResponse.json({ ok: true, incidents });
   } catch (err: unknown) {
@@ -90,7 +98,7 @@ export async function PATCH(req: NextRequest) {
     if (
       typeof incidentId !== "string" ||
       !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(incidentId) ||
-      (action !== "confirm" && action !== "resolve")
+      (action !== "confirm" && action !== "resolve" && action !== "reject")
     ) {
       return NextResponse.json({ ok: false, error: "A valid incident and review action are required." }, { status: 400 });
     }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { computeAnalytics, computeRecurrenceHeatmap, computeRecurrenceStatement, computeCauseDelaySummary } from "@/lib/analytics/metrics";
 import { MANGALURU_JUNCTIONS, HISTORICAL_INCIDENTS, type HistoricalIncident } from "@/lib/analytics/history";
 
@@ -38,8 +38,8 @@ export function AuthorityDashboard() {
   const [showDemoHistory, setShowDemoHistory] = useState(false);
   const [liveIncidents, setLiveIncidents] = useState<HistoricalIncident[]>([]);
 
-  useEffect(() => {
-    fetch("/api/incidents")
+  const refreshLiveIncidents = useCallback(() => {
+    return fetch("/api/incidents", { cache: "no-store" })
       .then((res) => res.json())
       .then((data) => {
         if (data.ok && Array.isArray(data.incidents)) {
@@ -81,6 +81,17 @@ export function AuthorityDashboard() {
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    void refreshLiveIncidents();
+    const refresh = () => void refreshLiveIncidents();
+    window.addEventListener("trafficsense:incidents-changed", refresh);
+    const poll = window.setInterval(refresh, 30_000);
+    return () => {
+      window.removeEventListener("trafficsense:incidents-changed", refresh);
+      window.clearInterval(poll);
+    };
+  }, [refreshLiveIncidents]);
 
   const activeSource = useMemo(() => {
     return showDemoHistory ? [...liveIncidents, ...HISTORICAL_INCIDENTS] : liveIncidents;

@@ -6,6 +6,13 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Unified planner alerts and authority review history — verified without browser interaction, 19 Oct 2026
+
+- **Scope:** Close the remaining demo gaps in one bounded change: show the simulated corridor severity beneath planner routes, make closure/no-clear-alternative alerts explicit, and complete authority review with rejection and a visible audit timeline. Live authority analytics must refresh after a review action.
+- **Implementation:** `/api/traffic` projects only public simulated corridor geometry and derived severity for the planner overlay. The planner keeps incidents, routes, reporting, details and expiry on one map screen, labels the severity layer as simulated, warns when no clear alternative exists, and names the nearest preset only for an active road-closure report. Migration `20261019000400_authority_incident_rejection_history.sql` adds the `reject` authority action (removing that report from public active views without claiming no disruption occurred) and an authority-only bounded audit-history RPC. The authority review panel now confirms, resolves or rejects, presents recent actions as a timeline, and emits a refresh event; the dashboard also polls live rows every 30 seconds.
+- **Verification:** The migration applied through `just db-start`. `curl http://127.0.0.1:3000/api/traffic` returned five labelled simulated corridor segments. `just db-seed`, `just test-core-loop`, and `just test` passed (195/195). Focused TypeScript, ESLint, routing/live-incident tests, and whitespace checks passed. Final `just check` (tests, lint, route types, TypeScript, production build) and `just test-integration` both passed.
+- **Limitation:** No browser-control tool is connected, so marker/overlay rendering, alert layout, authority confirmation dialogs, timeline updates, and desktop/mobile behavior remain unverified through real interaction. The “near” closure label is derived from the nearest named demo preset, not a road-geocoding service.
+
 ## Logs helper accepts documented service syntax — verified locally, 19 Oct 2026
 
 - **Scope:** Repair the `just logs service="app"` invocation shown by the recipe parameter name.

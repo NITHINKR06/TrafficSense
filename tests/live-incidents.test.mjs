@@ -5,6 +5,7 @@ import {
   submitIncidentReport,
   getActiveLiveIncidents,
   authorityUpdateIncident,
+  getAuthorityIncidentHistory,
 } from "../src/lib/incidents/server.ts";
 
 describe("Plan 4 (revised) – Live Incident Reporting and Verification RPCs", () => {
@@ -76,7 +77,7 @@ describe("Plan 4 (revised) – Live Incident Reporting and Verification RPCs", (
     assert.equal(rpcCalls[0].name, "read_active_live_incidents");
   });
 
-  it("authorityUpdateIncident invokes authority_update_incident RPC for confirm and resolve", async () => {
+  it("authorityUpdateIncident invokes authority_update_incident RPC for each review decision", async () => {
     const rpcCalls = [];
     const mockSupabase = {
       rpc: async (name, params) => {
@@ -96,5 +97,21 @@ describe("Plan 4 (revised) – Live Incident Reporting and Verification RPCs", (
     assert.equal(rpcCalls[1].name, "authority_update_incident");
     assert.equal(rpcCalls[1].params.p_incident_id, "inc-1");
     assert.equal(rpcCalls[1].params.p_action, "resolve");
+
+    const rejectRes = await authorityUpdateIncident(mockSupabase, "inc-1", "reject");
+    assert.equal(rejectRes.ok, true);
+    assert.equal(rpcCalls[2].params.p_action, "reject");
+  });
+
+  it("getAuthorityIncidentHistory invokes the restricted history RPC with a bounded request", async () => {
+    const calls = [];
+    const history = await getAuthorityIncidentHistory({
+      rpc: async (name, params) => {
+        calls.push({ name, params });
+        return { data: [{ id: "audit-1", action: "reject_incident" }], error: null };
+      },
+    });
+    assert.equal(history.length, 1);
+    assert.deepEqual(calls, [{ name: "read_authority_incident_history", params: { p_limit: 20 } }]);
   });
 });

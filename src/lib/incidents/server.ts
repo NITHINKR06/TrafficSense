@@ -28,6 +28,15 @@ export type SubmitIncidentResult =
   | { ok: true; incident_id: string; level: string; level_reason: string; distinct_reporters?: number }
   | { ok: false; error: string };
 
+export type AuthorityIncidentHistoryItem = {
+  id: string;
+  incident_id: string;
+  action: "confirm_incident" | "resolve_incident" | "reject_incident";
+  category: ReportCategory;
+  created_at: string;
+  details: Record<string, string>;
+};
+
 /**
  * Submits an incident report from a user, automatically clustering with existing
  * incidents within 300m and evaluating the L1-L3 verification ladder.
@@ -66,12 +75,12 @@ export async function getActiveLiveIncidents(
 }
 
 /**
- * Allows a traffic authority to confirm (L6) or resolve an incident.
+ * Allows a traffic authority to confirm (L6), resolve, or reject an incident.
  */
 export async function authorityUpdateIncident(
   supabase: SupabaseClient,
   incidentId: string,
-  action: "confirm" | "resolve"
+  action: "confirm" | "resolve" | "reject"
 ): Promise<{ ok: boolean; error?: string }> {
   const { data, error } = await supabase.rpc("authority_update_incident", {
     p_incident_id: incidentId,
@@ -83,4 +92,11 @@ export async function authorityUpdateIncident(
   }
 
   return { ok: true };
+}
+
+export async function getAuthorityIncidentHistory(
+  supabase: SupabaseClient
+): Promise<AuthorityIncidentHistoryItem[]> {
+  const { data, error } = await supabase.rpc("read_authority_incident_history", { p_limit: 20 });
+  return error || !Array.isArray(data) ? [] : data as AuthorityIncidentHistoryItem[];
 }

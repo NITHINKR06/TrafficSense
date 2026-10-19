@@ -20,6 +20,22 @@ export const MANGALURU_PRESETS = [
   { name: "Mangalore International Airport", coords: [74.8900, 12.9610] as [number, number] },
 ];
 
+type TrafficSeveritySegment = {
+  id: string;
+  name: string;
+  direction: "inbound" | "outbound";
+  geometry: { type: "LineString"; coordinates: [number, number][] };
+  severity: "slowdown" | "corroborated" | "reported" | "clear";
+  provenance: "simulated";
+};
+
+const severityColours: Record<TrafficSeveritySegment["severity"], string> = {
+  slowdown: "#ea580c",
+  corroborated: "#d97706",
+  reported: "#ca8a04",
+  clear: "#059669",
+};
+
 export function RoutePlanner() {
   const [startIndex, setStartIndex] = useState<number>(0); // Hampankatta
   const [destIndex, setDestIndex] = useState<number>(1); // KSRTC Bejai
@@ -31,6 +47,7 @@ export function RoutePlanner() {
   const [routes, setRoutes] = useState<RouteOption[]>([]);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [liveIncidents, setLiveIncidents] = useState<LiveIncident[]>([]);
+  const [trafficSeverity, setTrafficSeverity] = useState<TrafficSeveritySegment[]>([]);
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -129,6 +146,16 @@ export function RoutePlanner() {
     }
   }
 
+  async function loadTrafficSeverity() {
+    try {
+      const res = await fetch("/api/traffic", { cache: "no-store" });
+      const data = await res.json();
+      if (data.ok && Array.isArray(data.segments)) setTrafficSeverity(data.segments);
+    } catch {
+      // Severity overlay is additive; route planning remains available if the simulated reader is unavailable.
+    }
+  }
+
   // Submit incident report
   async function handleReportSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -161,7 +188,7 @@ export function RoutePlanner() {
         setReportNote("");
         setShowReportForm(false);
         // Refresh incidents and recalculate route
-        await loadIncidents();
+        await Promise.all([loadIncidents(), loadTrafficSeverity()]);
         fetchRoutes(activeStart, activeDest);
       } else {
         setReportFeedback(`❌ Could not submit: ${data.error}`);
@@ -179,11 +206,12 @@ export function RoutePlanner() {
     map: MapInstance,
     routeList: RouteOption[],
     selectedId: string | null,
-    incidentList: LiveIncident[]
+    incidentList: LiveIncident[],
+    severityList: TrafficSeveritySegment[]
   ) => {
     if (!map.isStyleLoaded()) {
       map.once("style.load", () => {
-        renderRoutesOnMap(map, routeList, selectedId, incidentList);
+        renderRoutesOnMap(map, routeList, selectedId, incidentList, severityList);
       });
       return;
     }
@@ -196,6 +224,21 @@ export function RoutePlanner() {
     if (map.getLayer("routes-alt-layer")) map.removeLayer("routes-alt-layer");
     if (map.getLayer("routes-primary-layer")) map.removeLayer("routes-primary-layer");
     if (map.getSource("routes-geojson")) map.removeSource("routes-geojson");
+    if (map.getLayer("traffic-severity-layer")) map.removeLayer("traffic-severity-layer");
+    if (map.getSource("traffic-severity-geojson")) map.removeSource("traffic-severity-geojson");
+
+    map.addSource("traffic-severity-geojson", {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: severityList.map((segment) => ({
+        type: "Feature" as const,
+        properties: { severity: segment.severity, name: segment.name, provenance: segment.provenance },
+        geometry: segment.geometry,
+      })) },
+    });
+    map.addLayer({
+      id: "traffic-severity-layer", type: "line", source: "traffic-severity-geojson",
+      paint: { "line-color": ["match", ["get", "severity"], "slowdown", severityColours.slowdown, "corroborated", severityColours.corroborated, "reported", severityColours.reported, severityColours.clear], "line-width": 7, "line-opacity": 0.48 },
+    });
 
     // Build GeoJSON features for all routes
     const features = routeList.map((r) => ({
@@ -306,22 +349,25 @@ export function RoutePlanner() {
     let cancelled = false;
     async function loadInitial() {
       try {
-        const [routeRes, incidentRes] = await Promise.all([
+        const [routeRes, incidentRes, trafficRes] = await Promise.all([
           fetch("/api/route", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ start: activeStart, destination: activeDest }),
           }),
           fetch("/api/incidents"),
+          fetch("/api/traffic", { cache: "no-store" }),
         ]);
 
         const routeData = await routeRes.json();
         const incidentData = await incidentRes.json();
+        const trafficData = await trafficRes.json();
 
         if (!cancelled) {
           if (incidentData.ok && Array.isArray(incidentData.incidents)) {
             setLiveIncidents(incidentData.incidents);
           }
+          if (trafficData.ok && Array.isArray(trafficData.segments)) setTrafficSeverity(trafficData.segments);
           if (routeData.ok && Array.isArray(routeData.routes) && routeData.routes.length > 0) {
             setRoutes(routeData.routes);
             setSelectedRouteId(routeData.routes[0].id);
@@ -374,12 +420,12 @@ export function RoutePlanner() {
       map.on("load", () => {
         if (disposed) return;
         mapRef.current = map;
-        renderRoutesOnMap(map, routes, selectedRouteId, liveIncidents);
+        renderRoutesOnMap(map, routes, selectedRouteId, liveIncidents, trafficSeverity);
       });
 
       map.on("style.load", () => {
         if (disposed || !mapRef.current) return;
-        renderRoutesOnMap(map, routes, selectedRouteId, liveIncidents);
+        renderRoutesOnMap(map, routes, selectedRouteId, liveIncidents, trafficSeverity);
       });
     }
 
@@ -395,13 +441,20 @@ export function RoutePlanner() {
   // Update map polylines whenever routes or incidents change
   useEffect(() => {
     if (mapRef.current) {
-      renderRoutesOnMap(mapRef.current, routes, selectedRouteId, liveIncidents);
+      renderRoutesOnMap(mapRef.current, routes, selectedRouteId, liveIncidents, trafficSeverity);
     }
-  }, [routes, selectedRouteId, liveIncidents]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [routes, selectedRouteId, liveIncidents, trafficSeverity]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeRoute = routes.find((r) => r.id === (selectedRouteId ?? routes[0]?.id));
   const selectedIncident = liveIncidents.find((incident) => incident.id === selectedIncidentId) ?? null;
   const selectedRouteWarnings = activeRoute?.incidents_on_route ?? [];
+  const verifiedRouteImpact = selectedRouteWarnings.some((warning) => ["L3", "L4", "L6"].includes(warning.level));
+  const hasClearAlternative = routes.some((route) => route.id !== activeRoute?.id && route.incidents_on_route.length === 0);
+  const roadClosure = liveIncidents.find((incident) => incident.category === "road_closed");
+  const closureLocation = roadClosure ? MANGALURU_PRESETS.reduce((closest, preset) => {
+    const distance = Math.hypot(preset.coords[0] - roadClosure.lng, preset.coords[1] - roadClosure.lat);
+    return distance < closest.distance ? { name: preset.name, distance } : closest;
+  }, { name: "the reported location", distance: Number.POSITIVE_INFINITY }).name : null;
   const formatIncidentTime = (value: string) => new Intl.DateTimeFormat("en-GB", {
     timeZone: "Asia/Kolkata",
     day: "2-digit",
@@ -660,6 +713,22 @@ export function RoutePlanner() {
         </div>
       )}
 
+      {verifiedRouteImpact && !hasClearAlternative && (
+        <div role="alert" className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950 border border-rose-300 dark:border-rose-800 flex items-start gap-3">
+          <span className="text-xl">⛔</span>
+          <div className="space-y-0.5">
+            <p className="text-xs font-bold text-rose-900 dark:text-rose-100">No clear alternative route found</p>
+            <p className="text-xs text-rose-800 dark:text-rose-200">Available route options also pass near reported incidents. This planner cannot assess road safety; delay travel and check official road guidance.</p>
+          </div>
+        </div>
+      )}
+
+      {roadClosure && closureLocation && (
+        <div role="status" className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-100">
+          <strong>Road closure reported near {closureLocation}.</strong> It has {roadClosure.report_count} signed-in report{roadClosure.report_count === 1 ? "" : "s"} and is currently {roadClosure.level}; inspect its marker before travelling.
+        </div>
+      )}
+
       {/* Incident Avoidance Banner (when re-routing triggered) */}
       {activeRoute?.avoids_incident && (
         <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950 border border-amber-400 dark:border-amber-800 flex items-start gap-3">
@@ -709,6 +778,10 @@ export function RoutePlanner() {
               <span className="text-surface-on-variant">Alternative path</span>
             </div>
           )}
+          <div className="pt-1 mt-1 border-t border-surface-container text-surface-on-variant">Traffic severity · simulated reader</div>
+          <div className="flex items-center gap-2"><span className="w-3 h-1 bg-emerald-600 rounded" /><span className="text-surface-on-variant">Clear</span></div>
+          <div className="flex items-center gap-2"><span className="w-3 h-1 bg-amber-500 rounded" /><span className="text-surface-on-variant">Reported / corroborated</span></div>
+          <div className="flex items-center gap-2"><span className="w-3 h-1 bg-orange-600 rounded" /><span className="text-surface-on-variant">L4 slowdown support</span></div>
         </div>
       </div>
 
