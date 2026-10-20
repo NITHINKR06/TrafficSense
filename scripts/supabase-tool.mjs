@@ -3,8 +3,13 @@ import { readFileSync } from "node:fs";
 
 const networkName = "trafficsense_supabase";
 const network = JSON.parse(execFileSync("docker", ["network", "inspect", networkName], { encoding: "utf8" }))[0];
-if (network.Driver !== "bridge" || network.Options?.["com.docker.network.bridge.host_binding_ipv4"] !== "127.0.0.1") {
-  throw new Error("Local Supabase requires its dedicated loopback-publishing bridge.");
+const hostBinding = process.env.LOCAL_SUPABASE_HOST_BIND ?? "127.0.0.1";
+if (
+  network.Driver !== "bridge" ||
+  network.Options?.["com.docker.network.bridge.host_binding_ipv4"] !== hostBinding ||
+  !["127.0.0.1", "0.0.0.0"].includes(hostBinding)
+) {
+  throw new Error("Local Supabase requires its dedicated configured bridge.");
 }
 const version = execFileSync("docker", ["version", "--format", "{{.Server.Version}}"], { encoding: "utf8" });
 if (Number.parseInt(version, 10) < 28) throw new Error("Local Supabase requires Docker Engine 28 or newer.");
