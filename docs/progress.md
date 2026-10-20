@@ -868,3 +868,10 @@ For each bounded task, record: goal/source module and exclusions; dependencies a
 - **Implementation:** The mobile traffic view refreshes on screen focus, the report success state links directly to active traffic reports, and evidence levels are presented as plain-language status labels while preserving the server-provided level.
 - **Verification:** Docker mobile/web TypeScript checks, focused ESLint, all 197 project tests, and the Expo Android bundle check passed. Device-side report submission and visual confirmation remain unverified.
 - **Commit:** Pending.
+
+## Unified Docker and Just commands — implemented, 21 Oct 2026
+
+- **Implementation:** Added a profile-gated Expo `mobile` service with the same workspace dependency volume and Docker startup path as the web service. Added independent `just web-up`, `just mobile-up`, `just web-stop`, `just mobile-stop`, `just mobile-logs`, `just mobile-typecheck`, and LAN-oriented `just mobile-lan` recipes. Updated `just up` and `just down` to manage both app services, added mobile typechecking to the full checks container, and documented the command matrix in [docs/docker.md](/home/nithinkr06/Documents/hackathon%20(Copy)/docs/docker.md).
+- **Cleanup:** Removed generated caches, ignored local state, the stale root generated `next-env.d.ts`, and the two untracked leftover documents requested for cleanup. Local Supabase credentials/state were regenerated only as needed by the Docker checks and are not tracked.
+- **Verification:** `just --list`, Compose config validation, `git diff --check`, Dockerized Expo startup/health, `just mobile-typecheck`, and `just check` passed. The Expo service reported healthy on `127.0.0.1:8081`. Local Supabase start was blocked by the existing LAN-bound `trafficsense_supabase` bridge/state when invoked without the matching `LOCAL_SUPABASE_HOST_BIND=0.0.0.0`; no backend state was changed.
+- **Commit:** Pending.
