@@ -95,7 +95,7 @@ export function RoutePlanner() {
         }
       },
       (err) => {
-        setGpsError(`GPS fix unavailable: ${err.message}. Using the selected preset instead.`);
+        setGpsError(`Location was not shared (${err.message}). Choose a map location or allow location access to report from your position.`);
         if (target === "report") {
           setUseGpsReport(false);
         } else {
@@ -186,9 +186,8 @@ export function RoutePlanner() {
 
       const data = await res.json();
       if (data.ok) {
-        setReportFeedback(
-          `✓ Report recorded! Incident verification level: ${data.level} (${data.level_reason}).`
-        );
+        const reporters = typeof data.distinct_reporters === "number" ? data.distinct_reporters : 1;
+        setReportFeedback(`Reported. ${reporters} ${reporters === 1 ? "person has" : "people have"} reported this.`);
         setReportNote("");
         setShowReportForm(false);
         // Refresh incidents and recalculate route
@@ -608,18 +607,15 @@ export function RoutePlanner() {
               <label className="text-xs font-semibold text-surface-on" htmlFor="report-cat">
                 Incident Type (17 PDF categories)
               </label>
-              <select
-                id="report-cat"
-                className="w-full text-xs rounded-lg border border-surface-container bg-surface-container-low px-3 py-2 text-surface-on"
-                value={reportCategory}
-                onChange={(e) => setReportCategory(e.target.value as ReportCategory)}
-              >
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5" role="group" aria-label="Incident category">
                 {Object.entries(reportCategories).map(([key, label]) => (
-                  <option key={key} value={key}>
+                  <button key={key} type="button" aria-pressed={reportCategory === key}
+                    className={`text-left text-[11px] px-2 py-1.5 rounded border ${reportCategory === key ? "border-primary bg-primary/10 font-bold" : "border-surface-container bg-surface-container-low"}`}
+                    onClick={() => setReportCategory(key as ReportCategory)}>
                     {reportCategoryIcons[key as ReportCategory]} {label}
-                  </option>
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
 
             {/* Incident Location */}

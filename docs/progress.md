@@ -30,6 +30,12 @@
 - **Verification:** Docker TypeScript, ESLint, focused routing/live-incident tests (**13/13**), and `git diff --check` passed. The direct CDP browser check passed at **1440×1000** and **390×844**: the warning appeared, the explicit button was available, and choosing it showed “You chose this alternative.”
 - **Commit:** `0fdfcb8` — `feat(planner): require explicit incident avoidance choice`.
 
+## M2 — GPS citizen report flow — verified, 20 Oct 2026
+
+- **Implementation:** `/reports/new` now redirects to the planner, retiring the legacy simulated segment-reporting page. The planner is the canonical incident-report flow with device GPS, explicit location-denied guidance, all 17 category buttons, signed-in reporting guidance, and the plain-language result message “Reported. 1 person has reported this.”
+- **Verification:** Docker TypeScript, ESLint, focused routing/live-incident tests (**13/13**), and whitespace checks passed. The planner route and redirect compile successfully; browser interaction for the signed-in GPS permission/submission edge remains part of the final M8 pass.
+- **Commit:** Pending final diff review and scoped local commit.
+
 
 ## Unified planner alerts and authority review history — verified without browser interaction, 19 Oct 2026
 
