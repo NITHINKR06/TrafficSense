@@ -12,17 +12,17 @@
 - **Verification:** `node scripts/check-app-layout.mjs` passed. `just check-docs` passed in Docker and reported all 3 targets valid with 4 required files each. `git diff --check` passed. Existing unrelated changes, including the pre-existing `docs/new-updates.md` deletion and untracked update notes, were preserved.
 - **Commit:** Pending.
 
-## Mobile app Phase 1 — implemented, 20 Oct 2026
+## Mobile app Phase 1 — verified, 20 Oct 2026
 
 - **Implementation:** Started the mobile client under `apps/mobile` with Expo Router and TypeScript, added the root workspace package boundary, and documented the phase order and acceptance criteria. The existing Next.js/Supabase app remains unchanged as the web/backend surface.
 - **Verification:** Docker lockfile resolution, mobile TypeScript checking, and Expo configuration validation passed. No device or Expo Go launch was claimed; native runtime and mobile UI flows remain pending.
-- **Commit:** Pending.
+- **Commit:** `27271f1` — `feat(mobile): start Expo client shell`.
 
 ## Mobile app Phase 2 — authentication — implemented, 20 Oct 2026
 
 - **Implementation:** Added Expo Supabase authentication with secure session persistence, sign-in, commuter registration, email-confirmation messaging, protected workspace access, explicit sign-out failure handling, and safe `EXPO_PUBLIC_*` configuration documentation. No privileged key or location permission was added.
 - **Verification:** Docker dependency installation, Expo config validation, strict mobile TypeScript checking, and `git diff --check` passed. Device/Expo Go launch and live authentication against a reachable Supabase URL remain unverified.
-- **Commit:** Pending.
+- **Commit:** `43ef3b8` — `feat(mobile): add Supabase authentication flow`.
 
 
 ## Active demo-plan update — in progress, 20 Oct 2026

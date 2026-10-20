@@ -14,4 +14,4 @@ Cross-app changes also belong in [shared progress](../../../packages/shared/docs
 
 - **Implementation:** Added a Supabase mobile client using secure device storage, explicit public environment variables, session restoration, sign-in, commuter registration, confirmation messaging, protected workspace navigation, sign-out, and unavailable/error states. No location permission is requested.
 - **Verification:** Docker dependency resolution, Expo configuration validation, strict mobile TypeScript checking, and `git diff --check` passed. A physical device, Expo Go, session against a reachable hosted Supabase URL, and native secure-storage behavior remain unverified.
-- **Commit:** Pending.
+- **Commit:** `43ef3b8` — `feat(mobile): add Supabase authentication flow`.
