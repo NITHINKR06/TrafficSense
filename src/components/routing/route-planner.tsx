@@ -704,7 +704,7 @@ export function RoutePlanner() {
         </div>
       )}
 
-      {selectedRouteWarnings.length > 0 && !activeRoute?.avoids_incident && (
+      {verifiedRouteImpact && !activeRoute?.avoids_incident && (
         <div role="alert" className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950 border border-rose-300 dark:border-rose-800 flex items-start gap-3">
           <span className="text-xl">⚠️</span>
           <div className="space-y-2">
