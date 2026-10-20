@@ -21,6 +21,8 @@ Cross-app changes also belong in [shared progress](../../../packages/shared/docs
 - **Verification:** Docker Expo server is running at `exp://192.168.0.224:8081`; Metro `/status` returned `packager-status:running`. Mobile TypeScript checking passed. The local Supabase API remains loopback-only, so phone authentication is not reachable from the LAN.
 - **Commit:** Pending.
 
+> Expo CLI aligned the install to its compatible SDK 57 dependency set while starting the server. The package manifest and lockfile now record that working pairing; the original SDK 58 wording above refers to the initial scaffold.
+
 ## Phase 3 — public traffic API — implemented, 20 Oct 2026
 
 - **Implementation:** Added a platform-neutral active-incident contract, mobile API client, configurable API base URL, traffic loading/error/empty/refresh states, evidence-level presentation, and a Compose LAN-bind override for physical-device development. The default web bind remains loopback.
