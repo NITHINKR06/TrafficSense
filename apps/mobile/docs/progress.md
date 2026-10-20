@@ -23,6 +23,13 @@ Cross-app changes also belong in [shared progress](../../../packages/shared/docs
 
 > Expo CLI aligned the install to its compatible SDK 57 dependency set while starting the server. The package manifest and lockfile now record that working pairing; the original SDK 58 wording above refers to the initial scaffold.
 
+## Expo Go blank screen fix — verified, 20 Oct 2026
+
+- **Cause:** Expo Go reached the manifest, but the Android bundle failed first on an undeclared `query-string` import and then on SDK-57/SDK-58 React Native dependency mixing (`react-native@0.88.0` with Expo SDK 57).
+- **Fix:** Declared `query-string` and ran Expo's SDK compatibility alignment. The mobile package now uses Expo `57.0.30`, Expo Router `57.0.28`, React Native `0.86.3`, and the matching SDK packages.
+- **Verification:** SDK 57 manifest returned successfully, the Android Expo Router bundle returned HTTP 200 (7.4 MB), and the Docker mobile TypeScript check passed. Expo Go device rendering remains the final user-side check.
+- **Commit:** Pending.
+
 ## Phase 3 — public traffic API — implemented, 20 Oct 2026
 
 - **Implementation:** Added a platform-neutral active-incident contract, mobile API client, configurable API base URL, traffic loading/error/empty/refresh states, evidence-level presentation, and a Compose LAN-bind override for physical-device development. The default web bind remains loopback.
