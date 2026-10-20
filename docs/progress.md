@@ -6,6 +6,12 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Per-app AI/docs layout — verified, 20 Oct 2026
+
+- **Implementation:** Added identical minimal `ai/` and `docs/` entry files for `apps/web`, `apps/mobile`, and `packages/shared`: `AGENTS.md`, `rules.md`, `plan.md`, and `progress.md`. Added shared app guidance at `ai/resources/app_common_rules.md` and reusable templates under `templates/app-ai/` and `templates/app-docs/`. Added `scripts/check-app-layout.mjs`, the `check:docs` package script, and the `just check-docs` Docker recipe.
+- **Verification:** `node scripts/check-app-layout.mjs` passed. `just check-docs` passed in Docker and reported all 3 targets valid with 4 required files each. `git diff --check` passed. Existing unrelated changes, including the pre-existing `docs/new-updates.md` deletion and untracked update notes, were preserved.
+- **Commit:** Pending.
+
 
 ## Active demo-plan update — in progress, 20 Oct 2026
 
