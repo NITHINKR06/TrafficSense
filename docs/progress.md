@@ -54,6 +54,12 @@
 - **Verification:** Rebuilt the Docker demo image and ran `just db-seed` successfully. The seed output confirmed all four labelled scenarios. Docker ESLint and whitespace checks passed. Repeated seeding is additive for live incident rows because the protected tables do not permit service-role deletion through the REST client; a fresh local database remains the acceptance path for M7/M8.
 - **Commit:** `f3098ec` — `feat(seed): label Mangaluru demo incident data`.
 
+## M8 — demo proof and final checks — partially verified, 20 Oct 2026
+
+- **Verification completed:** `just check` passed with **197/197** tests, lint, route type generation, TypeScript, and production build. `just test-core-loop` passed: one report remained L1, three sources reached L3, and the route avoided the reported segment. The direct CDP browser flow passed at 1440×1000 and 390×844 for the plain-language home actions, live-report markers/details, and explicit route avoidance; the latest run used the four seeded TEST DATA scenarios plus one retained local row.
+- **Remaining limitation:** A phone demo recording artifact has not been created in this environment. The browser interaction evidence is verified, but M8 is not marked fully complete until a human records the seven-step demo on a phone-sized device and adds the artifact location.
+- **Status:** Core implementation is ready for review; recording remains the only M8 acceptance gap.
+
 
 ## Unified planner alerts and authority review history — verified without browser interaction, 19 Oct 2026
 
