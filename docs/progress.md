@@ -856,3 +856,9 @@ For each bounded task, record: goal/source module and exclusions; dependencies a
 - **Verification:** In Docker, regenerated the frozen pnpm lockfile, passed mobile and web TypeScript checks, passed focused ESLint for the changed report/API files, and passed all 197 project tests. The running local API returned HTTP 401 for an unauthenticated report POST with the expected error. `git diff --check` passed.
 - **Unverified or blocked:** Expo Go visual interaction, native location permission behavior, and an authenticated physical-device submission remain unverified because a reachable mobile Supabase session was not available. Full lint remains blocked by a pre-existing `react-hooks/set-state-in-effect` error in [traffic.tsx](/home/nithinkr06/Documents/hackathon%20(Copy)/apps/mobile/app/traffic.tsx), outside this task.
 - **Commit:** Pending.
+
+## Mobile app Phase 5 — report-to-traffic verification handoff — implemented, 21 Oct 2026
+
+- **Implementation:** The mobile traffic view refreshes on screen focus, the report success state links directly to active traffic reports, and evidence levels are presented as plain-language status labels while preserving the server-provided level.
+- **Verification:** Docker mobile/web TypeScript checks, focused ESLint, all 197 project tests, and the Expo Android bundle check passed. Device-side report submission and visual confirmation remain unverified.
+- **Commit:** Pending.

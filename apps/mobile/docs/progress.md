@@ -42,3 +42,9 @@ Cross-app changes also belong in [shared progress](../../../packages/shared/docs
 - **Verification:** Docker frozen install regenerated `pnpm-lock.yaml`; mobile and web TypeScript checks passed; focused ESLint passed for the changed report/API files; all 197 project tests passed; `git diff --check` passed; unauthenticated `POST /api/incidents` returned HTTP 401 with the expected safe error. Expo Go interaction, real authenticated mobile submission, and native location permission behavior remain unverified.
 - **Blockers:** A physical-device authenticated submission still requires a Supabase URL reachable from the phone and a configured mobile session.
 - **Commit:** Pending.
+
+## Phase 5 — report-to-traffic verification handoff — implemented, 21 Oct 2026
+
+- **Implementation:** The traffic screen now refreshes whenever it becomes active, so returning from a successful report shows the latest server state. Evidence levels use plain-language labels rather than unexplained codes, and the report screen provides a direct link to active traffic reports after submission.
+- **Verification:** Docker mobile and web TypeScript checks, focused mobile ESLint, and all 197 project tests passed. The Expo Android bundle remained HTTP 200 after the change. Real device submission and visual confirmation remain user-side checks.
+- **Commit:** Pending.

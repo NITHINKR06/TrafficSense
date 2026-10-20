@@ -54,7 +54,7 @@ export default function ReportScreen() {
         },
         session.access_token,
       );
-      setMessage(`Report submitted. Evidence level: ${result.level}.`);
+      setMessage(`Report submitted. The server recorded it as ${result.level}.`);
       setCategory(null);
       setNote("");
     } catch (reason) {
@@ -107,6 +107,11 @@ export default function ReportScreen() {
             <Text style={styles.submitText}>Submit report</Text>
           )}
         </Pressable>
+        {message ? (
+          <Pressable onPress={() => router.replace("/traffic")} style={styles.trafficLink}>
+            <Text style={styles.trafficLinkText}>View active traffic reports</Text>
+          </Pressable>
+        ) : null}
         <Text style={styles.disclaimer}>
           A report is an observation, not proof of a cause. The server decides evidence status.
         </Text>
@@ -132,4 +137,6 @@ const styles = StyleSheet.create({
   submit: { minHeight: 52, justifyContent: "center", alignItems: "center", borderRadius: 10, backgroundColor: "#087f7b" },
   submitText: { color: "#ffffff", fontSize: 16, fontWeight: "700" },
   disclaimer: { color: "#6c687c", fontSize: 13, lineHeight: 19 },
+  trafficLink: { alignSelf: "flex-start", paddingVertical: 8 },
+  trafficLinkText: { color: "#087f7b", fontSize: 15, fontWeight: "700" },
 });

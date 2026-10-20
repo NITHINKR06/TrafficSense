@@ -1,5 +1,5 @@
-import { Stack } from "expo-router";
-import { useCallback, useEffect, useState } from "react";
+import { Stack, useFocusEffect } from "expo-router";
+import { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { LiveIncident } from "@trafficsense/shared";
 import { apiConfigurationError, fetchActiveIncidents } from "../src/lib/api";
@@ -11,6 +11,17 @@ function categoryLabel(category: string) {
 function formatTime(value: string) {
   const timestamp = Date.parse(value);
   return Number.isFinite(timestamp) ? new Date(timestamp).toLocaleString() : "Unknown time";
+}
+
+function evidenceLabel(level: LiveIncident["level"]) {
+  return {
+    L1: "Reported, not yet corroborated",
+    L2: "Location-supported report",
+    L3: "Multiple independent reports",
+    L4: "Traffic slowdown corroborates disruption",
+    L5: "Authority-reviewed disruption",
+    L6: "High-confidence verified disruption",
+  }[level];
 }
 
 export default function TrafficScreen() {
@@ -33,9 +44,11 @@ export default function TrafficScreen() {
     }
   }, []);
 
-  useEffect(() => {
-    if (!apiConfigurationError) void loadIncidents();
-  }, [loadIncidents]);
+  useFocusEffect(
+    useCallback(() => {
+      if (!apiConfigurationError) void loadIncidents();
+    }, [loadIncidents]),
+  );
 
   return (
     <>
@@ -55,7 +68,7 @@ export default function TrafficScreen() {
           <View key={incident.id} style={styles.card}>
             <View style={styles.cardHeader}>
               <Text style={styles.category}>{categoryLabel(incident.category)}</Text>
-              <Text style={styles.level}>{incident.level}</Text>
+              <Text style={styles.level}>{evidenceLabel(incident.level)}</Text>
             </View>
             <Text style={styles.meta}>{incident.report_count} report{incident.report_count === 1 ? "" : "s"} · {incident.provenance}</Text>
             <Text style={styles.reason}>{incident.level_reason}</Text>
