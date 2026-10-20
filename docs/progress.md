@@ -18,6 +18,12 @@
 - **Verification:** Docker lockfile resolution, mobile TypeScript checking, and Expo configuration validation passed. No device or Expo Go launch was claimed; native runtime and mobile UI flows remain pending.
 - **Commit:** Pending.
 
+## Mobile app Phase 2 — authentication — implemented, 20 Oct 2026
+
+- **Implementation:** Added Expo Supabase authentication with secure session persistence, sign-in, commuter registration, email-confirmation messaging, protected workspace access, explicit sign-out failure handling, and safe `EXPO_PUBLIC_*` configuration documentation. No privileged key or location permission was added.
+- **Verification:** Docker dependency installation, Expo config validation, strict mobile TypeScript checking, and `git diff --check` passed. Device/Expo Go launch and live authentication against a reachable Supabase URL remain unverified.
+- **Commit:** Pending.
+
 
 ## Active demo-plan update — in progress, 20 Oct 2026
 

@@ -17,6 +17,9 @@ export default function HomeScreen() {
         <Link href="/traffic" style={styles.secondary}>
           View traffic
         </Link>
+        <Link href="/auth/login" style={styles.secondary}>
+          Sign in
+        </Link>
       </View>
       <Text style={styles.note}>
         The mobile shell is ready. Authentication, reports, maps, and alerts
