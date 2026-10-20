@@ -40,7 +40,7 @@
 
 - **Implementation:** Employer screens now describe consented active shares accurately, show the sharing start time, corridor, current status, and an explicit no-coordinates/no-history statement. The commuter view already provides a one-tap Stop Sharing action and the server reader removes revoked shares.
 - **Verification:** Docker TypeScript, ESLint, journey tests (**3/3**), and whitespace checks passed. Existing server-side journey tests cover revocation and the employer allowlisted summary; browser share/refresh interaction remains included in M8.
-- **Commit:** Pending final diff review and scoped local commit.
+- **Commit:** `5c4d9f3` — `fix(employer): clarify consented status sharing`.
 
 
 ## Unified planner alerts and authority review history — verified without browser interaction, 19 Oct 2026
