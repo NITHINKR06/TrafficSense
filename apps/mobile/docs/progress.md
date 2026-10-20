@@ -35,3 +35,10 @@ Cross-app changes also belong in [shared progress](../../../packages/shared/docs
 - **Implementation:** Added a platform-neutral active-incident contract, mobile API client, configurable API base URL, traffic loading/error/empty/refresh states, evidence-level presentation, and a Compose LAN-bind override for physical-device development. The default web bind remains loopback.
 - **Verification:** Docker mobile TypeScript checking passed. The web API returned `{"ok":true,"incidents":[]}` at `http://192.168.0.224:3000/api/incidents`; Expo Metro returned `packager-status:running` with the LAN API URL configured. No active incident fixture was available for a populated-card/device visual check.
 - **Commit:** Pending.
+
+## Phase 4 — authenticated incident reporting — implemented, 20 Oct 2026
+
+- **Implementation:** Added Expo foreground-location permission and current-position capture only on submit, category selection, optional note, explicit sign-in and permission-denied states, authenticated Bearer-token submission, and success/error handling. Added `expo-location` configuration and shared submission contracts. The server now accepts mobile Authorization headers while retaining web cookies and rejects unknown categories or non-finite coordinates.
+- **Verification:** Docker frozen install regenerated `pnpm-lock.yaml`; mobile and web TypeScript checks passed; focused ESLint passed for the changed report/API files; all 197 project tests passed; `git diff --check` passed; unauthenticated `POST /api/incidents` returned HTTP 401 with the expected safe error. Expo Go interaction, real authenticated mobile submission, and native location permission behavior remain unverified.
+- **Blockers:** A physical-device authenticated submission still requires a Supabase URL reachable from the phone and a configured mobile session.
+- **Commit:** Pending.

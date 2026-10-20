@@ -849,3 +849,10 @@ These summarize the old plan's task/verification records without reclassifying t
 ## Execution record format
 
 For each bounded task, record: goal/source module and exclusions; dependencies and affected routes; planned acceptance checks; actual commands/browser interactions with environment/provenance/outcomes; failures or unverified cases; user review; scoped commit hash after creation. Keep sensitive credentials, personal journeys and full private payloads out of records.
+
+## Mobile app Phase 4 — authenticated incident reporting — implemented, 20 Oct 2026
+
+- **Implementation:** Added the Expo report form with category selection, optional note, foreground location permission requested only on submit, current-position capture, authenticated Bearer-token submission, and explicit sign-in, denied-permission, loading, success, and failure states. Added shared report submission types and `expo-location`; updated the incident API to accept mobile Authorization headers alongside web cookies and to validate categories and finite coordinates at the boundary.
+- **Verification:** In Docker, regenerated the frozen pnpm lockfile, passed mobile and web TypeScript checks, passed focused ESLint for the changed report/API files, and passed all 197 project tests. The running local API returned HTTP 401 for an unauthenticated report POST with the expected error. `git diff --check` passed.
+- **Unverified or blocked:** Expo Go visual interaction, native location permission behavior, and an authenticated physical-device submission remain unverified because a reachable mobile Supabase session was not available. Full lint remains blocked by a pre-existing `react-hooks/set-state-in-effect` error in [traffic.tsx](/home/nithinkr06/Documents/hackathon%20(Copy)/apps/mobile/app/traffic.tsx), outside this task.
+- **Commit:** Pending.

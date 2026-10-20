@@ -19,3 +19,28 @@ export type LiveIncident = {
 export type ActiveIncidentsResponse =
   | { ok: true; incidents: LiveIncident[] }
   | { ok: false; error: string };
+
+export const reportCategories = [
+  ["accident", "Accident"],
+  ["road_repair", "Road repair / construction"],
+  ["festival", "Festival / public event"],
+  ["strike", "Strike / protest"],
+  ["vip_movement", "VIP movement"],
+  ["landslide", "Landslide"],
+  ["heavy_rain", "Heavy rain"],
+  ["flood", "Flood / waterlogging"],
+  ["signal_failure", "Traffic signal failure"],
+  ["breakdown", "Vehicle breakdown"],
+  ["road_closed", "Road closure"],
+  ["bridge_maintenance", "Bridge / road maintenance"],
+  ["police_restriction", "Police / security restrictions"],
+  ["fallen_tree", "Fallen tree / hazard"],
+  ["heavy_traffic", "Heavy traffic / congestion"],
+  ["other", "Other"],
+  ["unknown", "Unknown"],
+] as const;
+
+export type ReportCategory = (typeof reportCategories)[number][0];
+export type SubmitIncidentResponse =
+  | { ok: true; incident_id: string; level: string; level_reason: string; distinct_reporters?: number }
+  | { ok: false; error: string };
