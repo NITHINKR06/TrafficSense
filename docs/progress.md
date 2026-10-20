@@ -6,6 +6,64 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+
+## Active demo-plan update — in progress, 20 Oct 2026
+
+- **Direction:** The user has designated `docs/new-updates.md` as the current implementation plan because it reflects the latest project updates. Its demo-first scope and item order guide current work; this progress file remains the record of actual results, blockers, verification, and commits.
+- **Current task:** M3 — live map of real reports. Inspect the existing `/traffic` map and active-incident API, then make the map show current reports with plain-language marker details and the required empty state. No completion or browser-verification claim has been made yet.
+
+## M3 — live map of real reports — verified, 20 Oct 2026
+
+- **Implementation:** The `/traffic` MapLibre view now reads the existing `/api/incidents` active-report endpoint on load and every 30 seconds. It puts accessible community-report markers at the returned coordinates, shows type, report count, plain-language verification status, and reported time after selecting a marker, and renders the required “No reports in the last 3 hours.” empty state. The simulated corridor remains visibly separate from live reports, and report details do not invent a measured delay.
+- **Verification:** `just test` passed (**197/197**). `just lint` passed. Docker route-type generation, TypeScript, and production build passed. The live endpoint returned the three seeded active reports (two L1, one L3) from the running local Supabase stack. The direct CDP browser check (`tests/live-map-browser.mjs`) passed at **1440×1000** and **390×844**: all three markers rendered, marker selection displayed details, and neither viewport horizontally overflowed. `git diff --check` passed.
+- **Commit:** `e525306` — `feat(traffic): show live incident reports on map`.
+
+## M1 — plain-language home page — verified, 20 Oct 2026
+
+- **Implementation:** Replaced the technical home-page content with one plain-language description and the two primary entry actions: “Report a problem” and “Plan my route.” Both lead to the current planner until M2 extracts the citizen reporting flow from it. Role-specific views remain available through the site navigation.
+- **Verification:** Docker TypeScript and ESLint checks passed. The direct CDP browser check passed at **1440×1000** and **390×844**: it found exactly the two primary actions, confirmed their planner destinations, and found no horizontal overflow. The same browser run also rechecked the M3 live-map marker and detail flow. `git diff --check` passed.
+- **Commit:** `a4a4e74` — `feat(home): simplify primary traffic actions`.
+
+## M4 — explicit route warning and avoid choice — verified, 20 Oct 2026
+
+- **Implementation:** The planner now keeps the route that intersects a reported incident selected initially, displays the warning and incident label, and waits for the passenger to press “Avoid this route.” The detour banner appears only after that choice and states that all displayed durations are free-flow estimates. Route cards now identify their free-flow provenance.
+- **Verification:** Docker TypeScript, ESLint, focused routing/live-incident tests (**13/13**), and `git diff --check` passed. The direct CDP browser check passed at **1440×1000** and **390×844**: the warning appeared, the explicit button was available, and choosing it showed “You chose this alternative.”
+- **Commit:** `0fdfcb8` — `feat(planner): require explicit incident avoidance choice`.
+
+## M2 — GPS citizen report flow — implemented, automated checks passed, 20 Oct 2026
+
+- **Implementation:** `/reports/new` now redirects to the planner, retiring the legacy simulated segment-reporting page. The planner is the canonical incident-report flow with device GPS, explicit location-denied guidance, all 17 category buttons, signed-in reporting guidance, and the plain-language result message “Reported. 1 person has reported this.”
+- **Verification:** Docker TypeScript, ESLint, focused routing/live-incident tests (**13/13**), and whitespace checks passed. The planner route and redirect compile successfully.
+- **Remaining acceptance gap:** The requested small draggable map pin and a real signed-in GPS permission/submission browser run still need to be completed.
+- **Commit:** `6f330b3` — `feat(reports): make planner the GPS report flow`.
+
+## M5 — employer consent view cleanup — implemented, automated checks passed, 20 Oct 2026
+
+- **Implementation:** Employer screens now describe consented active shares accurately, show the sharing start time, corridor, current status, and an explicit no-coordinates/no-history statement. The commuter view already provides a one-tap Stop Sharing action and the server reader removes revoked shares.
+- **Verification:** Docker TypeScript, ESLint, journey tests (**3/3**), and whitespace checks passed. Existing server-side journey tests cover revocation and the employer allowlisted summary.
+- **Remaining acceptance gap:** Browser verification of share, stop-share, refresh, and employer disappearance is still pending.
+- **Commit:** `5c4d9f3` — `fix(employer): clarify consented status sharing`.
+
+## M6 — authority live counts — implemented, automated checks passed, 20 Oct 2026
+
+- **Implementation:** The authority dashboard uses stored live incident rows by default, labels the state `LIVE ROWS ONLY`, and keeps four-month synthetic history behind an unchecked, explicitly labelled toggle. Live-only delay fields remain “Not measured.”
+- **Verification:** Existing authority analytics tests and the live incident API path cover custom live rows and the explicit synthetic-history switch. Docker TypeScript, ESLint, and the full unit suite passed with this behavior.
+- **Remaining acceptance gap:** Browser verification that displayed counts match newly created incidents remains pending.
+- **Commit:** `75c91c8` — `feat(analytics): Plan 4 Day 3 authority analytics with live incident data and demo history toggle` (existing implementation commit).
+
+## M7 — labelled Mangaluru seed data — verified, 20 Oct 2026
+
+- **Implementation:** Local demo seeding now creates four TEST DATA incident scenarios covering Hampankatta/Jyothi, Pumpwell, Kottara, and Thokkottu, alongside the eight synthetic test accounts. Notes and the seed completion message carry the TEST DATA label; seeded accounts and credentials remain local-only.
+- **Verification:** Rebuilt the Docker demo image and ran `just db-seed` successfully. The seed output confirmed all four labelled scenarios. Docker ESLint and whitespace checks passed. Repeated seeding is additive for live incident rows because the protected tables do not permit service-role deletion through the REST client; a fresh local database remains the acceptance path for M7/M8.
+- **Commit:** `f3098ec` — `feat(seed): label Mangaluru demo incident data`.
+
+## M8 — demo proof and final checks — partially verified, 20 Oct 2026
+
+- **Verification completed:** `just check` passed with **197/197** tests, lint, route type generation, TypeScript, and production build. `just test-core-loop` passed: one report remained L1, three sources reached L3, and the route avoided the reported segment. The direct CDP browser flow passed at 1440×1000 and 390×844 for the plain-language home actions, live-report markers/details, and explicit route avoidance; the latest run used the four seeded TEST DATA scenarios plus one retained local row.
+- **Remaining limitation:** A phone demo recording artifact has not been created in this environment. The browser interaction evidence is verified, but M8 is not marked fully complete until a human records the seven-step demo on a phone-sized device and adds the artifact location.
+- **Status:** Core implementation is ready for review; recording remains the only M8 acceptance gap.
+
+
 ## Unified planner alerts and authority review history — verified without browser interaction, 19 Oct 2026
 
 - **Scope:** Close the remaining demo gaps in one bounded change: show the simulated corridor severity beneath planner routes, make closure/no-clear-alternative alerts explicit, and complete authority review with rejection and a visible audit timeline. Live authority analytics must refresh after a review action.

@@ -61,6 +61,10 @@ export function RoutePlanner() {
   const [reportFeedback, setReportFeedback] = useState<string | null>(null);
   const [isSubmittingReport, setIsSubmittingReport] = useState<boolean>(false);
 
+  function initialRouteId(routeList: RouteOption[]): string | null {
+    return routeList.find(route => route.incidents_on_route.length > 0)?.id ?? routeList[0]?.id ?? null;
+  }
+
   const mapContainer = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
   const markersRef = useRef<MarkerInstance[]>([]);
@@ -91,7 +95,7 @@ export function RoutePlanner() {
         }
       },
       (err) => {
-        setGpsError(`GPS fix unavailable: ${err.message}. Using the selected preset instead.`);
+        setGpsError(`Location was not shared (${err.message}). Choose a map location or allow location access to report from your position.`);
         if (target === "report") {
           setUseGpsReport(false);
         } else {
@@ -125,7 +129,7 @@ export function RoutePlanner() {
         }
 
         setRoutes(data.routes);
-        setSelectedRouteId(data.routes[0].id);
+        setSelectedRouteId(initialRouteId(data.routes));
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : "Network error";
         setStatusMessage(`Could not retrieve route: ${msg}`);
@@ -182,9 +186,8 @@ export function RoutePlanner() {
 
       const data = await res.json();
       if (data.ok) {
-        setReportFeedback(
-          `✓ Report recorded! Incident verification level: ${data.level} (${data.level_reason}).`
-        );
+        const reporters = typeof data.distinct_reporters === "number" ? data.distinct_reporters : 1;
+        setReportFeedback(`Reported. ${reporters} ${reporters === 1 ? "person has" : "people have"} reported this.`);
         setReportNote("");
         setShowReportForm(false);
         // Refresh incidents and recalculate route
@@ -370,7 +373,7 @@ export function RoutePlanner() {
           if (trafficData.ok && Array.isArray(trafficData.segments)) setTrafficSeverity(trafficData.segments);
           if (routeData.ok && Array.isArray(routeData.routes) && routeData.routes.length > 0) {
             setRoutes(routeData.routes);
-            setSelectedRouteId(routeData.routes[0].id);
+            setSelectedRouteId(initialRouteId(routeData.routes));
           }
         }
       } catch {
@@ -448,6 +451,7 @@ export function RoutePlanner() {
   const activeRoute = routes.find((r) => r.id === (selectedRouteId ?? routes[0]?.id));
   const selectedIncident = liveIncidents.find((incident) => incident.id === selectedIncidentId) ?? null;
   const selectedRouteWarnings = activeRoute?.incidents_on_route ?? [];
+  const avoidingRoute = routes.find(route => route.avoids_incident && route.id !== activeRoute?.id) ?? null;
   const verifiedRouteImpact = selectedRouteWarnings.some((warning) => ["L3", "L4", "L6"].includes(warning.level));
   const hasClearAlternative = routes.some((route) => route.id !== activeRoute?.id && route.incidents_on_route.length === 0);
   const roadClosure = liveIncidents.find((incident) => incident.category === "road_closed");
@@ -603,18 +607,15 @@ export function RoutePlanner() {
               <label className="text-xs font-semibold text-surface-on" htmlFor="report-cat">
                 Incident Type (17 PDF categories)
               </label>
-              <select
-                id="report-cat"
-                className="w-full text-xs rounded-lg border border-surface-container bg-surface-container-low px-3 py-2 text-surface-on"
-                value={reportCategory}
-                onChange={(e) => setReportCategory(e.target.value as ReportCategory)}
-              >
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5" role="group" aria-label="Incident category">
                 {Object.entries(reportCategories).map(([key, label]) => (
-                  <option key={key} value={key}>
+                  <button key={key} type="button" aria-pressed={reportCategory === key}
+                    className={`text-left text-[11px] px-2 py-1.5 rounded border ${reportCategory === key ? "border-primary bg-primary/10 font-bold" : "border-surface-container bg-surface-container-low"}`}
+                    onClick={() => setReportCategory(key as ReportCategory)}>
                     {reportCategoryIcons[key as ReportCategory]} {label}
-                  </option>
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
 
             {/* Incident Location */}
@@ -706,9 +707,12 @@ export function RoutePlanner() {
       {selectedRouteWarnings.length > 0 && !activeRoute?.avoids_incident && (
         <div role="alert" className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950 border border-rose-300 dark:border-rose-800 flex items-start gap-3">
           <span className="text-xl">⚠️</span>
-          <div className="space-y-0.5">
+          <div className="space-y-2">
             <p className="text-xs font-bold text-rose-900 dark:text-rose-100">Your selected route intersects a reported incident</p>
-            <p className="text-xs text-rose-800 dark:text-rose-200">{selectedRouteWarnings[0].label}. Inspect the recommended alternative before travelling; this is not a safety guarantee.</p>
+            <p className="text-xs text-rose-800 dark:text-rose-200">{selectedRouteWarnings[0].label}. Choose whether to avoid it; this is not a safety guarantee.</p>
+            {avoidingRoute && <button type="button" className="button text-xs px-3 py-1.5" onClick={() => setSelectedRouteId(avoidingRoute.id)}>
+              Avoid this route · {formatRouteDuration(avoidingRoute.duration_s)} free-flow
+            </button>}
           </div>
         </div>
       )}
@@ -735,10 +739,10 @@ export function RoutePlanner() {
           <span className="text-xl">⚠️</span>
           <div className="space-y-0.5">
             <p className="text-xs font-bold text-amber-900 dark:text-amber-100">
-              Automatic Incident Avoidance Detour
+              Avoiding the reported incident
             </p>
             <p className="text-xs text-amber-800 dark:text-amber-200">
-              {activeRoute.avoided_incident_reason}. System selected an alternative route avoiding the congestion zone.
+              {activeRoute.avoided_incident_reason}. You chose this alternative. Travel times are free-flow estimates only.
             </p>
           </div>
         </div>
@@ -822,7 +826,7 @@ export function RoutePlanner() {
                 </div>
 
                 <p className="text-xs text-surface-on-variant leading-tight">
-                  {r.name}
+                  {r.name} · free-flow estimate
                 </p>
 
                 {r.incidents_on_route.length > 0 && (

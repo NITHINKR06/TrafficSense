@@ -12,7 +12,7 @@ export default async function EmployerPage() {
         <span className="simulated-pill">EMPLOYER DESK</span>
       </div>
       <h1>Your organisations</h1>
-      <p>Only organisations linked to your account appear here. Employee journeys and sharing are not implemented; membership alone never grants location access.</p>
+      <p>Only organisations linked to your account appear here. Employees appear in an organisation only after they explicitly share an active commute status; membership never grants location access.</p>
       {data.length ? (
         <ul className="organisation-list">
           {data.map((org) => (
