@@ -48,6 +48,12 @@
 - **Verification:** Existing authority analytics tests and the live incident API path cover custom live rows and the explicit synthetic-history switch. Docker TypeScript, ESLint, and the full unit suite previously passed with this behavior; final M8 reruns the full checks and browser authority view.
 - **Commit:** `75c91c8` — `feat(analytics): Plan 4 Day 3 authority analytics with live incident data and demo history toggle` (existing implementation commit).
 
+## M7 — labelled Mangaluru seed data — verified, 20 Oct 2026
+
+- **Implementation:** Local demo seeding now creates four TEST DATA incident scenarios covering Hampankatta/Jyothi, Pumpwell, Kottara, and Thokkottu, alongside the eight synthetic test accounts. Notes and the seed completion message carry the TEST DATA label; seeded accounts and credentials remain local-only.
+- **Verification:** Rebuilt the Docker demo image and ran `just db-seed` successfully. The seed output confirmed all four labelled scenarios. Docker ESLint and whitespace checks passed. Repeated seeding is additive for live incident rows because the protected tables do not permit service-role deletion through the REST client; a fresh local database remains the acceptance path for M7/M8.
+- **Commit:** Pending final diff review and scoped local commit.
+
 
 ## Unified planner alerts and authority review history — verified without browser interaction, 19 Oct 2026
 

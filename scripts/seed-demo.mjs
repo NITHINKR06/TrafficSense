@@ -64,22 +64,29 @@ const reportScenarios = [
     category: "accident",
     lat: 12.8715,
     lng: 74.8465,
-    note: "SIMULATED: collision reported near Ambedkar (Jyothi) Circle.",
+    note: "TEST DATA · Accident reported near Hampankatta / Ambedkar (Jyothi) Circle.",
     reporters: ["commuter", "commuter-b", "commuter-c"],
   },
   {
     category: "flood",
     lat: 12.855,
     lng: 74.8685,
-    note: "SIMULATED: waterlogging reported near Pumpwell.",
+    note: "TEST DATA · Waterlogging reported near Pumpwell (Mahaveera) Circle.",
     reporters: ["commuter"],
   },
   {
     category: "road_closed",
     lat: 12.8856,
-    lng: 74.853,
-    note: "SIMULATED: road closure reported near KSRTC / Bejai Circle.",
+    lng: 74.862,
+    note: "TEST DATA · Road closure reported near Kottara Junction.",
     reporters: ["commuter-b"],
+  },
+  {
+    category: "heavy_traffic",
+    lat: 12.844,
+    lng: 74.856,
+    note: "TEST DATA · Heavy traffic reported near Thokkottu Junction.",
+    reporters: ["commuter-c"],
   },
 ];
 
@@ -102,4 +109,4 @@ for (const scenario of reportScenarios) {
   }
 }
 
-console.log("Created eight synthetic accounts, a normal-traffic corridor, and three labelled incident scenarios. Local passwords are in the ignored supabase/.temp/demo-accounts.json file; do not publish it.");
+console.log("Created eight synthetic accounts, a normal-traffic corridor, and four TEST DATA incident scenarios for Hampankatta/Jyothi, Pumpwell, Kottara, and Thokkottu. Local passwords are in the ignored supabase/.temp/demo-accounts.json file; do not publish it.");
