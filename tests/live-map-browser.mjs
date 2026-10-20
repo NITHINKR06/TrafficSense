@@ -18,7 +18,8 @@ socket.addEventListener("message", ({ data }) => {
   const request = pending.get(message.id);
   if (!request) return;
   pending.delete(message.id);
-  message.error ? request.reject(new Error(message.error.message)) : request.resolve(message.result);
+  if (message.error) request.reject(new Error(message.error.message));
+  else request.resolve(message.result);
 });
 
 function send(method, params = {}, sessionId) {
@@ -52,6 +53,17 @@ async function runAt(width, height) {
   try {
     await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: width < 600 }, sessionId);
     await send("Page.enable", {}, sessionId);
+    await send("Page.navigate", { url: appUrl }, sessionId);
+    await waitFor(() => evaluate("document.querySelector('#hero-title')?.textContent.includes('Report road problems')"), "plain-language home page");
+    const home = await evaluate(`({
+      actions: Array.from(document.querySelectorAll('.actions a')).map(link => ({ label: link.textContent.trim(), href: new URL(link.href).pathname })),
+      overflow: document.documentElement.scrollWidth <= window.innerWidth
+    })`);
+    assert.deepEqual(home.actions, [
+      { label: "Report a problem →", href: "/planner" },
+      { label: "Plan my route", href: "/planner" },
+    ]);
+    assert.equal(home.overflow, true, `${width}px home page must not overflow horizontally`);
     await send("Page.navigate", { url: `${appUrl}/traffic` }, sessionId);
     await waitFor(() => evaluate("document.querySelector('[data-testid=traffic-ready]') !== null"), "traffic explorer");
     await waitFor(() => evaluate(`document.querySelectorAll('[data-live-incident-marker]').length === ${expectedReports}`), "live report markers");

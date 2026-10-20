@@ -16,6 +16,12 @@
 
 - **Implementation:** The `/traffic` MapLibre view now reads the existing `/api/incidents` active-report endpoint on load and every 30 seconds. It puts accessible community-report markers at the returned coordinates, shows type, report count, plain-language verification status, and reported time after selecting a marker, and renders the required “No reports in the last 3 hours.” empty state. The simulated corridor remains visibly separate from live reports, and report details do not invent a measured delay.
 - **Verification:** `just test` passed (**197/197**). `just lint` passed. Docker route-type generation, TypeScript, and production build passed. The live endpoint returned the three seeded active reports (two L1, one L3) from the running local Supabase stack. The direct CDP browser check (`tests/live-map-browser.mjs`) passed at **1440×1000** and **390×844**: all three markers rendered, marker selection displayed details, and neither viewport horizontally overflowed. `git diff --check` passed.
+- **Commit:** `e525306` — `feat(traffic): show live incident reports on map`.
+
+## M1 — plain-language home page — verified, 20 Oct 2026
+
+- **Implementation:** Replaced the technical home-page content with one plain-language description and the two primary entry actions: “Report a problem” and “Plan my route.” Both lead to the current planner until M2 extracts the citizen reporting flow from it. Role-specific views remain available through the site navigation.
+- **Verification:** Docker TypeScript and ESLint checks passed. The direct CDP browser check passed at **1440×1000** and **390×844**: it found exactly the two primary actions, confirmed their planner destinations, and found no horizontal overflow. The same browser run also rechecked the M3 live-map marker and detail flow. `git diff --check` passed.
 - **Commit:** Pending final diff review and scoped local commit.
 
 
