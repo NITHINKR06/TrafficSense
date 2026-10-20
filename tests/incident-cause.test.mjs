@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { reportCategories, reportCategoryIcons } from "../src/lib/reports/rules.ts";
-import { getIncidentCauseBreakdown } from "../src/lib/reports/incident-cause.ts";
+import { reportCategories, reportCategoryIcons } from "../apps/web/src/lib/reports/rules.ts";
+import { getIncidentCauseBreakdown } from "../apps/web/src/lib/reports/incident-cause.ts";
 
 describe("Phase 5 — Incident types, reported cause, and agreement count", () => {
   it("defines all 17 categories with icons from the brief", () => {

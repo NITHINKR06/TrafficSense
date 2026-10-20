@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parseReportAssessment, assessmentView, assessmentElapsed, advanceAssessmentTiming, assessmentRemainingMs } from "../src/lib/evidence/assessment.ts";
+import { parseReportAssessment, assessmentView, assessmentElapsed, advanceAssessmentTiming, assessmentRemainingMs } from "../apps/web/src/lib/evidence/assessment.ts";
 
 const readAt = "2026-10-15T04:00:00.000Z";
 const assessment = () => ({ segment_id: "primary-west", direction: "outbound", report_count: 5,

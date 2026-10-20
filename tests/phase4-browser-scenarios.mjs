@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { createTrafficFixture } from "../src/lib/traffic/simulator.ts";
-import { authoredMotionSchedule } from "../src/lib/traffic/motion-schedule.ts";
-import { completedTraversalInput, retainedMotionSchedule, simulateTraversal, traversalTimestampMicros } from "../src/lib/traffic/traversals.ts";
+import { createTrafficFixture } from "../apps/web/src/lib/traffic/simulator.ts";
+import { authoredMotionSchedule } from "../apps/web/src/lib/traffic/motion-schedule.ts";
+import { completedTraversalInput, retainedMotionSchedule, simulateTraversal, traversalTimestampMicros } from "../apps/web/src/lib/traffic/traversals.ts";
 
 export async function runPhase4Scenarios(tools) {
   const { base, status, viewports, withPage, createPage, disposePage, privacy, layout, ready, selected, selectList,

@@ -1,5 +1,11 @@
 # Project Progress
 
+## Web app workspace migration — verified, 21 Oct 2026
+
+- **Scope:** Move the Next.js web client from root `src/` and `public/` into `apps/web/src` and `apps/web/public`, move web-owned Next.js configuration beside the app, update Docker/workspace commands and root test imports, and preserve the existing mobile/shared app boundaries.
+- **Verification:** Moved web source/assets/configuration, updated root scripts, Docker cache/build paths, test imports, ignore rules, and Docker instructions. In Docker, all 197 tests passed, web ESLint passed, Next route type generation and TypeScript passed, and the production build passed with all expected routes. The migration is isolated on the `web-app-in-apps` branch.
+- **Commit:** Pending.
+
 ## Recording rules
 
 - `docs/plan.md` holds scope, decisions, contracts and acceptance targets. `docs/implementation.md` holds detailed phases/dependencies/exit checks. Neither holds task status or verification history.

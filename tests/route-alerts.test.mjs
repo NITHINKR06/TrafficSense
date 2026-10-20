@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parsePhase5Snapshot } from "../src/lib/route-alerts/snapshot.ts";
-import { deriveRouteAlerts } from "../src/lib/route-alerts/rules.ts";
+import { parsePhase5Snapshot } from "../apps/web/src/lib/route-alerts/snapshot.ts";
+import { deriveRouteAlerts } from "../apps/web/src/lib/route-alerts/rules.ts";
 import { addReport, input, unavailable, readUs, timestamp } from "./route-alerts-fixtures.mjs";
 
 const primary = data => deriveRouteAlerts(parsePhase5Snapshot(data))[0];

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createTrafficFixture } from "../src/lib/traffic/simulator.ts";
-import { latestSegmentSamples, resolveSegment, formatTrafficTime, snapshotReadTime } from "../src/lib/traffic/presentation.ts";
-import * as presentation from "../src/lib/traffic/presentation.ts";
-import { sampleFreshness } from "../src/lib/traffic/snapshot.ts";
+import { createTrafficFixture } from "../apps/web/src/lib/traffic/simulator.ts";
+import { latestSegmentSamples, resolveSegment, formatTrafficTime, snapshotReadTime } from "../apps/web/src/lib/traffic/presentation.ts";
+import * as presentation from "../apps/web/src/lib/traffic/presentation.ts";
+import { sampleFreshness } from "../apps/web/src/lib/traffic/snapshot.ts";
 
 const fixture = createTrafficFixture("slowdown", "2026-10-15T04:00:00.000Z");
 

@@ -3,8 +3,8 @@ import { after, before, test } from "node:test";
 import { readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
-import { createTrafficFixture, DEMO_CORRIDOR_ID } from "../src/lib/traffic/simulator.ts";
-import { parseTrafficSnapshot } from "../src/lib/traffic/snapshot.ts";
+import { createTrafficFixture, DEMO_CORRIDOR_ID } from "../apps/web/src/lib/traffic/simulator.ts";
+import { parseTrafficSnapshot } from "../apps/web/src/lib/traffic/snapshot.ts";
 import { internalSupabaseUrl, readLocalStatus } from "../scripts/local-status.mjs";
 
 assert.equal(process.env.DEMO_MODE, "true");

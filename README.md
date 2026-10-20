@@ -115,7 +115,7 @@ flowchart TD
 │                           APPLICATION LAYER (Next.js 16)                               │
 │  - App Router with Partial Prerendering (PPR)                                          │
 │  - Turbopack Compilation Engine                                                        │
-│  - Strict Server-Side Allowlist Parsers (src/lib/route-alerts/snapshot.ts)             │
+│  - Strict Server-Side Allowlist Parsers (apps/web/src/lib/route-alerts/snapshot.ts)   │
 │  - Pure Domain Presentation Engines (Asia/Kolkata Formatting, Zero-Skew Timer Clocks)  │
 └────────────────────────────────────────────────────────────────────────────────────────┘
                                            │ SQL / RPC

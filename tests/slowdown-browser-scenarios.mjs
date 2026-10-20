@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
-import { createTrafficFixture } from "../src/lib/traffic/simulator.ts";
-import { formatTrafficTime } from "../src/lib/traffic/presentation.ts";
+import { createTrafficFixture } from "../apps/web/src/lib/traffic/simulator.ts";
+import { formatTrafficTime } from "../apps/web/src/lib/traffic/presentation.ts";
 import { runEvidenceScenarios } from "./evidence-browser-scenarios.mjs";
 
 export async function runSlowdownScenarios(tools) {

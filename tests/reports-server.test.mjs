@@ -51,7 +51,7 @@ const hooks = registerHooks({
         }`,
       };
       if (specifier in mocks) return { url: `data:text/javascript,${encodeURIComponent(mocks[specifier])}`, shortCircuit: true };
-      if (specifier.startsWith("@/")) return nextResolve(new URL(`../src/${specifier.slice(2)}.ts`, import.meta.url).href, context);
+      if (specifier.startsWith("@/")) return nextResolve(new URL(`../apps/web/src/${specifier.slice(2)}.ts`, import.meta.url).href, context);
       if (specifier.startsWith("./") || specifier.startsWith("../")) {
         if (!/\.[a-z]+$/.test(specifier)) return nextResolve(`${specifier}.ts`, context);
       }
@@ -87,10 +87,10 @@ beforeEach(() => {
   process.env.SUPABASE_URL = "http://synthetic.invalid";
   process.env.SUPABASE_ANON_KEY = "synthetic-public-key";
 });
-const { prepareReport, submitReport, checkReport } = await import("../src/app/reports/actions.ts");
-const { createAuthClient, createReportGuestClient, getViewer, clearReportGuestCookies } = await import("../src/lib/auth/server.ts");
-const { authFetch } = await import("../src/lib/auth/config.ts");
-const { login, register, logout } = await import("../src/app/auth-actions.ts");
+const { prepareReport, submitReport, checkReport } = await import("../apps/web/src/app/reports/actions.ts");
+const { createAuthClient, createReportGuestClient, getViewer, clearReportGuestCookies } = await import("../apps/web/src/lib/auth/server.ts");
+const { authFetch } = await import("../apps/web/src/lib/auth/config.ts");
+const { login, register, logout } = await import("../apps/web/src/app/auth-actions.ts");
 
 function session(kind) { state.jar.push({ name: kind === "account" ? "trafficsense-auth.0" : "trafficsense-report-guest.0", value: "synthetic-session" }); }
 

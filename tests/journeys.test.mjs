@@ -57,7 +57,7 @@ describe("Phase 6 — Journeys and consent-based employer sharing", () => {
       endCommuterJourney,
       shareJourneyWithEmployer,
       stopSharingJourneyWithEmployer,
-    } = await import("../src/lib/journeys/server.ts");
+    } = await import("../apps/web/src/lib/journeys/server.ts");
 
     const rpcCalls = [];
     const mockSupabase = {

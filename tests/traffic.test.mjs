@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { createTrafficFixture, DEMO_CORRIDOR_ID } from "../src/lib/traffic/simulator.ts";
+import { createTrafficFixture, DEMO_CORRIDOR_ID } from "../apps/web/src/lib/traffic/simulator.ts";
 
 const anchor = "2026-10-15T04:00:00.000Z";
 

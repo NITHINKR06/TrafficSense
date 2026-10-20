@@ -5,7 +5,7 @@ import {
   isWithinMangaluruBounds,
   formatRouteDuration,
   formatRouteDistance,
-} from "../src/lib/routing/types.ts";
+} from "../apps/web/src/lib/routing/types.ts";
 
 import {
   haversineDistanceM,
@@ -14,7 +14,7 @@ import {
   parseOsrmResponse,
   buildOsrmUrl,
   queryRoute,
-} from "../src/lib/routing/engine.ts";
+} from "../apps/web/src/lib/routing/engine.ts";
 
 describe("Plan 4 (revised) – Dynamic Routing Engine", () => {
   it("validates coordinates inside and outside the Mangaluru service area", () => {

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { registerHooks } from "node:module";
-import { createTrafficFixture, DEFAULT_DEMO_ANCHOR } from "../src/lib/traffic/simulator.ts";
+import { createTrafficFixture, DEFAULT_DEMO_ANCHOR } from "../apps/web/src/lib/traffic/simulator.ts";
 
 const state = { events: [], response: { data: null, error: null, status: 200 } };
 globalThis.__trafficReaderTest = state;
@@ -30,8 +30,8 @@ const hooks = registerHooks({
   },
 });
 after(() => { hooks.deregister(); delete globalThis.__trafficReaderTest; });
-const { parseTrafficSnapshot, sampleFreshness } = await import("../src/lib/traffic/snapshot.ts");
-const { readTrafficSnapshot } = await import("../src/lib/traffic/server.ts");
+const { parseTrafficSnapshot, sampleFreshness } = await import("../apps/web/src/lib/traffic/snapshot.ts");
+const { readTrafficSnapshot } = await import("../apps/web/src/lib/traffic/server.ts");
 const snapshot = () => {
   const fixture = createTrafficFixture("slowdown", DEFAULT_DEMO_ANCHOR);
   return { read_at: DEFAULT_DEMO_ANCHOR, fixture, reports: [], incident_episodes: [], reporting_enabled: false,

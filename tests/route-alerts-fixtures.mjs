@@ -1,4 +1,4 @@
-import { createTrafficFixture } from "../src/lib/traffic/simulator.ts";
+import { createTrafficFixture } from "../apps/web/src/lib/traffic/simulator.ts";
 
 export const readAt = "2026-10-16T04:00:00.000001Z";
 export const incidentId = "6c491f94-8c75-4a56-9c20-a332ae9de920";

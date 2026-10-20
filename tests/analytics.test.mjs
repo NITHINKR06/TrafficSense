@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { computeAnalytics } from "../src/lib/analytics/metrics.ts";
-import { HISTORICAL_INCIDENTS } from "../src/lib/analytics/history.ts";
+import { computeAnalytics } from "../apps/web/src/lib/analytics/metrics.ts";
+import { HISTORICAL_INCIDENTS } from "../apps/web/src/lib/analytics/history.ts";
 
 describe("Phase 7 — Hotspots and monthly analytics", () => {
   it("all historical incidents have simulated provenance and valid fields", () => {

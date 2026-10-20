@@ -1,5 +1,5 @@
-import { assessSlowdown } from "../src/lib/evidence/slowdown.ts";
-import { assessRecovery } from "../src/lib/evidence/recovery.ts";
+import { assessSlowdown } from "../apps/web/src/lib/evidence/slowdown.ts";
+import { assessRecovery } from "../apps/web/src/lib/evidence/recovery.ts";
 import { pathToFileURL } from "node:url";
 
 const end = "2026-10-16T10:00:00.123456Z";

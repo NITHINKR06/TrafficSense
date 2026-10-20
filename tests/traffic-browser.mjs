@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { readLocalStatus } from "../scripts/local-status.mjs";
-import { createTrafficFixture, DEFAULT_DEMO_ANCHOR } from "../src/lib/traffic/simulator.ts";
+import { createTrafficFixture, DEFAULT_DEMO_ANCHOR } from "../apps/web/src/lib/traffic/simulator.ts";
 
 const base = process.env.APP_URL || "http://127.0.0.1:3000";
 const debuggerUrl = process.env.CHROMIUM_DEBUG_URL || "http://127.0.0.1:9333";
