@@ -52,7 +52,7 @@
 
 - **Implementation:** Local demo seeding now creates four TEST DATA incident scenarios covering Hampankatta/Jyothi, Pumpwell, Kottara, and Thokkottu, alongside the eight synthetic test accounts. Notes and the seed completion message carry the TEST DATA label; seeded accounts and credentials remain local-only.
 - **Verification:** Rebuilt the Docker demo image and ran `just db-seed` successfully. The seed output confirmed all four labelled scenarios. Docker ESLint and whitespace checks passed. Repeated seeding is additive for live incident rows because the protected tables do not permit service-role deletion through the REST client; a fresh local database remains the acceptance path for M7/M8.
-- **Commit:** Pending final diff review and scoped local commit.
+- **Commit:** `f3098ec` — `feat(seed): label Mangaluru demo incident data`.
 
 
 ## Unified planner alerts and authority review history — verified without browser interaction, 19 Oct 2026
