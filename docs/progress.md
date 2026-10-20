@@ -30,22 +30,25 @@
 - **Verification:** Docker TypeScript, ESLint, focused routing/live-incident tests (**13/13**), and `git diff --check` passed. The direct CDP browser check passed at **1440×1000** and **390×844**: the warning appeared, the explicit button was available, and choosing it showed “You chose this alternative.”
 - **Commit:** `0fdfcb8` — `feat(planner): require explicit incident avoidance choice`.
 
-## M2 — GPS citizen report flow — verified, 20 Oct 2026
+## M2 — GPS citizen report flow — implemented, automated checks passed, 20 Oct 2026
 
 - **Implementation:** `/reports/new` now redirects to the planner, retiring the legacy simulated segment-reporting page. The planner is the canonical incident-report flow with device GPS, explicit location-denied guidance, all 17 category buttons, signed-in reporting guidance, and the plain-language result message “Reported. 1 person has reported this.”
-- **Verification:** Docker TypeScript, ESLint, focused routing/live-incident tests (**13/13**), and whitespace checks passed. The planner route and redirect compile successfully; browser interaction for the signed-in GPS permission/submission edge remains part of the final M8 pass.
+- **Verification:** Docker TypeScript, ESLint, focused routing/live-incident tests (**13/13**), and whitespace checks passed. The planner route and redirect compile successfully.
+- **Remaining acceptance gap:** The requested small draggable map pin and a real signed-in GPS permission/submission browser run still need to be completed.
 - **Commit:** `6f330b3` — `feat(reports): make planner the GPS report flow`.
 
-## M5 — employer consent view cleanup — verified, 20 Oct 2026
+## M5 — employer consent view cleanup — implemented, automated checks passed, 20 Oct 2026
 
 - **Implementation:** Employer screens now describe consented active shares accurately, show the sharing start time, corridor, current status, and an explicit no-coordinates/no-history statement. The commuter view already provides a one-tap Stop Sharing action and the server reader removes revoked shares.
-- **Verification:** Docker TypeScript, ESLint, journey tests (**3/3**), and whitespace checks passed. Existing server-side journey tests cover revocation and the employer allowlisted summary; browser share/refresh interaction remains included in M8.
+- **Verification:** Docker TypeScript, ESLint, journey tests (**3/3**), and whitespace checks passed. Existing server-side journey tests cover revocation and the employer allowlisted summary.
+- **Remaining acceptance gap:** Browser verification of share, stop-share, refresh, and employer disappearance is still pending.
 - **Commit:** `5c4d9f3` — `fix(employer): clarify consented status sharing`.
 
-## M6 — authority live counts — verified, 20 Oct 2026
+## M6 — authority live counts — implemented, automated checks passed, 20 Oct 2026
 
 - **Implementation:** The authority dashboard uses stored live incident rows by default, labels the state `LIVE ROWS ONLY`, and keeps four-month synthetic history behind an unchecked, explicitly labelled toggle. Live-only delay fields remain “Not measured.”
-- **Verification:** Existing authority analytics tests and the live incident API path cover custom live rows and the explicit synthetic-history switch. Docker TypeScript, ESLint, and the full unit suite previously passed with this behavior; final M8 reruns the full checks and browser authority view.
+- **Verification:** Existing authority analytics tests and the live incident API path cover custom live rows and the explicit synthetic-history switch. Docker TypeScript, ESLint, and the full unit suite passed with this behavior.
+- **Remaining acceptance gap:** Browser verification that displayed counts match newly created incidents remains pending.
 - **Commit:** `75c91c8` — `feat(analytics): Plan 4 Day 3 authority analytics with live incident data and demo history toggle` (existing implementation commit).
 
 ## M7 — labelled Mangaluru seed data — verified, 20 Oct 2026
