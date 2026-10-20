@@ -12,6 +12,12 @@
 - **Verification:** `node scripts/check-app-layout.mjs` passed. `just check-docs` passed in Docker and reported all 3 targets valid with 4 required files each. `git diff --check` passed. Existing unrelated changes, including the pre-existing `docs/new-updates.md` deletion and untracked update notes, were preserved.
 - **Commit:** Pending.
 
+## Mobile app Phase 1 — implemented, 20 Oct 2026
+
+- **Implementation:** Started the mobile client under `apps/mobile` with Expo Router and TypeScript, added the root workspace package boundary, and documented the phase order and acceptance criteria. The existing Next.js/Supabase app remains unchanged as the web/backend surface.
+- **Verification:** Docker lockfile resolution, mobile TypeScript checking, and Expo configuration validation passed. No device or Expo Go launch was claimed; native runtime and mobile UI flows remain pending.
+- **Commit:** Pending.
+
 
 ## Active demo-plan update — in progress, 20 Oct 2026
 
