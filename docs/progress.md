@@ -6,6 +6,19 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+
+## Active demo-plan update — in progress, 20 Oct 2026
+
+- **Direction:** The user has designated `docs/new-updates.md` as the current implementation plan because it reflects the latest project updates. Its demo-first scope and item order guide current work; this progress file remains the record of actual results, blockers, verification, and commits.
+- **Current task:** M3 — live map of real reports. Inspect the existing `/traffic` map and active-incident API, then make the map show current reports with plain-language marker details and the required empty state. No completion or browser-verification claim has been made yet.
+
+## M3 — live map of real reports — verified, 20 Oct 2026
+
+- **Implementation:** The `/traffic` MapLibre view now reads the existing `/api/incidents` active-report endpoint on load and every 30 seconds. It puts accessible community-report markers at the returned coordinates, shows type, report count, plain-language verification status, and reported time after selecting a marker, and renders the required “No reports in the last 3 hours.” empty state. The simulated corridor remains visibly separate from live reports, and report details do not invent a measured delay.
+- **Verification:** `just test` passed (**197/197**). `just lint` passed. Docker route-type generation, TypeScript, and production build passed. The live endpoint returned the three seeded active reports (two L1, one L3) from the running local Supabase stack. The direct CDP browser check (`tests/live-map-browser.mjs`) passed at **1440×1000** and **390×844**: all three markers rendered, marker selection displayed details, and neither viewport horizontally overflowed. `git diff --check` passed.
+- **Commit:** Pending final diff review and scoped local commit.
+
+
 ## Unified planner alerts and authority review history — verified without browser interaction, 19 Oct 2026
 
 - **Scope:** Close the remaining demo gaps in one bounded change: show the simulated corridor severity beneath planner routes, make closure/no-clear-alternative alerts explicit, and complete authority review with rejection and a visible audit timeline. Live authority analytics must refresh after a review action.

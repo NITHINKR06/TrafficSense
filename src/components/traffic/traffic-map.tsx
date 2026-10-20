@@ -4,6 +4,9 @@ import { useEffect, useRef, useState } from "react";
 import type { Map as MapInstance, Marker } from "maplibre-gl";
 import type { TrafficFixture } from "@/lib/traffic/simulator";
 import type { PublicReport } from "@/lib/reports/rules";
+import { reportCategories, reportCategoryIcons } from "@/lib/reports/rules";
+import type { LiveIncident } from "@/lib/incidents/server";
+import { formatLiveIncidentTime, liveIncidentLevelLabel } from "@/lib/incidents/presentation";
 import { episodeSummary } from "@/lib/traffic/presentation";
 import type { AssessmentView } from "@/lib/evidence/assessment";
 import type { SlowdownView } from "@/lib/evidence/slowdown-presentation";
@@ -28,9 +31,35 @@ function MapAttempt({ fixture, reports, assessments, slowdowns, episodeCounts, l
   const container = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
   const markers = useRef<Marker[]>([]);
+  const liveMarkers = useRef<Marker[]>([]);
   const selection = useRef(selectedId);
   const [state, setState] = useState<"loading" | "ready" | "failed">("loading");
   const [failure, setFailure] = useState<"timeout" | "resources" | "renderer" | "initialization" | null>(null);
+  const [liveIncidents, setLiveIncidents] = useState<LiveIncident[]>([]);
+  const [liveIncidentState, setLiveIncidentState] = useState<"loading" | "ready" | "unavailable">("loading");
+  const [selectedLiveIncidentId, setSelectedLiveIncidentId] = useState<string | null>(null);
+
+  useEffect(() => {
+    let disposed = false;
+    async function loadLiveIncidents() {
+      try {
+        const response = await fetch("/api/incidents", { cache: "no-store" });
+        const data = await response.json();
+        if (disposed) return;
+        if (!data.ok || !Array.isArray(data.incidents)) throw new Error("Incident data was unavailable");
+        setLiveIncidents(data.incidents);
+        setLiveIncidentState("ready");
+      } catch {
+        if (!disposed) setLiveIncidentState("unavailable");
+      }
+    }
+    void loadLiveIncidents();
+    const refresh = window.setInterval(() => void loadLiveIncidents(), 30_000);
+    return () => {
+      disposed = true;
+      window.clearInterval(refresh);
+    };
+  }, []);
   useEffect(() => {
     selection.current = selectedId;
     const map = mapRef.current;
@@ -75,6 +104,40 @@ function MapAttempt({ fixture, reports, assessments, slowdowns, episodeCounts, l
   }, [assessments, slowdowns, episodeCounts, lifecycleLabels, traversalViews, alertViews, fixture, reports, state]);
 
   useEffect(() => {
+    const map = mapRef.current;
+    if (!map || state !== "ready") return;
+    let disposed = false;
+    for (const marker of liveMarkers.current) marker.remove();
+    liveMarkers.current = [];
+
+    void import("maplibre-gl").then(({ Marker }) => {
+      if (disposed || !mapRef.current) return;
+      for (const incident of liveIncidents) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = styles.liveIncidentMarker;
+        button.dataset.liveIncidentMarker = incident.id;
+        button.textContent = reportCategoryIcons[incident.category] ?? "⚠️";
+        const category = reportCategories[incident.category] ?? incident.category;
+        const label = `${category}. ${liveIncidentLevelLabel(incident)}. Reported ${formatLiveIncidentTime(incident.first_reported_at)}.`;
+        button.setAttribute("aria-label", `Show report details: ${label}`);
+        button.title = label;
+        button.addEventListener("click", () => setSelectedLiveIncidentId(incident.id));
+        const marker = new Marker({ element: button, anchor: "bottom" })
+          .setLngLat([incident.lng, incident.lat])
+          .addTo(map);
+        liveMarkers.current.push(marker);
+      }
+    });
+
+    return () => {
+      disposed = true;
+      for (const marker of liveMarkers.current) marker.remove();
+      liveMarkers.current = [];
+    };
+  }, [liveIncidents, state]);
+
+  useEffect(() => {
     const segments = JSON.parse(geometryKey) as Pick<TrafficFixture["segments"][number], "id" | "name" | "direction" | "geometry">[];
     let disposed = false;
     let failed = false;
@@ -89,6 +152,8 @@ function MapAttempt({ fixture, reports, assessments, slowdowns, episodeCounts, l
       mapRef.current = null;
       for (const marker of markers.current) marker.remove();
       markers.current = [];
+      for (const marker of liveMarkers.current) marker.remove();
+      liveMarkers.current = [];
       map?.remove();
       map = null;
     };
@@ -256,10 +321,14 @@ function MapAttempt({ fixture, reports, assessments, slowdowns, episodeCounts, l
       clearTimeout(deadline);
       for (const marker of markers.current) marker.remove();
       markers.current = [];
+      for (const marker of liveMarkers.current) marker.remove();
+      liveMarkers.current = [];
       map?.remove();
       mapRef.current = null;
     };
   }, [geometryKey, onSelect]);
+
+  const selectedLiveIncident = liveIncidents.find(incident => incident.id === selectedLiveIncidentId) ?? null;
 
   return (
     <div data-map-state={state} data-map-failure={failure ?? undefined} className={styles.mapRegion}>
@@ -267,12 +336,21 @@ function MapAttempt({ fixture, reports, assessments, slowdowns, episodeCounts, l
         <p role="status" className={styles.mapStatus}>
           {state === "loading" ? "Loading interactive traffic map…"
             : state === "failed" ? "Map fallback active · Segment list and details available"
-            : "Live Interactive Map · SIMULATED corridor overlay"}
+            : liveIncidentState === "loading" ? "Loading current community reports…"
+            : liveIncidentState === "unavailable" ? "Current community reports are unavailable · simulated corridor overlay still shown"
+            : liveIncidents.length === 0 ? "No reports in the last 3 hours."
+            : `${liveIncidents.length} current community report${liveIncidents.length === 1 ? "" : "s"} on the map`}
         </p>
       </div>
       {state === "failed" && <button type="button" className="button secondary mb-2" onClick={onRetry}>Retry map</button>}
       <div ref={container} className={styles.mapCanvas}
-        role="region" aria-label="Interactive map with synthetic segment selection" />
+        role="region" aria-label="Interactive map with current community reports and synthetic segment selection" />
+      {selectedLiveIncident && <section className={styles.liveIncidentDetails} aria-live="polite" aria-label="Selected community report">
+        <p className={styles.liveIncidentEyebrow}>COMMUNITY REPORT</p>
+        <h3>{reportCategoryIcons[selectedLiveIncident.category]} {reportCategories[selectedLiveIncident.category] ?? selectedLiveIncident.category}</h3>
+        <p><strong>{liveIncidentLevelLabel(selectedLiveIncident)}.</strong></p>
+        <p>Reported <time dateTime={selectedLiveIncident.first_reported_at}>{formatLiveIncidentTime(selectedLiveIncident.first_reported_at)}</time>. This is a reported incident, not a measured traffic delay.</p>
+      </section>}
       <div className={styles.legendRow}>
         <div className={styles.legend}>
           <span className={styles.legendChip} data-legend="primary">
@@ -290,6 +368,10 @@ function MapAttempt({ fixture, reports, assessments, slowdowns, episodeCounts, l
           <span className={styles.legendChip} data-legend="selected">
             <span className={`${styles.legendColor} ${styles.legendColorSelected}`} />
             Selected segment
+          </span>
+          <span className={styles.legendChip} data-legend="community-report">
+            <span className={styles.legendColor} style={{ backgroundColor: "#b91c1c" }} />
+            Community report
           </span>
         </div>
       </div>
