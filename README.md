@@ -3,7 +3,7 @@
 > **A Comprehensive Architectural Whitepaper, System Specification, and Research Reference**  
 > **Core Framework**: `REPORT → VERIFY → ALERT → ANALYSE`  
 > **Deployment Context**: Mangaluru Smart Mobility Corridor (Tier-2 Arterial Demonstration)  
-> **Engine**: Next.js 16 (App Router + Turbopack) · PostgreSQL 17 / Supabase · Row-Level Security · MapLibre GL  
+> **Engine**: Next.js 16 (App Router + Turbopack) · PostgreSQL 17 / Supabase · Row-Level Security · MapLibre GL  Dockerized 
 
 ---
 
