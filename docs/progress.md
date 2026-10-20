@@ -34,7 +34,7 @@
 
 - **Implementation:** `/reports/new` now redirects to the planner, retiring the legacy simulated segment-reporting page. The planner is the canonical incident-report flow with device GPS, explicit location-denied guidance, all 17 category buttons, signed-in reporting guidance, and the plain-language result message “Reported. 1 person has reported this.”
 - **Verification:** Docker TypeScript, ESLint, focused routing/live-incident tests (**13/13**), and whitespace checks passed. The planner route and redirect compile successfully; browser interaction for the signed-in GPS permission/submission edge remains part of the final M8 pass.
-- **Commit:** Pending final diff review and scoped local commit.
+- **Commit:** `6f330b3` — `feat(reports): make planner the GPS report flow`.
 
 
 ## Unified planner alerts and authority review history — verified without browser interaction, 19 Oct 2026
