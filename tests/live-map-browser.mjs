@@ -81,6 +81,14 @@ async function runAt(width, height) {
     assert.equal(result.markers, expectedReports);
     assert.match(result.details, /COMMUNITY REPORT/);
     assert.equal(result.overflow, true, `${width}px viewport must not overflow horizontally`);
+
+    await send("Page.navigate", { url: `${appUrl}/planner` }, sessionId);
+    await waitFor(() => evaluate("document.body?.innerText.includes('Find Best Route')"), "route planner");
+    await waitFor(() => evaluate("document.body?.innerText.includes('Your selected route intersects a reported incident')"), "explicit route warning");
+    const avoidButton = await evaluate(`Array.from(document.querySelectorAll('button')).find(button => button.textContent.includes('Avoid this route'))?.textContent ?? ''`);
+    assert.match(avoidButton, /Avoid this route/);
+    await evaluate(`Array.from(document.querySelectorAll('button')).find(button => button.textContent.includes('Avoid this route'))?.click()`);
+    await waitFor(() => evaluate("document.body?.innerText.includes('You chose this alternative')"), "chosen avoiding route");
   } finally {
     await send("Target.closeTarget", { targetId: target.targetId }).catch(() => undefined);
     await send("Target.disposeBrowserContext", { browserContextId: context.browserContextId }).catch(() => undefined);
