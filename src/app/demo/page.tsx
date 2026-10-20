@@ -32,7 +32,7 @@ export default function GuestDemoPage() {
             <h2 className="text-lg font-bold text-on-surface m-0">Privacy & Accounts</h2>
           </div>
           <p className="text-sm mt-2 text-on-surface-variant">
-            Guest reporting creates a temporary 24-hour token. Signing in is optional and only required for role-based features (Employer, Authority). See the full{" "}
+            Your guest report stays visible for 24 hours. Signing in is optional and only required for role-based features (Employer, Authority). See the full{" "}
             <Link href="/about#privacy-title" className="font-semibold text-primary underline">
               Privacy & Verification Policy
             </Link>{" "}
@@ -43,7 +43,7 @@ export default function GuestDemoPage() {
 
       <div className="actions section-space">
         <Link className="button" href="/traffic">Browse synthetic traffic</Link>
-        <Link className="button secondary" href="/reports/new">Try a simulated report</Link>
+        <Link className="button secondary" href="/reports/new">Submit a traffic report</Link>
         <Link className="button secondary" href="/about">System methodology</Link>
         <Link href="/">Return home</Link>
       </div>

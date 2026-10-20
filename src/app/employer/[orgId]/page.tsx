@@ -60,14 +60,14 @@ export default async function OrganisationPage({ params }: PageProps<"/employer/
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-800">
-                      LIVE DELAY SHARE
+                      CONSENTED SHARE
                     </span>
                     <span className="text-xs font-mono text-surface-on-variant">
                       Ref: {j.journey_id.slice(0, 8)}...
                     </span>
                   </div>
-                  <span className="text-xs font-mono text-surface-on-variant">
-                    Shared {new Date(j.shared_at).toLocaleTimeString()}
+                    <span className="text-xs font-mono text-surface-on-variant">
+                      Sharing started {new Date(j.shared_at).toLocaleString()}
                   </span>
                 </div>
 
@@ -78,7 +78,7 @@ export default async function OrganisationPage({ params }: PageProps<"/employer/
                   </div>
                   <div>
                     <span className="text-xs text-surface-on-variant block">Delay measurement</span>
-                    <span className="font-semibold text-surface-on">Delay not measured</span>
+                    <span className="font-semibold text-surface-on">{j.status.toUpperCase()}</span>
                   </div>
                   <div>
                     <span className="text-xs text-surface-on-variant block">Journey evidence</span>
@@ -87,8 +87,8 @@ export default async function OrganisationPage({ params }: PageProps<"/employer/
                 </div>
 
                 <div className="text-[11px] text-surface-on-variant border-t border-surface-container-high pt-2 flex items-center justify-between">
-                  <span>Provenance: SIMULATED</span>
-                  <span>Trip status: {j.status.toUpperCase()}</span>
+                  <span>Coordinates and route history are not shared</span>
+                  <span>Consent is active</span>
                 </div>
               </div>
             ))}

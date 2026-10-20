@@ -26,13 +26,14 @@ export function RouteComparisonBar({
   const altUs = routeComparison.alternative_duration_us;
   const savingsUs = routeComparison.savings_us;
 
-  const primaryMinutes = primaryUs != null ? Math.round(primaryUs / 60_000_000) : 13;
-  const altMinutes = altUs != null ? Math.round(altUs / 60_000_000) : 7;
-  const savingsMinutes = savingsUs != null ? Math.round(savingsUs / 60_000_000) : Math.max(0, primaryMinutes - altMinutes);
+  const hasMeasuredDurations = primaryUs != null && altUs != null;
+  const primaryMinutes = hasMeasuredDurations ? Math.round(primaryUs / 60_000_000) : null;
+  const altMinutes = hasMeasuredDurations ? Math.round(altUs / 60_000_000) : null;
+  const savingsMinutes = savingsUs != null ? Math.round(savingsUs / 60_000_000) : null;
 
-  const maxDuration = Math.max(primaryMinutes, altMinutes, 15);
-  const primaryPct = Math.min(100, Math.round((primaryMinutes / maxDuration) * 100));
-  const altPct = Math.min(100, Math.round((altMinutes / maxDuration) * 100));
+  const maxDuration = hasMeasuredDurations ? Math.max(primaryMinutes!, altMinutes!, 15) : 1;
+  const primaryPct = hasMeasuredDurations ? Math.min(100, Math.round((primaryMinutes! / maxDuration) * 100)) : 0;
+  const altPct = hasMeasuredDurations ? Math.min(100, Math.round((altMinutes! / maxDuration) * 100)) : 0;
 
   const isAlert = alertInfo?.state === "alert";
   const hasAlternativeSegment = !!routeComparison.alternative_segment_ids[0];
@@ -42,13 +43,13 @@ export function RouteComparisonBar({
       <div className={styles.headerRow}>
         <h4 className={styles.title}>Route Comparison (Primary vs Alternative)</h4>
         {isAlert ? (
-          <span className={styles.alertBadge}>⚡ ALERT: SAVE ~{savingsMinutes} MIN</span>
+          <span className={styles.alertBadge}>⚡ ALERT{ savingsMinutes != null ? `: SAVE ~${savingsMinutes} MIN` : "" }</span>
         ) : (
           <span className={styles.abstainBadge}>NO ALERT</span>
         )}
       </div>
 
-      <div className={styles.barsContainer}>
+      {hasMeasuredDurations ? <div className={styles.barsContainer}>
         {/* Primary Route Bar */}
         <div className={styles.barRow}>
           <div className={styles.barLabelGroup}>
@@ -76,7 +77,7 @@ export function RouteComparisonBar({
             />
           </div>
         </div>
-      </div>
+      </div> : <p className={styles.reasonText}>Travel durations are <strong>Not measured</strong> because completed route traversals are unavailable.</p>}
 
       <div className={styles.summaryLine}>
         <p className={styles.reasonText}>

@@ -95,7 +95,7 @@ export function RoutePlanner() {
         }
       },
       (err) => {
-        setGpsError(`GPS fix unavailable: ${err.message}. Using the selected preset instead.`);
+        setGpsError(`Location was not shared (${err.message}). Choose a map location or allow location access to report from your position.`);
         if (target === "report") {
           setUseGpsReport(false);
         } else {
@@ -186,9 +186,8 @@ export function RoutePlanner() {
 
       const data = await res.json();
       if (data.ok) {
-        setReportFeedback(
-          `✓ Report recorded! Incident verification level: ${data.level} (${data.level_reason}).`
-        );
+        const reporters = typeof data.distinct_reporters === "number" ? data.distinct_reporters : 1;
+        setReportFeedback(`Reported. ${reporters} ${reporters === 1 ? "person has" : "people have"} reported this.`);
         setReportNote("");
         setShowReportForm(false);
         // Refresh incidents and recalculate route
@@ -608,18 +607,15 @@ export function RoutePlanner() {
               <label className="text-xs font-semibold text-surface-on" htmlFor="report-cat">
                 Incident Type (17 PDF categories)
               </label>
-              <select
-                id="report-cat"
-                className="w-full text-xs rounded-lg border border-surface-container bg-surface-container-low px-3 py-2 text-surface-on"
-                value={reportCategory}
-                onChange={(e) => setReportCategory(e.target.value as ReportCategory)}
-              >
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5" role="group" aria-label="Incident category">
                 {Object.entries(reportCategories).map(([key, label]) => (
-                  <option key={key} value={key}>
+                  <button key={key} type="button" aria-pressed={reportCategory === key}
+                    className={`text-left text-[11px] px-2 py-1.5 rounded border ${reportCategory === key ? "border-primary bg-primary/10 font-bold" : "border-surface-container bg-surface-container-low"}`}
+                    onClick={() => setReportCategory(key as ReportCategory)}>
                     {reportCategoryIcons[key as ReportCategory]} {label}
-                  </option>
+                  </button>
                 ))}
-              </select>
+              </div>
             </div>
 
             {/* Incident Location */}
@@ -708,7 +704,7 @@ export function RoutePlanner() {
         </div>
       )}
 
-      {selectedRouteWarnings.length > 0 && !activeRoute?.avoids_incident && (
+      {verifiedRouteImpact && !activeRoute?.avoids_incident && (
         <div role="alert" className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950 border border-rose-300 dark:border-rose-800 flex items-start gap-3">
           <span className="text-xl">⚠️</span>
           <div className="space-y-2">
@@ -786,7 +782,7 @@ export function RoutePlanner() {
               <span className="text-surface-on-variant">Alternative path</span>
             </div>
           )}
-          <div className="pt-1 mt-1 border-t border-surface-container text-surface-on-variant">Traffic severity · simulated reader</div>
+          <div className="pt-1 mt-1 border-t border-surface-container text-surface-on-variant">Current reports</div>
           <div className="flex items-center gap-2"><span className="w-3 h-1 bg-emerald-600 rounded" /><span className="text-surface-on-variant">Clear</span></div>
           <div className="flex items-center gap-2"><span className="w-3 h-1 bg-amber-500 rounded" /><span className="text-surface-on-variant">Reported / corroborated</span></div>
           <div className="flex items-center gap-2"><span className="w-3 h-1 bg-orange-600 rounded" /><span className="text-surface-on-variant">L4 slowdown support</span></div>

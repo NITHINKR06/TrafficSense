@@ -11,7 +11,7 @@ services:
       - path: .env.local
         required: false
     ports:
-      - "127.0.0.1:${APP_PORT:-3000}:3000"
+      - "${APP_HOST_BIND:-127.0.0.1}:${APP_PORT:-3000}:3000"
     volumes:
       - .:/app
       - dependencies:/app/node_modules
@@ -64,6 +64,8 @@ services:
       SUPABASE_EXPERIMENTAL_STACK: "0"
       SUPABASE_SERVICES_HOSTNAME: "127.0.0.1"
       SUPABASE_NETWORK_ID: trafficsense_supabase
+      LOCAL_SUPABASE_HOST_BIND: ${LOCAL_SUPABASE_HOST_BIND:-127.0.0.1}
+      CI: ${CI:-}
       TMPDIR: ${PWD}/supabase/.temp
     working_dir: ${PWD}
     volumes:

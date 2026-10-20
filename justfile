@@ -102,6 +102,10 @@ test:
 lint:
     docker compose exec app pnpm lint 2>/dev/null || docker compose run --rm app pnpm lint
 
+# Check the required app AI/docs layout inside Docker
+check-docs:
+    docker compose run --rm app pnpm check:docs
+
 # Run backend integration tests (auth, traffic, reports)
 test-integration:
     bash scripts/local-supabase.sh test

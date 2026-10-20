@@ -55,7 +55,7 @@ const CAUSE_LABELS: Record<HistoricalIncident["cause"], string> = {
   road_repair: "Road Maintenance / Works",
   heavy_volume: "Peak Traffic Congestion",
   flood: "Monsoon Waterlogging",
-  unknown: "Unverified Incidents",
+  unknown: "Cause not yet reported",
 };
 
 /** 30-minute slots spanning 07:00–20:30 (IST) — covers all three peak windows. */
@@ -254,7 +254,9 @@ export function computeRecurrenceStatement(
   }
 
   const N = incidentWeekdays.size;
-  const M = Math.max(totalWeekdaysInPeriod.size, 1);
+  // Keep the statement mathematically consistent even when timezone conversion
+  // places an incident on a boundary day outside the generated cursor range.
+  const M = Math.max(totalWeekdaysInPeriod.size, N, 1);
 
   // Determine most common peak window for this junction
   const windowCounts = new Map<string, number>();

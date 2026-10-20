@@ -2,14 +2,16 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { authorityUpdateIncident, submitIncidentReport, getActiveLiveIncidents, getAuthorityIncidentHistory, type SubmitIncidentInput } from "@/lib/incidents/server";
-import type { ReportCategory } from "@/lib/reports/rules";
+import { reportCategories, type ReportCategory } from "@/lib/reports/rules";
 
-async function getSupabase() {
+async function getSupabase(req: NextRequest) {
   const cookieStore = await cookies();
   const url = process.env.SUPABASE_URL!;
   const key = process.env.SUPABASE_ANON_KEY!;
 
+  const authorization = req.headers.get("authorization");
   return createServerClient(url, key, {
+    global: authorization ? { headers: { Authorization: authorization } } : undefined,
     cookies: {
       getAll() {
         return cookieStore.getAll();
@@ -25,7 +27,7 @@ async function getSupabase() {
 
 export async function GET(req: NextRequest) {
   try {
-    const supabase = await getSupabase();
+    const supabase = await getSupabase(req);
     if (new URL(req.url).searchParams.get("scope") === "authority-history") {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user || user.is_anonymous) {
@@ -44,7 +46,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await getSupabase();
+    const supabase = await getSupabase(req);
 
     // Live corroboration requires a named account; anonymous sessions cannot count toward L3.
     const {
@@ -61,7 +63,14 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { category, lat, lng, gps_accuracy_m, gps_fix_at, note } = body;
 
-    if (!category || typeof lat !== "number" || typeof lng !== "number") {
+    if (
+      typeof category !== "string" ||
+      !Object.hasOwn(reportCategories, category) ||
+      typeof lat !== "number" ||
+      !Number.isFinite(lat) ||
+      typeof lng !== "number" ||
+      !Number.isFinite(lng)
+    ) {
       return NextResponse.json(
         { ok: false, error: "Missing required fields: category, lat, lng" },
         { status: 400 }
@@ -103,7 +112,7 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "A valid incident and review action are required." }, { status: 400 });
     }
 
-    const supabase = await getSupabase();
+    const supabase = await getSupabase(req);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user || user.is_anonymous) {
       return NextResponse.json({ ok: false, error: "Authority sign-in is required." }, { status: 401 });

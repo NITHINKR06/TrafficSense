@@ -20,7 +20,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <span>TrafficSense</span>
                 <span className="brand-badge">Mangaluru</span>
               </Link>
-              <span className="simulated-pill header-preview-label">Development preview</span>
+              {process.env.NODE_ENV !== "production" && <span className="simulated-pill header-preview-label">Development preview</span>}
             </div>
             <nav aria-label="Main navigation">
               <Link href="/">Home</Link>

@@ -27,7 +27,7 @@ export function JourneyManager({
         <div>
           <h2 className="text-lg font-bold">Commute & Journey Sharing</h2>
           <p className="text-sm text-surface-on-variant">
-            Start and stop a private journey, then explicitly share its corridor and status with an employer. Journey timing is not measured in this build.
+            Start and stop a private journey, then explicitly share its corridor and status with an employer. Delay is not measured yet.
           </p>
         </div>
         <button

@@ -286,7 +286,7 @@ export default function AboutPage() {
       {/* SECTION 2: VERIFICATION LADDER */}
       <section className={styles.section} aria-labelledby="ladder-title">
         <h2 id="ladder-title" className={styles.sectionTitle}>
-          2. Verification Evidence Ladder (L1–L6)
+          2. Evidence levels: 1 person reported, 3+ people confirmed, or official action
         </h2>
         <p className={styles.text}>
           Crowdsourced incident reports alone cannot prove road obstruction. TrafficSense structures evidence across six

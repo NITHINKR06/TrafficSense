@@ -8,7 +8,9 @@ umask 077
 case "${1:-}" in
   start)
     if ! docker network inspect trafficsense_supabase >/dev/null 2>&1; then
-      docker network create --driver bridge --opt com.docker.network.bridge.host_binding_ipv4=127.0.0.1 trafficsense_supabase >/dev/null
+      docker network create --driver bridge \
+        --opt com.docker.network.bridge.host_binding_ipv4="${LOCAL_SUPABASE_HOST_BIND:-127.0.0.1}" \
+        trafficsense_supabase >/dev/null
     fi
     docker compose build supabase demo
     mkdir -p supabase/.temp
@@ -19,6 +21,9 @@ case "${1:-}" in
     docker compose run --rm supabase migration up --local
     docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/scripts/configure-local.mjs
     printf '%s\n' 'Local Supabase is ready. Run bash scripts/local-supabase.sh seed to create synthetic accounts.'
+    if [[ "${LOCAL_SUPABASE_HOST_BIND:-127.0.0.1}" != "127.0.0.1" ]]; then
+      printf '%s\n' "LAN binding enabled on ${LOCAL_SUPABASE_HOST_BIND}; use only on a trusted local network."
+    fi
     ;;
   seed)
     docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/scripts/seed-demo.mjs

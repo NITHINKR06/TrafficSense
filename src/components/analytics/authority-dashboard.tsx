@@ -350,9 +350,9 @@ export function AuthorityDashboard() {
                 <tr key={h.junction_id} className="hover:bg-surface-container-low transition">
                   <td className="py-3 px-3 font-mono font-bold text-primary">#{index + 1}</td>
                   <td className="py-3 px-3 font-semibold text-surface-on">{h.junction_name}</td>
-                  <td className="py-3 px-3 font-bold text-warning-on-container">{h.total_delay_hours} hrs</td>
+                  <td className="py-3 px-3 font-bold text-warning-on-container">{showDemoHistory ? `${h.total_delay_hours} hrs` : "Not measured"}</td>
                   <td className="py-3 px-3">{h.incident_count} events</td>
-                  <td className="py-3 px-3">~{h.average_delay_minutes} min</td>
+                  <td className="py-3 px-3">{showDemoHistory ? `~${h.average_delay_minutes} min` : "Not measured"}</td>
                   <td className="py-3 px-3 font-mono">{h.primary_window}</td>
                   <td className="py-3 px-3">
                     <span className="inline-flex px-2 py-0.5 rounded bg-surface-container text-surface-on font-medium">
@@ -381,12 +381,12 @@ export function AuthorityDashboard() {
               <p className="font-semibold text-surface-on text-sm leading-tight">{h.junction_name}</p>
               <div className="flex items-center gap-4 text-xs text-surface-on-variant">
                 <span>
-                  <span className="font-bold text-warning-on-container">{h.total_delay_hours} hrs</span> total delay
+                  <span className="font-bold text-warning-on-container">{showDemoHistory ? `${h.total_delay_hours} hrs` : "Not measured"}</span> total delay
                 </span>
                 <span>{h.incident_count} events</span>
               </div>
               <div className="text-xs text-surface-on-variant">
-                Avg <span className="font-semibold">~{h.average_delay_minutes} min</span> ·{" "}
+                Avg <span className="font-semibold">{showDemoHistory ? `~${h.average_delay_minutes} min` : "Not measured"}</span> ·{" "}
                 <span className="px-1.5 py-0.5 rounded bg-surface-container text-surface-on font-medium">
                   {h.primary_cause}
                 </span>
@@ -490,7 +490,7 @@ export function AuthorityDashboard() {
                 <tr key={row.cause} className="hover:bg-surface-container-low transition">
                   <td className="py-2.5 px-3 font-semibold text-surface-on">{row.label}</td>
                   <td className="py-2.5 px-3 text-right font-mono">{row.count}</td>
-                  <td className="py-2.5 px-3 text-right font-bold text-warning-on-container">{row.total_delay_hours}</td>
+                  <td className="py-2.5 px-3 text-right font-bold text-warning-on-container">{showDemoHistory ? row.total_delay_hours : "Not measured"}</td>
                 </tr>
               ))}
             </tbody>

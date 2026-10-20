@@ -6,6 +6,30 @@
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
 
+## Per-app AI/docs layout — verified, 20 Oct 2026
+
+- **Implementation:** Added identical minimal `ai/` and `docs/` entry files for `apps/web`, `apps/mobile`, and `packages/shared`: `AGENTS.md`, `rules.md`, `plan.md`, and `progress.md`. Added shared app guidance at `ai/resources/app_common_rules.md` and reusable templates under `templates/app-ai/` and `templates/app-docs/`. Added `scripts/check-app-layout.mjs`, the `check:docs` package script, and the `just check-docs` Docker recipe.
+- **Verification:** `node scripts/check-app-layout.mjs` passed. `just check-docs` passed in Docker and reported all 3 targets valid with 4 required files each. `git diff --check` passed. Existing unrelated changes, including the pre-existing `docs/new-updates.md` deletion and untracked update notes, were preserved.
+- **Commit:** Pending.
+
+## Mobile app Phase 1 — verified, 20 Oct 2026
+
+- **Implementation:** Started the mobile client under `apps/mobile` with Expo Router and TypeScript, added the root workspace package boundary, and documented the phase order and acceptance criteria. The existing Next.js/Supabase app remains unchanged as the web/backend surface.
+- **Verification:** Docker lockfile resolution, mobile TypeScript checking, and Expo configuration validation passed. No device or Expo Go launch was claimed; native runtime and mobile UI flows remain pending.
+- **Commit:** `27271f1` — `feat(mobile): start Expo client shell`.
+
+## Mobile app Phase 2 — authentication — implemented, 20 Oct 2026
+
+- **Implementation:** Added Expo Supabase authentication with secure session persistence, sign-in, commuter registration, email-confirmation messaging, protected workspace access, explicit sign-out failure handling, and safe `EXPO_PUBLIC_*` configuration documentation. No privileged key or location permission was added.
+- **Verification:** Docker dependency installation, Expo config validation, strict mobile TypeScript checking, and `git diff --check` passed. Device/Expo Go launch and live authentication against a reachable Supabase URL remain unverified.
+- **Commit:** `43ef3b8` — `feat(mobile): add Supabase authentication flow`.
+
+## Mobile app Phase 3 — public traffic API — implemented, 20 Oct 2026
+
+- **Implementation:** Connected the Expo traffic screen to the existing Next.js `/api/incidents` endpoint, added shared incident response types, explicit loading/error/empty/refresh states, and a safe opt-in LAN bind for physical-device API testing.
+- **Verification:** Docker mobile TypeScript checking passed. The LAN API returned a valid empty response and Expo Metro remained healthy with `EXPO_PUBLIC_API_BASE_URL=http://192.168.0.224:3000`. No populated incident card or device visual verification was claimed.
+- **Commit:** Pending.
+
 
 ## Active demo-plan update — in progress, 20 Oct 2026
 
@@ -29,6 +53,39 @@
 - **Implementation:** The planner now keeps the route that intersects a reported incident selected initially, displays the warning and incident label, and waits for the passenger to press “Avoid this route.” The detour banner appears only after that choice and states that all displayed durations are free-flow estimates. Route cards now identify their free-flow provenance.
 - **Verification:** Docker TypeScript, ESLint, focused routing/live-incident tests (**13/13**), and `git diff --check` passed. The direct CDP browser check passed at **1440×1000** and **390×844**: the warning appeared, the explicit button was available, and choosing it showed “You chose this alternative.”
 - **Commit:** `0fdfcb8` — `feat(planner): require explicit incident avoidance choice`.
+
+## M2 — GPS citizen report flow — implemented, automated checks passed, 20 Oct 2026
+
+- **Implementation:** `/reports/new` now redirects to the planner, retiring the legacy simulated segment-reporting page. The planner is the canonical incident-report flow with device GPS, explicit location-denied guidance, all 17 category buttons, signed-in reporting guidance, and the plain-language result message “Reported. 1 person has reported this.”
+- **Verification:** Docker TypeScript, ESLint, focused routing/live-incident tests (**13/13**), and whitespace checks passed. The planner route and redirect compile successfully.
+- **Remaining acceptance gap:** The requested small draggable map pin and a real signed-in GPS permission/submission browser run still need to be completed.
+- **Commit:** `6f330b3` — `feat(reports): make planner the GPS report flow`.
+
+## M5 — employer consent view cleanup — implemented, automated checks passed, 20 Oct 2026
+
+- **Implementation:** Employer screens now describe consented active shares accurately, show the sharing start time, corridor, current status, and an explicit no-coordinates/no-history statement. The commuter view already provides a one-tap Stop Sharing action and the server reader removes revoked shares.
+- **Verification:** Docker TypeScript, ESLint, journey tests (**3/3**), and whitespace checks passed. Existing server-side journey tests cover revocation and the employer allowlisted summary.
+- **Remaining acceptance gap:** Browser verification of share, stop-share, refresh, and employer disappearance is still pending.
+- **Commit:** `5c4d9f3` — `fix(employer): clarify consented status sharing`.
+
+## M6 — authority live counts — implemented, automated checks passed, 20 Oct 2026
+
+- **Implementation:** The authority dashboard uses stored live incident rows by default, labels the state `LIVE ROWS ONLY`, and keeps four-month synthetic history behind an unchecked, explicitly labelled toggle. Live-only delay fields remain “Not measured.”
+- **Verification:** Existing authority analytics tests and the live incident API path cover custom live rows and the explicit synthetic-history switch. Docker TypeScript, ESLint, and the full unit suite passed with this behavior.
+- **Remaining acceptance gap:** Browser verification that displayed counts match newly created incidents remains pending.
+- **Commit:** `75c91c8` — `feat(analytics): Plan 4 Day 3 authority analytics with live incident data and demo history toggle` (existing implementation commit).
+
+## M7 — labelled Mangaluru seed data — verified, 20 Oct 2026
+
+- **Implementation:** Local demo seeding now creates four TEST DATA incident scenarios covering Hampankatta/Jyothi, Pumpwell, Kottara, and Thokkottu, alongside the eight synthetic test accounts. Notes and the seed completion message carry the TEST DATA label; seeded accounts and credentials remain local-only.
+- **Verification:** Rebuilt the Docker demo image and ran `just db-seed` successfully. The seed output confirmed all four labelled scenarios. Docker ESLint and whitespace checks passed. Repeated seeding is additive for live incident rows because the protected tables do not permit service-role deletion through the REST client; a fresh local database remains the acceptance path for M7/M8.
+- **Commit:** `f3098ec` — `feat(seed): label Mangaluru demo incident data`.
+
+## M8 — demo proof and final checks — partially verified, 20 Oct 2026
+
+- **Verification completed:** `just check` passed with **197/197** tests, lint, route type generation, TypeScript, and production build. `just test-core-loop` passed: one report remained L1, three sources reached L3, and the route avoided the reported segment. The direct CDP browser flow passed at 1440×1000 and 390×844 for the plain-language home actions, live-report markers/details, and explicit route avoidance; the latest run used the four seeded TEST DATA scenarios plus one retained local row.
+- **Remaining limitation:** A phone demo recording artifact has not been created in this environment. The browser interaction evidence is verified, but M8 is not marked fully complete until a human records the seven-step demo on a phone-sized device and adds the artifact location.
+- **Status:** Core implementation is ready for review; recording remains the only M8 acceptance gap.
 
 
 ## Unified planner alerts and authority review history — verified without browser interaction, 19 Oct 2026
@@ -792,3 +849,16 @@ These summarize the old plan's task/verification records without reclassifying t
 ## Execution record format
 
 For each bounded task, record: goal/source module and exclusions; dependencies and affected routes; planned acceptance checks; actual commands/browser interactions with environment/provenance/outcomes; failures or unverified cases; user review; scoped commit hash after creation. Keep sensitive credentials, personal journeys and full private payloads out of records.
+
+## Mobile app Phase 4 — authenticated incident reporting — implemented, 20 Oct 2026
+
+- **Implementation:** Added the Expo report form with category selection, optional note, foreground location permission requested only on submit, current-position capture, authenticated Bearer-token submission, and explicit sign-in, denied-permission, loading, success, and failure states. Added shared report submission types and `expo-location`; updated the incident API to accept mobile Authorization headers alongside web cookies and to validate categories and finite coordinates at the boundary.
+- **Verification:** In Docker, regenerated the frozen pnpm lockfile, passed mobile and web TypeScript checks, passed focused ESLint for the changed report/API files, and passed all 197 project tests. The running local API returned HTTP 401 for an unauthenticated report POST with the expected error. `git diff --check` passed.
+- **Unverified or blocked:** Expo Go visual interaction, native location permission behavior, and an authenticated physical-device submission remain unverified because a reachable mobile Supabase session was not available. Full lint remains blocked by a pre-existing `react-hooks/set-state-in-effect` error in [traffic.tsx](/home/nithinkr06/Documents/hackathon%20(Copy)/apps/mobile/app/traffic.tsx), outside this task.
+- **Commit:** Pending.
+
+## Mobile app Phase 5 — report-to-traffic verification handoff — implemented, 21 Oct 2026
+
+- **Implementation:** The mobile traffic view refreshes on screen focus, the report success state links directly to active traffic reports, and evidence levels are presented as plain-language status labels while preserving the server-provided level.
+- **Verification:** Docker mobile/web TypeScript checks, focused ESLint, all 197 project tests, and the Expo Android bundle check passed. Device-side report submission and visual confirmation remain unverified.
+- **Commit:** Pending.
