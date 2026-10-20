@@ -15,3 +15,8 @@ Cross-app changes also belong in [shared progress](../../../packages/shared/docs
 - **Implementation:** Added a Supabase mobile client using secure device storage, explicit public environment variables, session restoration, sign-in, commuter registration, confirmation messaging, protected workspace navigation, sign-out, and unavailable/error states. No location permission is requested.
 - **Verification:** Docker dependency resolution, Expo configuration validation, strict mobile TypeScript checking, and `git diff --check` passed. A physical device, Expo Go, session against a reachable hosted Supabase URL, and native secure-storage behavior remain unverified.
 - **Commit:** `43ef3b8` — `feat(mobile): add Supabase authentication flow`.
+## Mobile LAN launch — verified, 20 Oct 2026
+
+- **Implementation:** Corrected Expo Router compatibility for the Expo SDK 58 shell and disabled optional typed-route generation, which was preventing Metro from starting.
+- **Verification:** Docker Expo server is running at `exp://192.168.0.224:8081`; Metro `/status` returned `packager-status:running`. Mobile TypeScript checking passed. The local Supabase API remains loopback-only, so phone authentication is not reachable from the LAN.
+- **Commit:** Pending.
