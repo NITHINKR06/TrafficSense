@@ -28,7 +28,7 @@
 
 - **Implementation:** The planner now keeps the route that intersects a reported incident selected initially, displays the warning and incident label, and waits for the passenger to press “Avoid this route.” The detour banner appears only after that choice and states that all displayed durations are free-flow estimates. Route cards now identify their free-flow provenance.
 - **Verification:** Docker TypeScript, ESLint, focused routing/live-incident tests (**13/13**), and `git diff --check` passed. The direct CDP browser check passed at **1440×1000** and **390×844**: the warning appeared, the explicit button was available, and choosing it showed “You chose this alternative.”
-- **Commit:** Pending final diff review and scoped local commit.
+- **Commit:** `0fdfcb8` — `feat(planner): require explicit incident avoidance choice`.
 
 
 ## Unified planner alerts and authority review history — verified without browser interaction, 19 Oct 2026
