@@ -36,6 +36,12 @@
 - **Verification:** Docker TypeScript, ESLint, focused routing/live-incident tests (**13/13**), and whitespace checks passed. The planner route and redirect compile successfully; browser interaction for the signed-in GPS permission/submission edge remains part of the final M8 pass.
 - **Commit:** `6f330b3` — `feat(reports): make planner the GPS report flow`.
 
+## M5 — employer consent view cleanup — verified, 20 Oct 2026
+
+- **Implementation:** Employer screens now describe consented active shares accurately, show the sharing start time, corridor, current status, and an explicit no-coordinates/no-history statement. The commuter view already provides a one-tap Stop Sharing action and the server reader removes revoked shares.
+- **Verification:** Docker TypeScript, ESLint, journey tests (**3/3**), and whitespace checks passed. Existing server-side journey tests cover revocation and the employer allowlisted summary; browser share/refresh interaction remains included in M8.
+- **Commit:** Pending final diff review and scoped local commit.
+
 
 ## Unified planner alerts and authority review history — verified without browser interaction, 19 Oct 2026
 
