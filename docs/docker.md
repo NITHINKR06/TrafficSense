@@ -7,11 +7,14 @@ Docker Engine with Compose is the only required host runtime. Node.js 24 and pnp
 If you have `just` installed, use the repository `justfile` commands:
 
 ```bash
-just up         # Starts Supabase, seeds accounts, and launches dev server on :3000
+just up         # Starts Supabase, seeds accounts, and launches web + mobile
+just web-up     # Start only the Next.js web app
+just mobile-up  # Start only Expo locally
+just mobile-lan # Start Expo + local Supabase for a phone on the LAN
 just status     # Inspect container health and port bindings
 just test       # Run test suite inside the container
 just check      # Run full checks suite (tests, linter, typecheck, build)
-just down       # Stop app containers while preserving backend state
+just down       # Stop web/mobile app containers while preserving backend state
 just stop-all   # Stop all containers including local Supabase backend
 ```
 
@@ -28,11 +31,13 @@ docker compose up --build -d app
 docker compose logs -f app
 ```
 
+The equivalent mobile command is `docker compose --profile mobile up --build -d mobile`; use `just mobile-up` for a local Expo runtime or `just mobile-lan host=192.168.0.224` for Expo Go on a trusted LAN. `just up` starts both app services; `just web-up` and `just mobile-up` start them independently. `just stop`, `just web-stop`, and `just mobile-stop` stop them independently.
+
 The first two commands prepare the dedicated local backend network, database, and synthetic accounts. See [local authentication](auth.md) for requirements, access rules, and credentials handling.
 
 Open **http://localhost:3000**. The app binds only to the host's loopback interface. Next.js also explicitly permits `127.0.0.1` for development resources so hot reload works with either local address; unrelated origins remain blocked. Override a busy port with `APP_PORT=3002 docker compose up -d app`.
 
-The repository is bind-mounted for hot reload. Docker-managed `dependencies` and `next-cache` volumes isolate Linux packages and generated output from host `node_modules` and `.next`. Startup runs a frozen install to synchronise the dependency volume with the lockfile; a manifest/lockfile mismatch fails rather than silently rewriting the lockfile.
+The repository is bind-mounted for hot reload. Docker-managed `dependencies` and `next-cache` volumes isolate Linux packages and generated output from host `node_modules` and `.next`; the mobile service shares the workspace dependency volume and watches `apps/mobile`. Startup runs a frozen install to synchronise the dependency volume with the lockfile; a manifest/lockfile mismatch fails rather than silently rewriting the lockfile.
 
 The web client is a workspace app under `apps/web`: its Next.js source is in `apps/web/src`, public assets are in `apps/web/public`, and its Next.js/TypeScript/ESLint configuration files are beside that source. Root package scripts and Docker commands delegate to this app; tests and shared tooling remain at the repository root.
 
