@@ -19,6 +19,6 @@ const args = process.argv.slice(2);
 if (args.some((arg) => ["--linked", "--all", "--no-backup", "--ignore-health-check", "--project-id", "--network-id"].includes(arg))) {
   throw new Error("This tooling is restricted to the local TrafficSense project.");
 }
-const result = spawnSync("pnpm", ["--dir", "/app", "exec", "supabase", "--workdir", process.cwd(), ...args], { stdio: "inherit" });
+const result = spawnSync("pnpm", ["--dir", "/app", "--silent", "exec", "supabase", "--workdir", process.cwd(), ...args], { stdio: "inherit" });
 if (result.error) throw result.error;
 process.exit(result.status ?? 1);
