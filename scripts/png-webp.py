@@ -1,12 +1,12 @@
 """
 Convert every PNG in the screens folder to WebP, then delete the PNG.
 
-Usage (run from the repository root, same folder as capture.py):
+Usage (run from the repository root):
 
     pip install pillow
-    python convert_screens_to_webp.py              # converts ./screens
-    python convert_screens_to_webp.py path/to/dir  # converts another folder
-    python convert_screens_to_webp.py --keep-png   # keep PNGs after converting
+    python scripts/png-webp.py              # converts ./screens
+    python scripts/png-webp.py path/to/dir  # converts another folder
+    python scripts/png-webp.py --keep-png   # keep PNGs after converting
 
 Safety:
 - A PNG is deleted only after its WebP file is written AND reopened successfully.

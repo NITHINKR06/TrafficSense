@@ -4,7 +4,7 @@ Capture screenshots of every TrafficSense page for desktop and mobile.
 Setup (run from the repository root, with the app running on localhost:3000):
 
     pip install playwright && playwright install chromium
-    python capture.py
+    python scripts/capture.py
 
 Demo passwords are read from supabase/.temp/demo-accounts.json, which
 `just db-seed` writes (mode 0600, git-ignored). Nothing needs to be exported.
