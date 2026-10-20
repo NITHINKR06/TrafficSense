@@ -782,7 +782,7 @@ export function RoutePlanner() {
               <span className="text-surface-on-variant">Alternative path</span>
             </div>
           )}
-          <div className="pt-1 mt-1 border-t border-surface-container text-surface-on-variant">Traffic severity · simulated reader</div>
+          <div className="pt-1 mt-1 border-t border-surface-container text-surface-on-variant">Current reports</div>
           <div className="flex items-center gap-2"><span className="w-3 h-1 bg-emerald-600 rounded" /><span className="text-surface-on-variant">Clear</span></div>
           <div className="flex items-center gap-2"><span className="w-3 h-1 bg-amber-500 rounded" /><span className="text-surface-on-variant">Reported / corroborated</span></div>
           <div className="flex items-center gap-2"><span className="w-3 h-1 bg-orange-600 rounded" /><span className="text-surface-on-variant">L4 slowdown support</span></div>

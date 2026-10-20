@@ -55,7 +55,7 @@ const CAUSE_LABELS: Record<HistoricalIncident["cause"], string> = {
   road_repair: "Road Maintenance / Works",
   heavy_volume: "Peak Traffic Congestion",
   flood: "Monsoon Waterlogging",
-  unknown: "Unverified Incidents",
+  unknown: "Cause not yet reported",
 };
 
 /** 30-minute slots spanning 07:00–20:30 (IST) — covers all three peak windows. */

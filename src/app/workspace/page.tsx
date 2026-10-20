@@ -30,7 +30,7 @@ export default async function WorkspacePage() {
         </div>
         <div>
           <dt className="text-xs text-surface-on-variant uppercase font-semibold">Location privacy</dt>
-          <dd className="text-sm font-bold text-success mt-0.5">Consent-enforced · No GPS tracking</dd>
+          <dd className="text-sm font-bold text-success mt-0.5">You control who sees your status</dd>
         </div>
       </dl>
 
@@ -47,7 +47,7 @@ export default async function WorkspacePage() {
       )}
 
       <div className="pt-4 border-t border-surface-container space-y-3">
-        <h2 className="text-md font-bold">Role access navigation</h2>
+        <h2 className="text-md font-bold">Go to</h2>
         <div className="flex flex-wrap gap-2">
           <Link className="button" href="/planner">
             City Route Planner

@@ -28,7 +28,7 @@ export function CorridorPreview() {
       </div>
       <div className="preview-route"><span className="route-key" />Primary route <span>Planned</span></div>
       <div className="preview-route"><span className="route-key alternative" />Fixed alternative <span>Planned</span></div>
-      <figcaption>No traffic observations are loaded. Interactive maps, evidence and route comparisons are coming in later phases.</figcaption>
+      <figcaption>No traffic observations are loaded yet. Interactive maps and route comparisons appear when reports are available.</figcaption>
     </figure>
   );
 }
