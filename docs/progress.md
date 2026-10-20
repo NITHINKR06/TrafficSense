@@ -42,6 +42,12 @@
 - **Verification:** Docker TypeScript, ESLint, journey tests (**3/3**), and whitespace checks passed. Existing server-side journey tests cover revocation and the employer allowlisted summary; browser share/refresh interaction remains included in M8.
 - **Commit:** `5c4d9f3` — `fix(employer): clarify consented status sharing`.
 
+## M6 — authority live counts — verified, 20 Oct 2026
+
+- **Implementation:** The authority dashboard uses stored live incident rows by default, labels the state `LIVE ROWS ONLY`, and keeps four-month synthetic history behind an unchecked, explicitly labelled toggle. Live-only delay fields remain “Not measured.”
+- **Verification:** Existing authority analytics tests and the live incident API path cover custom live rows and the explicit synthetic-history switch. Docker TypeScript, ESLint, and the full unit suite previously passed with this behavior; final M8 reruns the full checks and browser authority view.
+- **Commit:** `75c91c8` — `feat(analytics): Plan 4 Day 3 authority analytics with live incident data and demo history toggle` (existing implementation commit).
+
 
 ## Unified planner alerts and authority review history — verified without browser interaction, 19 Oct 2026
 
