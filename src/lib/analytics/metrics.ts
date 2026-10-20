@@ -254,7 +254,9 @@ export function computeRecurrenceStatement(
   }
 
   const N = incidentWeekdays.size;
-  const M = Math.max(totalWeekdaysInPeriod.size, 1);
+  // Keep the statement mathematically consistent even when timezone conversion
+  // places an incident on a boundary day outside the generated cursor range.
+  const M = Math.max(totalWeekdaysInPeriod.size, N, 1);
 
   // Determine most common peak window for this junction
   const windowCounts = new Map<string, number>();
