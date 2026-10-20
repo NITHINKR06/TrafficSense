@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 
-import { liveIncidentLevelLabel } from "../src/lib/incidents/presentation.ts";
+import { liveIncidentLevelLabel } from "../apps/web/src/lib/incidents/presentation.ts";
 
 describe("live incident presentation", () => {
   it("uses plain language for a single report and corroborated reports", () => {

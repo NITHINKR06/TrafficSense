@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createTrafficFixture } from "../src/lib/traffic/simulator.ts";
-import { parsePhase4Snapshot } from "../src/lib/traffic/phase4.ts";
+import { createTrafficFixture } from "../apps/web/src/lib/traffic/simulator.ts";
+import { parsePhase4Snapshot } from "../apps/web/src/lib/traffic/phase4.ts";
 
 const anchor = "2026-10-16T04:00:00.000001Z";
 const fixture = createTrafficFixture("slowdown", "2026-10-16T04:00:00.000Z");

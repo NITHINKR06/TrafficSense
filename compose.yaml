@@ -15,7 +15,7 @@ services:
     volumes:
       - .:/app
       - dependencies:/app/node_modules
-      - next-cache:/app/.next
+      - next-cache:/app/apps/web/.next
     command: ["sh", "-c", "pnpm install --frozen-lockfile && pnpm dev --hostname 0.0.0.0"]
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
@@ -30,7 +30,7 @@ services:
       context: .
       target: development
     init: true
-    command: ["sh", "-c", "pnpm test && pnpm lint && pnpm exec next typegen && pnpm exec tsc --noEmit && pnpm build"]
+    command: ["sh", "-c", "CI=true pnpm install --frozen-lockfile && pnpm test && pnpm lint && cd apps/web && pnpm exec next typegen && pnpm exec tsc --noEmit && cd ../.. && pnpm build"]
 
   production:
     profiles: ["production"]

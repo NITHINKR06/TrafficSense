@@ -3,7 +3,7 @@ import { test } from "node:test";
 import {
   parseReportInput, parsePublicReport, parsePrepareResult, parseSubmitResult,
   reportTimeFromLocal, toReportLocalTime, reportInputFromForm, reportObservationValid,
-} from "../src/lib/reports/rules.ts";
+} from "../apps/web/src/lib/reports/rules.ts";
 
 const source = "09dcbb78-060d-4ce2-8800-339a04771fbc";
 const request = "a0866416-8ea3-4f6a-81f9-6f855cd73947";

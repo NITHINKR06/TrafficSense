@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { validateCredentials, isRole, canAccessRole } from "../src/lib/auth/rules.ts";
+import { validateCredentials, isRole, canAccessRole } from "../apps/web/src/lib/auth/rules.ts";
 
 function credentials(email, password, extra = {}) {
   const form = new FormData();

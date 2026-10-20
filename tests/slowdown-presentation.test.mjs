@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { slowdownView } from "../src/lib/evidence/slowdown-presentation.ts";
+import { slowdownView } from "../apps/web/src/lib/evidence/slowdown-presentation.ts";
 const readAt = "2026-10-16T04:00:00.000Z";
 const row = { segment_id: "primary-west", direction: "outbound", status: "supported",
   window_start: "2026-10-16T03:55:00.000Z", window_end: readAt,

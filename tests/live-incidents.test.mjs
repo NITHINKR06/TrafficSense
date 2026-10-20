@@ -6,7 +6,7 @@ import {
   getActiveLiveIncidents,
   authorityUpdateIncident,
   getAuthorityIncidentHistory,
-} from "../src/lib/incidents/server.ts";
+} from "../apps/web/src/lib/incidents/server.ts";
 
 describe("Plan 4 (revised) – Live Incident Reporting and Verification RPCs", () => {
   it("submitIncidentReport invokes submit_live_incident_report RPC", async () => {

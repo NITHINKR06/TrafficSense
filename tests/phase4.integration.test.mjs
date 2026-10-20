@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { after, test } from "node:test";
 import { createClient } from "@supabase/supabase-js";
-import { createTrafficFixture } from "../src/lib/traffic/simulator.ts";
-import { parsePhase4Snapshot } from "../src/lib/traffic/phase4.ts";
-import { completedTraversalInput, retainedMotionSchedule, simulateTraversal, traversalTimestamp, traversalTimestampMicros } from "../src/lib/traffic/traversals.ts";
+import { createTrafficFixture } from "../apps/web/src/lib/traffic/simulator.ts";
+import { parsePhase4Snapshot } from "../apps/web/src/lib/traffic/phase4.ts";
+import { completedTraversalInput, retainedMotionSchedule, simulateTraversal, traversalTimestamp, traversalTimestampMicros } from "../apps/web/src/lib/traffic/traversals.ts";
 import { internalSupabaseUrl, readLocalStatus } from "../scripts/local-status.mjs";
 
 assert.equal(process.env.DEMO_MODE, "true");

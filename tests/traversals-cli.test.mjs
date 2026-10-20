@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { test } from "node:test";
 import { internalSupabaseUrl } from "../scripts/local-status.mjs";
-import { createTrafficFixture } from "../src/lib/traffic/simulator.ts";
+import { createTrafficFixture } from "../apps/web/src/lib/traffic/simulator.ts";
 
 const script = new URL("../scripts/operate-traversals.mjs", import.meta.url);
 const runId = "0b9c1f92-c6e7-41c8-8b4c-b109aa535897", batchId = "0c88e6d4-621c-417d-98c5-c2169c5bac42", traversalId = "aae744ae-0866-4c15-b672-6bc8bf994721";

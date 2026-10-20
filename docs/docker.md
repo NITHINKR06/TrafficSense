@@ -34,6 +34,8 @@ Open **http://localhost:3000**. The app binds only to the host's loopback interf
 
 The repository is bind-mounted for hot reload. Docker-managed `dependencies` and `next-cache` volumes isolate Linux packages and generated output from host `node_modules` and `.next`. Startup runs a frozen install to synchronise the dependency volume with the lockfile; a manifest/lockfile mismatch fails rather than silently rewriting the lockfile.
 
+The web client is a workspace app under `apps/web`: its Next.js source is in `apps/web/src`, public assets are in `apps/web/public`, and its Next.js/TypeScript/ESLint configuration files are beside that source. Root package scripts and Docker commands delegate to this app; tests and shared tooling remain at the repository root.
+
 The container runs as the image's `node` user (UID/GID 1000/1000), matching the current Linux workstation. Generated files are not root-owned. Other Linux user IDs may require an explicit ownership configuration before editing package files from the container; do not solve that by running the app privileged or making the repository world-writable.
 
 ## Checks

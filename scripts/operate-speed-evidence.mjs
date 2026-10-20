@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { reportTimestamp, reportUuid } from "../src/lib/reports/rules.ts";
+import { reportTimestamp, reportUuid } from "../apps/web/src/lib/reports/rules.ts";
 import { internalSupabaseUrl, readLocalStatus } from "./local-status.mjs";
 
 function exact(value, fields) {

@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { lifecycleParityCases, lifecycleParitySql } from "./incident-lifecycle-parity.mjs";
-import { assessRecovery } from "../src/lib/evidence/recovery.ts";
-import { assessSlowdown } from "../src/lib/evidence/slowdown.ts";
+import { assessRecovery } from "../apps/web/src/lib/evidence/recovery.ts";
+import { assessSlowdown } from "../apps/web/src/lib/evidence/slowdown.ts";
 
 const migration = new URL("../supabase/migrations/20261016000300_incident_lifecycle.sql", import.meta.url);
 test("lifecycle migration has atomic final-membership processing and a restricted read-only projector", () => {
