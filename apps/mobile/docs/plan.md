@@ -17,6 +17,8 @@ Build an Expo React Native client for the commuter experience while retaining th
 
 - The backend, migrations, RLS policies, and existing web app remain in place.
 - Mobile builds read `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY`; local Docker-only service URLs are not reachable from a physical device.
+- The mobile API client reads `EXPO_PUBLIC_API_BASE_URL`; it uses the existing Next.js public incident endpoint before adding native map or location dependencies.
+- Local phone testing requires the explicit `APP_HOST_BIND=0.0.0.0` Compose override; loopback remains the default to avoid exposing the development server.
 - The mobile app does not duplicate server verification or authorization logic.
 - No background location, continuous tracking, fabricated live traffic, or notification claim is included in the shell.
 - Synthetic and estimated data remains explicitly labelled.

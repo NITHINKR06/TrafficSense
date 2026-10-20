@@ -1,12 +1,21 @@
-export type TrafficEvidenceLevel = "L1" | "L2" | "L3" | "L4";
+export type TrafficEvidenceLevel = "L1" | "L2" | "L3" | "L4" | "L5" | "L6";
+export type IncidentStatus = "open" | "resolved" | "expired";
+export type IncidentProvenance = "reported" | "verified" | "authority";
 
-export type IncidentStatus = "active" | "recovering" | "cleared" | "stale";
-
-export type MobileIncidentSummary = {
+export type LiveIncident = {
   id: string;
-  status: IncidentStatus;
-  evidence_level: TrafficEvidenceLevel | null;
-  report_count: number;
-  observed_at: string;
   category: string;
+  lat: number;
+  lng: number;
+  status: IncidentStatus;
+  level: TrafficEvidenceLevel;
+  level_reason: string;
+  first_reported_at: string;
+  last_confirmed_at: string;
+  provenance: IncidentProvenance;
+  report_count: number;
 };
+
+export type ActiveIncidentsResponse =
+  | { ok: true; incidents: LiveIncident[] }
+  | { ok: false; error: string };

@@ -24,6 +24,12 @@
 - **Verification:** Docker dependency installation, Expo config validation, strict mobile TypeScript checking, and `git diff --check` passed. Device/Expo Go launch and live authentication against a reachable Supabase URL remain unverified.
 - **Commit:** `43ef3b8` — `feat(mobile): add Supabase authentication flow`.
 
+## Mobile app Phase 3 — public traffic API — implemented, 20 Oct 2026
+
+- **Implementation:** Connected the Expo traffic screen to the existing Next.js `/api/incidents` endpoint, added shared incident response types, explicit loading/error/empty/refresh states, and a safe opt-in LAN bind for physical-device API testing.
+- **Verification:** Docker mobile TypeScript checking passed. The LAN API returned a valid empty response and Expo Metro remained healthy with `EXPO_PUBLIC_API_BASE_URL=http://192.168.0.224:3000`. No populated incident card or device visual verification was claimed.
+- **Commit:** Pending.
+
 
 ## Active demo-plan update — in progress, 20 Oct 2026
 

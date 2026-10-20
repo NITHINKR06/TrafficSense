@@ -20,3 +20,9 @@ Cross-app changes also belong in [shared progress](../../../packages/shared/docs
 - **Implementation:** Corrected Expo Router compatibility for the Expo SDK 58 shell and disabled optional typed-route generation, which was preventing Metro from starting.
 - **Verification:** Docker Expo server is running at `exp://192.168.0.224:8081`; Metro `/status` returned `packager-status:running`. Mobile TypeScript checking passed. The local Supabase API remains loopback-only, so phone authentication is not reachable from the LAN.
 - **Commit:** Pending.
+
+## Phase 3 — public traffic API — implemented, 20 Oct 2026
+
+- **Implementation:** Added a platform-neutral active-incident contract, mobile API client, configurable API base URL, traffic loading/error/empty/refresh states, evidence-level presentation, and a Compose LAN-bind override for physical-device development. The default web bind remains loopback.
+- **Verification:** Docker mobile TypeScript checking passed. The web API returned `{"ok":true,"incidents":[]}` at `http://192.168.0.224:3000/api/incidents`; Expo Metro returned `packager-status:running` with the LAN API URL configured. No active incident fixture was available for a populated-card/device visual check.
+- **Commit:** Pending.
