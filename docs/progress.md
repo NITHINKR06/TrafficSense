@@ -22,7 +22,7 @@
 
 - **Implementation:** Replaced the technical home-page content with one plain-language description and the two primary entry actions: “Report a problem” and “Plan my route.” Both lead to the current planner until M2 extracts the citizen reporting flow from it. Role-specific views remain available through the site navigation.
 - **Verification:** Docker TypeScript and ESLint checks passed. The direct CDP browser check passed at **1440×1000** and **390×844**: it found exactly the two primary actions, confirmed their planner destinations, and found no horizontal overflow. The same browser run also rechecked the M3 live-map marker and detail flow. `git diff --check` passed.
-- **Commit:** Pending final diff review and scoped local commit.
+- **Commit:** `a4a4e74` — `feat(home): simplify primary traffic actions`.
 
 
 ## Unified planner alerts and authority review history — verified without browser interaction, 19 Oct 2026
