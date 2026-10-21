@@ -1,5 +1,11 @@
 # Project Progress
 
+## Mobile parity work split — documented, 21 Oct 2026
+
+- **Scope:** Replaced the combined mobile feature checklist with two mobile-only work plans: Part A covers native UI, web-parity design and navigation; Part B covers mobile auth, API/state integration and parity testing. Neither part includes new web or Supabase backend work.
+- **Verification:** Reviewed the web design reference and current web/mobile routes; `git diff --check` passed before commit. No application tests were required for this documentation-only change.
+- **Commit:** `6b25e6c` — `docs(mobile): clarify parity work split` (pushed to `origin/main`).
+
 ## Expo Go LAN QR output — implemented, 21 Oct 2026
 
 - **Implementation:** Added `qrcode-terminal` to the mobile workspace and made `mobile-lan` print a terminal QR for the reachable `exp://<LAN-IP>:8081` URL after starting Expo. The localhost-only `mobile-up` flow remains suitable for local development, not phone scanning.
