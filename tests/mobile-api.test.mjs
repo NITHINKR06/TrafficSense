@@ -5,7 +5,7 @@ import {
   parseRouteResponse,
   parseSubmitIncidentResponse,
 } from "../apps/mobile/src/lib/response-parsers.ts";
-import { MobileApiError } from "../apps/mobile/src/lib/request.ts";
+import { MobileApiError, requestJson } from "../apps/mobile/src/lib/request.ts";
 
 const incident = {
   id: "incident-1",
@@ -84,4 +84,27 @@ test("mobile API errors expose auth and retryability state", () => {
   const outage = new MobileApiError("Unavailable", 503);
   assert.equal(outage.authRequired, false);
   assert.equal(outage.retryable, true);
+});
+
+test("mobile request retries one transient GET but never retries a POST", async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    return calls === 1
+      ? new Response(JSON.stringify({ error: "temporary" }), { status: 503 })
+      : new Response(JSON.stringify({ ok: true }), { status: 200 });
+  };
+  try {
+    const result = await requestJson("http://example.test", {}, "Invalid", { retryGet: true });
+    assert.equal(result.response.status, 200);
+    assert.equal(calls, 2);
+
+    calls = 0;
+    const post = await requestJson("http://example.test", { method: "POST" }, "Invalid", { retryGet: true });
+    assert.equal(post.response.status, 503);
+    assert.equal(calls, 1);
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
 });

@@ -27,7 +27,7 @@ export async function fetchActiveIncidents(signal?: AbortSignal) {
     `${apiBaseUrl}/api/incidents`,
     {},
     "Traffic service returned an invalid response.",
-    signal,
+    { signal, retryGet: true },
   );
   const payload = parseActiveIncidentsResponse(rawPayload);
 

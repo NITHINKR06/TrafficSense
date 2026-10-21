@@ -84,3 +84,16 @@ Cross-app changes also belong in [shared progress](../../../packages/shared/docs
 - **Implementation:** Added parser and structured-error tests for valid/malformed incidents, report success/errors, malformed routes, authentication-required responses and retryable HTTP failures. The test is included in the repository suite.
 - **Verification:** Docker test suite passed 201 tests with 0 failures; the test runner emitted only Node's module-type warning for the TypeScript mobile parser import. No native device behavior was claimed.
 - **Commit:** Pending.
+
+## Phase 12 — safe traffic GET retry — verified, 21 Oct 2026
+
+- **Implementation:** The mobile request helper now retries one time only for GET requests after timeout, network failure, or retryable HTTP statuses (408, 429 and 5xx). Report and route POST requests remain non-retryable to prevent duplicate mutations.
+- **Verification:** Docker mobile typecheck passed and the full test suite passed 202 tests with 0 failures, including a mocked transient GET retry and non-retryable POST assertion. Retry behavior against a real outage remains unverified.
+- **Commit:** Pending.
+
+## Phase 13 — report refresh, journey review and Expo readiness — verified/deferred, 21 Oct 2026
+
+- **Report refresh:** Existing mobile behavior already links a successful report to Traffic, and the Traffic screen reloads on focus plus pull-to-refresh; no duplicate refresh mechanism was added.
+- **Journey/sharing review:** The web has server RPCs for journeys and consent sharing, but no mobile route contract exists. Mobile journey/sharing remains explicitly deferred until a contract is agreed; no unsafe client-side GPS or employer API was invented.
+- **Device check:** The existing Expo container is healthy and `http://127.0.0.1:8081/status` returned `packager-status:running`. The attempted forced image rebuild was stopped after a slow dependency export; no source failure was reported. Physical Expo Go login, permissions and authenticated report submission remain user-device checks.
+- **Commit:** Pending.
