@@ -1,5 +1,11 @@
 # Project Progress
 
+## Expo Go LAN QR output — implemented, 21 Oct 2026
+
+- **Implementation:** Added `qrcode-terminal` to the mobile workspace and made `mobile-lan` print a terminal QR for the reachable `exp://<LAN-IP>:8081` URL after starting Expo. The localhost-only `mobile-up` flow remains suitable for local development, not phone scanning.
+- **Verification:** The QR renderer produced a terminal code for `exp://192.168.0.224:8081`; `just --dry-run mobile-lan 192.168.0.224` rendered the LAN API, Supabase, Expo URL, and QR commands correctly.
+- **Commit:** Pending.
+
 ## Reuse existing Supabase bridge binding — verified, 21 Oct 2026
 
 - **Issue:** A plain `just up` used the default `127.0.0.1` binding while the existing project bridge was already configured for `0.0.0.0`, causing the local Supabase safety check to stop startup.

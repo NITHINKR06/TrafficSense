@@ -41,6 +41,7 @@ mobile-lan host="192.168.0.224":
     APP_HOST_BIND=0.0.0.0 docker compose up --build -d app
     EXPO_PUBLIC_API_BASE_URL="http://{{host}}:3000" EXPO_PUBLIC_SUPABASE_URL="http://{{host}}:54321" EXPO_PUBLIC_SUPABASE_ANON_KEY="$$(grep '^SUPABASE_ANON_KEY=' .env.local | cut -d= -f2-)" MOBILE_HOST_BIND=0.0.0.0 docker compose --profile mobile up --build -d mobile
     @echo "==> Expo Go URL: exp://{{host}}:8081"
+    @docker compose exec -T mobile node --input-type=module -e 'import qrcode from "qrcode-terminal"; qrcode.generate("exp://{{host}}:8081", { small: true });'
 
 # Start dev app and follow logs directly
 dev:
