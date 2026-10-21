@@ -1,5 +1,12 @@
 # Project Progress
 
+## Local Supabase startup repair — verified, 21 Oct 2026
+
+- **Issue:** The local Supabase tools image installed workspace dependencies using only the root package manifest. After the mobile/shared workspaces were added, the CLI attempted a no-TTY dependency repair and aborted before it could start the backend.
+- **Implementation:** Added `apps/mobile/package.json` and `packages/shared/package.json` to the Docker dependency-layer inputs before the frozen pnpm install. This preserves Docker dependency caching while making the image's workspace installation complete.
+- **Verification:** `LOCAL_SUPABASE_HOST_BIND=0.0.0.0 just up` passed: local Supabase started, migrations were current, four synthetic TEST DATA incident scenarios seeded, and web/mobile containers were recreated. `just status` reported all application and required backend services healthy; `http://127.0.0.1:3000` and `/api/incidents` returned successfully, with four active incidents. `git diff --check` passed for the scoped Dockerfile change.
+- **Commit:** Pending.
+
 ## Web app workspace migration — verified, 21 Oct 2026
 
 - **Scope:** Move the Next.js web client from root `src/` and `public/` into `apps/web/src` and `apps/web/public`, move web-owned Next.js configuration beside the app, update Docker/workspace commands and root test imports, and preserve the existing mobile/shared app boundaries.
