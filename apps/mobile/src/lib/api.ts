@@ -1,6 +1,8 @@
 import type {
   ActiveIncidentsResponse,
   ReportCategory,
+  RouteCoordinate,
+  RouteResponse,
   SubmitIncidentResponse,
 } from "@trafficsense/shared";
 
@@ -67,4 +69,28 @@ export async function submitIncident(
     throw new Error(payload.ok ? "Incident submission is unavailable." : payload.error);
   }
   return payload;
+}
+
+export async function fetchRoute(start: RouteCoordinate, destination: RouteCoordinate) {
+  if (!apiBaseUrl) throw new Error("Traffic data is not configured for this mobile build.");
+  if (![...start, ...destination].every((value) => Number.isFinite(value))) {
+    throw new Error("Enter valid start and destination coordinates.");
+  }
+
+  const response = await fetch(`${apiBaseUrl}/api/route`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ start, destination }),
+  });
+
+  let payload: RouteResponse;
+  try {
+    payload = (await response.json()) as RouteResponse;
+  } catch {
+    throw new Error("Route service returned an invalid response.");
+  }
+  if (!response.ok || !payload.ok) {
+    throw new Error(payload.ok ? "Route service is unavailable." : payload.error);
+  }
+  return payload.routes;
 }

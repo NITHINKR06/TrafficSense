@@ -48,3 +48,9 @@ Cross-app changes also belong in [shared progress](../../../packages/shared/docs
 - **Implementation:** The traffic screen now refreshes whenever it becomes active, so returning from a successful report shows the latest server state. Evidence levels use plain-language labels rather than unexplained codes, and the report screen provides a direct link to active traffic reports after submission.
 - **Verification:** Docker mobile and web TypeScript checks, focused mobile ESLint, and all 197 project tests passed. The Expo Android bundle remained HTTP 200 after the change. Real device submission and visual confirmation remain user-side checks.
 - **Commit:** Pending.
+
+## Phase 6 — route API integration foundation — implemented, 21 Oct 2026
+
+- **Implementation:** Added shared mobile route request/response types matching the existing web `/api/route` contract and a typed Expo `fetchRoute` helper with finite-coordinate validation and safe invalid-response/service errors. No web or backend files were changed.
+- **Verification:** `just mobile-typecheck` passed in Docker; `git diff --check` passed. Route screen rendering, live route responses and Expo Go interaction remain unverified until Part A adds the planner screen.
+- **Commit:** Pending.

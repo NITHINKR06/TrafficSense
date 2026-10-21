@@ -44,3 +44,33 @@ export type ReportCategory = (typeof reportCategories)[number][0];
 export type SubmitIncidentResponse =
   | { ok: true; incident_id: string; level: string; level_reason: string; distinct_reporters?: number }
   | { ok: false; error: string };
+
+export type RouteCoordinate = [number, number];
+
+export type RouteIncidentWarning = {
+  id: string;
+  category: string;
+  level: string;
+  label: string;
+  distance_to_route_m: number;
+};
+
+export type RouteOption = {
+  id: string;
+  name: string;
+  distance_m: number;
+  duration_s: number;
+  geometry: {
+    type: "LineString";
+    coordinates: RouteCoordinate[];
+  };
+  is_recommended: boolean;
+  avoids_incident: boolean;
+  avoided_incident_reason?: string;
+  incidents_on_route: RouteIncidentWarning[];
+  provenance: "estimated";
+};
+
+export type RouteResponse =
+  | { ok: true; routes: RouteOption[] }
+  | { ok: false; routes: RouteOption[]; error: string };

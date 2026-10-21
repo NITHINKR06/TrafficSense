@@ -1,5 +1,11 @@
 # Shared package progress
 
+## Route contract — implemented, 21 Oct 2026
+
+- **Implementation:** Added platform-neutral route coordinate, incident-warning, route-option and route-response types for the mobile client to consume the existing web route API.
+- **Verification:** Mobile TypeScript checking passed in Docker; no backend or web behavior was changed.
+- **Commit:** Pending.
+
 Record shared-contract implementation updates, verification evidence, blockers, and commit records here.
 
 Every cross-app change must link to the corresponding entries in [web progress](../../apps/web/docs/progress.md) and [mobile progress](../../apps/mobile/docs/progress.md).
