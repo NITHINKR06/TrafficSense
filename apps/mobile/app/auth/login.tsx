@@ -1,10 +1,9 @@
 import { Link, router, Stack, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useAuth } from "../../src/providers/auth-provider";
 import { safeReturnPath } from "../../src/lib/auth-rules";
-import { Button, Card, FeedbackBox, FormField } from "../../src/components/ui";
-import { colors, space, typography } from "../../src/theme/tokens";
+import { colors, minTouchTarget, radius, space } from "../../src/theme/tokens";
 
 export default function LoginScreen() {
   const { next } = useLocalSearchParams<{ next?: string }>();
@@ -28,121 +27,55 @@ export default function LoginScreen() {
   }
 
   return (
-    <>
+    <View style={styles.container}>
       <Stack.Screen options={{ headerShown: true, title: "Sign in" }} />
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.keyboardView}
+      <Text style={styles.title}>Sign in</Text>
+      <Text style={styles.body}>
+        Use your TrafficSense commuter account to submit reports. Public traffic stays available without signing in.
+      </Text>
+      <TextInput
+        accessibilityLabel="Email"
+        autoCapitalize="none"
+        autoComplete="email"
+        keyboardType="email-address"
+        onChangeText={setEmail}
+        placeholder="Email"
+        placeholderTextColor={colors.textMuted}
+        style={styles.input}
+        value={email}
+      />
+      <TextInput
+        accessibilityLabel="Password"
+        autoCapitalize="none"
+        onChangeText={setPassword}
+        placeholder="Password"
+        placeholderTextColor={colors.textMuted}
+        secureTextEntry
+        style={styles.input}
+        value={password}
+      />
+      {error ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
+      <Pressable
+        accessibilityRole="button"
+        disabled={submitting}
+        onPress={() => void submit()}
+        style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed]}
       >
-        <ScrollView
-          contentContainerStyle={styles.container}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.header}>
-            <Text style={styles.eyebrow}>COMMUTER ACCESS</Text>
-            <Text style={styles.title}>Sign in to TrafficSense</Text>
-            <Text style={styles.subtitle}>
-              Sign in with your commuter account to submit road problem reports and share journey status. Public traffic map and routes remain open to all.
-            </Text>
-          </View>
-
-          <Card style={styles.card}>
-            <FormField
-              label="Email address"
-              accessibilityLabel="Email address"
-              autoCapitalize="none"
-              autoComplete="email"
-              keyboardType="email-address"
-              onChangeText={setEmail}
-              placeholder="commuter@example.com"
-              value={email}
-            />
-
-            <FormField
-              label="Password"
-              accessibilityLabel="Password"
-              autoCapitalize="none"
-              onChangeText={setPassword}
-              placeholder="••••••••••••"
-              secureTextEntry
-              value={password}
-            />
-
-            {error ? (
-              <FeedbackBox
-                variant="error"
-                message={error}
-                actionText="Dismiss"
-                onAction={() => setError(null)}
-              />
-            ) : null}
-
-            <Button
-              title="Sign in"
-              loading={submitting}
-              onPress={() => void submit()}
-              variant="primary"
-            />
-          </Card>
-
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Need a commuter account?</Text>
-            <Link href="/auth/register" asChild>
-              <Button
-                title="Create a commuter account"
-                onPress={() => router.push("/auth/register")}
-                variant="outline"
-              />
-            </Link>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </>
+        {submitting ? <ActivityIndicator color={colors.onPrimary} /> : <Text style={styles.primaryText}>Sign in</Text>}
+      </Pressable>
+      <Link href="/auth/register" style={styles.link}>Create a commuter account</Link>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardView: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  container: {
-    padding: space.gutter,
-    paddingTop: space.lg,
-    paddingBottom: space.xl * 2,
-    gap: space.lg,
-  },
-  header: {
-    gap: space.xs,
-  },
-  eyebrow: {
-    ...typography.codeSm,
-    color: colors.primary,
-    fontWeight: "700",
-    letterSpacing: 1,
-  },
-  title: {
-    ...typography.headlineLg,
-    color: colors.text,
-  },
-  subtitle: {
-    ...typography.bodyMd,
-    color: colors.textSecondary,
-    lineHeight: 22,
-  },
-  card: {
-    padding: space.lg,
-    gap: space.md,
-  },
-  footer: {
-    alignItems: "stretch",
-    gap: space.sm,
-    marginTop: space.sm,
-  },
-  footerText: {
-    ...typography.bodyMd,
-    color: colors.textSecondary,
-    textAlign: "center",
-  },
+  container: { flexGrow: 1, justifyContent: "center", gap: space.sm, padding: space.lg, backgroundColor: colors.background },
+  title: { color: colors.text, fontSize: 30, fontWeight: "800" },
+  body: { marginBottom: space.sm, color: colors.textSecondary, fontSize: 16, lineHeight: 24 },
+  input: { minHeight: minTouchTarget + 8, paddingHorizontal: space.md, borderRadius: radius.control, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, color: colors.text, fontSize: 16 },
+  error: { color: colors.error, fontSize: 14, lineHeight: 20 },
+  primary: { minHeight: minTouchTarget + 8, justifyContent: "center", alignItems: "center", borderRadius: radius.control, backgroundColor: colors.primary },
+  primaryPressed: { backgroundColor: colors.primaryPressed },
+  primaryText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700" },
+  link: { marginTop: space.xs, minHeight: minTouchTarget, paddingVertical: 10, color: colors.evidence, fontSize: 15, textAlign: "center" },
 });

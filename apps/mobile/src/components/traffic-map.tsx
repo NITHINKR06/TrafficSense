@@ -5,8 +5,7 @@ import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import type { LiveIncident, RouteOption, TrafficSegment } from "@trafficsense/shared";
 import { buildMapHtml, MAP_ATTRIBUTION } from "../map/map-html";
 import { buildMapPayload, ROUTE_COLOURS, SEVERITY_COLOURS, INCIDENT_COLOUR, type MapPayload } from "../map/map-data";
-import { Button, Card, SimulatedBadge } from "./ui";
-import { colors, minTouchTarget, radius, space, typography } from "../theme/tokens";
+import { colors, minTouchTarget, radius, space } from "../theme/tokens";
 
 export type MapStatus = "idle" | "loading" | "ready" | "fallback" | "failed";
 
@@ -44,6 +43,7 @@ export function TrafficMap(props: Props) {
   const sentFitKey = useRef<number | null>(null);
 
   const html = useMemo(() => buildMapHtml(), []);
+
 
   // Fail safely if the page never reports ready (for example when the network is blocked).
   useEffect(() => {
@@ -129,23 +129,16 @@ export function TrafficMap(props: Props) {
 
   if (status === "idle") {
     return (
-      <Card style={styles.gate}>
-        <View style={styles.gateHeader}>
-          <Text style={styles.gateIcon}>🗺️</Text>
-          <View style={styles.gateHeaderTextCol}>
-            <Text style={styles.gateTitle}>Interactive Coastal Map</Text>
-            <Text style={styles.gateSubtitle}>OpenFreeMap · jsDelivr MapLibre</Text>
-          </View>
-        </View>
+      <View style={styles.gate}>
+        <Text style={styles.gateTitle}>Load the street map</Text>
         <Text style={styles.gateBody}>
-          Loading the map contacts OpenFreeMap for street tiles and jsDelivr for the rendering library. Those services receive your IP address and viewed tiles. TrafficSense does not send your location to them, and the incident list stays available without the map.
+          Loading the map contacts OpenFreeMap for street tiles and jsDelivr for the map library. Those services receive your
+          IP address and the map areas you view. TrafficSense does not send your location to them, and the list stays available without the map.
         </Text>
-        <Button
-          title="Load street map"
-          onPress={startLoading}
-          variant="primary"
-        />
-      </Card>
+        <Pressable accessibilityRole="button" onPress={startLoading} style={({ pressed }) => [styles.primary, pressed && styles.pressed]}>
+          <Text style={styles.primaryText}>Load map</Text>
+        </Pressable>
+      </View>
     );
   }
 
@@ -154,14 +147,10 @@ export function TrafficMap(props: Props) {
       <View style={styles.mapFrame}>
         {status === "failed" ? (
           <View style={styles.failure} accessibilityLiveRegion="polite">
-            <Text style={styles.failureTitle}>Map Display Unavailable</Text>
             <Text style={styles.failureText}>{failure ?? FAILURE_MESSAGES.renderer}</Text>
-            <Button
-              title="Retry loading map"
-              onPress={startLoading}
-              variant="outline"
-              style={styles.retryButton}
-            />
+            <Pressable accessibilityRole="button" onPress={startLoading} style={styles.inlineAction}>
+              <Text style={styles.inlineActionText}>Retry map</Text>
+            </Pressable>
           </View>
         ) : (
           <WebView
@@ -180,65 +169,43 @@ export function TrafficMap(props: Props) {
             }}
             // Only the initial page may load; taps on the map never navigate the app to other sites.
             onShouldStartLoadWithRequest={(request) => request.url.startsWith("about:") || request.url.startsWith("data:")}
-            accessibilityLabel="Interactive traffic map showing road incidents and corridor segments"
+            accessibilityLabel="Traffic map"
           />
         )}
         {status === "loading" ? (
           <View style={styles.loading} pointerEvents="none">
-            <ActivityIndicator color={colors.primary} size="large" />
-            <Text style={styles.loadingText}>Rendering coastal map tiles…</Text>
+            <ActivityIndicator color={colors.primary} />
+            <Text style={styles.loadingText}>Loading map…</Text>
           </View>
         ) : null}
       </View>
 
       {status === "fallback" ? (
-        <View style={styles.fallbackNotice} accessibilityLiveRegion="polite">
-          <Text style={styles.noticeText}>
-            Street tiles unreachable. Displaying schematic corridor overlay.
-          </Text>
-        </View>
+        <Text style={styles.notice} accessibilityLiveRegion="polite">
+          Street map unavailable. Showing the schematic corridor only.
+        </Text>
       ) : null}
 
-      {(status === "ready" || status === "fallback") && (
+      {status === "ready" || status === "fallback" ? (
         <View style={styles.toolbar}>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Fit map to all reports and corridors"
-            onPress={sendFit}
-            style={({ pressed }) => [styles.toolButton, pressed && styles.toolButtonPressed]}
-          >
-            <Text style={styles.toolIcon}>⤢</Text>
+          <Pressable accessibilityRole="button" onPress={sendFit} style={styles.toolButton}>
             <Text style={styles.toolText}>Fit map</Text>
           </Pressable>
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={you ? "Update my location on map" : "Show my location on map"}
-            onPress={() => void centreOnMe()}
-            style={({ pressed }) => [styles.toolButton, pressed && styles.toolButtonPressed]}
-          >
-            <Text style={styles.toolIcon}>📍</Text>
-            <Text style={styles.toolText}>{you ? "Update location" : "Show my location"}</Text>
+          <Pressable accessibilityRole="button" onPress={() => void centreOnMe()} style={styles.toolButton}>
+            <Text style={styles.toolText}>{you ? "Update my location" : "Show my location"}</Text>
           </Pressable>
         </View>
-      )}
-
-      {locationNote ? (
-        <Text style={styles.noticeText}>{locationNote}</Text>
       ) : null}
+      {locationNote ? <Text style={styles.notice}>{locationNote}</Text> : null}
 
-      {/* Map Legend */}
       <View style={styles.legend} accessibilityLabel="Map legend">
         <LegendItem colour={ROUTE_COLOURS.primary} label="Recommended route" />
         <LegendItem colour={ROUTE_COLOURS.alternative} label="Your alternative" />
         <LegendItem colour={INCIDENT_COLOUR} label="Community report" />
-        <LegendItem colour={SEVERITY_COLOURS.slowdown} label="Corridor slowdown" />
-        <LegendItem colour={SEVERITY_COLOURS.clear} label="Clear flow" />
+        <LegendItem colour={SEVERITY_COLOURS.slowdown} label="Segment: slowdown" />
+        <LegendItem colour={SEVERITY_COLOURS.clear} label="Segment: clear" />
       </View>
-
-      <View style={styles.attributionRow}>
-        <Text style={styles.attribution}>{MAP_ATTRIBUTION}. Corridor lines are schematic and SIMULATED.</Text>
-        <SimulatedBadge label="SCHEMATIC" />
-      </View>
+      <Text style={styles.attribution}>{MAP_ATTRIBUTION}. Corridor lines are schematic and SIMULATED.</Text>
     </View>
   );
 }
@@ -253,150 +220,28 @@ function LegendItem({ colour, label }: { colour: string; label: string }) {
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    gap: space.xs,
-  },
-  mapFrame: {
-    height: 360,
-    borderRadius: radius.card,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.background,
-  },
-  webview: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  loading: {
-    ...StyleSheet.absoluteFill,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: space.xs,
-    backgroundColor: colors.background,
-  },
-  loadingText: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-  },
-  failure: {
-    flex: 1,
-    padding: space.lg,
-    justifyContent: "center",
-    alignItems: "center",
-    gap: space.sm,
-    backgroundColor: colors.errorSurface,
-  },
-  failureTitle: {
-    ...typography.titleSm,
-    color: colors.error,
-    fontWeight: "700",
-  },
-  failureText: {
-    ...typography.bodyMd,
-    color: colors.error,
-    textAlign: "center",
-  },
-  retryButton: {
-    marginTop: space.xs,
-  },
-  fallbackNotice: {
-    padding: space.xs,
-  },
-  noticeText: {
-    ...typography.bodySm,
-    color: colors.warning,
-    fontWeight: "600",
-  },
-  toolbar: {
-    flexDirection: "row",
-    gap: space.sm,
-    flexWrap: "wrap",
-    marginTop: space.xs,
-  },
-  toolButton: {
-    minHeight: minTouchTarget,
-    minWidth: 120,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: space.md,
-    borderRadius: radius.control,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    gap: 6,
-  },
-  toolButtonPressed: {
-    backgroundColor: colors.surfaceContainerLow,
-  },
-  toolIcon: {
-    fontSize: 16,
-  },
-  toolText: {
-    ...typography.labelLg,
-    color: colors.text,
-    fontWeight: "600",
-  },
-  legend: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: space.sm,
-    paddingVertical: space.xs,
-  },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  swatch: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-  },
-  legendText: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-    fontSize: 11,
-  },
-  attributionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: space.xs,
-  },
-  attribution: {
-    ...typography.codeSm,
-    color: colors.textMuted,
-    flex: 1,
-  },
-  gate: {
-    padding: space.lg,
-    gap: space.md,
-  },
-  gateHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.sm,
-  },
-  gateIcon: {
-    fontSize: 28,
-  },
-  gateHeaderTextCol: {
-    gap: 2,
-  },
-  gateTitle: {
-    ...typography.titleMd,
-    color: colors.text,
-    fontWeight: "700",
-  },
-  gateSubtitle: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-  },
-  gateBody: {
-    ...typography.bodyMd,
-    color: colors.textSecondary,
-    lineHeight: 22,
-  },
+  wrapper: { gap: space.xs },
+  mapFrame: { height: 360, borderRadius: radius.card, overflow: "hidden", borderWidth: 1, borderColor: colors.border, backgroundColor: colors.background },
+  webview: { flex: 1, backgroundColor: colors.background },
+  loading: { ...StyleSheet.absoluteFill, alignItems: "center", justifyContent: "center", gap: space.xs, backgroundColor: colors.background },
+  loadingText: { color: colors.textSecondary, fontSize: 14 },
+  failure: { flex: 1, padding: space.md, justifyContent: "center", gap: space.sm, backgroundColor: colors.errorSurface },
+  failureText: { color: colors.error, fontSize: 14, lineHeight: 20 },
+  notice: { color: colors.warning, fontSize: 13, lineHeight: 19 },
+  toolbar: { flexDirection: "row", gap: space.xs, flexWrap: "wrap" },
+  toolButton: { minHeight: minTouchTarget, justifyContent: "center", paddingHorizontal: space.md, borderRadius: radius.control, borderWidth: 1, borderColor: colors.secondaryBorder, backgroundColor: colors.surface },
+  toolText: { color: colors.text, fontSize: 14, fontWeight: "700" },
+  legend: { flexDirection: "row", flexWrap: "wrap", gap: space.xs },
+  legendItem: { flexDirection: "row", alignItems: "center", gap: 6 },
+  swatch: { width: 12, height: 12, borderRadius: 6 },
+  legendText: { color: colors.textSecondary, fontSize: 12 },
+  attribution: { color: colors.textMuted, fontSize: 12, lineHeight: 17 },
+  gate: { padding: space.md, borderRadius: radius.card, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, gap: space.sm },
+  gateTitle: { color: colors.text, fontSize: 16, fontWeight: "700" },
+  gateBody: { color: colors.textSecondary, fontSize: 14, lineHeight: 21 },
+  primary: { minHeight: minTouchTarget + 4, justifyContent: "center", borderRadius: radius.control, backgroundColor: colors.primary },
+  primaryText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700", textAlign: "center" },
+  inlineAction: { alignSelf: "flex-start", minHeight: minTouchTarget, justifyContent: "center" },
+  inlineActionText: { color: colors.primary, fontSize: 15, fontWeight: "700" },
+  pressed: { opacity: 0.85 },
 });
