@@ -1,6 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
-import { reportUuid } from "../src/lib/reports/rules.ts";
-import { completedTraversalInput, retainedMotionSchedule, simulateTraversal, traversalTimestampMicros } from "../src/lib/traffic/traversals.ts";
+import { reportUuid } from "../apps/web/src/lib/reports/rules.ts";
+import { completedTraversalInput, retainedMotionSchedule, simulateTraversal, traversalTimestampMicros } from "../apps/web/src/lib/traffic/traversals.ts";
 import { internalSupabaseUrl, readLocalStatus } from "./local-status.mjs";
 
 function exact(value, fields) {

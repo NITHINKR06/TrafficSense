@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { evaluateSegmentLadder, LADDER_SPEC } from "../src/lib/evidence/verification-ladder.ts";
+import { evaluateSegmentLadder, LADDER_SPEC } from "../apps/web/src/lib/evidence/verification-ladder.ts";
 
 test("verification ladder defines all 6 tiers aligned with the brief", () => {
   const levels = ["L1", "L2", "L3", "L4", "L5", "L6"];

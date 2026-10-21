@@ -1,5 +1,5 @@
 # Local-only configuration; generated with Supabase CLI 2.120.0 and reduced to Auth/Postgres.
-project_id = "trafficsense-local"
+project_id = "trafficsense-nk-local"
 
 [api]
 enabled = true

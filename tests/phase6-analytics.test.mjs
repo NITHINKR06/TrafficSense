@@ -10,7 +10,7 @@ import {
   computeRecurrenceStatement,
   computeCauseDelaySummary,
   computeAnalytics,
-} from "../src/lib/analytics/metrics.ts";
+} from "../apps/web/src/lib/analytics/metrics.ts";
 
 describe("Phase 6 – recurrence heatmap", () => {
   it("returns a grid with day keys 0–6 and hour columns covering peak windows", () => {

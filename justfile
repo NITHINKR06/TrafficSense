@@ -12,15 +12,35 @@ default:
 list:
     @just --list
 
-# Start development environment (Supabase backend + seed + dev app)
+# Start development environment (Supabase backend + seed + web + mobile)
 up:
-    @echo "==> Starting local Supabase backend..."
-    bash scripts/local-supabase.sh start
+    just db-start
     @echo "==> Seeding synthetic test accounts..."
-    bash scripts/local-supabase.sh seed
-    @echo "==> Starting TrafficSense dev container on http://localhost:3000..."
+    just db-seed
     docker compose up --build -d app
-    @echo "==> Ready! Access the web app at: http://localhost:3000"
+    just mobile-up
+    @echo "==> Ready! Web: http://localhost:3000 | Expo: exp://127.0.0.1:8081"
+
+# Start only the web app (starts local Supabase and synthetic seed first)
+web-up:
+    just db-start
+    just db-seed
+    docker compose up --build -d app
+    @echo "==> Web app ready at http://localhost:3000"
+
+# Start only the Expo mobile app; use mobile-lan for a physical phone
+mobile-up:
+    docker compose --profile mobile up --build -d mobile
+    @echo "==> Expo mobile app ready at exp://127.0.0.1:8081"
+
+# Start Expo and local services for a phone on the same LAN
+mobile-lan host="192.168.0.224":
+    @echo "==> LAN mode exposes local Supabase and Expo on a trusted network only..."
+    LOCAL_SUPABASE_HOST_BIND=0.0.0.0 bash scripts/local-supabase.sh start
+    LOCAL_SUPABASE_HOST_BIND=0.0.0.0 bash scripts/local-supabase.sh seed
+    APP_HOST_BIND=0.0.0.0 docker compose up --build -d app
+    EXPO_PUBLIC_API_BASE_URL="http://{{host}}:3000" EXPO_PUBLIC_SUPABASE_URL="http://{{host}}:54321" EXPO_PUBLIC_SUPABASE_ANON_KEY="$$(grep '^SUPABASE_ANON_KEY=' .env.local | cut -d= -f2-)" MOBILE_HOST_BIND=0.0.0.0 docker compose --profile mobile up --build -d mobile
+    @echo "==> Expo Go URL: exp://{{host}}:8081"
 
 # Start dev app and follow logs directly
 dev:
@@ -34,15 +54,27 @@ prod:
 
 # Stop dev and production preview containers (preserves database and cache)
 down:
-    docker compose --profile production down
+    docker compose --profile mobile --profile production down
 
 # Stop the dev container
 stop:
+    docker compose stop app mobile
+
+# Stop only the web app
+web-stop:
     docker compose stop app
+
+# Stop only the mobile app
+mobile-stop:
+    docker compose stop mobile
 
 # Restart the dev container
 restart:
     docker compose restart app
+
+# Restart the mobile app
+mobile-restart:
+    docker compose restart mobile
 
 # Stop all containers including Supabase backend
 stop-all:
@@ -63,6 +95,10 @@ status:
 # Stream logs for a container (default: app)
 logs service="app":
     @service_name="{{service}}"; service_name="${service_name#service=}"; docker compose logs -f "$service_name"
+
+# Stream mobile logs
+mobile-logs:
+    docker compose logs -f mobile
 
 # Open an interactive shell inside a container (default: app)
 shell service="app":
@@ -98,9 +134,17 @@ simulate-reset:
 test:
     docker compose exec app pnpm test 2>/dev/null || docker compose run --rm app pnpm test
 
+# Type-check the mobile app inside Docker
+mobile-typecheck:
+    docker compose run --rm app pnpm --filter @trafficsense/mobile typecheck
+
 # Run fast ESLint check inside Docker
 lint:
     docker compose exec app pnpm lint 2>/dev/null || docker compose run --rm app pnpm lint
+
+# Check the required app AI/docs layout inside Docker
+check-docs:
+    docker compose run --rm app pnpm check:docs
 
 # Run backend integration tests (auth, traffic, reports)
 test-integration:
@@ -123,19 +167,19 @@ clean:
 # Start a free Cloudflare Tunnel exposing http://localhost:3000 to the internet
 tunnel:
     @echo "==> Starting Cloudflare Tunnel for http://localhost:3000..."
-    @docker rm -f trafficsense-tunnel 2>/dev/null || true
-    @docker run -d --name trafficsense-tunnel --network host cloudflare/cloudflared:latest tunnel --no-autoupdate --url http://localhost:3000
+    @docker rm -f trafficsense-nk-tunnel 2>/dev/null || true
+    @docker run -d --name trafficsense-nk-tunnel --network host cloudflare/cloudflared:latest tunnel --no-autoupdate --url http://localhost:3000
     @echo "==> Tunnel created! Public HTTPS URL:"
     @for attempt in $(seq 1 15); do \
-        tunnel_url=$(docker logs trafficsense-tunnel 2>&1 | grep -oE 'https://[^[:space:]]+\.trycloudflare\.com' | head -n 1); \
+        tunnel_url=$(docker logs trafficsense-nk-tunnel 2>&1 | grep -oE 'https://[^[:space:]]+\.trycloudflare\.com' | head -n 1); \
         if [ -n "$tunnel_url" ]; then echo "$tunnel_url"; exit 0; fi; \
         sleep 1; \
     done; \
-    echo "Tunnel is still starting; run: docker logs trafficsense-tunnel"; \
+    echo "Tunnel is still starting; run: docker logs trafficsense-nk-tunnel"; \
     exit 1
 
 # Stop the Cloudflare Tunnel
 tunnel-stop:
     @echo "==> Stopping Cloudflare Tunnel..."
-    @docker rm -f trafficsense-tunnel 2>/dev/null || true
+    @docker rm -f trafficsense-nk-tunnel 2>/dev/null || true
     @echo "==> Tunnel stopped."

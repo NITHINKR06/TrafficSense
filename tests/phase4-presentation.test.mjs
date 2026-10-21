@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { incidentView, traversalView } from "../src/lib/traffic/phase4-presentation.ts";
+import { incidentView, traversalView } from "../apps/web/src/lib/traffic/phase4-presentation.ts";
 
 const readAt = "2026-10-16T04:00:00.000001Z";
 const incident = { state: "supported", is_current: true, valid_until: "2026-10-16T04:00:01.000001Z", prior_incident_id: null };

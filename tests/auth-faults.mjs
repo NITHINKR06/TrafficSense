@@ -1,7 +1,7 @@
 import http from "node:http";
 
 // Test-only: never accept an upstream URL from a request or environment variable.
-const UPSTREAM = new URL("http://supabase_kong_trafficsense-local:8000");
+const UPSTREAM = new URL("http://supabase_kong_trafficsense-nk-local:8000");
 const REQUEST_TIMEOUT_MS = 10_000;
 const CONTROL_BODY_LIMIT_BYTES = 1024;
 const MODES = new Set(["healthy", "auth", "database", "organisations", "all", "report-response-loss"]);

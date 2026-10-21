@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { assessRecovery } from "../src/lib/evidence/recovery.ts";
-import { assessSlowdown } from "../src/lib/evidence/slowdown.ts";
-import { createTrafficFixture } from "../src/lib/traffic/simulator.ts";
-import { parseTrafficSnapshot } from "../src/lib/traffic/snapshot.ts";
+import { assessRecovery } from "../apps/web/src/lib/evidence/recovery.ts";
+import { assessSlowdown } from "../apps/web/src/lib/evidence/slowdown.ts";
+import { createTrafficFixture } from "../apps/web/src/lib/traffic/simulator.ts";
+import { parseTrafficSnapshot } from "../apps/web/src/lib/traffic/snapshot.ts";
 
 const end = "2026-10-16T04:00:00.000Z";
 const iso = milliseconds => new Date(milliseconds).toISOString();

@@ -50,13 +50,13 @@ No employee data or journey access follows from organisation membership. Future 
 
 Pinned Supabase CLI 2.120.0 runs with `SUPABASE_EXPERIMENTAL_STACK=0` in the opt-in `supabase` tooling service. It uses a pinned Docker 28.5.2 client. Only that one-off service has the Docker socket and host networking; dependency installation happens during its image build before socket access is granted. Socket access is effectively host-administrator access, not a sandbox.
 
-The wrapper preserves the repository's host path for sibling-container bind mounts and derives the socket's numeric group. It checks the dedicated `trafficsense_supabase` bridge and Docker engine version before CLI operations. The bridge defaults published ports to loopback. It is external to the app's Compose lifecycle.
+The wrapper preserves the repository's host path for sibling-container bind mounts and derives the socket's numeric group. It checks the dedicated `trafficsense-nk_supabase` bridge and Docker engine version before CLI operations. The bridge defaults published ports to loopback. It is external to the app's Compose lifecycle.
 
-The local Supabase project ID is `trafficsense-local`, separate from application Compose project `trafficsense`. Only Postgres, Auth, PostgREST, and Kong are needed. Studio, storage, realtime, mail, analytics, edge functions, and the pooler are disabled.
+The local Supabase project ID is `trafficsense-nk-local`, separate from application Compose project `trafficsense-nk`. Only Postgres, Auth, PostgREST, and Kong are needed. Studio, storage, realtime, mail, analytics, edge functions, and the pooler are disabled.
 
 - Local API: `http://127.0.0.1:54321`.
 - Local database: loopback port `54322` (shadow database uses `54320` when needed).
-- App-to-API: `http://supabase_kong_trafficsense-local:8000` on the dedicated bridge.
+- App-to-API: `http://supabase_kong_trafficsense-nk-local:8000` on the dedicated bridge.
 - Application and production ports remain loopback-only at `3000` and `3001`.
 
 The `demo` service seeds and tests without Docker-socket access. The privileged local service key is passed from CLI status through standard input to the seeder; it is not saved to the app environment. CLI startup logs may contain local credentials and are kept in ignored `supabase/.temp/start.log`. Build context exclusions cover this directory, environment files, and host caches.

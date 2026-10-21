@@ -8,11 +8,13 @@ ENV COREPACK_HOME=/opt/corepack \
 
 WORKDIR /app
 RUN corepack enable \
-    && mkdir -p /opt/corepack /app/.next \
+    && mkdir -p /opt/corepack /app/apps/web/.next \
     && chown -R node:node /opt/corepack /app
 
 USER node
 COPY --chown=node:node package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY --chown=node:node apps/mobile/package.json apps/mobile/package.json
+COPY --chown=node:node packages/shared/package.json packages/shared/package.json
 RUN --mount=type=cache,id=trafficsense-pnpm,target=/home/node/.local/share/pnpm/store,uid=1000,gid=1000 \
     corepack install && pnpm install --frozen-lockfile --fetch-timeout 600000
 
@@ -31,9 +33,9 @@ ENV NODE_ENV=production \
     PORT=3000
 
 WORKDIR /app
-COPY --from=builder --chown=node:node /app/public ./public
-COPY --from=builder --chown=node:node /app/.next/standalone ./
-COPY --from=builder --chown=node:node /app/.next/static ./.next/static
+COPY --from=builder --chown=node:node /app/apps/web/public ./public
+COPY --from=builder --chown=node:node /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=node:node /app/apps/web/.next/static ./.next/static
 USER node
 EXPOSE 3000
 CMD ["node", "server.js"]

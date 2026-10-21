@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import { spawn } from "node:child_process";
 import { createClient } from "@supabase/supabase-js";
-import { createTrafficFixture } from "../src/lib/traffic/simulator.ts";
+import { createTrafficFixture } from "../apps/web/src/lib/traffic/simulator.ts";
 import { internalSupabaseUrl, readLocalStatus } from "../scripts/local-status.mjs";
 
 assert.equal(process.env.DEMO_MODE, "true");

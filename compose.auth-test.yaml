@@ -1,5 +1,5 @@
 # Test-only overlay; select these services explicitly to leave app/production untouched.
-name: trafficsense
+name: trafficsense-nk
 
 services:
   auth-faults:

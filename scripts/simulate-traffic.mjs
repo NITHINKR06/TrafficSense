@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { createTrafficFixture, DEFAULT_DEMO_ANCHOR, DEMO_CORRIDOR_ID } from "../src/lib/traffic/simulator.ts";
+import { createTrafficFixture, DEFAULT_DEMO_ANCHOR, DEMO_CORRIDOR_ID } from "../apps/web/src/lib/traffic/simulator.ts";
 import { internalSupabaseUrl, readLocalStatus } from "./local-status.mjs";
 
 async function main() {

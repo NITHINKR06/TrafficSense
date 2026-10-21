@@ -2,7 +2,7 @@ import { createClient } from "@supabase/supabase-js";
 import { randomBytes } from "node:crypto";
 import { mkdir, writeFile, chmod } from "node:fs/promises";
 import { readLocalStatus, internalSupabaseUrl } from "./local-status.mjs";
-import { createTrafficFixture } from "../src/lib/traffic/simulator.ts";
+import { createTrafficFixture } from "../apps/web/src/lib/traffic/simulator.ts";
 
 if (process.env.DEMO_MODE !== "true" || process.env.SUPABASE_URL !== internalSupabaseUrl) {
   throw new Error("Synthetic seeding is restricted to the configured local demo.");

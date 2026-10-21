@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { parsePhase4Snapshot } from "../src/lib/traffic/phase4.ts";
-import { parsePhase5Snapshot } from "../src/lib/route-alerts/snapshot.ts";
+import { parsePhase4Snapshot } from "../apps/web/src/lib/traffic/phase4.ts";
+import { parsePhase5Snapshot } from "../apps/web/src/lib/route-alerts/snapshot.ts";
 import { addReport, input, unavailable, incidentId, readAt, readUs, timestamp } from "./route-alerts-fixtures.mjs";
 
 test("phase five delegates unchanged Phase 4 and retains exact public report clocks separately", () => {

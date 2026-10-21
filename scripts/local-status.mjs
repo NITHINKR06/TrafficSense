@@ -1,4 +1,4 @@
-export const internalSupabaseUrl = "http://supabase_kong_trafficsense-local:8000";
+export const internalSupabaseUrl = "http://supabase_kong_trafficsense-nk-local:8000";
 
 export async function readLocalStatus() {
   let input = "";

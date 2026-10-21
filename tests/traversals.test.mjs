@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { createTrafficFixture } from "../src/lib/traffic/simulator.ts";
-import { authoredMotionSchedule } from "../src/lib/traffic/motion-schedule.ts";
-import { simulateTraversal, traversalTimestampMicros, traversalTimestamp, completedTraversalInput, retainedMotionSchedule } from "../src/lib/traffic/traversals.ts";
+import { createTrafficFixture } from "../apps/web/src/lib/traffic/simulator.ts";
+import { authoredMotionSchedule } from "../apps/web/src/lib/traffic/motion-schedule.ts";
+import { simulateTraversal, traversalTimestampMicros, traversalTimestamp, completedTraversalInput, retainedMotionSchedule } from "../apps/web/src/lib/traffic/traversals.ts";
 
 const anchor = "2026-10-16T10:00:00.123456Z";
 const fixture = createTrafficFixture("slowdown", "2026-10-16T10:00:00.123Z");

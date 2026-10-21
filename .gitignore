@@ -19,6 +19,7 @@ coverage/
 playwright-report/
 test-results/
 *.tsbuildinfo
+apps/web/next-env.d.ts
 next-env.d.ts
 /build/
 .vercel/
@@ -26,3 +27,6 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+
+apps/web/.next/
+app

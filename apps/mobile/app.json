@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "TrafficSense",
+    "slug": "trafficsense",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "scheme": "trafficsense",
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-location"
+    ]
+  }
+}

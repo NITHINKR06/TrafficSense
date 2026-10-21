@@ -1,10 +1,61 @@
 # Project Progress
 
+## Reuse existing Supabase bridge binding — verified, 21 Oct 2026
+
+- **Issue:** A plain `just up` used the default `127.0.0.1` binding while the existing project bridge was already configured for `0.0.0.0`, causing the local Supabase safety check to stop startup.
+- **Implementation:** `scripts/local-supabase.sh` now reads the existing project bridge binding when no explicit `LOCAL_SUPABASE_HOST_BIND` is supplied, accepting only the supported `127.0.0.1` or `0.0.0.0` values. An explicit caller value still takes precedence.
+- **Verification:** Plain `just up` passed. Supabase migrations were current, four synthetic TEST DATA scenarios were seeded, and web/mobile services were recreated successfully. The existing LAN binding was reused without deleting or recreating the network.
+- **Commit:** Pending.
+
+## Local Supabase startup repair — verified, 21 Oct 2026
+
+- **Issue:** The local Supabase tools image installed workspace dependencies using only the root package manifest. After the mobile/shared workspaces were added, the CLI attempted a no-TTY dependency repair and aborted before it could start the backend.
+- **Implementation:** Added `apps/mobile/package.json` and `packages/shared/package.json` to the Docker dependency-layer inputs before the frozen pnpm install. This preserves Docker dependency caching while making the image's workspace installation complete.
+- **Verification:** `LOCAL_SUPABASE_HOST_BIND=0.0.0.0 just up` passed: local Supabase started, migrations were current, four synthetic TEST DATA incident scenarios seeded, and web/mobile containers were recreated. `just status` reported all application and required backend services healthy; `http://127.0.0.1:3000` and `/api/incidents` returned successfully, with four active incidents. `git diff --check` passed for the scoped Dockerfile change.
+- **Commit:** Pending.
+
+## Web app workspace migration — verified, 21 Oct 2026
+
+- **Scope:** Move the Next.js web client from root `src/` and `public/` into `apps/web/src` and `apps/web/public`, move web-owned Next.js configuration beside the app, update Docker/workspace commands and root test imports, and preserve the existing mobile/shared app boundaries.
+- **Verification:** Moved web source/assets/configuration, updated root scripts, Docker cache/build paths, test imports, ignore rules, and Docker instructions. In Docker, all 197 tests passed, web ESLint passed, Next route type generation and TypeScript passed, and the production build passed with all expected routes. The migration is isolated on the `web-app-in-apps` branch.
+- **Commit:** Pending.
+
+## Docker namespace isolation — implemented, 21 Oct 2026
+
+- **Implementation:** Renamed the Compose project to `trafficsense-nk`, the Supabase project to `trafficsense-nk-local`, the shared backend network to `trafficsense-nk_supabase`, generated Compose volumes/images/containers to the new Compose namespace, and the Cloudflare tunnel container to `trafficsense-nk-tunnel`. Updated scripts, auth tests, setup/auth documentation, and Supabase container lookups to use the new names.
+- **Compatibility:** Existing containers from the previous `trafficsense`/`trafficsense-local` namespace are not removed automatically; stop or remove only this project's old resources after confirming they are not used by another checkout.
+- **Verification:** Compose name/image/network/volume rendering, Justfile parsing, namespace search, Docker configuration validation, renamed web startup/HTTP check, and renamed Expo startup/health check passed. The exact old TrafficSense Supabase containers and tunnel container were stopped and removed while their old volumes were preserved. New Supabase image/network creation completed, but backend startup remains blocked by the Docker socket permission error inside the Supabase tooling container; the application containers are healthy independently.
+- **Commit:** Pending.
+
 ## Recording rules
 
 - `docs/plan.md` holds scope, decisions, contracts and acceptance targets. `docs/implementation.md` holds detailed phases/dependencies/exit checks. Neither holds task status or verification history.
 - This file alone records implementation updates, actual blockers, checks, review and commit records. Distinguish implemented, verified, failed, pending and deferred work.
 - Historical records below were migrated from the older plan during documentation alignment. They are not fresh verification. Never infer passing results from code or test files existing.
+
+## Per-app AI/docs layout — verified, 20 Oct 2026
+
+- **Implementation:** Added identical minimal `ai/` and `docs/` entry files for `apps/web`, `apps/mobile`, and `packages/shared`: `AGENTS.md`, `rules.md`, `plan.md`, and `progress.md`. Added shared app guidance at `ai/resources/app_common_rules.md` and reusable templates under `templates/app-ai/` and `templates/app-docs/`. Added `scripts/check-app-layout.mjs`, the `check:docs` package script, and the `just check-docs` Docker recipe.
+- **Verification:** `node scripts/check-app-layout.mjs` passed. `just check-docs` passed in Docker and reported all 3 targets valid with 4 required files each. `git diff --check` passed. Existing unrelated changes, including the pre-existing `docs/new-updates.md` deletion and untracked update notes, were preserved.
+- **Commit:** Pending.
+
+## Mobile app Phase 1 — verified, 20 Oct 2026
+
+- **Implementation:** Started the mobile client under `apps/mobile` with Expo Router and TypeScript, added the root workspace package boundary, and documented the phase order and acceptance criteria. The existing Next.js/Supabase app remains unchanged as the web/backend surface.
+- **Verification:** Docker lockfile resolution, mobile TypeScript checking, and Expo configuration validation passed. No device or Expo Go launch was claimed; native runtime and mobile UI flows remain pending.
+- **Commit:** `27271f1` — `feat(mobile): start Expo client shell`.
+
+## Mobile app Phase 2 — authentication — implemented, 20 Oct 2026
+
+- **Implementation:** Added Expo Supabase authentication with secure session persistence, sign-in, commuter registration, email-confirmation messaging, protected workspace access, explicit sign-out failure handling, and safe `EXPO_PUBLIC_*` configuration documentation. No privileged key or location permission was added.
+- **Verification:** Docker dependency installation, Expo config validation, strict mobile TypeScript checking, and `git diff --check` passed. Device/Expo Go launch and live authentication against a reachable Supabase URL remain unverified.
+- **Commit:** `43ef3b8` — `feat(mobile): add Supabase authentication flow`.
+
+## Mobile app Phase 3 — public traffic API — implemented, 20 Oct 2026
+
+- **Implementation:** Connected the Expo traffic screen to the existing Next.js `/api/incidents` endpoint, added shared incident response types, explicit loading/error/empty/refresh states, and a safe opt-in LAN bind for physical-device API testing.
+- **Verification:** Docker mobile TypeScript checking passed. The LAN API returned a valid empty response and Expo Metro remained healthy with `EXPO_PUBLIC_API_BASE_URL=http://192.168.0.224:3000`. No populated incident card or device visual verification was claimed.
+- **Commit:** Pending.
 
 
 ## Active demo-plan update — in progress, 20 Oct 2026
@@ -825,3 +876,23 @@ These summarize the old plan's task/verification records without reclassifying t
 ## Execution record format
 
 For each bounded task, record: goal/source module and exclusions; dependencies and affected routes; planned acceptance checks; actual commands/browser interactions with environment/provenance/outcomes; failures or unverified cases; user review; scoped commit hash after creation. Keep sensitive credentials, personal journeys and full private payloads out of records.
+
+## Mobile app Phase 4 — authenticated incident reporting — implemented, 20 Oct 2026
+
+- **Implementation:** Added the Expo report form with category selection, optional note, foreground location permission requested only on submit, current-position capture, authenticated Bearer-token submission, and explicit sign-in, denied-permission, loading, success, and failure states. Added shared report submission types and `expo-location`; updated the incident API to accept mobile Authorization headers alongside web cookies and to validate categories and finite coordinates at the boundary.
+- **Verification:** In Docker, regenerated the frozen pnpm lockfile, passed mobile and web TypeScript checks, passed focused ESLint for the changed report/API files, and passed all 197 project tests. The running local API returned HTTP 401 for an unauthenticated report POST with the expected error. `git diff --check` passed.
+- **Unverified or blocked:** Expo Go visual interaction, native location permission behavior, and an authenticated physical-device submission remain unverified because a reachable mobile Supabase session was not available. Full lint remains blocked by a pre-existing `react-hooks/set-state-in-effect` error in [traffic.tsx](/home/nithinkr06/Documents/hackathon%20(Copy)/apps/mobile/app/traffic.tsx), outside this task.
+- **Commit:** Pending.
+
+## Mobile app Phase 5 — report-to-traffic verification handoff — implemented, 21 Oct 2026
+
+- **Implementation:** The mobile traffic view refreshes on screen focus, the report success state links directly to active traffic reports, and evidence levels are presented as plain-language status labels while preserving the server-provided level.
+- **Verification:** Docker mobile/web TypeScript checks, focused ESLint, all 197 project tests, and the Expo Android bundle check passed. Device-side report submission and visual confirmation remain unverified.
+- **Commit:** Pending.
+
+## Unified Docker and Just commands — implemented, 21 Oct 2026
+
+- **Implementation:** Added a profile-gated Expo `mobile` service with the same workspace dependency volume and Docker startup path as the web service. Added independent `just web-up`, `just mobile-up`, `just web-stop`, `just mobile-stop`, `just mobile-logs`, `just mobile-typecheck`, and LAN-oriented `just mobile-lan` recipes. Updated `just up` and `just down` to manage both app services, added mobile typechecking to the full checks container, and documented the command matrix in [docs/docker.md](/home/nithinkr06/Documents/hackathon%20(Copy)/docs/docker.md).
+- **Cleanup:** Removed generated caches, ignored local state, the stale root generated `next-env.d.ts`, and the two untracked leftover documents requested for cleanup. Local Supabase credentials/state were regenerated only as needed by the Docker checks and are not tracked.
+- **Verification:** `just --list`, Compose config validation, `git diff --check`, Dockerized Expo startup/health, `just mobile-typecheck`, and `just check` passed. The Expo service reported healthy on `127.0.0.1:8081`. Local Supabase start was blocked by the existing LAN-bound `trafficsense_supabase` bridge/state when invoked without the matching `LOCAL_SUPABASE_HOST_BIND=0.0.0.0`; no backend state was changed.
+- **Commit:** Pending.

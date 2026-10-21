@@ -4,11 +4,25 @@ cd "$(dirname "$0")/.."
 export PWD="$(pwd)"
 export DOCKER_GID="$(stat -c '%g' /var/run/docker.sock)"
 umask 077
+supabase_project_id="trafficsense-nk-local"
+supabase_db_container="supabase_db_${supabase_project_id}"
+supabase_network="trafficsense-nk_supabase"
+
+# Reuse an existing project bridge's binding when the caller did not choose one.
+# This keeps repeated `just up` runs compatible with the bridge already in use.
+if [[ -z "${LOCAL_SUPABASE_HOST_BIND+x}" ]] && docker network inspect "$supabase_network" >/dev/null 2>&1; then
+  existing_host_bind="$(docker network inspect "$supabase_network" --format '{{ index .Options "com.docker.network.bridge.host_binding_ipv4" }}')"
+  if [[ "$existing_host_bind" == "127.0.0.1" || "$existing_host_bind" == "0.0.0.0" ]]; then
+    export LOCAL_SUPABASE_HOST_BIND="$existing_host_bind"
+  fi
+fi
 
 case "${1:-}" in
   start)
-    if ! docker network inspect trafficsense_supabase >/dev/null 2>&1; then
-      docker network create --driver bridge --opt com.docker.network.bridge.host_binding_ipv4=127.0.0.1 trafficsense_supabase >/dev/null
+    if ! docker network inspect "$supabase_network" >/dev/null 2>&1; then
+      docker network create --driver bridge \
+        --opt com.docker.network.bridge.host_binding_ipv4="${LOCAL_SUPABASE_HOST_BIND:-127.0.0.1}" \
+        "$supabase_network" >/dev/null
     fi
     docker compose build supabase demo
     mkdir -p supabase/.temp
@@ -19,6 +33,9 @@ case "${1:-}" in
     docker compose run --rm supabase migration up --local
     docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/scripts/configure-local.mjs
     printf '%s\n' 'Local Supabase is ready. Run bash scripts/local-supabase.sh seed to create synthetic accounts.'
+    if [[ "${LOCAL_SUPABASE_HOST_BIND:-127.0.0.1}" != "127.0.0.1" ]]; then
+      printf '%s\n' "LAN binding enabled on ${LOCAL_SUPABASE_HOST_BIND}; use only on a trusted local network."
+    fi
     ;;
   seed)
     docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/scripts/seed-demo.mjs
@@ -45,7 +62,7 @@ case "${1:-}" in
   test-evidence)
     docker compose build demo
     docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/tests/evidence.integration.test.mjs
-    docker exec -i supabase_db_trafficsense-local psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/evidence-boundaries.integration.sql
+    docker exec -i "$supabase_db_container" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/evidence-boundaries.integration.sql
     ;;
   test-slowdown)
     docker compose build demo
@@ -58,7 +75,7 @@ case "${1:-}" in
   test-speed-evidence)
     docker compose build demo
     docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/tests/speed-evidence.integration.test.mjs
-    docker exec -i supabase_db_trafficsense-local psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/speed-evidence-boundaries.sql
+    docker exec -i "$supabase_db_container" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/speed-evidence-boundaries.sql
     ;;
   traversals)
     docker compose build demo
@@ -66,27 +83,27 @@ case "${1:-}" in
     ;;
   test-lifecycle)
     docker compose build demo
-    docker compose run --rm -T demo node /app/tests/incident-lifecycle-parity.mjs | docker exec -i supabase_db_trafficsense-local psql -X -U postgres -d postgres -v ON_ERROR_STOP=1
+    docker compose run --rm -T demo node /app/tests/incident-lifecycle-parity.mjs | docker exec -i "$supabase_db_container" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1
     docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/tests/incident-lifecycle.integration.test.mjs
-    docker exec -i supabase_db_trafficsense-local psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/incident-lifecycle-boundaries.sql
+    docker exec -i "$supabase_db_container" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/incident-lifecycle-boundaries.sql
     docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/tests/incident-lifecycle-late-evidence.integration.test.mjs
-    docker exec -i supabase_db_trafficsense-local psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/incident-lifecycle-late-evidence.sql
+    docker exec -i "$supabase_db_container" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/incident-lifecycle-late-evidence.sql
     ;;
   test-traversals)
     docker compose build demo
     docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/tests/traversals.integration.test.mjs
-    docker exec -i supabase_db_trafficsense-local psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/traversals-boundaries.sql
-    docker exec -i supabase_db_trafficsense-local psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/traversals-motion-boundaries.sql
+    docker exec -i "$supabase_db_container" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/traversals-boundaries.sql
+    docker exec -i "$supabase_db_container" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/traversals-motion-boundaries.sql
     ;;
   test-phase4)
     docker compose build demo
     docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/tests/phase4.integration.test.mjs
-    docker exec -i supabase_db_trafficsense-local psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/phase4-boundaries.sql
+    docker exec -i "$supabase_db_container" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/phase4-boundaries.sql
     ;;
   test-route-alerts)
     docker compose build demo
     docker compose run --rm -T supabase status --output json | docker compose run --rm -T demo node /app/tests/route-alerts.integration.test.mjs
-    docker exec -i supabase_db_trafficsense-local psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/route-alerts-boundaries.sql
+    docker exec -i "$supabase_db_container" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/route-alerts-boundaries.sql
     ;;
   test-core-loop)
     docker compose build demo
@@ -119,7 +136,7 @@ case "${1:-}" in
       --backfill)
         sed '/^\\ir /r supabase/migrations/20261016000100_incident_episodes.sql' tests/incident-episodes-boundaries.sql |
           sed '/^\\ir /d' |
-          docker exec -i supabase_db_trafficsense-local psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 -v episodes_backfill=true
+          docker exec -i "$supabase_db_container" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 -v episodes_backfill=true
         ;;
       --schema-only|'')
         schema_only=false
@@ -128,7 +145,7 @@ case "${1:-}" in
         docker compose run --rm -T supabase status --output json |
           docker compose run --rm -T --workdir /app -e EPISODES_SCHEMA_ONLY="$schema_only" demo pnpm exec node /app/tests/incident-episodes.integration.test.mjs
         if [[ "${2:-}" != --schema-only ]]; then
-          docker exec -i supabase_db_trafficsense-local psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/incident-episodes-boundaries.sql
+          docker exec -i "$supabase_db_container" psql -X -U postgres -d postgres -v ON_ERROR_STOP=1 < tests/incident-episodes-boundaries.sql
         fi
         ;;
       *)
