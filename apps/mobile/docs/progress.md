@@ -78,3 +78,9 @@ Cross-app changes also belong in [shared progress](../../../packages/shared/docs
 - **Implementation:** Added `MobileApiError` with HTTP status, authentication-required and retryable flags. Incident, report and route failures now expose structured state for the future mobile UI instead of requiring message-string parsing.
 - **Verification:** `just mobile-typecheck` and `git diff --check` passed. HTTP-state rendering remains deferred to Part A wiring.
 - **Commit:** Pending.
+
+## Phase 11 — focused mobile API tests — verified, 21 Oct 2026
+
+- **Implementation:** Added parser and structured-error tests for valid/malformed incidents, report success/errors, malformed routes, authentication-required responses and retryable HTTP failures. The test is included in the repository suite.
+- **Verification:** Docker test suite passed 201 tests with 0 failures; the test runner emitted only Node's module-type warning for the TypeScript mobile parser import. No native device behavior was claimed.
+- **Commit:** Pending.
