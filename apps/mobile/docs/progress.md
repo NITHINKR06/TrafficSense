@@ -11,14 +11,6 @@ Cross-app changes also belong in [shared progress](../../../packages/shared/docs
 - **Verification:** After restart with the current Wi-Fi address, `http://192.168.0.224:3000/api/incidents` returned HTTP 200 and a LAN `POST /api/route` returned HTTP 200 with one route. The app container remained healthy and its log records webpack startup rather than a Turbopack panic. The Android Expo bundle remains available through Metro.
 - **Commit:** Pending; the workspace contains unrelated mobile changes that must not be included in this runtime repair commit.
 
-## Part A — Core native UI and navigation — implemented, device verification pending, 21 Oct 2026
-
-- **Implementation:** Added shared mobile design tokens and the web-parity Home screen, stack titles/back behavior, refreshed login/register/workspace/report/traffic styling, clickable traffic incident details, and the canonical `/planner` route. The planner uses Part B’s real route client, labels durations as free-flow estimates, links warnings to real incident details, and keeps an alternative hidden until the commuter explicitly presses “Avoid this route.” No API, Supabase, web, or shared contract was changed.
-- **Source coverage and handoff:** REPORT → VERIFY → ALERT is represented by `/report` → `/traffic` → `/traffic/[incidentId]` and `/planner`. Part B state already supplies every required auth, incident, report, and route field; no contract change is needed. Journey/consent-sharing screens remain deferred pending mobile journey state/endpoints. Employer and authority administration remain web-only. A native map is also not included in this slice; incident cards provide the accessible active-report presentation.
-- **Verification:** `just mobile-typecheck`, `just lint` (web workspace lint), and `git diff --check` passed in Docker. Metro reached `packager-status:running`; the Expo Router Android bundle endpoint `/.expo/.virtual-metro-entry.bundle?platform=android&dev=true&minify=false` returned HTTP 200 after the UI changes.
-- **Remaining acceptance gaps:** No Expo Go device session was available to exercise taps, login, report permission/submission, direct/deep link recovery, back stack, or phone layout. There is no configured mobile ESLint script; only the repository web lint command currently exists. The physical-device and map/journey scope gaps remain open and are not passed checks.
-- **Commit:** Pending.
-
 ## Phase 1 — Expo shell — verified, 20 Oct 2026
 
 - **Implementation:** Added the Expo Router TypeScript shell, truthful home/report/traffic placeholder screens, Expo configuration, and a platform-neutral `@trafficsense/shared` workspace package. The shell does not request authentication or location on launch.
@@ -112,3 +104,19 @@ Cross-app changes also belong in [shared progress](../../../packages/shared/docs
 - **Journey/sharing review:** The web has server RPCs for journeys and consent sharing, but no mobile route contract exists. Mobile journey/sharing remains explicitly deferred until a contract is agreed; no unsafe client-side GPS or employer API was invented.
 - **Device check:** The existing Expo container is healthy and `http://127.0.0.1:8081/status` returned `packager-status:running`. The attempted forced image rebuild was stopped after a slow dependency export; no source failure was reported. Physical Expo Go login, permissions and authenticated report submission remain user-device checks.
 - **Commit:** Pending.
+
+## Phase 14 — mobile screens, route planner and release checks — implemented, 21 Oct 2026
+
+- **Implementation:** Applied the web design tokens to every mobile screen (single-column layout, 44px+ touch targets, labelled controls, live-region messages). Home now offers the same primary actions as web: report, plan route, view traffic, and sign in. Added the route planner (`/planner`) using the Mangaluru presets and the existing `/api/route` contract; the alternative route appears only after the commuter explicitly chooses it, and durations are labelled as free-flow estimates. Report now distinguishes denied permission, unreadable location, expired sessions (with sign-in that returns to Report), and rate limiting, and it requests location only on submit. The form resets on account change. Sign-in accepts a `next` value that is restricted to in-app screens. Traffic shows freshness and marks incidents older than 20 minutes as possibly stale. The Expo location permission wording is set for iOS and Android.
+- **Lint:** Added an ESLint config (`eslint-config-expo`) to `apps/mobile`, with root scripts `lint:mobile` and `typecheck:mobile`. This resolved the traffic-screen lint item in the remaining-task list.
+- **Verification:** `tsc --noEmit` passes; `eslint .` passes with 0 errors and 0 warnings; `expo export` builds both the Android and iOS bundles; `expo config` validates; `node scripts/check-app-layout.mjs` passes; the full root unit suite passes 210 of 210, including the new `tests/mobile-logic.test.mjs`.
+- **Not verified:** Expo Go on a phone, native permission prompts, the Supabase sign-in against a reachable instance, authenticated report submission, the live `/api/route` response, and small-screen layout. These need device checks by a person.
+- **Commit:** Pending.
+
+## Deferred mobile items (with reasons)
+
+- **Own-report history and status:** The web app has no per-commuter list of live-incident reports to reuse. A server read contract must be agreed before mobile can show it.
+- **Journeys and employer sharing:** The server RPCs exist, but the consent-preview and revocation flows need a product decision and device testing. Deferred per the mobile plan.
+- **Authority and analytics:** Out of mobile scope until the team decides otherwise.
+- **Push notifications, offline recovery, background location, EAS builds:** Deferred per the phase order. Push and offline need stable alert contracts first.
+- **Map view:** The route planner uses lists, not a native map. A native map is a later phase.

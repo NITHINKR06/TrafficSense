@@ -1,10 +1,4 @@
-import type {
-  ActiveIncidentsResponse,
-  ReportCategory,
-  RouteCoordinate,
-  RouteResponse,
-  SubmitIncidentResponse,
-} from "@trafficsense/shared";
+import type { ReportCategory, RouteCoordinate } from "@trafficsense/shared";
 import { MobileApiError, requestJson } from "./request";
 import { parseActiveIncidentsResponse, parseRouteResponse, parseSubmitIncidentResponse } from "./response-parsers";
 

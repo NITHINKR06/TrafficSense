@@ -77,7 +77,7 @@ This checklist covers work still required for the mobile client. It is derived f
 
 ## 8. Release and regression checks
 
-- [ ] Resolve the remaining full-lint error in `apps/mobile/app/traffic.tsx` without weakening lint rules.
+- [x] Resolve the remaining full-lint error in `apps/mobile/app/traffic.tsx` without weakening lint rules (lint runs via `pnpm lint:mobile`; passes).
 - [ ] Add or update focused unit/integration tests for validation, authorization, duplicate handling, lifecycle, route relevance, and sharing.
 - [ ] Run the Docker mobile type-check and the full repository test/lint/build checks.
 - [ ] Verify the development and production-preview API behavior separately.

@@ -1,6 +1,7 @@
 import type { Session } from "@supabase/supabase-js";
 import { createContext, useContext, useEffect, useMemo, useState, type PropsWithChildren } from "react";
 import { supabase, supabaseConfigError } from "../lib/supabase";
+import { validateCredentials } from "../lib/auth-rules";
 
 type AuthContextValue = {
   session: Session | null;
@@ -13,23 +14,6 @@ type AuthContextValue = {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-function normalizeEmail(email: string) {
-  return email.trim().toLowerCase();
-}
-
-function validateCredentials(email: string, password: string, registration = false) {
-  const normalizedEmail = normalizeEmail(email);
-  if (
-    normalizedEmail.length > 254 ||
-    !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail) ||
-    password.length < (registration ? 12 : 1) ||
-    password.length > 128
-  ) {
-    return null;
-  }
-  return { email: normalizedEmail, password };
-}
-
 function isInvalidCredentials(error: { status?: number; message?: string }) {
   return error.status === 400 || /invalid login credentials/i.test(error.message ?? "");
 }
@@ -37,6 +21,7 @@ function isInvalidCredentials(error: { status?: number; message?: string }) {
 export function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(Boolean(supabase));
+  // Never trust a stored session without a sign-in check: restoration failure fails closed.
 
   useEffect(() => {
     if (!supabase) return;

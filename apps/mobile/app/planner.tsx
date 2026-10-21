@@ -1,138 +1,198 @@
-import { router } from "expo-router";
-import { useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import type { RouteCoordinate, RouteOption } from "@trafficsense/shared";
-import { fetchRoute } from "../src/lib/api";
-import { colors, sharedStyles } from "../src/ui/theme";
+import { Stack } from "expo-router";
+import { useState } from "react";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import type { RouteOption } from "@trafficsense/shared";
+import { apiConfigurationError, fetchRoute } from "../src/lib/api";
+import { mangaluruPlaces } from "../src/lib/places";
+import { summarizeRoutes } from "../src/lib/route-alerts";
+import { categoryLabel, formatDistance, formatEstimatedDuration } from "../src/lib/format";
+import { colors, minTouchTarget, radius, space } from "../src/theme/tokens";
 
-const DEFAULT_START = "74.8426, 12.8698";
-const DEFAULT_DESTINATION = "74.8554, 12.9141";
+type PlanState =
+  | { kind: "idle" }
+  | { kind: "loading" }
+  | { kind: "error"; message: string }
+  | { kind: "result"; routes: RouteOption[] };
 
-function parseCoordinate(value: string): RouteCoordinate | null {
-  const parts = value.split(",").map((part) => Number(part.trim()));
-  if (parts.length !== 2 || !parts.every(Number.isFinite)) return null;
-  return [parts[0], parts[1]];
-}
-
-function formatDuration(seconds: number) {
-  const minutes = Math.max(1, Math.round(seconds / 60));
-  return `${minutes} min`;
-}
-
-function formatDistance(meters: number) {
-  return meters >= 1000 ? `${(meters / 1000).toFixed(1)} km` : `${Math.round(meters)} m`;
+function PlaceChoices({
+  label,
+  selected,
+  onSelect,
+  disabledIndex,
+}: {
+  label: string;
+  selected: number;
+  onSelect: (index: number) => void;
+  disabledIndex: number;
+}) {
+  return (
+    <View style={styles.block}>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.chips}>
+        {mangaluruPlaces.map((place, index) => {
+          const isSelected = index === selected;
+          const isDisabled = index === disabledIndex;
+          return (
+            <Pressable
+              key={place.name}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: isSelected, disabled: isDisabled }}
+              disabled={isDisabled}
+              onPress={() => onSelect(index)}
+              style={({ pressed }) => [
+                styles.chip,
+                isSelected && styles.chipSelected,
+                isDisabled && styles.chipDisabled,
+                pressed && styles.pressed,
+              ]}
+            >
+              <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>{place.name}</Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
 }
 
 export default function PlannerScreen() {
-  const [startText, setStartText] = useState(DEFAULT_START);
-  const [destinationText, setDestinationText] = useState(DEFAULT_DESTINATION);
-  const [routes, setRoutes] = useState<RouteOption[]>([]);
-  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
-  const [hasChosenAvoidance, setHasChosenAvoidance] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [startIndex, setStartIndex] = useState(0);
+  const [destIndex, setDestIndex] = useState(1);
+  const [plan, setPlan] = useState<PlanState>({ kind: "idle" });
+  const [alternativeChosen, setAlternativeChosen] = useState(false);
 
-  const selectedRoute = useMemo(
-    () => routes.find((route) => route.id === selectedRouteId) ?? routes[0] ?? null,
-    [routes, selectedRouteId],
-  );
-  const warnings = selectedRoute?.incidents_on_route ?? [];
-  const alternative = routes.find((route) => route.id !== selectedRoute?.id && route.avoids_incident) ?? null;
-
-  async function submit() {
-    setError(null);
-    const start = parseCoordinate(startText);
-    const destination = parseCoordinate(destinationText);
-    if (!start || !destination) {
-      setError("Enter origin and destination as longitude, latitude coordinates.");
-      return;
-    }
-    setLoading(true);
-    setHasChosenAvoidance(false);
+  async function checkRoute() {
+    setAlternativeChosen(false);
+    setPlan({ kind: "loading" });
     try {
-      const nextRoutes = await fetchRoute(start, destination);
-      if (nextRoutes.length === 0) {
-        setRoutes([]);
-        setSelectedRouteId(null);
-        setError("No route is available for those points.");
-        return;
-      }
-      setRoutes(nextRoutes);
-      setSelectedRouteId(nextRoutes[0].id);
+      const routes = await fetchRoute(mangaluruPlaces[startIndex].coords, mangaluruPlaces[destIndex].coords);
+      setPlan({ kind: "result", routes });
     } catch (reason) {
-      setRoutes([]);
-      setSelectedRouteId(null);
-      setError(reason instanceof Error ? reason.message : "Route planning is unavailable.");
-    } finally {
-      setLoading(false);
+      setPlan({ kind: "error", message: reason instanceof Error ? reason.message : "Route service is unavailable." });
     }
   }
 
-  function chooseAlternative() {
-    if (!alternative) return;
-    setHasChosenAvoidance(true);
-    setSelectedRouteId(alternative.id);
-  }
+  const summary = plan.kind === "result" ? summarizeRoutes(plan.routes) : null;
 
   return (
-    <ScrollView contentContainerStyle={sharedStyles.screen} keyboardShouldPersistTaps="handled">
-      <Text style={sharedStyles.title}>Plan your route</Text>
-      <Text style={sharedStyles.body}>Enter a Mangaluru origin and destination as longitude, latitude. Route durations are free-flow estimates, not live travel times.</Text>
-      <View style={styles.infoCard}>
-        <Text style={sharedStyles.simulatedLabel}>FREE-FLOW ESTIMATE</Text>
-        <Text style={styles.infoText}>TrafficSense checks active reports against the route. It can suggest an alternative, but it cannot guarantee safety or time savings.</Text>
-      </View>
-      <View style={styles.form}>
-        <Text style={styles.label}>Origin (longitude, latitude)</Text>
-        <TextInput accessibilityLabel="Origin longitude and latitude" autoCapitalize="none" keyboardType="numbers-and-punctuation" onChangeText={setStartText} placeholder="74.8426, 12.8698" placeholderTextColor={colors.secondaryText} style={sharedStyles.input} value={startText} />
-        <Text style={styles.label}>Destination (longitude, latitude)</Text>
-        <TextInput accessibilityLabel="Destination longitude and latitude" autoCapitalize="none" keyboardType="numbers-and-punctuation" onChangeText={setDestinationText} placeholder="74.8554, 12.9141" placeholderTextColor={colors.secondaryText} style={sharedStyles.input} value={destinationText} />
-        <Pressable accessibilityRole="button" disabled={loading} onPress={() => void submit()} style={({ pressed }) => [sharedStyles.primaryButton, (pressed || loading) && styles.pressed]}>
-          {loading ? <ActivityIndicator color="#ffffff" /> : <Text style={sharedStyles.primaryButtonText}>Find route</Text>}
+    <>
+      <Stack.Screen options={{ headerShown: true, title: "Plan route" }} />
+      <ScrollView contentContainerStyle={styles.container}>
+        <Text style={styles.title}>Plan my route</Text>
+        <Text style={styles.body}>
+          Pick a start and destination. Durations are free-flow estimates; the app does not measure delay for this route.
+        </Text>
+
+        {apiConfigurationError ? <Text style={styles.error}>{apiConfigurationError}</Text> : null}
+
+        <PlaceChoices label="From" selected={startIndex} disabledIndex={destIndex} onSelect={setStartIndex} />
+        <PlaceChoices label="To" selected={destIndex} disabledIndex={startIndex} onSelect={setDestIndex} />
+
+        <Pressable
+          accessibilityRole="button"
+          disabled={Boolean(apiConfigurationError) || plan.kind === "loading"}
+          onPress={() => void checkRoute()}
+          style={({ pressed }) => [styles.primary, pressed && styles.primaryPressed]}
+        >
+          <Text style={styles.primaryText}>Check route</Text>
         </Pressable>
-      </View>
-      {error ? <Text accessibilityRole="alert" style={sharedStyles.error}>{error}</Text> : null}
-      {selectedRoute ? <View style={styles.result}>
-        <Text style={styles.resultTitle}>Route result</Text>
-        <RouteCard route={selectedRoute} selected />
-        {warnings.length > 0 && !hasChosenAvoidance ? <View style={styles.warning}>
-          <Text style={styles.warningTitle}>Reported incident on this route</Text>
-          {warnings.map((warning) => <Pressable key={warning.id} accessibilityRole="button" onPress={() => router.push({ pathname: "/traffic/[incidentId]", params: { incidentId: warning.id } })}><Text style={styles.warningText}>{warning.label} · {warning.level}. Open details.</Text></Pressable>)}
-          {alternative ? <Pressable accessibilityRole="button" onPress={chooseAlternative} style={sharedStyles.primaryButton}><Text style={sharedStyles.primaryButtonText}>Avoid this route</Text></Pressable> : <Text style={styles.warningText}>No clear alternative is available from the current route results.</Text>}
-        </View> : null}
-        {hasChosenAvoidance && alternative ? <View style={styles.choice}><Text style={styles.choiceTitle}>You chose this alternative</Text><Text style={styles.choiceText}>It avoids the reported incident in the route response. Its time remains a free-flow estimate.</Text></View> : null}
-        {warnings.length === 0 ? <Text style={styles.clear}>No active route warning was returned for this route. This does not prove the road is clear.</Text> : null}
-      </View> : null}
-    </ScrollView>
+
+        {plan.kind === "loading" ? <ActivityIndicator color={colors.primary} style={styles.status} /> : null}
+
+        {plan.kind === "error" ? (
+          <View style={styles.errorBox} accessibilityLiveRegion="polite">
+            <Text style={styles.error}>{plan.message}</Text>
+            <Pressable accessibilityRole="button" onPress={() => void checkRoute()} style={styles.inlineAction}>
+              <Text style={styles.inlineActionText}>Try again</Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {plan.kind === "result" && summary?.kind === "none" ? (
+          <View style={styles.clearBox} accessibilityLiveRegion="polite">
+            <Text style={styles.clearTitle}>No active reports affect this route.</Text>
+            <Text style={styles.note}>This only reflects community reports the server holds. It is not live traffic.</Text>
+          </View>
+        ) : null}
+
+        {plan.kind === "result" && summary?.kind === "warning" ? (
+          <View style={styles.warningBox} accessibilityLiveRegion="polite">
+            <Text style={styles.warningTitle}>Active reports on the recommended route</Text>
+            {summary.incidents.map((incident) => (
+              <View key={incident.id} style={styles.incidentRow}>
+                <Text style={styles.incidentTitle}>{categoryLabel(incident.category)} · {incident.level}</Text>
+                <Text style={styles.note}>{incident.label}. About {formatDistance(incident.distance_to_route_m)} from the route.</Text>
+              </View>
+            ))}
+
+            {summary.alternative && !alternativeChosen ? (
+              <Pressable accessibilityRole="button" onPress={() => setAlternativeChosen(true)} style={styles.secondary}>
+                <Text style={styles.secondaryText}>Show alternative route</Text>
+              </Pressable>
+            ) : null}
+            {!summary.alternative ? (
+              <Text style={styles.note}>No listed alternative avoids these reports. Allow extra time and check again later.</Text>
+            ) : null}
+          </View>
+        ) : null}
+
+        {plan.kind === "result" && summary?.kind === "warning" && summary.alternative && alternativeChosen ? (
+          <RouteCard route={summary.alternative} heading="Alternative you chose" />
+        ) : null}
+
+        {plan.kind === "result" && summary?.primary ? (
+          <RouteCard route={summary.primary} heading="Recommended route" />
+        ) : null}
+      </ScrollView>
+    </>
   );
 }
 
-function RouteCard({ route, selected }: { route: RouteOption; selected: boolean }) {
-  return <View style={[styles.routeCard, selected && styles.routeCardSelected]}>
-    <Text style={styles.routeName}>{route.name}</Text>
-    <Text style={styles.routeMeta}>{formatDistance(route.distance_m)} · {formatDuration(route.duration_s)} · estimated</Text>
-    <Text style={styles.routeNote}>{route.avoids_incident ? "Avoids a reported incident in this route response." : "Selected route."}</Text>
-  </View>;
+function RouteCard({ route, heading }: { route: RouteOption; heading: string }) {
+  return (
+    <View style={styles.card}>
+      <Text style={styles.eyebrow}>{heading}</Text>
+      <Text style={styles.routeName}>{route.name}</Text>
+      <Text style={styles.meta}>
+        {formatDistance(route.distance_m)} · {formatEstimatedDuration(route.duration_s)} free-flow estimate
+      </Text>
+      <Text style={styles.note}>Estimated from road distance and speed, not measured traffic. Delay savings are not shown.</Text>
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({
-  infoCard: { ...sharedStyles.card, gap: 10, backgroundColor: colors.violetSurface },
-  infoText: { color: colors.secondaryText, fontSize: 14, lineHeight: 21 },
-  form: { gap: 10 },
-  label: { color: colors.text, fontSize: 14, fontWeight: "700" },
-  pressed: { backgroundColor: colors.primaryPressed, opacity: 0.9 },
-  result: { gap: 12 },
-  resultTitle: { color: colors.text, fontSize: 21, fontWeight: "800" },
-  routeCard: { ...sharedStyles.card, gap: 5 },
-  routeCardSelected: { borderColor: colors.primary, borderWidth: 2 },
-  routeName: { color: colors.text, fontSize: 17, fontWeight: "700" },
-  routeMeta: { color: colors.primary, fontSize: 15, fontWeight: "700" },
-  routeNote: { color: colors.secondaryText, fontSize: 13, lineHeight: 20 },
-  warning: { gap: 12, padding: 16, borderRadius: 14, backgroundColor: colors.warningSurface, borderWidth: 1, borderColor: "#fed7aa" },
-  warningTitle: { color: colors.warning, fontSize: 17, fontWeight: "800" },
-  warningText: { color: colors.secondaryText, fontSize: 14, lineHeight: 21 },
-  choice: { gap: 6, padding: 16, borderRadius: 14, backgroundColor: "#e8f7ee", borderWidth: 1, borderColor: "#b7e3c6" },
-  choiceTitle: { color: colors.primary, fontSize: 16, fontWeight: "800" },
-  choiceText: { color: colors.secondaryText, fontSize: 14, lineHeight: 21 },
-  clear: { color: colors.secondaryText, fontSize: 14, lineHeight: 21 },
+  container: { gap: space.md, padding: space.lg, paddingBottom: space.lg * 2, backgroundColor: colors.background },
+  title: { color: colors.text, fontSize: 28, fontWeight: "800" },
+  body: { color: colors.textSecondary, fontSize: 16, lineHeight: 24 },
+  block: { gap: space.xs },
+  label: { color: colors.text, fontSize: 15, fontWeight: "700" },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: space.xs },
+  chip: { minHeight: minTouchTarget, justifyContent: "center", paddingHorizontal: space.md, borderRadius: radius.control, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
+  chipSelected: { borderColor: colors.primary, backgroundColor: colors.primary },
+  chipDisabled: { opacity: 0.4 },
+  chipText: { color: colors.text, fontSize: 14 },
+  chipTextSelected: { color: colors.onPrimary, fontWeight: "700" },
+  pressed: { opacity: 0.85 },
+  primary: { minHeight: minTouchTarget + 8, justifyContent: "center", borderRadius: radius.control, backgroundColor: colors.primary },
+  primaryPressed: { backgroundColor: colors.primaryPressed },
+  primaryText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700", textAlign: "center" },
+  status: { marginTop: space.xs },
+  error: { color: colors.error, fontSize: 14, lineHeight: 20 },
+  errorBox: { padding: space.md, borderRadius: radius.control, backgroundColor: colors.errorSurface, gap: space.xs },
+  inlineAction: { alignSelf: "flex-start", minHeight: minTouchTarget, justifyContent: "center" },
+  inlineActionText: { color: colors.primary, fontSize: 15, fontWeight: "700" },
+  clearBox: { padding: space.md, borderRadius: radius.control, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, gap: space.xs },
+  clearTitle: { color: colors.success, fontSize: 15, fontWeight: "700" },
+  warningBox: { padding: space.md, borderRadius: radius.control, backgroundColor: colors.warningSurface, gap: space.sm },
+  warningTitle: { color: colors.warning, fontSize: 15, fontWeight: "800" },
+  incidentRow: { gap: 4 },
+  incidentTitle: { color: colors.text, fontSize: 15, fontWeight: "700", textTransform: "capitalize" },
+  secondary: { minHeight: minTouchTarget, justifyContent: "center", borderRadius: radius.control, borderWidth: 1, borderColor: colors.secondaryBorder, backgroundColor: colors.surface, paddingHorizontal: space.md },
+  secondaryText: { color: colors.text, fontSize: 15, fontWeight: "700", textAlign: "center" },
+  card: { padding: space.md, borderRadius: radius.card, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, gap: 6 },
+  eyebrow: { color: colors.evidence, fontSize: 12, fontWeight: "800", letterSpacing: 0.8, textTransform: "uppercase" },
+  routeName: { color: colors.text, fontSize: 18, fontWeight: "700" },
+  meta: { color: colors.textSecondary, fontSize: 15 },
+  note: { color: colors.textMuted, fontSize: 13, lineHeight: 19 },
 });

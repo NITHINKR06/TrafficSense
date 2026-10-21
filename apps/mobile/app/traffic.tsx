@@ -1,29 +1,20 @@
-import { router, useFocusEffect } from "expo-router";
+import { Stack, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { LiveIncident } from "@trafficsense/shared";
 import { apiConfigurationError, fetchActiveIncidents } from "../src/lib/api";
-import { colors, sharedStyles } from "../src/ui/theme";
+import { categoryLabel } from "../src/lib/format";
+import { describeFreshness } from "../src/lib/freshness";
+import { colors, minTouchTarget, radius, space } from "../src/theme/tokens";
 
-function categoryLabel(category: string) {
-  return category.replaceAll("_", " ");
-}
-
-function formatTime(value: string) {
-  const timestamp = Date.parse(value);
-  return Number.isFinite(timestamp) ? new Date(timestamp).toLocaleString() : "Unknown time";
-}
-
-function evidenceLabel(level: LiveIncident["level"]) {
-  return {
-    L1: "Reported, not yet corroborated",
-    L2: "Location-supported report",
-    L3: "Multiple independent reports",
-    L4: "Traffic slowdown corroborates disruption",
-    L5: "Additional evidence is not collected in this demo",
-    L6: "Authority action recorded in the app",
-  }[level];
-}
+const EVIDENCE_LABELS: Record<LiveIncident["level"], string> = {
+  L1: "Reported, not yet corroborated",
+  L2: "Location-supported report",
+  L3: "Multiple independent reports",
+  L4: "Traffic slowdown corroborates disruption",
+  L5: "Authority-reviewed disruption",
+  L6: "High-confidence verified disruption",
+};
 
 export default function TrafficScreen() {
   const [incidents, setIncidents] = useState<LiveIncident[]>([]);
@@ -32,6 +23,7 @@ export default function TrafficScreen() {
   const [refreshing, setRefreshing] = useState(false);
 
   const loadIncidents = useCallback(async (isRefresh = false) => {
+    if (apiConfigurationError) return;
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
     setError(null);
@@ -45,60 +37,77 @@ export default function TrafficScreen() {
     }
   }, []);
 
+  // Reload whenever the screen becomes active, so a report submitted moments ago appears.
   useFocusEffect(
     useCallback(() => {
-      if (!apiConfigurationError) void loadIncidents();
+      void loadIncidents();
     }, [loadIncidents]),
   );
 
   return (
     <>
-      <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadIncidents(true)} />}>
-        <Text style={styles.title}>Traffic overview</Text>
-        <Text style={styles.body}>Active community reports from the TrafficSense service. Pull down to refresh.</Text>
-        <Text style={sharedStyles.simulatedLabel}>COMMUNITY REPORTS · EVIDENCE LABELLED</Text>
-        {loading ? <ActivityIndicator accessibilityLabel="Loading active traffic reports" color={colors.primary} style={styles.status} /> : null}
+      <Stack.Screen options={{ headerShown: true, title: "Traffic" }} />
+      <ScrollView
+        contentContainerStyle={styles.container}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadIncidents(true)} />}
+      >
+        <Text style={styles.title}>Active community reports</Text>
+        <Text style={styles.body}>Public reports from the TrafficSense service. Pull down to refresh.</Text>
+
+        {loading ? <ActivityIndicator color={colors.primary} style={styles.status} /> : null}
+
         {error ? (
-          <View style={styles.state}>
-            <Text accessibilityRole="alert" style={sharedStyles.error}>{error}</Text>
-            <Pressable accessibilityRole="button" onPress={() => void loadIncidents()} style={styles.retry}><Text style={styles.retryText}>Try again</Text></Pressable>
+          <View style={styles.errorBox} accessibilityLiveRegion="polite">
+            <Text style={styles.error}>{error}</Text>
+            <Pressable accessibilityRole="button" onPress={() => void loadIncidents()} style={styles.inlineAction}>
+              <Text style={styles.inlineActionText}>Try again</Text>
+            </Pressable>
           </View>
         ) : null}
-        {!loading && !error && incidents.length === 0 ? <Text style={styles.state}>No active reports right now.</Text> : null}
-        {incidents.map((incident) => (
-          <Pressable key={incident.id} accessibilityRole="button" accessibilityLabel={`Open details for ${categoryLabel(incident.category)}`} onPress={() => router.push({ pathname: "/traffic/[incidentId]", params: { incidentId: incident.id } })} style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
-            <View style={styles.cardHeader}>
+
+        {!loading && !error && incidents.length === 0 ? (
+          <Text style={styles.state}>No active reports right now. This does not mean roads are clear; it only means none are on record.</Text>
+        ) : null}
+
+        {incidents.map((incident) => {
+          const freshness = describeFreshness(incident.last_confirmed_at);
+          return (
+            <View key={incident.id} style={styles.card}>
               <Text style={styles.category}>{categoryLabel(incident.category)}</Text>
-              <Text style={styles.level}>{evidenceLabel(incident.level)}</Text>
+              <Text style={styles.level}>{EVIDENCE_LABELS[incident.level]}</Text>
+              <Text style={styles.meta}>
+                {incident.report_count} report{incident.report_count === 1 ? "" : "s"} · {incident.provenance}
+              </Text>
+              <Text style={styles.reason}>{incident.level_reason}</Text>
+              <Text style={freshness.stale ? styles.stale : styles.time}>{freshness.label}</Text>
             </View>
-            <Text style={styles.meta}>{incident.report_count} report{incident.report_count === 1 ? "" : "s"} · {incident.provenance}</Text>
-            <Text style={styles.reason}>{incident.level_reason}</Text>
-            <Text style={styles.time}>Last confirmed {formatTime(incident.last_confirmed_at)}</Text>
-            <Text style={styles.openDetails}>Open incident details</Text>
-          </Pressable>
-        ))}
-        <Text style={styles.disclaimer}>Evidence levels describe the available reports. They do not prove the cause or guarantee a delay.</Text>
+          );
+        })}
+
+        <Text style={styles.disclaimer}>
+          Evidence levels describe the available reports. They do not prove the cause or guarantee a delay.
+        </Text>
       </ScrollView>
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: sharedStyles.screen,
-  title: sharedStyles.title,
-  body: sharedStyles.body,
-  status: { marginTop: 20 },
-  state: { marginTop: 8, color: colors.secondaryText, fontSize: 16, lineHeight: 24 },
-  retry: { ...sharedStyles.primaryButton, alignSelf: "flex-start", marginTop: 12 },
-  retryText: { color: "#ffffff", fontWeight: "700" },
-  card: { ...sharedStyles.card, gap: 0 },
-  cardPressed: { backgroundColor: "#f3f7f7", borderColor: colors.primary },
-  cardHeader: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  category: { flex: 1, color: colors.text, fontSize: 18, fontWeight: "700", textTransform: "capitalize" },
-  level: { color: colors.violet, fontSize: 14, fontWeight: "800" },
-  meta: { marginTop: 8, color: colors.primary, fontSize: 14, fontWeight: "600", textTransform: "capitalize" },
-  reason: { marginTop: 10, color: colors.secondaryText, fontSize: 15, lineHeight: 22 },
-  time: { marginTop: 10, color: colors.secondaryText, fontSize: 13 },
-  openDetails: { marginTop: 14, color: colors.primary, fontSize: 14, fontWeight: "700" },
-  disclaimer: { marginTop: 8, color: colors.secondaryText, fontSize: 13, lineHeight: 19 },
+  container: { flexGrow: 1, gap: space.sm, padding: space.lg, paddingBottom: space.lg * 2, backgroundColor: colors.background },
+  title: { color: colors.text, fontSize: 28, fontWeight: "800" },
+  body: { color: colors.textSecondary, fontSize: 16, lineHeight: 24 },
+  status: { marginTop: space.md },
+  state: { marginTop: space.sm, color: colors.textSecondary, fontSize: 15, lineHeight: 22 },
+  errorBox: { marginTop: space.sm, padding: space.md, borderRadius: radius.control, backgroundColor: colors.errorSurface, gap: space.xs },
+  error: { color: colors.error, fontSize: 14, lineHeight: 20 },
+  inlineAction: { alignSelf: "flex-start", minHeight: minTouchTarget, justifyContent: "center" },
+  inlineActionText: { color: colors.primary, fontSize: 15, fontWeight: "700" },
+  card: { padding: space.md, borderRadius: radius.card, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, gap: 6 },
+  category: { color: colors.text, fontSize: 18, fontWeight: "700", textTransform: "capitalize" },
+  level: { color: colors.evidence, fontSize: 14, fontWeight: "700" },
+  meta: { color: colors.primary, fontSize: 14, fontWeight: "600", textTransform: "capitalize" },
+  reason: { color: colors.textSecondary, fontSize: 15, lineHeight: 22 },
+  time: { color: colors.textMuted, fontSize: 13 },
+  stale: { color: colors.warning, fontSize: 13, fontWeight: "700" },
+  disclaimer: { marginTop: space.sm, color: colors.textMuted, fontSize: 13, lineHeight: 19 },
 });
