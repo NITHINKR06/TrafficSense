@@ -1,7 +1,8 @@
 import { router } from "expo-router";
 import { useEffect, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "../src/providers/auth-provider";
+import { colors, sharedStyles } from "../src/ui/theme";
 
 export default function WorkspaceScreen() {
   const { session, loading, signOut } = useAuth();
@@ -26,25 +27,32 @@ export default function WorkspaceScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <ScrollView contentContainerStyle={styles.container}>
       <Text style={styles.title}>Your workspace</Text>
       <Text style={styles.body}>Signed in as {session.user.email ?? "your account"}.</Text>
-      <Text style={styles.note}>Private journeys and employer sharing will be connected after the public traffic flow.</Text>
-      {error ? <Text style={styles.error}>{error}</Text> : null}
-      <Pressable onPress={() => void leave()} style={styles.button}>
-        <Text style={styles.buttonText}>Sign out</Text>
+      <View style={styles.card}>
+        <Text style={styles.cardTitle}>Commuter actions</Text>
+        <Text style={styles.note}>Report a disruption, review current evidence, or plan a route. Journey sharing is not available in the mobile app yet.</Text>
+      </View>
+      <Pressable accessibilityRole="button" onPress={() => router.push("/report")} style={sharedStyles.primaryButton}><Text style={sharedStyles.primaryButtonText}>Report a problem</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => router.push("/traffic")} style={sharedStyles.secondaryButton}><Text style={sharedStyles.secondaryButtonText}>View traffic</Text></Pressable>
+      <Pressable accessibilityRole="button" onPress={() => router.push("/planner")} style={sharedStyles.secondaryButton}><Text style={sharedStyles.secondaryButtonText}>Plan my route</Text></Pressable>
+      {error ? <Text accessibilityRole="alert" style={sharedStyles.error}>{error}</Text> : null}
+      <Pressable accessibilityRole="button" onPress={() => void leave()} style={styles.signOut}>
+        <Text style={styles.signOutText}>Sign out</Text>
       </Pressable>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   center: { flex: 1, justifyContent: "center", alignItems: "center" },
-  container: { flex: 1, justifyContent: "center", gap: 16, padding: 28, backgroundColor: "#f4f1ff" },
-  title: { color: "#17142b", fontSize: 32, fontWeight: "800" },
-  body: { color: "#514d65", fontSize: 17, lineHeight: 25 },
-  note: { color: "#6c687c", fontSize: 14, lineHeight: 21 },
-  error: { color: "#a32d2d", fontSize: 14, lineHeight: 20 },
-  button: { minHeight: 52, justifyContent: "center", alignItems: "center", borderRadius: 10, backgroundColor: "#087f7b" },
-  buttonText: { color: "#ffffff", fontSize: 16, fontWeight: "700" },
+  container: { ...sharedStyles.screen, justifyContent: "center" },
+  title: sharedStyles.title,
+  body: sharedStyles.body,
+  card: { ...sharedStyles.card, gap: 8 },
+  cardTitle: { color: colors.text, fontSize: 17, fontWeight: "700" },
+  note: { color: colors.secondaryText, fontSize: 14, lineHeight: 21 },
+  signOut: { minHeight: 44, alignItems: "center", justifyContent: "center", marginTop: 8 },
+  signOutText: { color: colors.primary, fontSize: 15, fontWeight: "700" },
 });

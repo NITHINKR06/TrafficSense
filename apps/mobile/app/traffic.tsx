@@ -1,8 +1,9 @@
-import { Stack, useFocusEffect } from "expo-router";
+import { router, useFocusEffect } from "expo-router";
 import { useCallback, useState } from "react";
 import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { LiveIncident } from "@trafficsense/shared";
 import { apiConfigurationError, fetchActiveIncidents } from "../src/lib/api";
+import { colors, sharedStyles } from "../src/ui/theme";
 
 function categoryLabel(category: string) {
   return category.replaceAll("_", " ");
@@ -19,8 +20,8 @@ function evidenceLabel(level: LiveIncident["level"]) {
     L2: "Location-supported report",
     L3: "Multiple independent reports",
     L4: "Traffic slowdown corroborates disruption",
-    L5: "Authority-reviewed disruption",
-    L6: "High-confidence verified disruption",
+    L5: "Additional evidence is not collected in this demo",
+    L6: "Authority action recorded in the app",
   }[level];
 }
 
@@ -52,20 +53,20 @@ export default function TrafficScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: "Traffic" }} />
       <ScrollView contentContainerStyle={styles.container} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void loadIncidents(true)} />}>
         <Text style={styles.title}>Traffic overview</Text>
-        <Text style={styles.body}>Active community reports from the TrafficSense service.</Text>
-        {loading ? <ActivityIndicator color="#087f7b" style={styles.status} /> : null}
+        <Text style={styles.body}>Active community reports from the TrafficSense service. Pull down to refresh.</Text>
+        <Text style={sharedStyles.simulatedLabel}>COMMUNITY REPORTS · EVIDENCE LABELLED</Text>
+        {loading ? <ActivityIndicator accessibilityLabel="Loading active traffic reports" color={colors.primary} style={styles.status} /> : null}
         {error ? (
           <View style={styles.state}>
-            <Text style={styles.error}>{error}</Text>
-            <Pressable onPress={() => void loadIncidents()} style={styles.retry}><Text style={styles.retryText}>Try again</Text></Pressable>
+            <Text accessibilityRole="alert" style={sharedStyles.error}>{error}</Text>
+            <Pressable accessibilityRole="button" onPress={() => void loadIncidents()} style={styles.retry}><Text style={styles.retryText}>Try again</Text></Pressable>
           </View>
         ) : null}
         {!loading && !error && incidents.length === 0 ? <Text style={styles.state}>No active reports right now.</Text> : null}
         {incidents.map((incident) => (
-          <View key={incident.id} style={styles.card}>
+          <Pressable key={incident.id} accessibilityRole="button" accessibilityLabel={`Open details for ${categoryLabel(incident.category)}`} onPress={() => router.push({ pathname: "/traffic/[incidentId]", params: { incidentId: incident.id } })} style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}>
             <View style={styles.cardHeader}>
               <Text style={styles.category}>{categoryLabel(incident.category)}</Text>
               <Text style={styles.level}>{evidenceLabel(incident.level)}</Text>
@@ -73,7 +74,8 @@ export default function TrafficScreen() {
             <Text style={styles.meta}>{incident.report_count} report{incident.report_count === 1 ? "" : "s"} · {incident.provenance}</Text>
             <Text style={styles.reason}>{incident.level_reason}</Text>
             <Text style={styles.time}>Last confirmed {formatTime(incident.last_confirmed_at)}</Text>
-          </View>
+            <Text style={styles.openDetails}>Open incident details</Text>
+          </Pressable>
         ))}
         <Text style={styles.disclaimer}>Evidence levels describe the available reports. They do not prove the cause or guarantee a delay.</Text>
       </ScrollView>
@@ -82,20 +84,21 @@ export default function TrafficScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flexGrow: 1, gap: 14, padding: 24, backgroundColor: "#f4f1ff" },
-  title: { color: "#17142b", fontSize: 30, fontWeight: "800" },
-  body: { marginTop: 14, color: "#514d65", fontSize: 17, lineHeight: 26 },
+  container: sharedStyles.screen,
+  title: sharedStyles.title,
+  body: sharedStyles.body,
   status: { marginTop: 20 },
-  state: { marginTop: 18, color: "#514d65", fontSize: 16, lineHeight: 24 },
-  error: { color: "#a32d2d", fontSize: 15, lineHeight: 22 },
-  retry: { alignSelf: "flex-start", marginTop: 12, paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, backgroundColor: "#087f7b" },
+  state: { marginTop: 8, color: colors.secondaryText, fontSize: 16, lineHeight: 24 },
+  retry: { ...sharedStyles.primaryButton, alignSelf: "flex-start", marginTop: 12 },
   retryText: { color: "#ffffff", fontWeight: "700" },
-  card: { marginTop: 8, padding: 18, borderRadius: 14, backgroundColor: "#ffffff" },
+  card: { ...sharedStyles.card, gap: 0 },
+  cardPressed: { backgroundColor: "#f3f7f7", borderColor: colors.primary },
   cardHeader: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
-  category: { flex: 1, color: "#17142b", fontSize: 18, fontWeight: "700", textTransform: "capitalize" },
-  level: { color: "#5c4bb7", fontSize: 14, fontWeight: "800" },
-  meta: { marginTop: 8, color: "#087f7b", fontSize: 14, fontWeight: "600", textTransform: "capitalize" },
-  reason: { marginTop: 10, color: "#514d65", fontSize: 15, lineHeight: 22 },
-  time: { marginTop: 10, color: "#6c687c", fontSize: 13 },
-  disclaimer: { marginTop: 20, color: "#6c687c", fontSize: 13, lineHeight: 19 },
+  category: { flex: 1, color: colors.text, fontSize: 18, fontWeight: "700", textTransform: "capitalize" },
+  level: { color: colors.violet, fontSize: 14, fontWeight: "800" },
+  meta: { marginTop: 8, color: colors.primary, fontSize: 14, fontWeight: "600", textTransform: "capitalize" },
+  reason: { marginTop: 10, color: colors.secondaryText, fontSize: 15, lineHeight: 22 },
+  time: { marginTop: 10, color: colors.secondaryText, fontSize: 13 },
+  openDetails: { marginTop: 14, color: colors.primary, fontSize: 14, fontWeight: "700" },
+  disclaimer: { marginTop: 8, color: colors.secondaryText, fontSize: 13, lineHeight: 19 },
 });

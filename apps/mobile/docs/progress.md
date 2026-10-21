@@ -4,6 +4,14 @@ Record only mobile implementation updates, device verification evidence, blocker
 
 Cross-app changes also belong in [shared progress](../../../packages/shared/docs/progress.md).
 
+## Part A — Core native UI and navigation — implemented, device verification pending, 21 Oct 2026
+
+- **Implementation:** Added shared mobile design tokens and the web-parity Home screen, stack titles/back behavior, refreshed login/register/workspace/report/traffic styling, clickable traffic incident details, and the canonical `/planner` route. The planner uses Part B’s real route client, labels durations as free-flow estimates, links warnings to real incident details, and keeps an alternative hidden until the commuter explicitly presses “Avoid this route.” No API, Supabase, web, or shared contract was changed.
+- **Source coverage and handoff:** REPORT → VERIFY → ALERT is represented by `/report` → `/traffic` → `/traffic/[incidentId]` and `/planner`. Part B state already supplies every required auth, incident, report, and route field; no contract change is needed. Journey/consent-sharing screens remain deferred pending mobile journey state/endpoints. Employer and authority administration remain web-only. A native map is also not included in this slice; incident cards provide the accessible active-report presentation.
+- **Verification:** `just mobile-typecheck`, `just lint` (web workspace lint), and `git diff --check` passed in Docker. Metro reached `packager-status:running`; the Expo Router Android bundle endpoint `/.expo/.virtual-metro-entry.bundle?platform=android&dev=true&minify=false` returned HTTP 200 after the UI changes.
+- **Remaining acceptance gaps:** No Expo Go device session was available to exercise taps, login, report permission/submission, direct/deep link recovery, back stack, or phone layout. There is no configured mobile ESLint script; only the repository web lint command currently exists. The physical-device and map/journey scope gaps remain open and are not passed checks.
+- **Commit:** Pending.
+
 ## Phase 1 — Expo shell — verified, 20 Oct 2026
 
 - **Implementation:** Added the Expo Router TypeScript shell, truthful home/report/traffic placeholder screens, Expo configuration, and a platform-neutral `@trafficsense/shared` workspace package. The shell does not request authentication or location on launch.

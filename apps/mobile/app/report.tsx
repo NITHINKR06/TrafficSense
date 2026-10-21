@@ -1,5 +1,5 @@
 import * as Location from "expo-location";
-import { Stack, router } from "expo-router";
+import { router } from "expo-router";
 import { useState } from "react";
 import {
   ActivityIndicator,
@@ -13,6 +13,7 @@ import {
 import { reportCategories, type ReportCategory } from "@trafficsense/shared";
 import { submitIncident } from "../src/lib/api";
 import { useAuth } from "../src/providers/auth-provider";
+import { colors, sharedStyles } from "../src/ui/theme";
 
 export default function ReportScreen() {
   const { session } = useAuth();
@@ -66,14 +67,13 @@ export default function ReportScreen() {
 
   return (
     <>
-      <Stack.Screen options={{ headerShown: true, title: "Report" }} />
       <ScrollView contentContainerStyle={styles.container}>
         <Text style={styles.title}>Report a problem</Text>
         <Text style={styles.body}>
           Choose one category. Location is requested only when you submit.
         </Text>
         {!session ? (
-          <Pressable onPress={() => router.push("/auth/login")} style={styles.signIn}>
+          <Pressable accessibilityRole="button" onPress={() => router.push("/auth/login")} style={styles.signIn}>
             <Text style={styles.signInText}>Sign in to report</Text>
           </Pressable>
         ) : null}
@@ -81,6 +81,8 @@ export default function ReportScreen() {
           {reportCategories.map(([value, label]) => (
             <Pressable
               key={value}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: category === value }}
               onPress={() => setCategory(value)}
               style={[styles.category, category === value && styles.selected]}
             >
@@ -95,12 +97,13 @@ export default function ReportScreen() {
           multiline
           onChangeText={setNote}
           placeholder="Optional note (max 300 characters)"
+          placeholderTextColor={colors.secondaryText}
           style={styles.note}
           value={note}
         />
-        {error ? <Text style={styles.error}>{error}</Text> : null}
+        {error ? <Text accessibilityRole="alert" style={sharedStyles.error}>{error}</Text> : null}
         {message ? <Text style={styles.message}>{message}</Text> : null}
-        <Pressable disabled={submitting} onPress={() => void submit()} style={styles.submit}>
+        <Pressable accessibilityRole="button" disabled={submitting} onPress={() => void submit()} style={({ pressed }) => [styles.submit, (pressed || submitting) && styles.submitPressed]}>
           {submitting ? (
             <ActivityIndicator color="#ffffff" />
           ) : (
@@ -108,7 +111,7 @@ export default function ReportScreen() {
           )}
         </Pressable>
         {message ? (
-          <Pressable onPress={() => router.replace("/traffic")} style={styles.trafficLink}>
+          <Pressable accessibilityRole="button" onPress={() => router.replace("/traffic")} style={styles.trafficLink}>
             <Text style={styles.trafficLinkText}>View active traffic reports</Text>
           </Pressable>
         ) : null}
@@ -121,22 +124,22 @@ export default function ReportScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { gap: 14, padding: 24, backgroundColor: "#f4f1ff" },
-  title: { color: "#17142b", fontSize: 30, fontWeight: "800" },
-  body: { color: "#514d65", fontSize: 16, lineHeight: 24 },
-  signIn: { alignSelf: "flex-start", paddingHorizontal: 16, paddingVertical: 12, borderRadius: 10, backgroundColor: "#ffffff" },
-  signInText: { color: "#087f7b", fontWeight: "700" },
+  container: sharedStyles.screen,
+  title: sharedStyles.title,
+  body: sharedStyles.body,
+  signIn: { ...sharedStyles.secondaryButton, alignSelf: "flex-start" },
+  signInText: { color: colors.primary, fontWeight: "700" },
   grid: { gap: 10 },
-  category: { padding: 15, borderRadius: 10, backgroundColor: "#ffffff" },
-  selected: { backgroundColor: "#087f7b" },
-  categoryText: { color: "#17142b", fontSize: 15 },
+  category: { minHeight: 48, justifyContent: "center", paddingHorizontal: 15, borderWidth: 1, borderColor: colors.border, borderRadius: 12, backgroundColor: colors.card },
+  selected: { borderColor: colors.primary, backgroundColor: colors.primary },
+  categoryText: { color: colors.text, fontSize: 15 },
   selectedText: { color: "#ffffff", fontWeight: "700" },
-  note: { minHeight: 90, padding: 14, borderRadius: 10, backgroundColor: "#ffffff", color: "#17142b", textAlignVertical: "top" },
-  error: { color: "#a32d2d", fontSize: 14, lineHeight: 20 },
-  message: { color: "#176d55", fontSize: 14, lineHeight: 20 },
-  submit: { minHeight: 52, justifyContent: "center", alignItems: "center", borderRadius: 10, backgroundColor: "#087f7b" },
-  submitText: { color: "#ffffff", fontSize: 16, fontWeight: "700" },
-  disclaimer: { color: "#6c687c", fontSize: 13, lineHeight: 19 },
+  note: { ...sharedStyles.input, minHeight: 96, paddingTop: 14, textAlignVertical: "top" },
+  message: { padding: 12, borderRadius: 10, backgroundColor: "#e8f7ee", color: colors.primary, fontSize: 14, lineHeight: 20 },
+  submit: sharedStyles.primaryButton,
+  submitPressed: { backgroundColor: colors.primaryPressed, opacity: 0.9 },
+  submitText: sharedStyles.primaryButtonText,
+  disclaimer: { color: colors.secondaryText, fontSize: 13, lineHeight: 19 },
   trafficLink: { alignSelf: "flex-start", paddingVertical: 8 },
-  trafficLinkText: { color: "#087f7b", fontSize: 15, fontWeight: "700" },
+  trafficLinkText: { color: colors.primary, fontSize: 15, fontWeight: "700" },
 });
