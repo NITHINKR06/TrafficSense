@@ -4,6 +4,10 @@
 
 Build an Expo React Native client for the commuter experience while retaining the existing Next.js app for web, employer, authority, and administration workflows. The mobile client uses the existing Supabase backend and must preserve the product goal: **REPORT -> VERIFY -> ALERT -> ANALYSE**.
 
+## UI implementation contract
+
+Every mobile UI change must follow the mandatory [mobile UI implementation rules](ui-implementation-rules.md) and the phased [mobile UI implementation and verification plan](ui-implementation-plan.md). Use [the mobile design specification](../design/trafficsense_mangaluru/DESIGN.md) and its adjacent screen references as the visual baseline, [Part A](part-a-mobile-device.md) for screens/navigation, and [Part B](part-b-mobile-logic-integration.md) for backend wiring and parity testing. Existing working state and server contracts take precedence over static designs.
+
 ## Phase order
 
 1. **Shell and contracts:** Expo Router navigation, TypeScript configuration, shared package boundary, and a truthful home screen.

@@ -1,5 +1,11 @@
 # Project Progress
 
+## Mobile UI implementation rules — documented, 22 Oct 2026
+
+- **Scope:** Added the mandatory mobile-only UI implementation contract at `apps/mobile/docs/ui-implementation-rules.md`. It makes the native mobile design specification and screen references the visual source, requires preservation of working mobile UI/backend behaviour, defines design tokens and navigation/accessibility/state rules, prevents fake UI-only data, and requires planned wiring plus focused/device verification. Added `apps/mobile/docs/ui-implementation-plan.md`, a phased mobile roadmap that preserves the working screens, permits backend-supported supporting pages, maps every flow to its server contract, and defines a Docker/map/device/accessibility verification gate. Linked these sources only from the mobile AI rules and mobile plan.
+- **Verification:** `just check-docs` passed in Docker after the plan was added (all three app documentation layouts valid). Verified the UI-rule, mobile-plan, mobile-design, Part A, and Part B link targets; `git diff --check` passed. No application test was required for this documentation-only change.
+- **Commit:** Pending.
+
 ## Mobile LAN synthetic seeding — verified, 21 Oct 2026
 
 - **Issue:** An earlier `just mobile-lan 192.168.0.224` run started and migrated local Supabase, but its synthetic seed stopped while assigning an employer membership. The earlier seeder discarded the database error, so its exact database cause cannot be reconstructed from that output.
