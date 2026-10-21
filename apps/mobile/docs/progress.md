@@ -54,3 +54,9 @@ Cross-app changes also belong in [shared progress](../../../packages/shared/docs
 - **Implementation:** Added shared mobile route request/response types matching the existing web `/api/route` contract and a typed Expo `fetchRoute` helper with finite-coordinate validation and safe invalid-response/service errors. No web or backend files were changed.
 - **Verification:** `just mobile-typecheck` passed in Docker; `git diff --check` passed. Route screen rendering, live route responses and Expo Go interaction remain unverified until Part A adds the planner screen.
 - **Commit:** Pending.
+
+## Phase 7 — mobile request reliability — implemented, 21 Oct 2026
+
+- **Implementation:** Added a shared mobile JSON request helper with an eight-second timeout, caller cancellation support, invalid-JSON handling and safe network-error messages. Incidents, report submission and route requests now use it. POST requests are not automatically retried, preventing duplicate reports.
+- **Verification:** `just mobile-typecheck` passed in Docker and `git diff --check` passed. Native timeout/cancellation behavior remains unverified on a physical device.
+- **Commit:** Pending.
