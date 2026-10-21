@@ -7,7 +7,7 @@ import type {
   RouteResponse,
   SubmitIncidentResponse,
 } from "@trafficsense/shared";
-import { requestJson } from "./request";
+import { MobileApiError, requestJson } from "./request";
 
 const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 
@@ -80,6 +80,10 @@ export const apiConfigurationError = apiBaseUrl
   ? null
   : "Traffic data is not configured for this mobile build.";
 
+function throwApiError(response: Response, message: string): never {
+  throw new MobileApiError(message, response.status);
+}
+
 export async function fetchActiveIncidents(signal?: AbortSignal) {
   if (!apiBaseUrl) throw new Error("Traffic data is not configured for this mobile build.");
 
@@ -92,7 +96,7 @@ export async function fetchActiveIncidents(signal?: AbortSignal) {
   const payload = parseActiveIncidentsResponse(rawPayload);
 
   if (!response.ok || !payload.ok) {
-    throw new Error(payload.ok ? "Traffic service is unavailable." : payload.error);
+    throwApiError(response, payload.ok ? "Traffic service is unavailable." : payload.error);
   }
 
   return payload.incidents;
@@ -132,7 +136,7 @@ export async function submitIncident(
   );
   const payload = parseSubmitIncidentResponse(rawPayload);
   if (!response.ok || !payload.ok) {
-    throw new Error(payload.ok ? "Incident submission is unavailable." : payload.error);
+    throwApiError(response, payload.ok ? "Incident submission is unavailable." : payload.error);
   }
   return payload;
 }
@@ -154,7 +158,7 @@ export async function fetchRoute(start: RouteCoordinate, destination: RouteCoord
   );
   const payload = parseRouteResponse(rawPayload);
   if (!response.ok || !payload.ok) {
-    throw new Error(payload.ok ? "Route service is unavailable." : payload.error);
+    throwApiError(response, payload.ok ? "Route service is unavailable." : payload.error);
   }
   return payload.routes;
 }

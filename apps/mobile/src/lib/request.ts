@@ -1,5 +1,19 @@
 const REQUEST_TIMEOUT_MS = 8_000;
 
+export class MobileApiError extends Error {
+  readonly status: number | null;
+  readonly authRequired: boolean;
+  readonly retryable: boolean;
+
+  constructor(message: string, status: number | null = null) {
+    super(message);
+    this.name = "MobileApiError";
+    this.status = status;
+    this.authRequired = status === 401;
+    this.retryable = status === 408 || status === 429 || (status !== null && status >= 500);
+  }
+}
+
 type JsonRequestResult<T> = {
   response: Response;
   payload: T;

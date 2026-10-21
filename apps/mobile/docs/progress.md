@@ -72,3 +72,9 @@ Cross-app changes also belong in [shared progress](../../../packages/shared/docs
 - **Implementation:** Mobile incident, report and route clients now validate response envelopes and required fields at runtime instead of trusting TypeScript casts. Malformed incidents, reports and routes fail closed with safe service errors; server-declared errors remain available to the caller.
 - **Verification:** `just mobile-typecheck`, the full Docker test suite (197 passed, 0 failed), and `git diff --check` passed. Native request fixtures and Expo Go behavior remain unverified.
 - **Commit:** Pending.
+
+## Phase 10 — typed mobile API failures — implemented, 21 Oct 2026
+
+- **Implementation:** Added `MobileApiError` with HTTP status, authentication-required and retryable flags. Incident, report and route failures now expose structured state for the future mobile UI instead of requiring message-string parsing.
+- **Verification:** `just mobile-typecheck` and `git diff --check` passed. HTTP-state rendering remains deferred to Part A wiring.
+- **Commit:** Pending.
