@@ -66,3 +66,9 @@ Cross-app changes also belong in [shared progress](../../../packages/shared/docs
 - **Implementation:** Supabase session restoration now fails closed when the client rejects, auth events clear the loading state, and sign-in, registration and sign-out convert network/client exceptions into stable user-facing errors. Invalid credentials remain distinct from service failures.
 - **Verification:** `just mobile-typecheck` and `git diff --check` passed. Live native auth and secure-storage behavior remain unverified without an Expo Go session.
 - **Commit:** Pending.
+
+## Phase 9 — runtime API response validation — implemented, 21 Oct 2026
+
+- **Implementation:** Mobile incident, report and route clients now validate response envelopes and required fields at runtime instead of trusting TypeScript casts. Malformed incidents, reports and routes fail closed with safe service errors; server-declared errors remain available to the caller.
+- **Verification:** `just mobile-typecheck`, the full Docker test suite (197 passed, 0 failed), and `git diff --check` passed. Native request fixtures and Expo Go behavior remain unverified.
+- **Commit:** Pending.
