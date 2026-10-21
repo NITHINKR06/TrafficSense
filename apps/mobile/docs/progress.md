@@ -4,6 +4,13 @@ Record only mobile implementation updates, device verification evidence, blocker
 
 Cross-app changes also belong in [shared progress](../../../packages/shared/docs/progress.md).
 
+## UI polish plan — proposed, 22 Oct 2026
+
+- **Scope:** Added a mobile-only, evidence-led plan for improving perceived speed, typography, screen hierarchy, layout consistency, and interaction feedback without changing the API, Supabase, web client, or privacy model.
+- **Plan:** The work is sequenced from device baseline measurement through shared readability/layout foundations, route-specific decluttering, data-rendering efficiency, measured map/navigation decisions, and final interaction/accessibility polish. It defines guardrails for truthful traffic states, the map privacy gate, explicit route choice, and foreground-only location.
+- **Verification:** Documentation review and `git diff --check --no-index /dev/null apps/mobile/docs/ui-polish-plan.md` passed. No application code or runtime behaviour changed, so no mobile build, test, or device verification was required.
+- **Commit:** Pending.
+
 ## LAN route API recovery — verified, 21 Oct 2026
 
 - **Issue:** The phone showed “Traffic service is unreachable” for route planning because the LAN Next.js API container had exited. Its log identified a Turbopack crash caused by the host reaching the inotify file-watch limit; this was not a route-contract or traffic-data failure.
