@@ -4,6 +4,12 @@ Record only mobile implementation updates, device verification evidence, blocker
 
 Cross-app changes also belong in [shared progress](../../../packages/shared/docs/progress.md).
 
+## LAN route API recovery — verified, 21 Oct 2026
+
+- **Issue:** The phone showed “Traffic service is unreachable” for route planning because the LAN Next.js API container had exited. Its log identified a Turbopack crash caused by the host reaching the inotify file-watch limit; this was not a route-contract or traffic-data failure.
+- **Implementation:** The Docker development app now runs Next.js with webpack and one-second Watchpack polling. This avoids Turbopack’s host watch allocation for the bind-mounted workspace while preserving the same `http://<LAN-IP>:3000` API used by Expo Go.
+- **Verification:** After restart with the current Wi-Fi address, `http://192.168.0.224:3000/api/incidents` returned HTTP 200 and a LAN `POST /api/route` returned HTTP 200 with one route. The app container remained healthy and its log records webpack startup rather than a Turbopack panic. The Android Expo bundle remains available through Metro.
+- **Commit:** Pending; the workspace contains unrelated mobile changes that must not be included in this runtime repair commit.
 ## Part A — Core native UI and navigation — implemented, device verification pending, 21 Oct 2026
 
 - **Implementation:** Added shared mobile design tokens and the web-parity Home screen, stack titles/back behavior, refreshed login/register/workspace/report/traffic styling, clickable traffic incident details, and the canonical `/planner` route. The planner uses Part B’s real route client, labels durations as free-flow estimates, links warnings to real incident details, and keeps an alternative hidden until the commuter explicitly presses “Avoid this route.” No API, Supabase, web, or shared contract was changed.

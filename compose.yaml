@@ -16,7 +16,9 @@ services:
       - .:/app
       - dependencies:/app/node_modules
       - next-cache:/app/apps/web/.next
-    command: ["sh", "-c", "pnpm install --frozen-lockfile && pnpm dev --hostname 0.0.0.0"]
+    # Bind-mounted workspaces can exceed the host's inotify watch limit under
+    # Turbopack. Webpack polling keeps the local API available to Expo Go.
+    command: ["sh", "-c", "pnpm install --frozen-lockfile && cd apps/web && WATCHPACK_POLLING=true WATCHPACK_POLLING_INTERVAL=1000 pnpm exec next dev --hostname 0.0.0.0 --webpack"]
     healthcheck:
       test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 10s
