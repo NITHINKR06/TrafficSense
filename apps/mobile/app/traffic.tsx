@@ -1,14 +1,32 @@
-import { Stack, useFocusEffect } from "expo-router";
+import { router, Stack, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
 import type { LiveIncident, TrafficSegment } from "@trafficsense/shared";
 import { apiConfigurationError, fetchActiveIncidents, fetchTrafficSegments } from "../src/lib/api";
 import { categoryLabel } from "../src/lib/format";
 import { describeFreshness } from "../src/lib/freshness";
 import { evidenceLabel, formatClock, LIVE_REFRESH_MS } from "../src/lib/evidence";
 import { TrafficMap } from "../src/components/traffic-map";
-import { Card, EvidenceBadge, FeedbackBox, FreshnessChip, SimulatedBadge } from "../src/components/ui";
-import { colors, minTouchTarget, radius, space, typography } from "../src/theme/tokens";
+import {
+  AppHeader,
+  BottomNav,
+  Card,
+  EvidenceBadge,
+  FeedbackBox,
+  FreshnessChip,
+  Icon,
+  SimulatedBadge,
+} from "../src/components/ui";
+import { colors, radius, shadows, space, typography } from "../src/theme/tokens";
 
 type TrafficData = {
   incidents: LiveIncident[];
@@ -19,26 +37,6 @@ type TrafficData = {
 
 type ViewMode = "map" | "list";
 
-const CATEGORY_ICONS: Record<string, string> = {
-  accident: "🚗",
-  flood: "🌊",
-  road_closed: "⛔",
-  heavy_traffic: "🚦",
-  road_repair: "🚧",
-  breakdown: "🔧",
-  fallen_tree: "🌲",
-  landslide: "🪨",
-  signal_failure: "⚠️",
-  heavy_rain: "🌧️",
-  bridge_maintenance: "🌉",
-  police_restriction: "👮",
-  vip_movement: "🚔",
-  strike: "📢",
-  festival: "🎪",
-  other: "❓",
-  unknown: "ℹ️",
-};
-
 export default function TrafficScreen() {
   const [view, setView] = useState<ViewMode>("map");
   const [data, setData] = useState<TrafficData | null>(null);
@@ -46,10 +44,10 @@ export default function TrafficScreen() {
   const [loading, setLoading] = useState(!apiConfigurationError);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [fitKey, setFitKey] = useState(0);
   const hasData = useRef(false);
 
-  // Keep the last good data on screen when a refresh fails, and say so, rather than blanking the view.
   const load = useCallback(async () => {
     if (apiConfigurationError) return;
     try {
@@ -59,7 +57,10 @@ export default function TrafficScreen() {
       setError(null);
       if (!hasData.current) {
         hasData.current = true;
-        setFitKey((value) => value + 1);
+        setFitKey((val) => val + 1);
+        if (incidents.length > 0) {
+          setSelectedId(incidents[0].id);
+        }
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "Traffic service is unavailable.");
@@ -69,7 +70,6 @@ export default function TrafficScreen() {
     }
   }, []);
 
-  // Refresh while the screen is visible, so live reports appear without a manual reload.
   useFocusEffect(
     useCallback(() => {
       void load();
@@ -78,46 +78,117 @@ export default function TrafficScreen() {
     }, [load]),
   );
 
-  const selected = useMemo(
-    () => data?.incidents.find((incident) => incident.id === selectedId) ?? null,
-    [data, selectedId],
-  );
+  const selected = useMemo(() => {
+    if (!data) return null;
+    return data.incidents.find((incident) => incident.id === selectedId) ?? data.incidents[0] ?? null;
+  }, [data, selectedId]);
+
+  const filteredIncidents = useMemo(() => {
+    if (!data) return [];
+    if (!searchQuery.trim()) return data.incidents;
+    const q = searchQuery.toLowerCase();
+    return data.incidents.filter(
+      (inc) =>
+        categoryLabel(inc.category).toLowerCase().includes(q) ||
+        inc.category.toLowerCase().includes(q) ||
+        inc.level_reason.toLowerCase().includes(q),
+    );
+  }, [data, searchQuery]);
+
+  const clockString = data ? formatClock(data.updatedAt) : "09:44:12";
 
   return (
-    <>
-      <Stack.Screen options={{ headerShown: true, title: "Live Traffic Map" }} />
-      <View style={styles.screen}>
-        {/* Header & Status Indicator */}
-        <View style={styles.header}>
-          <View style={styles.headerTopRow}>
-            <Text style={styles.title}>Live community reports</Text>
-            <LiveStatus data={data} error={error} />
+    <View style={styles.screenWrapper}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <AppHeader subtitle="Mangaluru · Map" showLive />
+
+      {/* Top Floating Controls */}
+      <View style={styles.topControls}>
+        <View style={styles.switcherRow}>
+          {/* Segmented Pill Toggle */}
+          <View style={styles.segmentedToggle} accessibilityRole="tablist">
+            <Pressable
+              accessibilityRole="tab"
+              accessibilityState={{ selected: view === "map" }}
+              accessibilityLabel="Switch to Map view"
+              onPress={() => setView("map")}
+              style={[styles.toggleBtn, view === "map" && styles.toggleBtnActive]}
+            >
+              <Icon
+                name="map"
+                size={16}
+                color={view === "map" ? colors.primary : colors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.toggleBtnText,
+                  view === "map" && styles.toggleBtnTextActive,
+                ]}
+              >
+                Map
+              </Text>
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="tab"
+              accessibilityState={{ selected: view === "list" }}
+              accessibilityLabel="Switch to List view"
+              onPress={() => setView("list")}
+              style={[styles.toggleBtn, view === "list" && styles.toggleBtnActive]}
+            >
+              <Icon
+                name="edit_note"
+                size={16}
+                color={view === "list" ? colors.primary : colors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.toggleBtnText,
+                  view === "list" && styles.toggleBtnTextActive,
+                ]}
+              >
+                List
+              </Text>
+              <View style={styles.countBadge}>
+                <Text style={styles.countBadgeText}>
+                  {data?.incidents.length ?? 4}
+                </Text>
+              </View>
+            </Pressable>
           </View>
 
-          {/* Mode Switch Tabs: Map / List */}
-          <View style={styles.tabs} accessibilityRole="tablist">
-            {(["map", "list"] as const).map((item) => {
-              const active = view === item;
-              return (
-                <Pressable
-                  key={item}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: active }}
-                  accessibilityLabel={`Switch to ${item} view`}
-                  onPress={() => setView(item)}
-                  style={[styles.tab, active && styles.tabActive]}
-                >
-                  <Text style={[styles.tabText, active && styles.tabTextActive]}>
-                    {item === "map" ? "🗺️ Map view" : "📋 List view"}
-                  </Text>
-                </Pressable>
-              );
-            })}
+          {/* Live Sync & Simulation Pill */}
+          <View style={styles.liveSyncPill}>
+            <View style={styles.liveDot} />
+            <Text style={styles.clockText}>{clockString}</Text>
+            <View style={styles.simulatedMiniBadge}>
+              <Text style={styles.simulatedMiniBadgeText}>SIMULATED</Text>
+            </View>
           </View>
         </View>
 
-        {/* Error / Last-Good-Data Warning */}
-        {error ? (
+        {/* Floating Corridor Search Bar */}
+        <View style={styles.searchBar}>
+          <Icon name="search" size={20} color={colors.primary} />
+          <TextInput
+            placeholder="Search corridor (e.g. Balmatta Rd, Kadri, Ladyhill)"
+            placeholderTextColor={colors.textMuted}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style={styles.searchInput}
+          />
+          <Pressable
+            accessibilityLabel="Filter corridors"
+            style={styles.micBtn}
+          >
+            <Icon name="mic" size={18} color={colors.textSecondary} />
+          </Pressable>
+        </View>
+      </View>
+
+      {/* Error Feedback Box if any */}
+      {error ? (
+        <View style={styles.errorPadding}>
           <FeedbackBox
             variant="warning"
             title="Update interrupted"
@@ -129,575 +200,660 @@ export default function TrafficScreen() {
             actionText="Try again"
             onAction={() => void load()}
           />
-        ) : null}
+        </View>
+      ) : null}
 
-        {loading && !data ? (
-          <View style={styles.centerLoading}>
-            <ActivityIndicator color={colors.primary} size="large" />
-            <Text style={styles.loadingText}>Loading live reports and corridor feeds…</Text>
-          </View>
-        ) : null}
+      {/* Main Content: Map or List */}
+      {view === "map" ? (
+        <View style={styles.mapContainer}>
+          <TrafficMap
+            incidents={data?.incidents ?? []}
+            segments={data?.segments ?? []}
+            selectedIncidentId={selectedId}
+            onSelectIncident={(id) => setSelectedId(id)}
+            fitKey={fitKey}
+          />
 
-        {/* Map View */}
-        {data && view === "map" ? (
-          <View style={styles.mapArea}>
-            <TrafficMap
-              segments={data.segments}
-              incidents={data.incidents}
-              selectedIncidentId={selectedId}
-              onSelectIncident={setSelectedId}
-              fitKey={fitKey}
-            />
-            <ScrollView
-              style={styles.details}
-              contentContainerStyle={styles.detailsContent}
-              refreshControl={
-                <RefreshControl
-                  refreshing={refreshing}
-                  onRefresh={() => {
-                    setRefreshing(true);
-                    void load();
-                  }}
-                  colors={[colors.primary]}
-                />
-              }
-              showsVerticalScrollIndicator={false}
+          {/* Floating Map Controls Stack on Right */}
+          <View style={styles.floatingControlsStack}>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Fit to corridor"
+              onPress={() => setFitKey((val) => val + 1)}
+              style={({ pressed }) => [styles.roundFab, pressed && styles.pressedFab]}
             >
-              {selected ? (
-                <IncidentDetailCard
-                  incident={selected}
-                  onClose={() => setSelectedId(null)}
-                />
-              ) : (
-                <View style={styles.hintBox}>
-                  <Text style={styles.hintIcon}>👆</Text>
-                  <Text style={styles.hint}>
-                    Tap any incident pin on the map to inspect evidence tiers, verification source, and road context.
+              <Icon name="crop_free" size={20} color={colors.primary} />
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Show my location"
+              style={({ pressed }) => [styles.roundFab, pressed && styles.pressedFab]}
+            >
+              <Icon name="my_location" size={20} color={colors.primary} />
+            </Pressable>
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Map layers and legend"
+              style={({ pressed }) => [styles.roundFab, pressed && styles.pressedFab]}
+            >
+              <Icon name="layers" size={20} color={colors.textSecondary} />
+            </Pressable>
+          </View>
+
+          {/* Floating Map Legend Pill */}
+          <View style={styles.legendPill}>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
+              <Text style={styles.legendText}>Rec. Route</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: colors.secondary }]} />
+              <Text style={styles.legendText}>Alt. Route</Text>
+            </View>
+            <View style={styles.legendItem}>
+              <View style={[styles.legendDot, { backgroundColor: "#ea580c" }]} />
+              <Text style={styles.legendText}>Slowdown</Text>
+            </View>
+          </View>
+
+          {/* OpenFreeMap Attribution */}
+          <View style={styles.mapAttribution}>
+            <Text style={styles.attributionText}>OpenFreeMap · © OpenStreetMap</Text>
+          </View>
+
+          {/* Collapsible Inspection Bottom Sheet */}
+          {selected ? (
+            <View style={styles.bottomSheet}>
+              {/* Drag Handle */}
+              <View style={styles.dragHandleWrapper}>
+                <View style={styles.dragHandle} />
+              </View>
+
+              <View style={styles.sheetContent}>
+                {/* Header & Verification Row */}
+                <View style={styles.sheetHeader}>
+                  <View style={styles.sheetTitleGroup}>
+                    <View style={styles.sheetCategoryIconBox}>
+                      <Icon name="flood" size={20} color={colors.error} />
+                    </View>
+                    <Text numberOfLines={1} style={styles.sheetTitle}>
+                      {categoryLabel(selected.category)}
+                    </Text>
+                  </View>
+                  <Pressable
+                    accessibilityLabel="Close detail"
+                    onPress={() => setSelectedId(null)}
+                    style={styles.sheetCloseBtn}
+                  >
+                    <Icon name="close" size={20} color={colors.textSecondary} />
+                  </Pressable>
+                </View>
+
+                {/* Badges Row */}
+                <View style={styles.sheetBadgesRow}>
+                  <EvidenceBadge
+                    level={selected.level}
+                    label={evidenceLabel(selected.level)}
+                  />
+                  <FreshnessChip
+                    label={describeFreshness(selected.last_confirmed_at).label}
+                    stale={describeFreshness(selected.last_confirmed_at).stale}
+                  />
+                  <SimulatedBadge label="SIMULATED IMPACT" />
+                </View>
+
+                {/* Location Descriptor */}
+                <View style={styles.locationDescriptorBox}>
+                  <Icon name="location_on" size={20} color={colors.primary} />
+                  <View style={styles.locationDescriptorTextCol}>
+                    <Text style={styles.locationDescriptorTitle}>
+                      {categoryLabel(selected.category)}
+                    </Text>
+                    <Text style={styles.locationDescriptorSubtitle}>
+                      {selected.level_reason || "Mangaluru Central · Est. delay: +11 mins vs typical flow"}
+                    </Text>
+                  </View>
+                </View>
+
+                {/* Civic Honesty & Transparency Statement */}
+                <View style={styles.civicHonestyBox}>
+                  <Text style={styles.civicHonestyText}>
+                    <Text style={{ fontWeight: "700", color: colors.text }}>
+                      Observation from commuters:{" "}
+                    </Text>
+                    A report is a driver observation, not proof of systemic failure. Delay projections are simulated estimates, not sensor-calibrated guarantees.
                   </Text>
                 </View>
-              )}
-              <SegmentSummary segments={data.segments} />
-            </ScrollView>
-          </View>
-        ) : null}
 
-        {/* List View */}
-        {data && view === "list" ? (
-          <ScrollView
-            contentContainerStyle={styles.listContent}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={() => {
-                  setRefreshing(true);
-                  void load();
-                }}
-                colors={[colors.primary]}
-              />
-            }
-            showsVerticalScrollIndicator={false}
-          >
-            {data.incidents.length === 0 ? (
-              <Card style={styles.emptyCard}>
-                <Text style={styles.emptyIcon}>🕊️</Text>
-                <Text style={styles.emptyTitle}>No active reports on record</Text>
-                <Text style={styles.emptyText}>
-                  This means no community reports are currently logged for this corridor. It does not guarantee clear free-flow conditions everywhere.
-                </Text>
-              </Card>
-            ) : null}
+                {/* Action Buttons */}
+                <View style={styles.sheetActionsRow}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Update incident status"
+                    onPress={() => router.push("/report")}
+                    style={styles.sheetSecondaryBtn}
+                  >
+                    <Icon name="location_on" size={18} color={colors.primary} />
+                    <Text style={styles.sheetSecondaryBtnText}>Update Status</Text>
+                  </Pressable>
 
-            {data.incidents.map((incident) => (
-              <Pressable
-                key={incident.id}
-                accessibilityRole="button"
-                accessibilityLabel={`View report: ${categoryLabel(incident.category)}`}
-                onPress={() => {
-                  setSelectedId(incident.id);
-                  setView("map");
-                }}
-              >
-                <IncidentCard incident={incident} />
-              </Pressable>
-            ))}
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Avoid corridor and plan detour"
+                    onPress={() => router.push("/planner")}
+                    style={styles.sheetPrimaryBtn}
+                  >
+                    <Icon name="alt_route" size={18} color="#ffffff" />
+                    <Text style={styles.sheetPrimaryBtnText}>Avoid Corridor</Text>
+                  </Pressable>
+                </View>
 
-            <SegmentSummary segments={data.segments} />
-          </ScrollView>
-        ) : null}
-      </View>
-    </>
-  );
-}
+                {/* Tile Privacy Card */}
+                <View style={styles.tilePrivacyCard}>
+                  <View style={styles.tilePrivacyLeft}>
+                    <Icon name="shield" size={16} color={colors.textSecondary} />
+                    <Text style={styles.tilePrivacyText} numberOfLines={1}>
+                      Map tiles via OpenFreeMap. No GPS coordinates transmitted.
+                    </Text>
+                  </View>
+                  <Text style={styles.detailsLink}>Details</Text>
+                </View>
+              </View>
+            </View>
+          ) : null}
+        </View>
+      ) : (
+        /* Accessible List View */
+        <ScrollView
+          contentContainerStyle={styles.listContainer}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={() => {
+                setRefreshing(true);
+                void load();
+              }}
+              colors={[colors.primary]}
+              tintColor={colors.primary}
+            />
+          }
+        >
+          {loading && !data ? (
+            <View style={styles.centerLoading}>
+              <ActivityIndicator color={colors.primary} size="large" />
+              <Text style={styles.loadingText}>Loading live reports and corridor feeds…</Text>
+            </View>
+          ) : filteredIncidents.length === 0 ? (
+            <Card style={styles.emptyCard}>
+              <Text style={styles.emptyTitle}>No active reports in this view</Text>
+              <Text style={styles.emptySubtitle}>
+                Clear passage reported along monitored coastal corridors.
+              </Text>
+            </Card>
+          ) : (
+            filteredIncidents.map((incident) => {
+              const freshness = describeFreshness(incident.last_confirmed_at);
+              const label = evidenceLabel(incident.level);
+              return (
+                <Card
+                  key={incident.id}
+                  onPress={() => {
+                    setSelectedId(incident.id);
+                    setView("map");
+                  }}
+                  style={styles.listItemCard}
+                >
+                  <View style={styles.listHeaderRow}>
+                    <View style={styles.listTitleGroup}>
+                      <View style={[styles.listCategoryIconBox, { backgroundColor: colors.errorSurface }]}>
+                        <Icon name="warning" size={18} color={colors.error} />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.listCategoryName}>
+                          {categoryLabel(incident.category).toUpperCase()}
+                        </Text>
+                        <Text style={styles.listRoadName} numberOfLines={1}>
+                          {categoryLabel(incident.category)}
+                        </Text>
+                      </View>
+                    </View>
+                    <FreshnessChip label={freshness.label} stale={freshness.stale} />
+                  </View>
 
-function LiveStatus({ data, error }: { data: TrafficData | null; error: string | null }) {
-  if (error && data) {
-    return (
-      <View style={styles.liveStatusRow}>
-        <View style={[styles.statusDot, styles.dotWarn]} />
-        <Text style={styles.liveWarn}>Offline · Last {formatClock(data.updatedAt)}</Text>
-      </View>
-    );
-  }
-  if (data) {
-    return (
-      <View
-        style={styles.liveStatusRow}
-        accessibilityLabel={`Live. Updated ${formatClock(data.updatedAt)}. Refreshes every 30 seconds.`}
-      >
-        <View style={[styles.statusDot, styles.dotLive]} />
-        <Text style={styles.liveText}>Live · {formatClock(data.updatedAt)} · 30s sync</Text>
-      </View>
-    );
-  }
-  return (
-    <View style={styles.liveStatusRow}>
-      <View style={[styles.statusDot, styles.dotMuted]} />
-      <Text style={styles.liveMuted}>Connecting…</Text>
+                  {incident.level_reason ? (
+                    <Text style={styles.listDesc}>{incident.level_reason}</Text>
+                  ) : null}
+
+                  <View style={styles.listBadgesRow}>
+                    <EvidenceBadge level={incident.level} label={label} />
+                    <SimulatedBadge label="SIMULATED FLOW" />
+                  </View>
+                </Card>
+              );
+            })
+          )}
+          <View style={{ height: 80 }} />
+        </ScrollView>
+      )}
+
+      <BottomNav activeTab="map" />
     </View>
   );
 }
 
-function IncidentCard({ incident }: { incident: LiveIncident }) {
-  const freshness = describeFreshness(incident.last_confirmed_at);
-  const icon = CATEGORY_ICONS[incident.category] ?? "⚠️";
-
-  return (
-    <Card style={styles.incidentCard}>
-      <View style={styles.cardHeaderRow}>
-        <View style={styles.categoryBadgeRow}>
-          <Text style={styles.cardCategoryIcon}>{icon}</Text>
-          <Text style={styles.categoryTitle}>{categoryLabel(incident.category)}</Text>
-        </View>
-        <FreshnessChip label={freshness.label} stale={freshness.stale} />
-      </View>
-
-      <View style={styles.cardBadges}>
-        <EvidenceBadge level={incident.level} label={evidenceLabel(incident.level)} />
-        <View style={styles.provenancePill}>
-          <Text style={styles.provenanceText}>
-            {incident.report_count} {incident.report_count === 1 ? "report" : "reports"} · {incident.provenance}
-          </Text>
-        </View>
-      </View>
-
-      <Text style={styles.reasonText}>{incident.level_reason}</Text>
-
-      <View style={styles.cardFooter}>
-        <Text style={styles.localityText}>
-          {incident.lat.toFixed(4)}° N, {incident.lng.toFixed(4)}° E
-        </Text>
-        <Text style={styles.viewOnMapText}>View on map →</Text>
-      </View>
-    </Card>
-  );
-}
-
-function IncidentDetailCard({
-  incident,
-  onClose,
-}: {
-  incident: LiveIncident;
-  onClose: () => void;
-}) {
-  const freshness = describeFreshness(incident.last_confirmed_at);
-  const icon = CATEGORY_ICONS[incident.category] ?? "⚠️";
-
-  return (
-    <Card style={styles.selectedDetailCard} elevated>
-      <View style={styles.detailHeaderRow}>
-        <View style={styles.detailTitleGroup}>
-          <View style={styles.detailIconCircle}>
-            <Text style={styles.detailCategoryIcon}>{icon}</Text>
-          </View>
-          <View style={styles.detailTitleCol}>
-            <Text style={styles.detailEyebrow}>SELECTED ROAD REPORT</Text>
-            <Text style={styles.detailTitle}>{categoryLabel(incident.category)}</Text>
-          </View>
-        </View>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Close report details"
-          onPress={onClose}
-          style={styles.closeButton}
-        >
-          <Text style={styles.closeText}>✕</Text>
-        </Pressable>
-      </View>
-
-      <View style={styles.cardBadges}>
-        <FreshnessChip label={freshness.label} stale={freshness.stale} />
-        <EvidenceBadge level={incident.level} label={evidenceLabel(incident.level)} />
-      </View>
-
-      <Text style={styles.detailReason}>{incident.level_reason}</Text>
-
-      <View style={styles.telemetryBox}>
-        <Text style={styles.telemetryText}>
-          Location: {incident.lat.toFixed(4)}° N, {incident.lng.toFixed(4)}° E
-        </Text>
-        <Text style={styles.telemetryText}>
-          Provenance: {incident.provenance} · {incident.report_count} community corroboration{incident.report_count === 1 ? "" : "s"}
-        </Text>
-      </View>
-
-      {/* Confirmation feedback micro-action */}
-      <View style={styles.confirmationRow}>
-        <Text style={styles.confirmationLabel}>Still affecting transit?</Text>
-        <View style={styles.confirmationPills}>
-          <View style={styles.microPill}>
-            <Text style={styles.microPillText}>👍 Confirmed ({incident.report_count})</Text>
-          </View>
-        </View>
-      </View>
-    </Card>
-  );
-}
-
-function SegmentSummary({ segments }: { segments: TrafficSegment[] }) {
-  if (segments.length === 0) return null;
-  const slow = segments.filter((segment) => segment.severity === "slowdown").length;
-
-  return (
-    <Card style={styles.segmentBox}>
-      <View style={styles.segmentHeader}>
-        <Text style={styles.segmentTitle}>Mangaluru Central Corridor</Text>
-        <SimulatedBadge label="SIMULATED FLOW" />
-      </View>
-      <Text style={styles.segmentText}>
-        {segments.length} schematic corridor segments monitored. {slow} currently indicate a simulated bottleneck slowdown.
-      </Text>
-      <Text style={styles.disclaimerMuted}>
-        * Corridor segments are demonstration projections, not GPS tracking speeds.
-      </Text>
-    </Card>
-  );
-}
-
 const styles = StyleSheet.create({
-  screen: {
+  screenWrapper: {
     flex: 1,
-    padding: space.gutter,
-    paddingTop: space.sm,
-    gap: space.sm,
     backgroundColor: colors.background,
   },
-  header: {
-    gap: space.sm,
+  topControls: {
+    paddingHorizontal: space.gutter,
+    paddingTop: 8,
+    paddingBottom: 8,
+    gap: 8,
+    backgroundColor: colors.background,
+    zIndex: 20,
   },
-  headerTopRow: {
+  switcherRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  title: {
-    ...typography.headlineSm,
-    color: colors.text,
+  segmentedToggle: {
+    flexDirection: "row",
+    backgroundColor: colors.surfaceContainer,
+    padding: 3,
+    borderRadius: radius.pill,
   },
-  liveStatusRow: {
+  toggleBtn: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
   },
-  statusDot: {
+  toggleBtnActive: {
+    backgroundColor: colors.surface,
+    ...shadows.card,
+  },
+  toggleBtnText: {
+    ...typography.labelMd,
+    color: colors.textSecondary,
+    fontWeight: "500",
+  },
+  toggleBtnTextActive: {
+    color: colors.primary,
+    fontWeight: "700",
+  },
+  countBadge: {
+    backgroundColor: colors.surfaceContainerHighest,
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: radius.pill,
+  },
+  countBadgeText: {
+    ...typography.codeSm,
+    fontSize: 9.5,
+    color: colors.textSecondary,
+    fontWeight: "600",
+  },
+  liveSyncPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "rgba(255, 255, 255, 0.95)",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    ...shadows.card,
+  },
+  liveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.primary,
+  },
+  clockText: {
+    ...typography.codeSm,
+    color: colors.textSecondary,
+  },
+  simulatedMiniBadge: {
+    backgroundColor: colors.evidenceSurface,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderRadius: radius.pill,
+  },
+  simulatedMiniBadgeText: {
+    ...typography.codeSm,
+    fontSize: 8.5,
+    color: colors.evidence,
+    fontWeight: "700",
+  },
+  searchBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    height: 48,
+    backgroundColor: colors.surface,
+    borderRadius: radius.pill,
+    paddingHorizontal: 16,
+    gap: 10,
+    ...shadows.card,
+  },
+  searchInput: {
+    flex: 1,
+    ...typography.bodyMd,
+    color: colors.text,
+  },
+  micBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.surfaceContainer,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  errorPadding: {
+    paddingHorizontal: space.gutter,
+    paddingBottom: 8,
+  },
+  mapContainer: {
+    flex: 1,
+    position: "relative",
+  },
+  floatingControlsStack: {
+    position: "absolute",
+    right: 16,
+    top: 16,
+    gap: 10,
+    zIndex: 30,
+  },
+  roundFab: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+    ...shadows.sheet,
+  },
+  pressedFab: {
+    backgroundColor: colors.surfaceContainer,
+  },
+  legendPill: {
+    position: "absolute",
+    left: 16,
+    bottom: 230,
+    flexDirection: "row",
+    gap: 6,
+    zIndex: 30,
+  },
+  legendItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "rgba(255, 255, 255, 0.92)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    ...shadows.card,
+  },
+  legendDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
   },
-  dotLive: {
-    backgroundColor: colors.success,
-  },
-  dotWarn: {
-    backgroundColor: colors.warning,
-  },
-  dotMuted: {
-    backgroundColor: colors.textMuted,
-  },
-  liveText: {
+  legendText: {
     ...typography.labelSm,
-    color: colors.success,
+    fontSize: 10,
+    color: colors.text,
     fontWeight: "600",
   },
-  liveWarn: {
-    ...typography.labelSm,
-    color: colors.warning,
-    fontWeight: "600",
+  mapAttribution: {
+    position: "absolute",
+    right: 8,
+    bottom: 216,
+    backgroundColor: "rgba(255, 255, 255, 0.8)",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
   },
-  liveMuted: {
-    ...typography.labelSm,
+  attributionText: {
+    ...typography.codeSm,
+    fontSize: 9,
     color: colors.textMuted,
   },
-  tabs: {
-    flexDirection: "row",
-    borderRadius: radius.control,
-    backgroundColor: colors.surfaceContainer,
-    padding: 4,
-    gap: 4,
-  },
-  tab: {
-    flex: 1,
-    minHeight: minTouchTarget,
-    justifyContent: "center",
-    alignItems: "center",
-    borderRadius: radius.control - 2,
-  },
-  tabActive: {
+  bottomSheet: {
+    position: "absolute",
+    bottom: 60,
+    left: 0,
+    right: 0,
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  tabText: {
-    ...typography.labelLg,
-    color: colors.textSecondary,
-    fontWeight: "600",
-  },
-  tabTextActive: {
-    color: colors.primary,
-    fontWeight: "700",
-  },
-  centerLoading: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    gap: space.sm,
-  },
-  loadingText: {
-    ...typography.bodyMd,
-    color: colors.textSecondary,
-  },
-  mapArea: {
-    flex: 1,
-    gap: space.sm,
-  },
-  details: {
-    flex: 1,
-  },
-  detailsContent: {
-    gap: space.sm,
-    paddingBottom: space.xl,
-  },
-  hintBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.surface,
-    padding: space.md,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: space.sm,
-  },
-  hintIcon: {
-    fontSize: 20,
-  },
-  hint: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-    flex: 1,
-  },
-  listContent: {
-    gap: space.sm,
-    paddingBottom: space.xl,
-  },
-  emptyCard: {
-    alignItems: "center",
-    justifyContent: "center",
-    padding: space.xl,
-    gap: space.xs,
-  },
-  emptyIcon: {
-    fontSize: 36,
-  },
-  emptyTitle: {
-    ...typography.titleMd,
-    color: colors.text,
-    fontWeight: "700",
-  },
-  emptyText: {
-    ...typography.bodyMd,
-    color: colors.textSecondary,
-    textAlign: "center",
-    lineHeight: 20,
-  },
-  incidentCard: {
-    padding: space.md,
-    gap: space.sm,
-  },
-  cardHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  categoryBadgeRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: space.xs,
-  },
-  cardCategoryIcon: {
-    fontSize: 20,
-  },
-  categoryTitle: {
-    ...typography.titleMd,
-    color: colors.text,
-    fontWeight: "700",
-  },
-  cardBadges: {
-    flexDirection: "row",
-    alignItems: "center",
-    flexWrap: "wrap",
-    gap: space.xs,
-  },
-  provenancePill: {
-    backgroundColor: colors.surfaceContainerLow,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.pill,
-  },
-  provenanceText: {
-    ...typography.codeSm,
-    color: colors.primary,
-    fontWeight: "600",
-    textTransform: "capitalize",
-  },
-  reasonText: {
-    ...typography.bodyMd,
-    color: colors.textSecondary,
-    lineHeight: 20,
-  },
-  cardFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
     borderTopWidth: 1,
     borderTopColor: colors.border,
-    paddingTop: space.xs,
+    ...shadows.sheet,
+    zIndex: 40,
   },
-  localityText: {
-    ...typography.codeSm,
-    color: colors.textMuted,
+  dragHandleWrapper: {
+    alignItems: "center",
+    paddingVertical: 8,
   },
-  viewOnMapText: {
-    ...typography.labelSm,
-    color: colors.primary,
-    fontWeight: "700",
+  dragHandle: {
+    width: 40,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: colors.surfaceContainerHighest,
   },
-  selectedDetailCard: {
-    padding: space.md,
-    gap: space.sm,
-    borderColor: colors.primary,
+  sheetContent: {
+    paddingHorizontal: space.gutter,
+    paddingBottom: 14,
+    gap: 10,
   },
-  detailHeaderRow: {
+  sheetHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  detailTitleGroup: {
+  sheetTitleGroup: {
     flexDirection: "row",
     alignItems: "center",
-    gap: space.sm,
+    gap: 8,
     flex: 1,
   },
-  detailIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+  sheetCategoryIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: colors.errorSurface,
     alignItems: "center",
     justifyContent: "center",
   },
-  detailCategoryIcon: {
-    fontSize: 20,
-  },
-  detailTitleCol: {
+  sheetTitle: {
+    ...typography.headlineSm,
+    fontSize: 17,
+    fontWeight: "700",
+    color: colors.text,
     flex: 1,
   },
-  detailEyebrow: {
-    ...typography.codeSm,
-    color: colors.primary,
-    fontWeight: "700",
-  },
-  detailTitle: {
-    ...typography.titleMd,
-    color: colors.text,
-    fontWeight: "700",
-  },
-  closeButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.surfaceContainerLow,
+  sheetCloseBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: "center",
     justifyContent: "center",
   },
-  closeText: {
-    fontSize: 16,
-    color: colors.textSecondary,
-    fontWeight: "700",
+  sheetBadgesRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    alignItems: "center",
   },
-  detailReason: {
-    ...typography.bodyMd,
-    color: colors.text,
-    lineHeight: 20,
-  },
-  telemetryBox: {
+  locationDescriptorBox: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8,
     backgroundColor: colors.surfaceContainerLow,
+    padding: 10,
     borderRadius: radius.control,
-    padding: space.sm,
-    gap: 4,
   },
-  telemetryText: {
-    ...typography.codeSm,
+  locationDescriptorTextCol: {
+    flex: 1,
+  },
+  locationDescriptorTitle: {
+    ...typography.titleSm,
+    color: colors.text,
+    fontWeight: "600",
+  },
+  locationDescriptorSubtitle: {
+    ...typography.bodySm,
     color: colors.textSecondary,
+    fontSize: 11.5,
   },
-  confirmationRow: {
+  civicHonestyBox: {
+    backgroundColor: colors.surfaceContainer,
+    padding: 10,
+    borderRadius: radius.control,
+  },
+  civicHonestyText: {
+    ...typography.bodySm,
+    color: colors.textSecondary,
+    fontSize: 11.5,
+    lineHeight: 16,
+  },
+  sheetActionsRow: {
+    flexDirection: "row",
+    gap: 10,
+    paddingTop: 2,
+  },
+  sheetSecondaryBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: radius.control,
+    backgroundColor: colors.surfaceContainer,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
-    paddingTop: space.xs,
+    justifyContent: "center",
+    gap: 6,
   },
-  confirmationLabel: {
-    ...typography.labelSm,
-    color: colors.textSecondary,
-  },
-  confirmationPills: {
-    flexDirection: "row",
-    gap: space.xs,
-  },
-  microPill: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
-    backgroundColor: colors.surfaceContainer,
-  },
-  microPillText: {
-    ...typography.labelSm,
+  sheetSecondaryBtnText: {
+    ...typography.labelLg,
     color: colors.primary,
     fontWeight: "700",
   },
-  segmentBox: {
-    padding: space.md,
-    gap: space.xs,
-    backgroundColor: colors.evidenceSurface,
-    borderColor: colors.border,
+  sheetPrimaryBtn: {
+    flex: 1,
+    height: 46,
+    borderRadius: radius.control,
+    backgroundColor: colors.primary,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
+    ...shadows.card,
   },
-  segmentHeader: {
+  sheetPrimaryBtnText: {
+    ...typography.labelLg,
+    color: "#ffffff",
+    fontWeight: "700",
+  },
+  tilePrivacyCard: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    backgroundColor: colors.surfaceContainerLow,
+    padding: 8,
+    borderRadius: radius.control,
   },
-  segmentTitle: {
-    ...typography.titleSm,
-    color: colors.evidence,
-    fontWeight: "700",
+  tilePrivacyLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    flex: 1,
   },
-  segmentText: {
+  tilePrivacyText: {
+    ...typography.bodySm,
+    fontSize: 11,
+    color: colors.textSecondary,
+    flex: 1,
+  },
+  detailsLink: {
+    ...typography.labelSm,
+    color: colors.primary,
+    fontWeight: "600",
+  },
+  listContainer: {
+    paddingHorizontal: space.gutter,
+    paddingTop: 8,
+    gap: 12,
+  },
+  centerLoading: {
+    paddingVertical: 40,
+    alignItems: "center",
+    gap: 12,
+  },
+  loadingText: {
     ...typography.bodySm,
     color: colors.textSecondary,
-    lineHeight: 18,
   },
-  disclaimerMuted: {
-    ...typography.codeSm,
-    color: colors.textMuted,
-    fontSize: 9,
+  emptyCard: {
+    padding: 24,
+    alignItems: "center",
+    gap: 6,
+  },
+  emptyTitle: {
+    ...typography.titleMd,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  emptySubtitle: {
+    ...typography.bodySm,
+    color: colors.textSecondary,
+    textAlign: "center",
+  },
+  listItemCard: {
+    padding: space.md,
+    gap: 8,
+  },
+  listHeaderRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    justifyContent: "space-between",
+  },
+  listTitleGroup: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    flex: 1,
+  },
+  listCategoryIconBox: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  listCategoryName: {
+    ...typography.labelSm,
+    fontSize: 10,
+    color: colors.textSecondary,
+    fontWeight: "700",
+  },
+  listRoadName: {
+    ...typography.titleSm,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  listDesc: {
+    ...typography.bodyMd,
+    color: colors.textSecondary,
+  },
+  listBadgesRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
   },
 });

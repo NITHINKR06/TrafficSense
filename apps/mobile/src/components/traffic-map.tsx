@@ -5,7 +5,7 @@ import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import type { LiveIncident, RouteOption, TrafficSegment } from "@trafficsense/shared";
 import { buildMapHtml, MAP_ATTRIBUTION } from "../map/map-html";
 import { buildMapPayload, ROUTE_COLOURS, SEVERITY_COLOURS, INCIDENT_COLOUR, type MapPayload } from "../map/map-data";
-import { Button, Card, SimulatedBadge } from "./ui";
+import { Button, Card, Icon, SimulatedBadge } from "./ui";
 import { colors, minTouchTarget, radius, space, typography } from "../theme/tokens";
 
 export type MapStatus = "idle" | "loading" | "ready" | "fallback" | "failed";
@@ -131,7 +131,9 @@ export function TrafficMap(props: Props) {
     return (
       <Card style={styles.gate}>
         <View style={styles.gateHeader}>
-          <Text style={styles.gateIcon}>🗺️</Text>
+          <View style={styles.gateIconBox}>
+            <Icon name="explore" size={24} color={colors.primary} />
+          </View>
           <View style={styles.gateHeaderTextCol}>
             <Text style={styles.gateTitle}>Interactive Coastal Map</Text>
             <Text style={styles.gateSubtitle}>OpenFreeMap · jsDelivr MapLibre</Text>
@@ -207,7 +209,7 @@ export function TrafficMap(props: Props) {
             onPress={sendFit}
             style={({ pressed }) => [styles.toolButton, pressed && styles.toolButtonPressed]}
           >
-            <Text style={styles.toolIcon}>⤢</Text>
+            <Icon name="crop_free" size={16} color={colors.primary} />
             <Text style={styles.toolText}>Fit map</Text>
           </Pressable>
           <Pressable
@@ -216,7 +218,7 @@ export function TrafficMap(props: Props) {
             onPress={() => void centreOnMe()}
             style={({ pressed }) => [styles.toolButton, pressed && styles.toolButtonPressed]}
           >
-            <Text style={styles.toolIcon}>📍</Text>
+            <Icon name="my_location" size={16} color={colors.primary} />
             <Text style={styles.toolText}>{you ? "Update location" : "Show my location"}</Text>
           </Pressable>
         </View>
@@ -379,8 +381,13 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: space.sm,
   },
-  gateIcon: {
-    fontSize: 28,
+  gateIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: colors.primaryFixed,
+    alignItems: "center",
+    justifyContent: "center",
   },
   gateHeaderTextCol: {
     gap: 2,

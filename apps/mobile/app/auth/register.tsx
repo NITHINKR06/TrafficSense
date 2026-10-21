@@ -3,7 +3,7 @@ import { useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "../../src/providers/auth-provider";
 import { MIN_REGISTRATION_PASSWORD } from "../../src/lib/auth-rules";
-import { Button, Card, FeedbackBox, FormField } from "../../src/components/ui";
+import { AppHeader, Button, Card, FeedbackBox, FormField } from "../../src/components/ui";
 import { colors, space, typography } from "../../src/theme/tokens";
 
 export default function RegisterScreen() {
@@ -32,11 +32,18 @@ export default function RegisterScreen() {
   }
 
   return (
-    <>
-      <Stack.Screen options={{ headerShown: true, title: "Create account" }} />
+    <View style={styles.screenWrapper}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <AppHeader
+        title="Create account"
+        subtitle="Commuter Registration"
+        canGoBack
+        onBack={() => router.replace("/")}
+        showLive={false}
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.keyboardView}
+        style={{ flex: 1 }}
       >
         <ScrollView
           contentContainerStyle={styles.container}
@@ -113,20 +120,20 @@ export default function RegisterScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardView: {
+  screenWrapper: {
     flex: 1,
     backgroundColor: colors.background,
   },
   container: {
     padding: space.gutter,
-    paddingTop: space.lg,
+    paddingTop: space.md,
     paddingBottom: space.xl * 2,
-    gap: space.lg,
+    gap: space.md,
   },
   header: {
     gap: space.xs,
@@ -153,10 +160,9 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: "stretch",
     gap: space.sm,
-    marginTop: space.sm,
   },
   footerText: {
-    ...typography.bodyMd,
+    ...typography.bodySm,
     color: colors.textSecondary,
     textAlign: "center",
   },

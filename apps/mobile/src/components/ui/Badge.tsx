@@ -1,5 +1,6 @@
 import { StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
 import { colors, radius, typography } from "../../theme/tokens";
+import { Icon } from "./Icon";
 
 type EvidenceBadgeProps = {
   level: string;
@@ -11,7 +12,7 @@ export function EvidenceBadge({ level, label, style }: EvidenceBadgeProps) {
   const displayText = label ? `${level} · ${label}` : level;
   return (
     <View style={[styles.evidenceBadge, style]} accessibilityLabel={`Evidence level: ${displayText}`}>
-      <Text style={styles.evidenceIcon}>🛡️</Text>
+      <Icon name="verified" size={13} color={colors.evidence} />
       <Text style={styles.evidenceText}>{displayText}</Text>
     </View>
   );
@@ -73,13 +74,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: radius.pill,
-    gap: 4,
-  },
-  evidenceIcon: {
-    fontSize: 11,
+    gap: 5,
   },
   evidenceText: {
     ...typography.codeMd,
+    fontSize: 11,
     color: colors.evidence,
     fontWeight: "600",
   },

@@ -1,43 +1,101 @@
 import * as Location from "expo-location";
 import { router, Stack } from "expo-router";
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import { reportCategories, type ReportCategory } from "@trafficsense/shared";
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import type { ReportCategory } from "@trafficsense/shared";
 import { submitIncident } from "../src/lib/api";
 import { MobileApiError } from "../src/lib/request";
 import { useAuth } from "../src/providers/auth-provider";
-import { Button, Card, FeedbackBox, FormField, SimulatedBadge } from "../src/components/ui";
-import { colors, radius, space, typography } from "../src/theme/tokens";
+import {
+  AppHeader,
+  Button,
+  Card,
+  FeedbackBox,
+  Icon,
+  type IconName,
+} from "../src/components/ui";
+import { colors, radius, shadows, space, typography } from "../src/theme/tokens";
 
 type ReportState =
   | { kind: "idle" }
   | { kind: "error"; message: string; signInRequired?: boolean }
   | { kind: "success"; level: string; levelReason: string };
 
-const LOCATION_DENIED = "Location permission was denied. Allow location in your phone settings to submit a report.";
-const LOCATION_UNAVAILABLE = "Your location could not be read. Turn on location services and try again.";
+const LOCATION_DENIED =
+  "Location permission was denied. Allow location in your phone settings to submit a report.";
+const LOCATION_UNAVAILABLE =
+  "Your location could not be read. Turn on location services and try again.";
 
-const CATEGORY_META: Record<string, { icon: string; subtitle: string }> = {
-  accident: { icon: "🚗", subtitle: "Collisions, vehicle damage" },
-  flood: { icon: "🌊", subtitle: "Waterlogging, deep puddles" },
-  road_closed: { icon: "⛔", subtitle: "Barricades, full diversion" },
-  heavy_traffic: { icon: "🚦", subtitle: "Gridlock, crawling crawl" },
-  road_repair: { icon: "🚧", subtitle: "Potholes, excavation, tarring" },
-  breakdown: { icon: "🔧", subtitle: "Stalled vehicle, flat tyre" },
-  fallen_tree: { icon: "🌲", subtitle: "Branch or pole obstruction" },
-  landslide: { icon: "🪨", subtitle: "Slope dirt, rock slide" },
-  signal_failure: { icon: "⚠️", subtitle: "Signal dark or blinking" },
-  heavy_rain: { icon: "🌧️", subtitle: "Monsoon zero visibility" },
-  bridge_maintenance: { icon: "🌉", subtitle: "Span checks, lane limits" },
-  police_restriction: { icon: "👮", subtitle: "Security checks, detour" },
-  vip_movement: { icon: "🚔", subtitle: "Convoy clearance, halt" },
-  strike: { icon: "📢", subtitle: "Protest march, road block" },
-  festival: { icon: "🎪", subtitle: "Procession, temple gathering" },
-  other: { icon: "❓", subtitle: "Unlisted road obstacle" },
-  unknown: { icon: "ℹ️", subtitle: "Unverified obstacle" },
-};
+interface HazardOption {
+  category: ReportCategory;
+  title: string;
+  subtitle: string;
+  icon: IconName;
+  iconBg: string;
+  iconColor: string;
+}
 
-// The form is keyed by account so a sign-out or account switch discards any unsent input.
+const HAZARD_OPTIONS: HazardOption[] = [
+  {
+    category: "accident",
+    title: "Accident",
+    subtitle: "Collisions, breakdown",
+    icon: "car_crash",
+    iconBg: colors.errorSurface,
+    iconColor: colors.error,
+  },
+  {
+    category: "road_closed",
+    title: "Road closed",
+    subtitle: "Barricades, diversion",
+    icon: "do_not_disturb",
+    iconBg: colors.surfaceContainerHighest,
+    iconColor: colors.text,
+  },
+  {
+    category: "heavy_traffic",
+    title: "Heavy volume",
+    subtitle: "Gridlock, crawling",
+    icon: "traffic",
+    iconBg: colors.surfaceContainerHighest,
+    iconColor: colors.text,
+  },
+  {
+    category: "flood",
+    title: "Flood / Rain",
+    subtitle: "Waterlogging, puddles",
+    icon: "flood",
+    iconBg: colors.primaryFixed,
+    iconColor: colors.primary,
+  },
+  {
+    category: "road_repair",
+    title: "Road repair",
+    subtitle: "Potholes, excavation",
+    icon: "construction",
+    iconBg: colors.warningSurface,
+    iconColor: colors.warning,
+  },
+  {
+    category: "other",
+    title: "Other hazard",
+    subtitle: "Fallen tree, wire, etc.",
+    icon: "help_center",
+    iconBg: colors.surfaceContainerHighest,
+    iconColor: colors.text,
+  },
+];
+
 export default function ReportScreen() {
   const { session } = useAuth();
   return <ReportForm key={session?.user.id ?? "guest"} />;
@@ -45,25 +103,26 @@ export default function ReportScreen() {
 
 function ReportForm() {
   const { session } = useAuth();
-  const [category, setCategory] = useState<ReportCategory | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<ReportCategory>("flood");
   const [note, setNote] = useState("");
   const [state, setState] = useState<ReportState>({ kind: "idle" });
   const [submitting, setSubmitting] = useState(false);
+  const [showPermissionBanner, setShowPermissionBanner] = useState(true);
+  const [previewSuccessModal, setPreviewSuccessModal] = useState(false);
 
-  async function submit() {
+  const submit = async () => {
     setState({ kind: "idle" });
     if (!session) {
-      setState({ kind: "error", message: "Sign in with a commuter account before submitting a report.", signInRequired: true });
-      return;
-    }
-    if (!category) {
-      setState({ kind: "error", message: "Choose what is affecting the road first." });
+      setState({
+        kind: "error",
+        message: "Sign in with a commuter account before submitting a report.",
+        signInRequired: true,
+      });
       return;
     }
 
     setSubmitting(true);
     try {
-      // Location is requested only here, after the commuter has chosen to submit.
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.status !== Location.PermissionStatus.GRANTED) {
         setState({ kind: "error", message: LOCATION_DENIED });
@@ -72,7 +131,9 @@ function ReportForm() {
 
       let position: Location.LocationObject;
       try {
-        position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        position = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        });
       } catch {
         setState({ kind: "error", message: LOCATION_UNAVAILABLE });
         return;
@@ -80,7 +141,7 @@ function ReportForm() {
 
       const result = await submitIncident(
         {
-          category,
+          category: selectedCategory,
           lat: position.coords.latitude,
           lng: position.coords.longitude,
           gpsAccuracyM: position.coords.accuracy ?? null,
@@ -89,106 +150,232 @@ function ReportForm() {
         },
         session.access_token,
       );
-      setState({ kind: "success", level: result.level, levelReason: result.level_reason });
-      setCategory(null);
+
+      setState({
+        kind: "success",
+        level: result.level,
+        levelReason: result.level_reason,
+      });
       setNote("");
     } catch (reason) {
       if (reason instanceof MobileApiError && reason.authRequired) {
-        setState({ kind: "error", message: "Your session has ended. Sign in again to submit.", signInRequired: true });
+        setState({
+          kind: "error",
+          message: "Your session has ended. Sign in again to submit.",
+          signInRequired: true,
+        });
       } else if (reason instanceof MobileApiError && reason.status === 429) {
-        setState({ kind: "error", message: "You have reported too often. Wait a few minutes and try again." });
+        setState({
+          kind: "error",
+          message: "You have reported too often. Wait a few minutes and try again.",
+        });
       } else {
         setState({
           kind: "error",
-          message: reason instanceof Error ? reason.message : "Report submission is unavailable. Try again later.",
+          message:
+            reason instanceof Error
+              ? reason.message
+              : "Report submission is unavailable. Try again later.",
         });
       }
     } finally {
       setSubmitting(false);
     }
-  }
+  };
 
   return (
-    <>
-      <Stack.Screen options={{ headerShown: true, title: "Report a Problem" }} />
+    <View style={styles.screenWrapper}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <AppHeader
+        title="Report"
+        canGoBack
+        onBack={() => router.back()}
+        showLive={false}
+      />
+
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.keyboardView}
+        style={{ flex: 1 }}
       >
         <ScrollView
-          contentContainerStyle={styles.container}
+          contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.statusRow}>
-              <Text style={styles.eyebrow}>COMMUNITY CITIZEN REPORTING</Text>
-              <SimulatedBadge label="CORROBORATION FEED" />
+          {/* Interactive State / Preview Banner */}
+          <View style={styles.previewStateBanner}>
+            <View style={styles.previewStateLeft}>
+              <Icon name="tune" size={18} color={colors.secondary} />
+              <Text style={styles.previewStateText}>Preview State:</Text>
             </View>
-            <Text style={styles.title}>Report a road hazard</Text>
-            <Text style={styles.subtitle}>
-              Tap the primary obstacle currently affecting coastal transit. A report is an observation, not proof of its cause. Location is requested only upon submit.
-            </Text>
+            <View style={styles.previewStateButtons}>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setShowPermissionBanner(!showPermissionBanner)}
+                style={styles.previewSmallBtn}
+              >
+                <Text style={styles.previewSmallBtnText}>Toggle GPS Alert</Text>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setPreviewSuccessModal(true)}
+                style={styles.previewSuccessBtn}
+              >
+                <Icon name="check" size={13} color="#ffffff" />
+                <Text style={styles.previewSuccessBtnText}>Test Success Modal</Text>
+              </Pressable>
+            </View>
           </View>
 
-          {/* Guest Sign-in Banner if unauthenticated */}
+          {/* Dynamic Location Permission Banner */}
+          {showPermissionBanner ? (
+            <View style={styles.permissionBanner}>
+              <View style={styles.permissionIconCircle}>
+                <Icon name="my_location" size={22} color="#2f1500" />
+              </View>
+              <View style={styles.permissionTextCol}>
+                <Text style={styles.permissionTitle}>
+                  Precise location recommended
+                </Text>
+                <Text style={styles.permissionSubtitle}>
+                  Location permission required to pinpoint hazard accurately along coastal roads.
+                </Text>
+                <View style={styles.permissionActionRow}>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={async () => {
+                      await Location.requestForegroundPermissionsAsync();
+                      setShowPermissionBanner(false);
+                    }}
+                    style={styles.allowBtn}
+                  >
+                    <Text style={styles.allowBtnText}>Allow While Using</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    onPress={() => setShowPermissionBanner(false)}
+                    style={styles.dismissBtn}
+                  >
+                    <Text style={styles.dismissBtnText}>Dismiss</Text>
+                  </Pressable>
+                </View>
+              </View>
+            </View>
+          ) : null}
+
+          {/* Unauthenticated Commuter Note */}
           {!session ? (
             <FeedbackBox
               variant="warning"
               title="Sign in required to submit"
               message="Anyone can browse the traffic map, but submitting road hazard reports requires an authenticated commuter account."
               actionText="Sign in now"
-              onAction={() => router.push({ pathname: "/auth/login", params: { next: "/report" } })}
+              onAction={() => router.push("/auth/login?next=/report")}
             />
           ) : null}
 
-          {/* Step 1: Observed Hazard Category Selection Grid */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>1. Observed Hazard</Text>
-              <Text style={styles.sectionHint}>Single selection</Text>
+          {/* Error Feedback */}
+          {state.kind === "error" ? (
+            <FeedbackBox
+              variant="error"
+              message={state.message}
+              actionText={state.signInRequired ? "Sign in" : undefined}
+              onAction={
+                state.signInRequired
+                  ? () => router.push("/auth/login?next=/report")
+                  : undefined
+              }
+            />
+          ) : null}
+
+          {/* Stepper Flow */}
+          <Card style={styles.stepperCard}>
+            <View style={styles.stepperHeader}>
+              <View style={styles.stepperStepRow}>
+                <View style={styles.stepperDot} />
+                <Text style={styles.stepperStepText}>Step 1 of 3: Select category</Text>
+              </View>
+              <View style={styles.civicFeedBadge}>
+                <Text style={styles.civicFeedBadgeText}>Civic Feed</Text>
+              </View>
+            </View>
+            {/* 3-segment progress track */}
+            <View style={styles.stepperTrack}>
+              <View style={[styles.stepperBar, styles.stepperBarActive]} />
+              <View style={styles.stepperBar} />
+              <View style={styles.stepperBar} />
+            </View>
+            <Text style={styles.stepperSubtitle}>
+              Tap the primary obstacle currently affecting coastal transit.
+            </Text>
+          </Card>
+
+          {/* 1. Observed Hazard Grid */}
+          <View style={styles.hazardSection}>
+            <View style={styles.hazardSectionHeader}>
+              <Text style={styles.hazardSectionTitle}>1. Observed Hazard</Text>
+              <Text style={styles.singleSelectionText}>Single selection</Text>
             </View>
 
-            <View style={styles.categoryGrid}>
-              {reportCategories.map(([value, label]) => {
-                const selected = category === value;
-                const meta = CATEGORY_META[value] ?? { icon: "⚠️", subtitle: "Road obstruction" };
-
+            <View style={styles.hazardGrid}>
+              {HAZARD_OPTIONS.map((opt) => {
+                const isSelected = selectedCategory === opt.category;
                 return (
                   <Pressable
-                    key={value}
+                    key={opt.category}
                     accessibilityRole="radio"
-                    accessibilityState={{ selected }}
-                    onPress={() => setCategory(value)}
-                    style={({ pressed }) => [
-                      styles.categoryCard,
-                      selected && styles.categoryCardSelected,
-                      pressed && styles.categoryCardPressed,
+                    accessibilityState={{ selected: isSelected }}
+                    accessibilityLabel={`${opt.title}: ${opt.subtitle}`}
+                    onPress={() => setSelectedCategory(opt.category)}
+                    style={[
+                      styles.hazardCard,
+                      isSelected && styles.hazardCardActive,
                     ]}
                   >
-                    <View style={styles.cardTopRow}>
-                      <View style={[styles.iconBox, selected && styles.iconBoxSelected]}>
-                        <Text style={styles.categoryIcon}>{meta.icon}</Text>
+                    {/* Top Row: Icon and Active Check */}
+                    <View style={styles.hazardCardTop}>
+                      <View
+                        style={[
+                          styles.hazardIconBox,
+                          {
+                            backgroundColor: isSelected
+                              ? colors.primary
+                              : opt.iconBg,
+                          },
+                        ]}
+                      >
+                        <Icon
+                          name={opt.icon}
+                          size={22}
+                          color={isSelected ? "#ffffff" : opt.iconColor}
+                        />
                       </View>
-                      {selected ? (
+
+                      {isSelected ? (
                         <View style={styles.checkBadge}>
-                          <Text style={styles.checkBadgeText}>✓</Text>
+                          <Icon name="check" size={12} color="#ffffff" />
                         </View>
                       ) : null}
                     </View>
-                    <View style={styles.cardBottomText}>
+
+                    {/* Bottom Row: Title and Subtitle */}
+                    <View style={styles.hazardCardBottom}>
                       <Text
-                        style={[styles.categoryTitle, selected && styles.categoryTitleSelected]}
-                        numberOfLines={1}
+                        style={[
+                          styles.hazardCardTitle,
+                          isSelected && styles.hazardCardTitleActive,
+                        ]}
                       >
-                        {label}
+                        {opt.title}
                       </Text>
                       <Text
-                        style={[styles.categorySubtitle, selected && styles.categorySubtitleSelected]}
+                        style={[
+                          styles.hazardCardSubtitle,
+                          isSelected && styles.hazardCardSubtitleActive,
+                        ]}
                         numberOfLines={1}
                       >
-                        {meta.subtitle}
+                        {opt.subtitle}
                       </Text>
                     </View>
                   </Pressable>
@@ -197,177 +384,396 @@ function ReportForm() {
             </View>
           </View>
 
-          {/* Step 2: Context Details / Note */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>2. Additional Observation Details</Text>
-              <Text style={styles.sectionHint}>Optional · max 300 chars</Text>
+          {/* 2. Observation Note */}
+          <Card style={styles.noteCard}>
+            <View style={styles.noteHeader}>
+              <Icon name="edit_note" size={20} color={colors.primary} />
+              <Text style={styles.noteTitle}>
+                Optional note (e.g., landmark or lane affected)
+              </Text>
+            </View>
+            <Text style={styles.noteSubtitle}>
+              Details help fellow Mangaloreans gauge clear passage through monsoons.
+            </Text>
+
+            <View style={styles.textInputBox}>
+              <TextInput
+                placeholder="e.g. Left lane submerged under railway bridge near Pumpwell Circle"
+                placeholderTextColor={colors.textMuted}
+                value={note}
+                onChangeText={(val) => setNote(val.slice(0, 300))}
+                multiline
+                numberOfLines={3}
+                style={styles.textArea}
+              />
             </View>
 
-            <FormField
-              accessibilityLabel="Optional observation note"
-              maxLength={300}
-              multiline
-              numberOfLines={3}
-              onChangeText={setNote}
-              placeholder="e.g. Accumulated rainwater near Jyothi circle curbside; 2-wheelers diverted to central lane."
-              value={note}
-            />
-          </View>
+            <View style={styles.noteFooter}>
+              <View style={styles.noteFooterLeft}>
+                <Icon name="visibility" size={14} color={colors.textMuted} />
+                <Text style={styles.noteFooterText}>Public to active commuters</Text>
+              </View>
+              <Text style={styles.noteFooterCounter}>
+                {note.length} / 300 characters
+              </Text>
+            </View>
+          </Card>
 
-          {/* Error Feedback */}
-          {state.kind === "error" ? (
-            <FeedbackBox
-              variant="error"
-              message={state.message}
-              actionText={state.signInRequired ? "Sign in to account" : undefined}
-              onAction={
-                state.signInRequired
-                  ? () => router.push({ pathname: "/auth/login", params: { next: "/report" } })
-                  : undefined
-              }
-            />
-          ) : null}
+          {/* 2. Verification & Trust Tier Section */}
+          <View style={styles.trustSection}>
+            <Text style={styles.trustSectionTitle}>2. Verification & Trust Tier</Text>
 
-          {/* Success Feedback */}
-          {state.kind === "success" ? (
-            <Card style={styles.successCard}>
-              <View style={styles.successHeader}>
-                <View style={styles.successIconCircle}>
-                  <Text style={styles.successCheckIcon}>✓</Text>
+            {/* Sub-card 1: Location Corridor */}
+            <Card style={styles.trustCard}>
+              <View style={styles.trustCardTop}>
+                <View style={[styles.trustIconCircle, { backgroundColor: colors.primaryFixed }]}>
+                  <Icon name="location_on" size={18} color={colors.primary} />
                 </View>
-                <View style={styles.successTextCol}>
-                  <Text style={styles.successTitle}>Report recorded successfully</Text>
-                  <Text style={styles.successLevelBadge}>Server assigned evidence tier: {state.level}</Text>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.trustRowBetween}>
+                    <Text style={styles.trustRoadName}>Mangaluru Central Corridor</Text>
+                    <View style={styles.autoDetectedBadge}>
+                      <Text style={styles.autoDetectedText}>Auto-detected</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.trustCoords}>
+                    Coordinates: 12.8702° N, 74.8436° E
+                  </Text>
                 </View>
               </View>
-              <Text style={styles.successReason}>{state.levelReason}</Text>
-              <Button
-                title="View active traffic map →"
-                onPress={() => router.replace("/traffic")}
-                variant="primary"
-              />
+              <View style={styles.trustNoticePill}>
+                <Icon name="lock" size={13} color={colors.textSecondary} />
+                <Text style={styles.trustNoticePillText}>
+                  Location is requested only when you submit
+                </Text>
+              </View>
             </Card>
-          ) : null}
 
-          {/* Submit Action */}
-          <Button
-            title="Submit report"
-            loading={submitting}
-            disabled={submitting}
-            onPress={() => void submit()}
-            variant="primary"
-          />
+            {/* Sub-card 2: Tier Assignment */}
+            <Card style={styles.trustCard}>
+              <View style={styles.trustCardTop}>
+                <View style={[styles.trustIconCircle, { backgroundColor: colors.evidenceSurface }]}>
+                  <Icon name="verified" size={18} color={colors.evidence} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <View style={styles.trustRowBetween}>
+                    <Text style={styles.trustRoadName}>Tier Assignment: Level 1</Text>
+                    <View style={styles.tierL1Badge}>
+                      <Text style={styles.tierL1BadgeText}>L1 Tier</Text>
+                    </View>
+                  </View>
+                  <Text style={styles.trustCoords}>
+                    Your report will be recorded as L1 (Single observation) until corroborated by other commuters.
+                  </Text>
+                </View>
+              </View>
+            </Card>
 
-          {/* Disclaimer */}
-          <View style={styles.disclaimerBox}>
-            <Text style={styles.disclaimerText}>
-              • Foreground location is captured at the moment of submission to verify geographic cluster corroboration.
-            </Text>
-            <Text style={styles.disclaimerText}>
-              • The server decides evidence tier progression (L1–L6). Single device reports do not independently confirm a road closure or hazard cause.
-            </Text>
+            {/* Sub-card 3: Honesty Notice */}
+            <View style={styles.honestyBanner}>
+              <View style={styles.honestyIconCircle}>
+                <Icon name="shield" size={18} color="#ffffff" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.honestyTitle}>Honesty notice</Text>
+                <Text style={styles.honestyBody}>
+                  A report is a subjective observation, not proof of its cause. Civic trust keeps Mangaluru flowing safely.
+                </Text>
+              </View>
+            </View>
           </View>
+
+          {/* Action Buttons */}
+          <View style={styles.actionsStack}>
+            <Button
+              title={submitting ? "Submitting observation…" : "Submit report"}
+              loading={submitting}
+              onPress={() => void submit()}
+              variant="primary"
+              icon={<Icon name="send" size={18} color="#ffffff" />}
+            />
+
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cancel report"
+              onPress={() => router.back()}
+              style={styles.cancelBtn}
+            >
+              <Text style={styles.cancelBtnText}>Cancel</Text>
+            </Pressable>
+          </View>
+
+          <View style={{ height: 40 }} />
         </ScrollView>
       </KeyboardAvoidingView>
-    </>
+
+      {/* Success Modal */}
+      <Modal
+        visible={state.kind === "success" || previewSuccessModal}
+        transparent
+        animationType="fade"
+      >
+        <View style={styles.successBackdrop}>
+          <Card style={styles.successModalCard}>
+            <View style={styles.successIconCircle}>
+              <Icon name="check" size={28} color="#ffffff" />
+            </View>
+            <Text style={styles.successTitle}>Report Recorded</Text>
+            <Text style={styles.successSubtitle}>
+              {state.kind === "success"
+                ? `Assigned tier: ${state.level}. ${state.levelReason}`
+                : "Assigned tier: Level 1 (Single observation). Your observation is active on the civic feed."}
+            </Text>
+
+            <Button
+              title="View on Live Traffic Map"
+              onPress={() => {
+                setState({ kind: "idle" });
+                setPreviewSuccessModal(false);
+                router.replace("/traffic");
+              }}
+              variant="primary"
+            />
+            <Pressable
+              onPress={() => {
+                setState({ kind: "idle" });
+                setPreviewSuccessModal(false);
+              }}
+              style={styles.doneBtn}
+            >
+              <Text style={styles.doneBtnText}>Close</Text>
+            </Pressable>
+          </Card>
+        </View>
+      </Modal>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardView: {
+  screenWrapper: {
     flex: 1,
     backgroundColor: colors.background,
   },
-  container: {
-    padding: space.gutter,
-    paddingTop: space.md,
-    paddingBottom: space.xl * 2,
-    gap: space.md,
-    backgroundColor: colors.background,
+  scrollContent: {
+    paddingHorizontal: space.gutter,
+    paddingTop: 8,
+    gap: 14,
   },
-  header: {
-    gap: space.xs,
-  },
-  statusRow: {
+  previewStateBanner: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    backgroundColor: colors.surfaceContainerHigh,
+    borderRadius: radius.control,
+    padding: 8,
+    ...shadows.card,
   },
-  eyebrow: {
-    ...typography.codeSm,
-    color: colors.primary,
-    fontWeight: "700",
-    letterSpacing: 1,
-  },
-  title: {
-    ...typography.headlineLg,
-    color: colors.text,
-  },
-  subtitle: {
-    ...typography.bodyMd,
-    color: colors.textSecondary,
-    lineHeight: 22,
-  },
-  section: {
-    gap: space.sm,
-  },
-  sectionHeader: {
+  previewStateLeft: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 6,
   },
-  sectionTitle: {
-    ...typography.titleSm,
+  previewStateText: {
+    ...typography.labelMd,
+    fontWeight: "600",
     color: colors.text,
-    fontWeight: "700",
   },
-  sectionHint: {
-    ...typography.labelSm,
-    color: colors.textMuted,
-  },
-  categoryGrid: {
+  previewStateButtons: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: space.sm,
+    gap: 6,
   },
-  categoryCard: {
-    flex: 1,
-    minWidth: "47%",
-    minHeight: 110,
+  previewSmallBtn: {
     backgroundColor: colors.surface,
-    borderRadius: radius.card,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    padding: space.md,
-    justifyContent: "space-between",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
+    ...shadows.card,
   },
-  categoryCardSelected: {
-    borderColor: colors.primary,
-    backgroundColor: colors.primaryFixed,
+  previewSmallBtnText: {
+    ...typography.labelSm,
+    fontSize: 10.5,
+    color: colors.text,
   },
-  categoryCardPressed: {
-    opacity: 0.88,
-    transform: [{ scale: 0.98 }],
-  },
-  cardTopRow: {
+  previewSuccessBtn: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
+    gap: 4,
+    backgroundColor: colors.secondary,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: radius.pill,
   },
-  iconBox: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.surfaceContainerLow,
+  previewSuccessBtnText: {
+    ...typography.labelSm,
+    fontSize: 10.5,
+    color: "#ffffff",
+    fontWeight: "600",
+  },
+  permissionBanner: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    backgroundColor: "#ffdcc3",
+    borderRadius: radius.control,
+    padding: 14,
+    gap: 12,
+    ...shadows.card,
+  },
+  permissionIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: "rgba(255, 183, 124, 0.45)",
     alignItems: "center",
     justifyContent: "center",
   },
-  iconBoxSelected: {
+  permissionTextCol: {
+    flex: 1,
+    gap: 4,
+  },
+  permissionTitle: {
+    ...typography.titleSm,
+    fontWeight: "700",
+    color: "#2f1500",
+  },
+  permissionSubtitle: {
+    ...typography.bodySm,
+    color: "#6e3900",
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  permissionActionRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingTop: 4,
+  },
+  allowBtn: {
+    backgroundColor: "#5b2f00",
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  allowBtnText: {
+    ...typography.labelMd,
+    color: "#ffffff",
+    fontWeight: "600",
+  },
+  dismissBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+  },
+  dismissBtnText: {
+    ...typography.labelMd,
+    color: "#5b2f00",
+    fontWeight: "600",
+  },
+  stepperCard: {
+    padding: space.md,
+    gap: 8,
+  },
+  stepperHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  stepperStepRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  stepperDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: colors.primary,
   },
-  categoryIcon: {
-    fontSize: 20,
+  stepperStepText: {
+    ...typography.labelLg,
+    fontWeight: "700",
+    color: colors.primary,
+  },
+  civicFeedBadge: {
+    backgroundColor: colors.surfaceContainer,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+  },
+  civicFeedBadgeText: {
+    ...typography.codeSm,
+    color: colors.textSecondary,
+    fontSize: 9.5,
+  },
+  stepperTrack: {
+    flexDirection: "row",
+    gap: 6,
+    height: 6,
+    width: "100%",
+  },
+  stepperBar: {
+    flex: 1,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors.surfaceContainerHighest,
+  },
+  stepperBarActive: {
+    backgroundColor: colors.primary,
+  },
+  stepperSubtitle: {
+    ...typography.bodySm,
+    color: colors.textSecondary,
+  },
+  hazardSection: {
+    gap: 8,
+  },
+  hazardSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  hazardSectionTitle: {
+    ...typography.titleMd,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  singleSelectionText: {
+    ...typography.labelSm,
+    color: colors.primary,
+    fontWeight: "600",
+  },
+  hazardGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12,
+  },
+  hazardCard: {
+    width: "48%",
+    flexGrow: 1,
+    height: 128,
+    backgroundColor: colors.surface,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: 14,
+    justifyContent: "space-between",
+    ...shadows.card,
+  },
+  hazardCardActive: {
+    backgroundColor: colors.primaryFixed,
+    borderColor: colors.primary,
+    borderWidth: 1.5,
+  },
+  hazardCardTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  hazardIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: "center",
+    justifyContent: "center",
   },
   checkBadge: {
     width: 22,
@@ -377,82 +783,232 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  checkBadgeText: {
-    color: colors.onPrimary,
-    fontSize: 12,
-    fontWeight: "700",
-  },
-  cardBottomText: {
+  hazardCardBottom: {
     gap: 2,
-    marginTop: space.xs,
   },
-  categoryTitle: {
+  hazardCardTitle: {
     ...typography.titleSm,
-    color: colors.text,
     fontWeight: "700",
+    color: colors.text,
   },
-  categoryTitleSelected: {
+  hazardCardTitleActive: {
     color: colors.onPrimaryFixed,
   },
-  categorySubtitle: {
+  hazardCardSubtitle: {
     ...typography.bodySm,
-    color: colors.textSecondary,
     fontSize: 11,
+    color: colors.textSecondary,
   },
-  categorySubtitleSelected: {
+  hazardCardSubtitleActive: {
     color: colors.onPrimaryFixedVariant,
   },
-  successCard: {
+  noteCard: {
     padding: space.md,
-    gap: space.sm,
-    borderColor: colors.success,
+    gap: 8,
   },
-  successHeader: {
+  noteHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: space.sm,
+    gap: 6,
   },
-  successIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.successSurface,
+  noteTitle: {
+    ...typography.titleSm,
+    fontWeight: "600",
+    color: colors.text,
+    flex: 1,
+  },
+  noteSubtitle: {
+    ...typography.bodySm,
+    color: colors.textSecondary,
+    fontSize: 11.5,
+  },
+  textInputBox: {
+    backgroundColor: colors.surfaceContainerLow,
+    borderRadius: radius.control,
+    padding: 10,
+    minHeight: 74,
+  },
+  textArea: {
+    ...typography.bodyMd,
+    color: colors.text,
+    minHeight: 54,
+    textAlignVertical: "top",
+  },
+  noteFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingTop: 4,
+  },
+  noteFooterLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+  },
+  noteFooterText: {
+    ...typography.codeSm,
+    color: colors.textMuted,
+  },
+  noteFooterCounter: {
+    ...typography.codeSm,
+    color: colors.textMuted,
+  },
+  trustSection: {
+    gap: 10,
+  },
+  trustSectionTitle: {
+    ...typography.titleMd,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  trustCard: {
+    padding: 12,
+    gap: 8,
+  },
+  trustCardTop: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+  },
+  trustIconCircle: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     alignItems: "center",
     justifyContent: "center",
   },
-  successCheckIcon: {
-    color: colors.success,
-    fontSize: 18,
+  trustRowBetween: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  trustRoadName: {
+    ...typography.titleSm,
     fontWeight: "700",
+    color: colors.text,
   },
-  successTextCol: {
-    flex: 1,
-    gap: 2,
+  autoDetectedBadge: {
+    backgroundColor: colors.surfaceContainerHigh,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
   },
-  successTitle: {
-    ...typography.titleMd,
-    color: colors.success,
-    fontWeight: "700",
-  },
-  successLevelBadge: {
+  autoDetectedText: {
     ...typography.codeSm,
-    color: colors.evidence,
+    fontSize: 9.5,
+    color: colors.textSecondary,
     fontWeight: "600",
   },
-  successReason: {
+  tierL1Badge: {
+    backgroundColor: colors.evidenceSurface,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+  },
+  tierL1BadgeText: {
+    ...typography.codeSm,
+    fontSize: 9.5,
+    color: colors.evidence,
+    fontWeight: "700",
+  },
+  trustCoords: {
+    ...typography.codeSm,
+    color: colors.textSecondary,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  trustNoticePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: colors.surfaceContainerLow,
+    padding: 6,
+    borderRadius: radius.control,
+  },
+  trustNoticePillText: {
+    ...typography.codeSm,
+    color: colors.textSecondary,
+    fontSize: 10.5,
+  },
+  honestyBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: colors.evidenceSurface,
+    borderRadius: radius.card,
+    padding: 14,
+    gap: 12,
+  },
+  honestyIconCircle: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: colors.evidence,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  honestyTitle: {
+    ...typography.titleSm,
+    fontWeight: "700",
+    color: colors.evidence,
+  },
+  honestyBody: {
+    ...typography.bodySm,
+    color: colors.textSecondary,
+    fontSize: 11.5,
+    lineHeight: 16,
+    marginTop: 2,
+  },
+  actionsStack: {
+    gap: 10,
+    paddingTop: 6,
+  },
+  cancelBtn: {
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  cancelBtnText: {
+    ...typography.labelLg,
+    color: colors.textSecondary,
+    fontWeight: "600",
+  },
+  successBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.5)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: space.gutter,
+  },
+  successModalCard: {
+    width: "100%",
+    padding: 24,
+    alignItems: "center",
+    gap: 14,
+  },
+  successIconCircle: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  successTitle: {
+    ...typography.headlineMd,
+    fontWeight: "700",
+    color: colors.text,
+  },
+  successSubtitle: {
     ...typography.bodyMd,
     color: colors.textSecondary,
-    lineHeight: 20,
+    textAlign: "center",
   },
-  disclaimerBox: {
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: radius.control,
-    padding: space.md,
-    gap: 6,
+  doneBtn: {
+    paddingVertical: 8,
   },
-  disclaimerText: {
-    ...typography.bodySm,
-    color: colors.textMuted,
-    lineHeight: 18,
+  doneBtnText: {
+    ...typography.labelMd,
+    color: colors.textSecondary,
+    fontWeight: "600",
   },
 });
