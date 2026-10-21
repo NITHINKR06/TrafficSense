@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
+export MSYS_NO_PATHCONV=1
 cd "$(dirname "$0")/.."
 export PWD="$(pwd)"
-export DOCKER_GID="$(stat -c '%g' /var/run/docker.sock)"
+export DOCKER_GID="$(stat -c '%g' /var/run/docker.sock 2>/dev/null || echo 0)"
 umask 077
 supabase_project_id="trafficsense-nk-local"
 supabase_db_container="supabase_db_${supabase_project_id}"
