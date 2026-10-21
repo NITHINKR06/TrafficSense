@@ -144,3 +144,36 @@ Cross-app changes also belong in [shared progress](../../../packages/shared/docs
 - **Offline recovery:** last-good data is kept on screen; there is no offline storage or queued submission yet.
 - **Authority analytics and hotspots:** the plan keeps these web-only unless the team decides otherwise.
 - **Background location:** not added, by design.
+
+
+## Phase 16 — mobile design system implementation (Phases 0–8) — implemented, 22 Oct 2026
+
+- **Design Reference:** Aligned presentation to `apps/mobile/design/trafficsense_mangaluru/DESIGN.md`, `ui-implementation-rules.md`, and `ui-implementation-plan.md`.
+- **Implementation:**
+  - **Shared Visual Foundation & Primitives (Phase 1):**
+    - Aligned tokens in `src/theme/tokens.ts` with pale-lavender canvas (`#FAF8FF`), white cards (`#FFFFFF`), surface containers (`#F2F3F9` to `#ECEEF3`), deep coastal teal action (`#005C55`, pressed `#004741`), civic violet evidence/simulation (`#6616D7`, container `#F3EDFF`), semantic feedback colors (`#904D00`/`#FFF4E5`, `#BA1A1A`/`#FFF0ED`, `#176D55`/`#E8F5EE`), 14px card radii, 12px control radii, 10px input radii, capsule pill badges (`9999px`), and strict 48×48px clickable bounding boxes.
+    - Created reusable UI primitives in `src/components/ui/`: `Button` (primary, secondary, outline, ghost, floating with loading & disabled states), `Card` (elevated and pressable variants), `Badge` (`EvidenceBadge`, `FreshnessChip`, `SimulatedBadge`, `StatusBadge`), `FeedbackBox` (accessible live-region alerts with retry action), and `FormField` (accessible input with focus/error states).
+    - Updated `app/_layout.tsx` for consistent navigation shell and header styling.
+  - **Public Entry & Commuter Workspace (Phase 2):**
+    - `Home` (`app/index.tsx`): live transit status bar with auto-refresh indicator, `SIMULATED DATA` badge, greeting, interactive corridor route hero card with origin/destination preview, 2×2 Quick Action grid (Report issue, Live map, Plan route, My journeys), authenticated commuter workspace card / guest sign-in CTA, and civic data transparency disclosures.
+    - `Login` (`app/auth/login.tsx`): accessible credentials form, email & password fields with 48px touch envelope, loading/disabled states, validation and error alerts, safe return path preservation (`safeReturnPath(next)`), link to registration.
+    - `Register` (`app/auth/register.tsx`): commuter account registration, 12+ char password enforcement, confirmation message state, link to sign-in.
+    - `Workspace` (`app/workspace.tsx`): authenticated user profile, verified commuter role badge, quick commuter actions, and safe sign-out with private screen clearing.
+  - **Report Flow (Phase 3):**
+    - `Report` (`app/report.tsx`): 2-column observed hazard category grid matching DESIGN.md with icons, labels, subtitles, and active check badges. Observation note text area (max 300 chars). Explicit foreground location permission requested only upon submit. Distinct handling for denied permission, unavailable GPS, session expiry, rate limiting, and server errors. Honest success card showing server-assigned evidence tier and direct route to live traffic.
+  - **Traffic Map & Incident Details (Phase 4):**
+    - `Traffic` (`app/traffic.tsx` & `traffic-map.tsx`): Map/List view switch tabs. Live status indicator (auto-refresh every 30s) and graceful last-good-data retention on failure. Map view with privacy gate, MapLibre tiles, schematic fallback, opt-in local location button, and selected incident card with evidence badge, freshness chip, provenance, and "Still there?" confirmation feedback. Accessible list view with empty state and corridor summary.
+  - **Planner & Explicit Route Choice (Phase 5):**
+    - `Planner` (`app/planner.tsx`): Origin and destination selector chips with mutual exclusivity. Primary "Check route" CTA. Route preview map showing primary recommended route in teal. Route warnings with server-reported incidents. Explicit toggle for alternative route: drawn in violet only after explicit tap, toggling between show/hide. Recommended Route (teal) and Alternative Route (violet) cards with free-flow duration labels.
+  - **Commuter Journeys & Consent Sharing (Phase 6):**
+    - `Journeys` (`app/journeys.tsx`): Dedicated protected route in Expo Router. Active journey management (start, end). Employer consent sharing with strict privacy boundary: recipient organisation selector, exact allowlisted disclosure lines preview, mandatory explicit consent checkbox, and confirm/stop-sharing RPCs.
+- **Verification:**
+  - `pnpm --filter @trafficsense/mobile typecheck` (`tsc --noEmit`) passed with 0 errors.
+  - `pnpm --filter @trafficsense/mobile exec eslint .` passed with 0 errors and 0 warnings.
+  - Full mobile test suite (`tests/mobile-api.test.mjs`, `tests/mobile-logic.test.mjs`, `tests/mobile-map-journeys.test.mjs`) passed 22 of 22 tests with 0 failures.
+  - `node scripts/check-app-layout.mjs` passed.
+  - Preserved all working mobile/backend flows; did not alter web UI, Supabase migrations, RLS, or API contracts.
+- **Blockers & Limitations:**
+  - Physical device verification in Expo Go requires a real Android/iOS device session connected to the local development server.
+  - Docker daemon is currently stopped on the host; tests executed directly via Node.js with experimental type stripping.
+- **Commit:** `feat(mobile): implement civic design system and commuter screens`.

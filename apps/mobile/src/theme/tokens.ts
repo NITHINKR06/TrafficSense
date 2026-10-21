@@ -1,16 +1,27 @@
-// Visual tokens copied from the web design reference (docs/design/trafficsense).
-// Keep these values in sync with the web theme rather than introducing new colours.
+import { Platform, type TextStyle, type ViewStyle } from "react-native";
+
+// Visual tokens aligned with apps/mobile/design/trafficsense_mangaluru/DESIGN.md
 export const colors = {
   background: "#faf8ff",
   surface: "#ffffff",
+  surfaceContainerLow: "#f2f3f9",
+  surfaceContainer: "#eceef3",
+  surfaceContainerHigh: "#e6e8ed",
+  surfaceContainerHighest: "#e1e2e7",
   border: "#e2e7ff",
+  outline: "#6f7977",
+  outlineVariant: "#bec9c6",
   primary: "#005c55",
   primaryPressed: "#004741",
   onPrimary: "#ffffff",
+  primaryFixed: "#a7f0e6",
+  onPrimaryFixed: "#00201d",
+  onPrimaryFixedVariant: "#00504a",
+  secondary: "#712ae2",
   secondaryBorder: "#cbd5e1",
-  text: "#131b2e",
-  textSecondary: "#3e4947",
-  textMuted: "#5f6b69",
+  text: "#191c20",
+  textSecondary: "#3f4947",
+  textMuted: "#6f7977",
   evidence: "#6616d7",
   evidenceSurface: "#f3edff",
   warning: "#904d00",
@@ -19,11 +30,144 @@ export const colors = {
   error: "#ba1a1a",
   errorSurface: "#fff0ed",
   success: "#176d55",
+  successSurface: "#e8f5ee",
 } as const;
 
-// Minimum comfortable touch target for controls on a phone.
-export const minTouchTarget = 44;
+// Strict minimum 48x48px clickable bounding box for interactive elements on phone.
+export const minTouchTarget = 48;
 
-export const radius = { card: 14, control: 12 } as const;
+export const radius = {
+  sm: 4,
+  md: 8,
+  input: 10,
+  control: 12,
+  card: 14,
+  pill: 9999,
+} as const;
 
-export const space = { xs: 6, sm: 10, md: 16, lg: 24 } as const;
+export const space = {
+  xs: 4,
+  sm: 8,
+  md: 16,
+  lg: 20,
+  xl: 24,
+  gutter: 16,
+} as const;
+
+export const shadows = {
+  card: {
+    shadowColor: "#191c20",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 8,
+    elevation: 1,
+  } as ViewStyle,
+  sheet: {
+    shadowColor: "#191c20",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.08,
+    shadowRadius: 16,
+    elevation: 3,
+  } as ViewStyle,
+  floating: {
+    shadowColor: "#005c55",
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.24,
+    shadowRadius: 14,
+    elevation: 5,
+  } as ViewStyle,
+};
+
+const monoFamily = Platform.select({
+  ios: "Menlo",
+  android: "monospace",
+  default: "monospace",
+});
+
+export const typography = {
+  headlineLg: {
+    fontSize: 28,
+    fontWeight: "700",
+    lineHeight: 36,
+    letterSpacing: -0.5,
+    color: colors.text,
+  } as TextStyle,
+  headlineMd: {
+    fontSize: 22,
+    fontWeight: "700",
+    lineHeight: 28,
+    letterSpacing: -0.3,
+    color: colors.text,
+  } as TextStyle,
+  headlineSm: {
+    fontSize: 18,
+    fontWeight: "600",
+    lineHeight: 24,
+    letterSpacing: -0.2,
+    color: colors.text,
+  } as TextStyle,
+  titleMd: {
+    fontSize: 16,
+    fontWeight: "600",
+    lineHeight: 22,
+    color: colors.text,
+  } as TextStyle,
+  titleSm: {
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 20,
+    color: colors.text,
+  } as TextStyle,
+  bodyLg: {
+    fontSize: 16,
+    fontWeight: "400",
+    lineHeight: 24,
+    color: colors.textSecondary,
+  } as TextStyle,
+  bodyMd: {
+    fontSize: 14,
+    fontWeight: "400",
+    lineHeight: 20,
+    color: colors.textSecondary,
+  } as TextStyle,
+  bodySm: {
+    fontSize: 12,
+    fontWeight: "400",
+    lineHeight: 16,
+    color: colors.textSecondary,
+  } as TextStyle,
+  labelLg: {
+    fontSize: 14,
+    fontWeight: "600",
+    lineHeight: 18,
+    color: colors.text,
+  } as TextStyle,
+  labelMd: {
+    fontSize: 12,
+    fontWeight: "500",
+    lineHeight: 16,
+    color: colors.text,
+  } as TextStyle,
+  labelSm: {
+    fontSize: 11,
+    fontWeight: "500",
+    lineHeight: 14,
+    color: colors.textSecondary,
+  } as TextStyle,
+  codeMd: {
+    fontFamily: monoFamily,
+    fontSize: 12,
+    fontWeight: "500",
+    lineHeight: 16,
+    letterSpacing: 0.2,
+    color: colors.text,
+  } as TextStyle,
+  codeSm: {
+    fontFamily: monoFamily,
+    fontSize: 10,
+    fontWeight: "500",
+    lineHeight: 14,
+    letterSpacing: 0.4,
+    color: colors.textMuted,
+  } as TextStyle,
+};
