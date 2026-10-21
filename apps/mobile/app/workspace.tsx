@@ -47,7 +47,9 @@ export default function WorkspaceScreen() {
       <Pressable accessibilityRole="button" onPress={() => router.push("/planner")} style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}>
         <Text style={styles.secondaryText}>Plan my route</Text>
       </Pressable>
-      <Text style={styles.note}>Journeys and employer sharing are not available in the mobile app yet.</Text>
+      <Pressable accessibilityRole="button" onPress={() => router.push("/journeys")} style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}>
+        <Text style={styles.secondaryText}>My journeys and sharing</Text>
+      </Pressable>
       {error ? <Text accessibilityLiveRegion="polite" style={styles.error}>{error}</Text> : null}
       <Pressable accessibilityRole="button" disabled={leaving} onPress={() => void leave()} style={({ pressed }) => [styles.signOut, pressed && styles.pressed]}>
         {leaving ? <ActivityIndicator color={colors.text} /> : <Text style={styles.signOutText}>Sign out</Text>}

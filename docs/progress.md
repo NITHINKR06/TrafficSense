@@ -1,5 +1,13 @@
 # Project Progress
 
+## Mobile LAN synthetic seeding — verified, 21 Oct 2026
+
+- **Issue:** An earlier `just mobile-lan 192.168.0.224` run started and migrated local Supabase, but its synthetic seed stopped while assigning an employer membership. The earlier seeder discarded the database error, so its exact database cause cannot be reconstructed from that output.
+- **Implementation:** The seed error now identifies the affected synthetic account and includes the safe PostgREST message, details, hint and SQLSTATE when available. It does not expose credentials.
+- **Verification:** `bash scripts/local-supabase.sh seed` passed, recreating all eight synthetic accounts and four TEST DATA incidents. The exact `just mobile-lan 192.168.0.224` recipe then passed: migrations were current, seeding passed, the app and Expo containers became healthy, and Expo printed the LAN QR for `exp://192.168.0.224:8081`. `just status` showed web on `0.0.0.0:3000` and Metro on `0.0.0.0:8081`; `/api/incidents` returned the four seeded scenarios through both `127.0.0.1:3000` and `192.168.0.224:3000`; Metro returned its HTML entry page through the LAN address. `git diff --check` passed.
+- **Limitation:** The initial membership failure did not recur, so it is recorded as transient/unconfirmed. Expo Go on a physical device remains unverified.
+- **Commit:** Not created at the user’s request.
+
 ## Mobile parity work split — documented, 21 Oct 2026
 
 - **Scope:** Replaced the combined mobile feature checklist with two mobile-only work plans: Part A covers native UI, web-parity design and navigation; Part B covers mobile auth, API/state integration and parity testing. Neither part includes new web or Supabase backend work.

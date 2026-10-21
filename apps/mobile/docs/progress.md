@@ -120,3 +120,27 @@ Cross-app changes also belong in [shared progress](../../../packages/shared/docs
 - **Authority and analytics:** Out of mobile scope until the team decides otherwise.
 - **Push notifications, offline recovery, background location, EAS builds:** Deferred per the phase order. Push and offline need stable alert contracts first.
 - **Map view:** The route planner uses lists, not a native map. A native map is a later phase.
+
+## Phase 15 — native map, live traffic, route map and journeys — implemented, 21 Oct 2026
+
+- **Implementation:**
+  - **Native map:** a WebView map using the same MapLibre GL version as the web app (6.14.0, loaded from jsDelivr), with OpenFreeMap street tiles. The map is loaded only after an explicit "Load map" tap, following a privacy notice. Attribution is always shown. If the street style fails, the map falls back to a schematic background with the corridor still drawn. If WebGL is unavailable, or the library fails to load, a retry message is shown and the list still works.
+  - **Traffic screen:** a Map/List toggle. Live reports and the simulated corridor segments refresh every 30 seconds while the screen is open. The app keeps the last good data and says when a refresh fails. Tapping a marker shows the report's evidence label, freshness, and provenance. Reports older than 20 minutes are marked "Possibly stale."
+  - **Route planner:** the route is drawn on the map. Reports that affect the route are marked. The alternative route appears on the map only after the commuter chooses it. Durations stay labelled as free-flow estimates.
+  - **Location:** "Show my location" asks for permission only on tap. The position stays on the phone and is not sent to the server.
+  - **Journeys and sharing:** start and end a journey, and share the corridor and status with an organisation. The screen shows exactly what is shared and what is not, requires an explicit consent tick, and offers a stop-sharing control. Uses the same RPCs as the web app.
+  - **Shared code:** `TrafficSegment` types and a parser were added to `@trafficsense/shared` and the mobile API client. GeoJSON builders and the map page generator are pure modules covered by tests.
+- **Verification:**
+  - Headless Chromium rendered the same generated map page with the pinned MapLibre module: the normal style is ready, the fallback style is ready, and tapping a report reports its ID. A screenshot showed the segment, both routes, the report, the user marker and the attribution.
+  - `tsc --noEmit` and `eslint .` pass with no errors or warnings. `expo export` builds Android and iOS. `expo config` validates. The layout check passes. The full unit suite passes 219 of 219, including the new `tests/mobile-map-journeys.test.mjs`.
+  - RPC names and parameters were checked against the migrations. Failed share and end calls raise errors, so the app treats them as failures.
+- **Not verified:** the map inside the real Android/iOS WebView; loading the MapLibre script from jsDelivr and tiles from OpenFreeMap on a phone; scrolling the map inside the planner's scroll view on Android; the live `/api/traffic` and `/api/route` responses; journeys and sharing against the live database; Expo Go sign-in and permissions. These need a device session.
+- **Commit:** Pending.
+
+## Still deferred after Phase 15
+
+- **Own-report history:** no per-commuter read contract exists yet.
+- **Notifications (push):** needs a stable alert contract, a notification provider, and an EAS project. In-app alerts appear on the planner and the traffic screen only.
+- **Offline recovery:** last-good data is kept on screen; there is no offline storage or queued submission yet.
+- **Authority analytics and hotspots:** the plan keeps these web-only unless the team decides otherwise.
+- **Background location:** not added, by design.

@@ -4,6 +4,8 @@ import type {
   RouteOption,
   RouteResponse,
   SubmitIncidentResponse,
+  TrafficSegment,
+  TrafficSegmentsResponse,
 } from "@trafficsense/shared";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -58,4 +60,27 @@ export function parseRouteResponse(value: unknown): RouteResponse {
     }
   }
   return { ok: true, routes: value.routes as RouteOption[] };
+}
+
+const SEVERITIES = ["slowdown", "corroborated", "reported", "clear"] as const;
+
+function isCoordinate(value: unknown): value is [number, number] {
+  return Array.isArray(value) && value.length === 2 && value.every((item) => typeof item === "number" && Number.isFinite(item));
+}
+
+export function parseTrafficSegmentsResponse(value: unknown): TrafficSegmentsResponse {
+  const error = parseErrorPayload(value);
+  if (error) return error;
+  if (!isRecord(value) || value.ok !== true || typeof value.read_at !== "string" || !Array.isArray(value.segments)) {
+    throw new Error("Traffic service returned an invalid response.");
+  }
+  const segments = value.segments.filter((segment): segment is TrafficSegment => {
+    if (!isRecord(segment) || !isRecord(segment.geometry)) return false;
+    return typeof segment.id === "string" && typeof segment.name === "string" && typeof segment.direction === "string" &&
+      (SEVERITIES as readonly unknown[]).includes(segment.severity) && segment.provenance === "simulated" &&
+      segment.geometry.type === "LineString" && Array.isArray(segment.geometry.coordinates) &&
+      segment.geometry.coordinates.length >= 2 && segment.geometry.coordinates.every(isCoordinate);
+  });
+  if (segments.length !== value.segments.length) throw new Error("Traffic service returned an invalid response.");
+  return { ok: true, read_at: value.read_at, segments };
 }

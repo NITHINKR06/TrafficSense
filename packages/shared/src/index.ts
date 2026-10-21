@@ -74,3 +74,19 @@ export type RouteOption = {
 export type RouteResponse =
   | { ok: true; routes: RouteOption[] }
   | { ok: false; routes: RouteOption[]; error: string };
+
+// Schematic corridor segments from GET /api/traffic. Provenance is always simulated.
+export type TrafficSegmentSeverity = "slowdown" | "corroborated" | "reported" | "clear";
+
+export type TrafficSegment = {
+  id: string;
+  name: string;
+  direction: string;
+  geometry: { type: "LineString"; coordinates: RouteCoordinate[] };
+  severity: TrafficSegmentSeverity;
+  provenance: "simulated";
+};
+
+export type TrafficSegmentsResponse =
+  | { ok: true; read_at: string; segments: TrafficSegment[] }
+  | { ok: false; error: string };

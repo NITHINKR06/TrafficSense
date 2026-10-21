@@ -21,7 +21,7 @@ export function validateCredentials(email: string, password: string, registratio
 }
 
 // Only a safe in-app path may be used after sign-in, so a link cannot redirect off-app.
-const ALLOWED_RETURN_PATHS = ["/report", "/planner", "/traffic"] as const;
+const ALLOWED_RETURN_PATHS = ["/report", "/planner", "/traffic", "/journeys"] as const;
 
 export function safeReturnPath(value: string | undefined | null): string {
   return ALLOWED_RETURN_PATHS.find((path) => path === value) ?? "/workspace";

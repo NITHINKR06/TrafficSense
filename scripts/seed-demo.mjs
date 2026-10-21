@@ -4,6 +4,12 @@ import { mkdir, writeFile, chmod } from "node:fs/promises";
 import { readLocalStatus, internalSupabaseUrl } from "./local-status.mjs";
 import { createTrafficFixture } from "../apps/web/src/lib/traffic/simulator.ts";
 
+function databaseErrorDetails(error) {
+  return [error.message, error.details, error.hint, error.code]
+    .filter((value) => typeof value === "string" && value.length > 0)
+    .join(" · ");
+}
+
 if (process.env.DEMO_MODE !== "true" || process.env.SUPABASE_URL !== internalSupabaseUrl) {
   throw new Error("Synthetic seeding is restricted to the configured local demo.");
 }
@@ -45,7 +51,7 @@ for (const definition of definitions) {
   if (clear.error) throw new Error("Could not reset synthetic memberships.");
   if (definition.orgId) {
     const membership = await supabase.from("memberships").insert({ user_id: id, org_id: definition.orgId });
-    if (membership.error) throw new Error("Could not assign synthetic membership.");
+    if (membership.error) throw new Error(`Could not assign synthetic membership for ${definition.label}: ${databaseErrorDetails(membership.error)}`);
   }
   accounts.push({ ...definition, email, password, id });
 }

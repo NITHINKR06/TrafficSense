@@ -26,34 +26,34 @@ This checklist covers work still required for the mobile client. It is derived f
 
 ## 3. Complete mobile reporting and verification
 
-- [ ] Add a mobile report history/status view for the signed-in commuter.
+- [ ] Add a mobile report history/status view for the signed-in commuter. (Deferred: no per-commuter read contract exists yet.)
 - [ ] Show the user's submitted report separately from public active incidents.
 - [ ] Show report lifecycle state, freshness, evidence level, and plain-language reason.
 - [ ] Show that a report is an observation and does not prove its reported cause.
 - [ ] Handle duplicate, rate-limited, expired, resolved, and server-rejected submissions explicitly.
-- [ ] Refresh or invalidate report and traffic data after a successful submission.
+- [x] Refresh or invalidate report and traffic data after a successful submission.
 - [ ] Confirm coordinates, timestamps, category values, and notes are validated by the server.
 - [ ] Ensure no private report details or account identity are exposed in public traffic responses.
 
 ## 4. Add route relevance and alerts
 
-- [ ] Define the mobile route-alert contract using the existing server route-relevance rules.
-- [ ] Add a commuter route or corridor selection screen without requiring continuous tracking.
-- [ ] Show an alert only when an active incident is relevant to the selected route.
+- [x] Define the mobile route-alert contract using the existing server route-relevance rules.
+- [x] Add a commuter route or corridor selection screen without requiring continuous tracking.
+- [x] Show an alert only when an active incident is relevant to the selected route.
 - [ ] Distinguish active, stale, resolved, and expired incidents.
-- [ ] Require an explicit commuter choice before presenting an alternative route.
-- [ ] Label free-flow or estimated durations honestly; do not invent measured delay savings.
-- [ ] Add loading, empty, stale, offline, and failure states for route alerts.
+- [x] Require an explicit commuter choice before presenting an alternative route.
+- [x] Label free-flow or estimated durations honestly; do not invent measured delay savings.
+- [ ] Add loading, empty, stale, offline, and failure states for route alerts. (Loading, empty, stale and failure states are in code; offline storage is not.)
 - [ ] Verify unrelated and parallel routes do not receive false alerts.
 
 ## 5. Add commuter journeys and consent-based sharing
 
-- [ ] Add commuter-controlled journey start/end actions.
-- [ ] Show journey state and retention/expiry information.
-- [ ] Keep location collection foreground-only unless a separately approved native feature is implemented.
-- [ ] Add an explicit sharing preview before any employer sharing action.
-- [ ] Let the commuter choose what summary fields are shared and with whom.
-- [ ] Add stop-sharing and revocation controls.
+- [x] Add commuter-controlled journey start/end actions.
+- [ ] Show journey state and retention/expiry information. (State and times are shown; retention/expiry is not yet.)
+- [x] Keep location collection foreground-only unless a separately approved native feature is implemented.
+- [x] Add an explicit sharing preview before any employer sharing action.
+- [x] Let the commuter choose what summary fields are shared and with whom.
+- [x] Add stop-sharing and revocation controls.
 - [ ] Verify revoked, expired, and unauthorized shares are denied by the server.
 - [ ] Ensure employer views receive summaries only, never unrestricted GPS histories.
 
@@ -67,10 +67,10 @@ This checklist covers work still required for the mobile client. It is derived f
 
 ## 7. Native extensions after core flows
 
-- [ ] Add push notification permission and token registration only after alert contracts are stable.
+- [ ] Add push notification permission and token registration only after alert contracts are stable. (Deferred.)
 - [ ] Add notification preferences, revocation, and provider-failure handling.
 - [ ] Decide whether foreground location is sufficient; do not add background tracking by default.
-- [ ] Add offline retry/recovery only for operations that are safe and idempotent.
+- [ ] Add offline retry/recovery only for operations that are safe and idempotent. (Deferred; last-good data is kept on screen.)
 - [ ] Define local-data retention and clear private cached data on sign-out.
 - [ ] Prepare EAS configuration and development builds only after Expo Go flows pass.
 - [ ] Verify Android and iOS permission wording and native behavior if both platforms are targeted.

@@ -1,18 +1,20 @@
 import { Stack } from "expo-router";
 import { useState } from "react";
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import type { RouteOption } from "@trafficsense/shared";
-import { apiConfigurationError, fetchRoute } from "../src/lib/api";
+import type { LiveIncident, RouteOption } from "@trafficsense/shared";
+import { apiConfigurationError, fetchActiveIncidents, fetchRoute } from "../src/lib/api";
 import { mangaluruPlaces } from "../src/lib/places";
 import { summarizeRoutes } from "../src/lib/route-alerts";
 import { categoryLabel, formatDistance, formatEstimatedDuration } from "../src/lib/format";
+import { evidenceLabel, formatClock } from "../src/lib/evidence";
+import { TrafficMap } from "../src/components/traffic-map";
 import { colors, minTouchTarget, radius, space } from "../src/theme/tokens";
 
 type PlanState =
   | { kind: "idle" }
   | { kind: "loading" }
   | { kind: "error"; message: string }
-  | { kind: "result"; routes: RouteOption[] };
+  | { kind: "result"; routes: RouteOption[]; incidents: LiveIncident[]; incidentsOk: boolean; checkedAt: Date };
 
 function PlaceChoices({
   label,
@@ -59,25 +61,47 @@ export default function PlannerScreen() {
   const [startIndex, setStartIndex] = useState(0);
   const [destIndex, setDestIndex] = useState(1);
   const [plan, setPlan] = useState<PlanState>({ kind: "idle" });
-  const [alternativeChosen, setAlternativeChosen] = useState(false);
+  const [alternativeId, setAlternativeId] = useState<string | null>(null);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+  const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
+  const [fitKey, setFitKey] = useState(0);
 
   async function checkRoute() {
-    setAlternativeChosen(false);
+    setAlternativeId(null);
+    setSelectedIncidentId(null);
     setPlan({ kind: "loading" });
     try {
-      const routes = await fetchRoute(mangaluruPlaces[startIndex].coords, mangaluruPlaces[destIndex].coords);
-      setPlan({ kind: "result", routes });
+      // Route and live reports load together so the map can mark which reports affect this route.
+      const [routes, incidentsResult] = await Promise.all([
+        fetchRoute(mangaluruPlaces[startIndex].coords, mangaluruPlaces[destIndex].coords),
+        fetchActiveIncidents().then(
+          (incidents) => ({ incidents, ok: true }),
+          () => ({ incidents: [] as LiveIncident[], ok: false }),
+        ),
+      ]);
+      const primary = routes.find((route) => route.is_recommended) ?? routes[0];
+      setSelectedRouteId(primary?.id ?? null);
+      setFitKey((value) => value + 1);
+      setPlan({
+        kind: "result",
+        routes,
+        incidents: incidentsResult.incidents,
+        incidentsOk: incidentsResult.ok,
+        checkedAt: new Date(),
+      });
     } catch (reason) {
       setPlan({ kind: "error", message: reason instanceof Error ? reason.message : "Route service is unavailable." });
     }
   }
 
   const summary = plan.kind === "result" ? summarizeRoutes(plan.routes) : null;
+  const selectedIncident =
+    plan.kind === "result" ? plan.incidents.find((incident) => incident.id === selectedIncidentId) ?? null : null;
 
   return (
     <>
       <Stack.Screen options={{ headerShown: true, title: "Plan route" }} />
-      <ScrollView contentContainerStyle={styles.container}>
+      <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
         <Text style={styles.title}>Plan my route</Text>
         <Text style={styles.body}>
           Pick a start and destination. Durations are free-flow estimates; the app does not measure delay for this route.
@@ -108,6 +132,35 @@ export default function PlannerScreen() {
           </View>
         ) : null}
 
+        {plan.kind === "result" ? (
+          <View style={styles.mapBlock}>
+            <Text style={styles.note}>Checked {formatClock(plan.checkedAt)}. Route and report data come from the server.</Text>
+            <TrafficMap
+              segments={[]}
+              incidents={plan.incidents}
+              routes={plan.routes}
+              alternativeId={alternativeId}
+              selectedRouteId={selectedRouteId}
+              selectedIncidentId={selectedIncidentId}
+              onSelectIncident={setSelectedIncidentId}
+              onSelectRoute={setSelectedRouteId}
+              fitKey={fitKey}
+            />
+            {!plan.incidentsOk ? (
+              <Text style={styles.warn}>Live reports could not load, so the map shows the route only.</Text>
+            ) : null}
+          </View>
+        ) : null}
+
+        {plan.kind === "result" && selectedIncident ? (
+          <View style={styles.card}>
+            <Text style={styles.eyebrow}>Selected report</Text>
+            <Text style={styles.routeName}>{categoryLabel(selectedIncident.category)}</Text>
+            <Text style={styles.meta}>{evidenceLabel(selectedIncident.level)}</Text>
+            <Text style={styles.note}>{selectedIncident.level_reason}</Text>
+          </View>
+        ) : null}
+
         {plan.kind === "result" && summary?.kind === "none" ? (
           <View style={styles.clearBox} accessibilityLiveRegion="polite">
             <Text style={styles.clearTitle}>No active reports affect this route.</Text>
@@ -125,9 +178,14 @@ export default function PlannerScreen() {
               </View>
             ))}
 
-            {summary.alternative && !alternativeChosen ? (
-              <Pressable accessibilityRole="button" onPress={() => setAlternativeChosen(true)} style={styles.secondary}>
-                <Text style={styles.secondaryText}>Show alternative route</Text>
+            {summary.alternative && alternativeId !== summary.alternative.id ? (
+              <Pressable accessibilityRole="button" onPress={() => setAlternativeId(summary.alternative!.id)} style={styles.secondary}>
+                <Text style={styles.secondaryText}>Show alternative route on the map</Text>
+              </Pressable>
+            ) : null}
+            {summary.alternative && alternativeId === summary.alternative.id ? (
+              <Pressable accessibilityRole="button" onPress={() => setAlternativeId(null)} style={styles.secondary}>
+                <Text style={styles.secondaryText}>Hide alternative route</Text>
               </Pressable>
             ) : null}
             {!summary.alternative ? (
@@ -136,12 +194,11 @@ export default function PlannerScreen() {
           </View>
         ) : null}
 
-        {plan.kind === "result" && summary?.kind === "warning" && summary.alternative && alternativeChosen ? (
-          <RouteCard route={summary.alternative} heading="Alternative you chose" />
-        ) : null}
-
         {plan.kind === "result" && summary?.primary ? (
           <RouteCard route={summary.primary} heading="Recommended route" />
+        ) : null}
+        {plan.kind === "result" && summary?.kind === "warning" && summary.alternative && alternativeId === summary.alternative.id ? (
+          <RouteCard route={summary.alternative} heading="Your alternative" />
         ) : null}
       </ScrollView>
     </>
@@ -179,9 +236,11 @@ const styles = StyleSheet.create({
   primaryText: { color: colors.onPrimary, fontSize: 16, fontWeight: "700", textAlign: "center" },
   status: { marginTop: space.xs },
   error: { color: colors.error, fontSize: 14, lineHeight: 20 },
+  warn: { color: colors.warning, fontSize: 13, lineHeight: 19 },
   errorBox: { padding: space.md, borderRadius: radius.control, backgroundColor: colors.errorSurface, gap: space.xs },
   inlineAction: { alignSelf: "flex-start", minHeight: minTouchTarget, justifyContent: "center" },
   inlineActionText: { color: colors.primary, fontSize: 15, fontWeight: "700" },
+  mapBlock: { gap: space.xs },
   clearBox: { padding: space.md, borderRadius: radius.control, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, gap: space.xs },
   clearTitle: { color: colors.success, fontSize: 15, fontWeight: "700" },
   warningBox: { padding: space.md, borderRadius: radius.control, backgroundColor: colors.warningSurface, gap: space.sm },
@@ -192,7 +251,7 @@ const styles = StyleSheet.create({
   secondaryText: { color: colors.text, fontSize: 15, fontWeight: "700", textAlign: "center" },
   card: { padding: space.md, borderRadius: radius.card, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, gap: 6 },
   eyebrow: { color: colors.evidence, fontSize: 12, fontWeight: "800", letterSpacing: 0.8, textTransform: "uppercase" },
-  routeName: { color: colors.text, fontSize: 18, fontWeight: "700" },
+  routeName: { color: colors.text, fontSize: 18, fontWeight: "700", textTransform: "capitalize" },
   meta: { color: colors.textSecondary, fontSize: 15 },
   note: { color: colors.textMuted, fontSize: 13, lineHeight: 19 },
 });

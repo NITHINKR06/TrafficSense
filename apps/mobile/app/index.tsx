@@ -24,7 +24,10 @@ export default function HomeScreen() {
             <Text style={styles.secondaryText}>Plan my route</Text>
           </Pressable>
           <Pressable accessibilityRole="button" onPress={() => router.push("/traffic")} style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}>
-            <Text style={styles.secondaryText}>View traffic</Text>
+            <Text style={styles.secondaryText}>View live traffic map</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => router.push("/journeys")} style={({ pressed }) => [styles.secondary, pressed && styles.pressed]}>
+            <Text style={styles.secondaryText}>My journeys and sharing</Text>
           </Pressable>
           <Pressable
             accessibilityRole="button"
