@@ -30,6 +30,10 @@ function validateCredentials(email: string, password: string, registration = fal
   return { email: normalizedEmail, password };
 }
 
+function isInvalidCredentials(error: { status?: number; message?: string }) {
+  return error.status === 400 || /invalid login credentials/i.test(error.message ?? "");
+}
+
 export function AuthProvider({ children }: PropsWithChildren) {
   const [session, setSession] = useState<Session | null>(null);
   const [loading, setLoading] = useState(Boolean(supabase));
@@ -38,14 +42,24 @@ export function AuthProvider({ children }: PropsWithChildren) {
     if (!supabase) return;
 
     let active = true;
-    void supabase.auth.getSession().then(({ data, error }) => {
-      if (!active) return;
-      setSession(error ? null : data.session);
-      setLoading(false);
-    });
+    void supabase.auth
+      .getSession()
+      .then(({ data, error }) => {
+        if (!active) return;
+        setSession(error ? null : data.session);
+        setLoading(false);
+      })
+      .catch(() => {
+        if (!active) return;
+        setSession(null);
+        setLoading(false);
+      });
 
     const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
-      if (active) setSession(nextSession);
+      if (active) {
+        setSession(nextSession);
+        setLoading(false);
+      }
     });
 
     return () => {
@@ -63,21 +77,33 @@ export function AuthProvider({ children }: PropsWithChildren) {
         const credentials = validateCredentials(email, password);
         if (!credentials) return "Enter a valid email and password.";
         if (!supabase) return supabaseConfigError;
-        const { error } = await supabase.auth.signInWithPassword(credentials);
-        return error ? (error.status === 400 ? "Email or password is incorrect." : "Sign-in is unavailable. Please try again.") : null;
+        try {
+          const { error } = await supabase.auth.signInWithPassword(credentials);
+          return error ? (isInvalidCredentials(error) ? "Email or password is incorrect." : "Sign-in is unavailable. Please try again.") : null;
+        } catch {
+          return "Sign-in is unavailable. Check your connection and try again.";
+        }
       },
       async signUp(email, password) {
         const credentials = validateCredentials(email, password, true);
         if (!credentials) return { error: "Enter a valid email and a password of 12-128 characters.", needsConfirmation: false };
         if (!supabase) return { error: supabaseConfigError, needsConfirmation: false };
-        const { data, error } = await supabase.auth.signUp(credentials);
-        if (error) return { error: "Account creation was unsuccessful. Try another email or try again later.", needsConfirmation: false };
-        return { error: null, needsConfirmation: !data.session };
+        try {
+          const { data, error } = await supabase.auth.signUp(credentials);
+          if (error) return { error: "Account creation was unsuccessful. Try another email or try again later.", needsConfirmation: false };
+          return { error: null, needsConfirmation: !data.session };
+        } catch {
+          return { error: "Account creation is unavailable. Check your connection and try again.", needsConfirmation: false };
+        }
       },
       async signOut() {
         if (!supabase) return supabaseConfigError;
-        const { error } = await supabase.auth.signOut({ scope: "local" });
-        return error ? "Sign-out could not be confirmed. Please try again." : null;
+        try {
+          const { error } = await supabase.auth.signOut({ scope: "local" });
+          return error ? "Sign-out could not be confirmed. Please try again." : null;
+        } catch {
+          return "Sign-out is unavailable. Check your connection and try again.";
+        }
       },
     }),
     [loading, session],

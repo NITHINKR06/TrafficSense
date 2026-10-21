@@ -60,3 +60,9 @@ Cross-app changes also belong in [shared progress](../../../packages/shared/docs
 - **Implementation:** Added a shared mobile JSON request helper with an eight-second timeout, caller cancellation support, invalid-JSON handling and safe network-error messages. Incidents, report submission and route requests now use it. POST requests are not automatically retried, preventing duplicate reports.
 - **Verification:** `just mobile-typecheck` passed in Docker and `git diff --check` passed. Native timeout/cancellation behavior remains unverified on a physical device.
 - **Commit:** Pending.
+
+## Phase 8 — auth failure handling — implemented, 21 Oct 2026
+
+- **Implementation:** Supabase session restoration now fails closed when the client rejects, auth events clear the loading state, and sign-in, registration and sign-out convert network/client exceptions into stable user-facing errors. Invalid credentials remain distinct from service failures.
+- **Verification:** `just mobile-typecheck` and `git diff --check` passed. Live native auth and secure-storage behavior remain unverified without an Expo Go session.
+- **Commit:** Pending.
