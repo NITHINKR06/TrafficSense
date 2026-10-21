@@ -167,19 +167,19 @@ clean:
 # Start a free Cloudflare Tunnel exposing http://localhost:3000 to the internet
 tunnel:
     @echo "==> Starting Cloudflare Tunnel for http://localhost:3000..."
-    @docker rm -f trafficsense-tunnel 2>/dev/null || true
-    @docker run -d --name trafficsense-tunnel --network host cloudflare/cloudflared:latest tunnel --no-autoupdate --url http://localhost:3000
+    @docker rm -f trafficsense-nk-tunnel 2>/dev/null || true
+    @docker run -d --name trafficsense-nk-tunnel --network host cloudflare/cloudflared:latest tunnel --no-autoupdate --url http://localhost:3000
     @echo "==> Tunnel created! Public HTTPS URL:"
     @for attempt in $(seq 1 15); do \
-        tunnel_url=$(docker logs trafficsense-tunnel 2>&1 | grep -oE 'https://[^[:space:]]+\.trycloudflare\.com' | head -n 1); \
+        tunnel_url=$(docker logs trafficsense-nk-tunnel 2>&1 | grep -oE 'https://[^[:space:]]+\.trycloudflare\.com' | head -n 1); \
         if [ -n "$tunnel_url" ]; then echo "$tunnel_url"; exit 0; fi; \
         sleep 1; \
     done; \
-    echo "Tunnel is still starting; run: docker logs trafficsense-tunnel"; \
+    echo "Tunnel is still starting; run: docker logs trafficsense-nk-tunnel"; \
     exit 1
 
 # Stop the Cloudflare Tunnel
 tunnel-stop:
     @echo "==> Stopping Cloudflare Tunnel..."
-    @docker rm -f trafficsense-tunnel 2>/dev/null || true
+    @docker rm -f trafficsense-nk-tunnel 2>/dev/null || true
     @echo "==> Tunnel stopped."

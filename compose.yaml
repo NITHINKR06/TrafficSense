@@ -1,4 +1,4 @@
-name: trafficsense
+name: trafficsense-nk
 
 services:
   app:
@@ -91,7 +91,7 @@ services:
       DOCKER_HOST: unix:///var/run/docker.sock
       SUPABASE_EXPERIMENTAL_STACK: "0"
       SUPABASE_SERVICES_HOSTNAME: "127.0.0.1"
-      SUPABASE_NETWORK_ID: trafficsense_supabase
+      SUPABASE_NETWORK_ID: trafficsense-nk_supabase
       LOCAL_SUPABASE_HOST_BIND: ${LOCAL_SUPABASE_HOST_BIND:-127.0.0.1}
       CI: ${CI:-}
       TMPDIR: ${PWD}/supabase/.temp
@@ -119,7 +119,7 @@ services:
 networks:
   supabase:
     external: true
-    name: trafficsense_supabase
+    name: trafficsense-nk_supabase
 
 volumes:
   dependencies:

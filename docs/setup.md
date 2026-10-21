@@ -83,13 +83,13 @@ You don't even need to install `cloudflared` on your machine — run it inside D
 
 ```bash
 # Launch the tunnel in the background
-docker run -d --name trafficsense-tunnel --network host cloudflare/cloudflared:latest tunnel --no-autoupdate --url http://localhost:3000
+docker run -d --name trafficsense-nk-tunnel --network host cloudflare/cloudflared:latest tunnel --no-autoupdate --url http://localhost:3000
 ```
 
 #### Get Your Public URL:
 Inspect the tunnel container logs:
 ```bash
-docker logs trafficsense-tunnel 2>&1 | grep -o 'https://.*\.trycloudflare\.com' | head -n 1
+docker logs trafficsense-nk-tunnel 2>&1 | grep -o 'https://.*\.trycloudflare\.com' | head -n 1
 ```
 *Output example:*
 ```
@@ -133,10 +133,10 @@ If you prefer installing `cloudflared` directly on your host machine:
 ### Managing the Cloudflare Tunnel:
 | Action | Docker Command | Just Command |
 |---|---|---|
-| View Tunnel Logs & URL | `docker logs trafficsense-tunnel` | `just tunnel` |
-| Stop Tunnel | `docker stop trafficsense-tunnel` | `just tunnel-stop` |
-| Restart Tunnel | `docker restart trafficsense-tunnel` | — |
-| Delete Tunnel Container | `docker rm -f trafficsense-tunnel` | `just tunnel-stop` |
+| View Tunnel Logs & URL | `docker logs trafficsense-nk-tunnel` | `just tunnel` |
+| Stop Tunnel | `docker stop trafficsense-nk-tunnel` | `just tunnel-stop` |
+| Restart Tunnel | `docker restart trafficsense-nk-tunnel` | — |
+| Delete Tunnel Container | `docker rm -f trafficsense-nk-tunnel` | `just tunnel-stop` |
 
 ### Managing Application Containers:
 | Action | Docker Command | Just Command |
@@ -163,7 +163,7 @@ If you prefer installing `cloudflared` directly on your host machine:
   ```
   Then point the Cloudflare tunnel to the new port:
   ```bash
-  docker run -d --name trafficsense-tunnel --network host cloudflare/cloudflared:latest tunnel --no-autoupdate --url http://localhost:3002
+  docker run -d --name trafficsense-nk-tunnel --network host cloudflare/cloudflared:latest tunnel --no-autoupdate --url http://localhost:3002
   ```
 
 ### Q3: How do I test the mobile GPS reporting via Cloudflare Tunnel?

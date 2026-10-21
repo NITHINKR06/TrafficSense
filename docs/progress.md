@@ -6,6 +6,13 @@
 - **Verification:** Moved web source/assets/configuration, updated root scripts, Docker cache/build paths, test imports, ignore rules, and Docker instructions. In Docker, all 197 tests passed, web ESLint passed, Next route type generation and TypeScript passed, and the production build passed with all expected routes. The migration is isolated on the `web-app-in-apps` branch.
 - **Commit:** Pending.
 
+## Docker namespace isolation — implemented, 21 Oct 2026
+
+- **Implementation:** Renamed the Compose project to `trafficsense-nk`, the Supabase project to `trafficsense-nk-local`, the shared backend network to `trafficsense-nk_supabase`, generated Compose volumes/images/containers to the new Compose namespace, and the Cloudflare tunnel container to `trafficsense-nk-tunnel`. Updated scripts, auth tests, setup/auth documentation, and Supabase container lookups to use the new names.
+- **Compatibility:** Existing containers from the previous `trafficsense`/`trafficsense-local` namespace are not removed automatically; stop or remove only this project's old resources after confirming they are not used by another checkout.
+- **Verification:** Compose name/image/network/volume rendering, Justfile parsing, namespace search, Docker configuration validation, renamed web startup/HTTP check, and renamed Expo startup/health check passed. The exact old TrafficSense Supabase containers and tunnel container were stopped and removed while their old volumes were preserved. New Supabase image/network creation completed, but backend startup remains blocked by the Docker socket permission error inside the Supabase tooling container; the application containers are healthy independently.
+- **Commit:** Pending.
+
 ## Recording rules
 
 - `docs/plan.md` holds scope, decisions, contracts and acceptance targets. `docs/implementation.md` holds detailed phases/dependencies/exit checks. Neither holds task status or verification history.
