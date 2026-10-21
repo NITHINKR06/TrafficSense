@@ -29,4 +29,5 @@ yarn-error.log*
 .pnpm-debug.log*
 
 apps/web/.next/
+apps/mobile/.expo/
 app
