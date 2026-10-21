@@ -1,5 +1,12 @@
 # Project Progress
 
+## Reuse existing Supabase bridge binding — verified, 21 Oct 2026
+
+- **Issue:** A plain `just up` used the default `127.0.0.1` binding while the existing project bridge was already configured for `0.0.0.0`, causing the local Supabase safety check to stop startup.
+- **Implementation:** `scripts/local-supabase.sh` now reads the existing project bridge binding when no explicit `LOCAL_SUPABASE_HOST_BIND` is supplied, accepting only the supported `127.0.0.1` or `0.0.0.0` values. An explicit caller value still takes precedence.
+- **Verification:** Plain `just up` passed. Supabase migrations were current, four synthetic TEST DATA scenarios were seeded, and web/mobile services were recreated successfully. The existing LAN binding was reused without deleting or recreating the network.
+- **Commit:** Pending.
+
 ## Local Supabase startup repair — verified, 21 Oct 2026
 
 - **Issue:** The local Supabase tools image installed workspace dependencies using only the root package manifest. After the mobile/shared workspaces were added, the CLI attempted a no-TTY dependency repair and aborted before it could start the backend.

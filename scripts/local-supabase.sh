@@ -8,6 +8,15 @@ supabase_project_id="trafficsense-nk-local"
 supabase_db_container="supabase_db_${supabase_project_id}"
 supabase_network="trafficsense-nk_supabase"
 
+# Reuse an existing project bridge's binding when the caller did not choose one.
+# This keeps repeated `just up` runs compatible with the bridge already in use.
+if [[ -z "${LOCAL_SUPABASE_HOST_BIND+x}" ]] && docker network inspect "$supabase_network" >/dev/null 2>&1; then
+  existing_host_bind="$(docker network inspect "$supabase_network" --format '{{ index .Options "com.docker.network.bridge.host_binding_ipv4" }}')"
+  if [[ "$existing_host_bind" == "127.0.0.1" || "$existing_host_bind" == "0.0.0.0" ]]; then
+    export LOCAL_SUPABASE_HOST_BIND="$existing_host_bind"
+  fi
+fi
+
 case "${1:-}" in
   start)
     if ! docker network inspect "$supabase_network" >/dev/null 2>&1; then
