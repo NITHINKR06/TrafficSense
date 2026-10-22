@@ -4,6 +4,12 @@ import { summarizeRoutes } from "../apps/mobile/src/lib/route-alerts.ts";
 import { describeFreshness, STALE_AFTER_MS } from "../apps/mobile/src/lib/freshness.ts";
 import { safeReturnPath, validateCredentials } from "../apps/mobile/src/lib/auth-rules.ts";
 import { formatDistance, formatEstimatedDuration } from "../apps/mobile/src/lib/format.ts";
+import {
+  areIncidentsEqual,
+  areIncidentListsEqual,
+  areSegmentsEqual,
+  areSegmentListsEqual,
+} from "../apps/mobile/src/lib/traffic-equality.ts";
 
 const warning = {
   id: "r-1",
@@ -96,4 +102,46 @@ test("format helpers never show invalid numbers as real values", () => {
   assert.equal(formatEstimatedDuration(600), "10 min");
   assert.equal(formatEstimatedDuration(5400), "1 hr 30 min");
   assert.equal(formatEstimatedDuration(-1), "Duration unavailable");
+});
+
+test("traffic equality helper accurately compares incidents and lists", () => {
+  const inc1 = {
+    id: "inc-1",
+    category: "accident",
+    level: "L2",
+    level_reason: "2 commuter reports",
+    last_confirmed_at: "2026-10-22T08:00:00Z",
+    report_count: 2,
+    provenance: "reported",
+    lat: 12.87,
+    lng: 74.84,
+  };
+  const inc2 = { ...inc1 };
+  assert.equal(areIncidentsEqual(inc1, inc2), true);
+  assert.equal(areIncidentListsEqual([inc1], [inc2]), true);
+
+  // Changing any visible property makes them unequal
+  assert.equal(areIncidentsEqual(inc1, { ...inc1, report_count: 3 }), false);
+  assert.equal(areIncidentsEqual(inc1, { ...inc1, level: "L3" }), false);
+  assert.equal(areIncidentsEqual(inc1, { ...inc1, level_reason: "different reason" }), false);
+  assert.equal(areIncidentsEqual(inc1, { ...inc1, last_confirmed_at: "2026-10-22T08:05:00Z" }), false);
+  assert.equal(areIncidentListsEqual([inc1], [inc2, { ...inc1, id: "inc-2" }]), false);
+});
+
+test("traffic equality helper accurately compares segments and segment lists", () => {
+  const seg1 = {
+    id: "seg-1",
+    name: "Central Corridor",
+    direction: "northbound",
+    severity: "clear",
+    provenance: "simulated",
+    geometry: { type: "LineString", coordinates: [[74.84, 12.87]] },
+  };
+  const seg2 = { ...seg1 };
+  assert.equal(areSegmentsEqual(seg1, seg2), true);
+  assert.equal(areSegmentListsEqual([seg1], [seg2]), true);
+
+  assert.equal(areSegmentsEqual(seg1, { ...seg1, severity: "slowdown" }), false);
+  assert.equal(areSegmentsEqual(seg1, { ...seg1, name: "Detour Corridor" }), false);
+  assert.equal(areSegmentListsEqual([seg1], []), false);
 });

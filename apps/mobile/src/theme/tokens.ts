@@ -54,6 +54,16 @@ export const space = {
   gutter: 16,
 } as const;
 
+export const layout = {
+  gutterPhone: 16,
+  gutterTablet: 24,
+  sectionGap: 20,
+  cardGap: 12,
+  controlGap: 8,
+  bottomNavHeight: 64,
+  safeBottomPadding: 88,
+} as const;
+
 export const shadows = {
   card: {
     shadowColor: "#191c20",
@@ -125,49 +135,49 @@ export const typography = {
     color: colors.textSecondary,
   } as TextStyle,
   bodyMd: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: "400",
-    lineHeight: 20,
+    lineHeight: 22,
     color: colors.textSecondary,
   } as TextStyle,
   bodySm: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "400",
-    lineHeight: 16,
+    lineHeight: 18,
     color: colors.textSecondary,
   } as TextStyle,
   labelLg: {
-    fontSize: 14,
+    fontSize: 15,
+    fontWeight: "600",
+    lineHeight: 20,
+    color: colors.text,
+  } as TextStyle,
+  labelMd: {
+    fontSize: 13,
     fontWeight: "600",
     lineHeight: 18,
     color: colors.text,
   } as TextStyle,
-  labelMd: {
-    fontSize: 12,
-    fontWeight: "500",
-    lineHeight: 16,
-    color: colors.text,
-  } as TextStyle,
   labelSm: {
-    fontSize: 11,
-    fontWeight: "500",
-    lineHeight: 14,
+    fontSize: 12,
+    fontWeight: "600",
+    lineHeight: 16,
     color: colors.textSecondary,
   } as TextStyle,
   codeMd: {
     fontFamily: monoFamily,
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: "500",
-    lineHeight: 16,
+    lineHeight: 18,
     letterSpacing: 0.2,
     color: colors.text,
   } as TextStyle,
   codeSm: {
     fontFamily: monoFamily,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: "500",
-    lineHeight: 14,
-    letterSpacing: 0.4,
+    lineHeight: 16,
+    letterSpacing: 0.3,
     color: colors.textMuted,
   } as TextStyle,
 };

@@ -89,6 +89,7 @@ const styles = StyleSheet.create({
   },
   primaryPressed: {
     backgroundColor: colors.primaryPressed,
+    transform: [{ scale: 0.98 }],
   },
   primaryText: {
     color: colors.onPrimary,
@@ -101,6 +102,7 @@ const styles = StyleSheet.create({
   },
   secondaryPressed: {
     backgroundColor: "rgba(0, 92, 85, 0.08)",
+    transform: [{ scale: 0.98 }],
   },
   secondaryText: {
     color: colors.primary,
@@ -113,6 +115,7 @@ const styles = StyleSheet.create({
   },
   outlinePressed: {
     backgroundColor: colors.surfaceContainerLow,
+    transform: [{ scale: 0.98 }],
   },
   outlineText: {
     color: colors.text,
@@ -123,6 +126,7 @@ const styles = StyleSheet.create({
   },
   ghostPressed: {
     opacity: 0.7,
+    transform: [{ scale: 0.98 }],
   },
   ghostText: {
     color: colors.primary,
@@ -137,6 +141,7 @@ const styles = StyleSheet.create({
   },
   floatingPressed: {
     backgroundColor: colors.primaryPressed,
+    transform: [{ scale: 0.96 }],
   },
   floatingText: {
     color: colors.onPrimary,

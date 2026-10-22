@@ -24,7 +24,7 @@ import {
   Icon,
   type IconName,
 } from "../src/components/ui";
-import { colors, radius, shadows, space, typography } from "../src/theme/tokens";
+import { colors, layout, minTouchTarget, radius, shadows, space, typography } from "../src/theme/tokens";
 
 type ReportState =
   | { kind: "idle" }
@@ -194,7 +194,7 @@ function ReportForm() {
       />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        behavior={Platform.OS === "ios" ? "padding" : "height"}
         style={{ flex: 1 }}
       >
         <ScrollView
@@ -503,7 +503,7 @@ function ReportForm() {
             </Pressable>
           </View>
 
-          <View style={{ height: 40 }} />
+          <View style={{ height: layout.safeBottomPadding }} />
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -963,7 +963,7 @@ const styles = StyleSheet.create({
     paddingTop: 6,
   },
   cancelBtn: {
-    height: 44,
+    minHeight: minTouchTarget,
     alignItems: "center",
     justifyContent: "center",
   },

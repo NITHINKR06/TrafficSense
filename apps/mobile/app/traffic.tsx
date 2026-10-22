@@ -26,7 +26,8 @@ import {
   Icon,
   SimulatedBadge,
 } from "../src/components/ui";
-import { colors, radius, shadows, space, typography } from "../src/theme/tokens";
+import { areIncidentListsEqual, areSegmentListsEqual } from "../src/lib/traffic-equality";
+import { colors, layout, minTouchTarget, radius, shadows, space, typography } from "../src/theme/tokens";
 
 type TrafficData = {
   incidents: LiveIncident[];
@@ -53,7 +54,17 @@ export default function TrafficScreen() {
     try {
       const [incidents, segments] = await Promise.all([fetchActiveIncidents(), fetchTrafficSegments()]);
       const updatedAt = new Date();
-      setData({ incidents, segments: segments.segments, readAt: segments.read_at, updatedAt });
+      setData((prev) => {
+        if (
+          prev &&
+          areIncidentListsEqual(prev.incidents, incidents) &&
+          areSegmentListsEqual(prev.segments, segments.segments) &&
+          prev.readAt === segments.read_at
+        ) {
+          return prev;
+        }
+        return { incidents, segments: segments.segments, readAt: segments.read_at, updatedAt };
+      });
       setError(null);
       if (!hasData.current) {
         hasData.current = true;
@@ -434,7 +445,7 @@ export default function TrafficScreen() {
               );
             })
           )}
-          <View style={{ height: 80 }} />
+          <View style={{ height: layout.safeBottomPadding }} />
         </ScrollView>
       )}
 
@@ -721,8 +732,7 @@ const styles = StyleSheet.create({
   civicHonestyText: {
     ...typography.bodySm,
     color: colors.textSecondary,
-    fontSize: 11.5,
-    lineHeight: 16,
+    lineHeight: 18,
   },
   sheetActionsRow: {
     flexDirection: "row",
@@ -731,7 +741,7 @@ const styles = StyleSheet.create({
   },
   sheetSecondaryBtn: {
     flex: 1,
-    height: 46,
+    minHeight: minTouchTarget,
     borderRadius: radius.control,
     backgroundColor: colors.surfaceContainer,
     flexDirection: "row",
@@ -746,7 +756,7 @@ const styles = StyleSheet.create({
   },
   sheetPrimaryBtn: {
     flex: 1,
-    height: 46,
+    minHeight: minTouchTarget,
     borderRadius: radius.control,
     backgroundColor: colors.primary,
     flexDirection: "row",
@@ -776,7 +786,6 @@ const styles = StyleSheet.create({
   },
   tilePrivacyText: {
     ...typography.bodySm,
-    fontSize: 11,
     color: colors.textSecondary,
     flex: 1,
   },

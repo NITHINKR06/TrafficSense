@@ -23,7 +23,8 @@ import {
   Icon,
   SimulatedBadge,
 } from "../src/components/ui";
-import { colors, radius, shadows, space, typography } from "../src/theme/tokens";
+import { areIncidentListsEqual } from "../src/lib/traffic-equality";
+import { colors, layout, radius, shadows, space, typography } from "../src/theme/tokens";
 
 export default function HomeScreen() {
   const [incidents, setIncidents] = useState<LiveIncident[]>([]);
@@ -33,7 +34,7 @@ export default function HomeScreen() {
   const loadIncidents = useCallback(async () => {
     try {
       const data = await fetchActiveIncidents();
-      setIncidents(data);
+      setIncidents((prev) => (areIncidentListsEqual(prev, data) ? prev : data));
       const now = new Date();
       setLastUpdated(formatClock(now));
     } catch {
@@ -541,7 +542,7 @@ export default function HomeScreen() {
         </View>
 
         {/* Bottom Spacer for fixed BottomNav */}
-        <View style={{ height: 80 }} />
+        <View style={{ height: layout.safeBottomPadding }} />
       </ScrollView>
 
       <BottomNav activeTab="home" />
