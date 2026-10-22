@@ -4,6 +4,28 @@ Record only mobile implementation updates, device verification evidence, blocker
 
 Cross-app changes also belong in [shared progress](../../../packages/shared/docs/progress.md).
 
+## UI polish plan — implemented, 22 Oct 2026
+
+- **Scope:** Implemented the UI polish phases across the Expo mobile client (`apps/mobile`): shared readability typography scale, semantic layout tokens, unified safe bottom navigation reservation, semantic equality and refresh efficiency, touch target enforcement (>=48px), and keyboard avoidance support.
+- **Implementation:**
+  - **Readability & Layout Foundation (Phase 1):** Extended `src/theme/tokens.ts` with semantic `layout` values (`safeBottomPadding`, `bottomNavHeight`, `gutterPhone`, `gutterTablet`, `sectionGap`, `cardGap`, `controlGap`). Scaled small text to accessible sizes (`bodySm` 13/18, `bodyMd` 15/22, `labelSm` 12/16, `labelMd` 13/18, `codeSm` 12/16, `codeMd` 13/18). Removed component-level font overrides in `BottomNav` and chips. Standardized bottom padding across all scrolling routes (`Home`, `Traffic`, `Planner`, `Report`, `Workspace`, `Journeys`) using `layout.safeBottomPadding`.
+  - **Screen Hierarchy & Spacing (Phase 2):** Standardized button envelopes to minimum 48px touch bounding boxes across sheet buttons, cancel/modal close triggers, and navigation tabs.
+  - **Data Rendering & Refresh Efficiency (Phase 3):** Added `src/lib/traffic-equality.ts` comparing displayed incident and segment fields. Updated `TrafficScreen` and `HomeScreen` to preserve existing object references when polled data is semantically identical, preventing unnecessary re-renders, list jumpiness, and selection resets. Added unit tests for semantic equality in `tests/mobile-logic.test.mjs`.
+  - **Interaction & Feedback Polish (Phases 4 & 5):** Added subtle pressed scale feedback (`transform: [{ scale: 0.98 }]`) to `Button` variants without relying solely on opacity or color. Configured `KeyboardAvoidingView` with `height` behavior on Android across `Report`, `Login`, and `Register` screens.
+- **Verification:**
+  - `pnpm --filter @trafficsense/mobile typecheck` (`tsc --noEmit`) passed with 0 errors.
+  - `pnpm --filter @trafficsense/mobile exec eslint .` passed with 0 errors and 0 warnings.
+  - Full unit test suite passed 221 tests (0 failures), including the new traffic equality tests.
+  - `node scripts/check-app-layout.mjs` passed for all 3 app targets.
+- **Commit:** Pending.
+
+## UI polish plan — proposed, 22 Oct 2026
+
+- **Scope:** Added a mobile-only, evidence-led plan for improving perceived speed, typography, screen hierarchy, layout consistency, and interaction feedback without changing the API, Supabase, web client, or privacy model.
+- **Plan:** The work is sequenced from device baseline measurement through shared readability/layout foundations, route-specific decluttering, data-rendering efficiency, measured map/navigation decisions, and final interaction/accessibility polish. It defines guardrails for truthful traffic states, the map privacy gate, explicit route choice, and foreground-only location.
+- **Verification:** Documentation review and `git diff --check --no-index /dev/null apps/mobile/docs/ui-polish-plan.md` passed. No application code or runtime behaviour changed, so no mobile build, test, or device verification was required.
+- **Commit:** `068e5e0` — `docs(mobile): add UI polish plan`.
+
 ## LAN route API recovery — verified, 21 Oct 2026
 
 - **Issue:** The phone showed “Traffic service is unreachable” for route planning because the LAN Next.js API container had exited. Its log identified a Turbopack crash caused by the host reaching the inotify file-watch limit; this was not a route-contract or traffic-data failure.

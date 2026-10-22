@@ -23,7 +23,7 @@ import {
   FeedbackBox,
   Icon,
 } from "../src/components/ui";
-import { colors, radius, shadows, space, typography } from "../src/theme/tokens";
+import { colors, layout, minTouchTarget, radius, shadows, space, typography } from "../src/theme/tokens";
 
 type PlanState =
   | { kind: "idle" }
@@ -476,7 +476,7 @@ export default function PlannerScreen() {
           </View>
         </View>
 
-        <View style={{ height: 80 }} />
+        <View style={{ height: layout.safeBottomPadding }} />
       </ScrollView>
 
       {/* Place Picker Modal */}
@@ -1089,13 +1089,18 @@ const styles = StyleSheet.create({
     color: colors.text,
   },
   modalCloseBtn: {
-    padding: 4,
+    minWidth: minTouchTarget,
+    minHeight: minTouchTarget,
+    alignItems: "center",
+    justifyContent: "center",
   },
   modalItem: {
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    paddingVertical: 12,
+    minHeight: minTouchTarget,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
     borderBottomWidth: 1,
     borderBottomColor: colors.surfaceContainerLow,
   },

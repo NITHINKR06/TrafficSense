@@ -181,15 +181,14 @@ const styles = StyleSheet.create({
     zIndex: 50,
   },
   tabItem: {
-    width: 64,
-    height: 52,
+    minWidth: 56,
+    minHeight: 48,
     alignItems: "center",
     justifyContent: "center",
     gap: 3,
   },
   tabLabel: {
     ...typography.labelSm,
-    fontSize: 11,
     color: colors.textSecondary,
     fontWeight: "500",
   },
@@ -222,7 +221,6 @@ const styles = StyleSheet.create({
   },
   centerFabLabel: {
     ...typography.labelSm,
-    fontSize: 11,
     color: colors.primary,
     fontWeight: "700",
     marginTop: 3,

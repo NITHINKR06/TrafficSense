@@ -10,7 +10,7 @@ import {
   FeedbackBox,
   Icon,
 } from "../src/components/ui";
-import { colors, radius, space, typography } from "../src/theme/tokens";
+import { colors, layout, radius, space, typography } from "../src/theme/tokens";
 
 export default function WorkspaceScreen() {
   const { session, loading, signOut } = useAuth();
@@ -168,7 +168,7 @@ export default function WorkspaceScreen() {
           />
         </View>
 
-        <View style={{ height: 80 }} />
+        <View style={{ height: layout.safeBottomPadding }} />
       </ScrollView>
 
       <BottomNav activeTab="me" />
