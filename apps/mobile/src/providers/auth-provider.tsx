@@ -28,13 +28,19 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const sb = supabase;
 
     let isMounted = true;
+    let unsubscribe: (() => void) | null = null;
 
-    // Defer the subscription to the next tick so React Fabric has committed the mount
-    // before any auth state change fires setState. The INITIAL_SESSION event from
-    // Supabase JS fires synchronously or on the first microtask tick after subscribe,
-    // which happens before Fabric commits the mount on the initial render.
+    // Defer setup until after the initial Fabric commit. Supabase can emit its initial
+    // session event immediately when the subscription is created.
     const timer = setTimeout(() => {
       if (!isMounted) return;
+
+      const { data: authListener } = sb.auth.onAuthStateChange((_event, nextSession) => {
+        if (!isMounted) return;
+        setSession(nextSession);
+        setLoading(false);
+      });
+      unsubscribe = () => authListener.subscription.unsubscribe();
 
       void sb.auth
         .getSession()
@@ -48,22 +54,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
           setSession(null);
           setLoading(false);
         });
-
-      const { data } = sb.auth.onAuthStateChange((_event, nextSession) => {
-        if (isMounted) {
-          setSession(nextSession);
-          setLoading(false);
-        }
-      });
-
-      return () => {
-        data.subscription.unsubscribe();
-      };
     }, 0);
 
     return () => {
       isMounted = false;
       clearTimeout(timer);
+      unsubscribe?.();
     };
   }, []);
 

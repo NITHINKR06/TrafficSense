@@ -4,6 +4,13 @@ Record only mobile implementation updates, device verification evidence, blocker
 
 Cross-app changes also belong in [shared progress](../../../packages/shared/docs/progress.md).
 
+## Auth startup lifecycle cleanup — verified in automated checks, 22 Oct 2026
+
+- **Implementation:** Corrected the mobile auth provider's initial-session subscription lifecycle. The subscription now belongs to the effect cleanup instead of an ignored callback return, and all initial session state updates remain guarded after unmount.
+- **Verification:** `just mobile-typecheck`, `just lint`, `just test` (223 tests, 0 failures), and `git diff --check` passed in Docker.
+- **Not verified:** The original React Native lifecycle warning needs an Expo Go reload on the affected device to confirm it no longer appears in Metro logs.
+- **Commit:** Pending.
+
 ## Navigation and live-state feedback — verified in automated checks, 22 Oct 2026
 
 - **Implementation:** Added short native route transitions (fade for top-level screens, directional transitions for child screens), focus-scoped Android back handling for the non-home tabs, and a safe header-back fallback. Loading announcements are exposed to assistive technology for route planning and live traffic. The live-map screen now shows a real initial loading overlay, removes no-op duplicate controls, and never substitutes a made-up incident count, clock, delay, or simulated provenance. Map legends now describe only data that is actually present.
