@@ -3,7 +3,7 @@ import { useState } from "react";
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "../../src/providers/auth-provider";
 import { safeReturnPath } from "../../src/lib/auth-rules";
-import { Button, Card, FeedbackBox, FormField } from "../../src/components/ui";
+import { AppHeader, Button, Card, FeedbackBox, FormField } from "../../src/components/ui";
 import { colors, space, typography } from "../../src/theme/tokens";
 
 export default function LoginScreen() {
@@ -23,16 +23,22 @@ export default function LoginScreen() {
       setError(result);
       return;
     }
-    // replace() so Back does not return to the sign-in form after success.
     router.replace(safeReturnPath(next));
   }
 
   return (
-    <>
-      <Stack.Screen options={{ headerShown: true, title: "Sign in" }} />
+    <View style={styles.screenWrapper}>
+      <Stack.Screen options={{ headerShown: false }} />
+      <AppHeader
+        title="Sign in"
+        subtitle="Commuter Access"
+        canGoBack
+        onBack={() => router.replace("/")}
+        showLive={false}
+      />
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        style={styles.keyboardView}
+        style={{ flex: 1 }}
       >
         <ScrollView
           contentContainerStyle={styles.container}
@@ -98,20 +104,20 @@ export default function LoginScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  keyboardView: {
+  screenWrapper: {
     flex: 1,
     backgroundColor: colors.background,
   },
   container: {
     padding: space.gutter,
-    paddingTop: space.lg,
+    paddingTop: space.md,
     paddingBottom: space.xl * 2,
-    gap: space.lg,
+    gap: space.md,
   },
   header: {
     gap: space.xs,
@@ -138,10 +144,9 @@ const styles = StyleSheet.create({
   footer: {
     alignItems: "stretch",
     gap: space.sm,
-    marginTop: space.sm,
   },
   footerText: {
-    ...typography.bodyMd,
+    ...typography.bodySm,
     color: colors.textSecondary,
     textAlign: "center",
   },

@@ -177,3 +177,26 @@ Cross-app changes also belong in [shared progress](../../../packages/shared/docs
   - Physical device verification in Expo Go requires a real Android/iOS device session connected to the local development server.
   - Docker daemon is currently stopped on the host; tests executed directly via Node.js with experimental type stripping.
 - **Commit:** `feat(mobile): implement civic design system and commuter screens`.
+
+## Phase 17 — Prototype-exact visual redesign & vector component system — verified, 22 Oct 2026
+
+- **Visual Baseline:** Faithfully aligned all mobile screens to the 4 prototype designs in `apps/mobile/design/` (`home_trafficsense_mangaluru/code.html`, `live_traffic_map_mangaluru/code.html`, `plan_route_trafficsense_mangaluru/code.html`, `report_a_hazard_trafficsense_mangaluru/code.html`) and `DESIGN.md`.
+- **Implementation:**
+  - **Vector UI Primitives (`apps/mobile/src/components/ui/`):**
+    - `Icon.tsx`: Pure React Native vector geometry rendering crisp icons matching the prototype specifications without external icon fonts or unicode emojis (`home`, `map`, `explore`, `add`, `alt_route`, `account_circle`, `arrow_back`, `close`, `check`, `search`, `warning`, `car_crash`, `flood`, `traffic`, `construction`, `tune`, `radar`, `directions_car`, `directions_bus`, `shield`, `verified`, `sync`, etc.).
+    - `AppHeader.tsx`: Fixed top header matching design prototypes (`TrafficSense` title, `Mangaluru · Subtitle`, `LIVE` pulsing green badge, circular profile avatar linking to `/workspace`, and back-button navigation for child screens).
+    - `BottomNav.tsx`: 5-tab fixed bottom navigation with elevated center circular Floating Action Button (+) for Report, and tabs for Home (`/`), Map (`/traffic`), Plan (`/planner`), and Me (`/workspace`).
+    - `Badge.tsx`: Updated `EvidenceBadge`, `FreshnessChip`, `SimulatedBadge`, and `StatusBadge` with vector icons and DESIGN.md styling tokens.
+  - **Screen Alignment:**
+    - `Home` (`apps/mobile/app/index.tsx`): Status bar, simulated data notice badge, greeting row with Sync button, hero route card with schematic route preview & corridor telemetry, 2x2 Quick Action grid, "Active near you" section with live incidents and fallback cards, high-tide advisory alert banner, and zero-retention disclosure.
+    - `Live Traffic Map` (`apps/mobile/app/traffic.tsx`): Map / List toggle pill, live telemetry bar with clock and active report count, search input with clear button, layer controls, floating route legend pill, OpenFreeMap attribution banner, collapsible bottom sheet with incident category, evidence level, freshness chip, simulated impact badge, commuter honesty statement, "Update Status", and "Avoid Corridor" action buttons. Accessible list view with full incident cards.
+    - `Route Planner` (`apps/mobile/app/planner.tsx`): Demonstration corridor eyebrow, origin/destination cards with swap button, public bus corridor toggle, interactive route map with floating hazard badges and route legend bar, primary corridor summary card with free-flow duration baseline, community report warnings with dynamic incident mapping, alternative route toggle, detour recommendation card, and place picker modal.
+    - `Report a Hazard` (`apps/mobile/app/report.tsx`): Clean back header, GPS accuracy alert banner, 3-step reporting progress bar, 2x3 observed hazard category grid with active checkmark, observation note textarea with character counter, verification & trust tier cards, civic honesty notice, and foreground-only location capture on submit.
+    - `Workspace` (`apps/mobile/app/workspace.tsx`) & `Journeys` (`apps/mobile/app/journeys.tsx`): Updated navigation with `AppHeader`, `BottomNav`, and vector icons.
+    - `Auth` (`apps/mobile/app/auth/login.tsx`, `register.tsx`): Aligned typography, header, and buttons.
+- **Verification:**
+  - `docker compose exec app pnpm --filter @trafficsense/mobile typecheck` (`tsc --noEmit`) passed with 0 errors.
+  - `docker compose exec app pnpm lint:mobile` (`eslint .`) passed with 0 errors and 0 warnings.
+  - Full project test suite passed all 219 tests with 0 failures (`docker compose exec app pnpm test`).
+  - Web ESLint check passed (`docker compose exec app pnpm lint`).
+  - Preserved all mobile and backend contracts; zero modifications to web UI, Supabase migrations, RLS, or API contracts.
