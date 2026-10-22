@@ -1,6 +1,7 @@
 import { Stack } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  BackHandler,
   Modal,
   Pressable,
   ScrollView,
@@ -9,6 +10,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { useTabBackHandler } from "../src/lib/use-tab-back-handler";
 import type { LiveIncident, RouteOption } from "@trafficsense/shared";
 import { fetchActiveIncidents, fetchRoute } from "../src/lib/api";
 import { mangaluruPlaces } from "../src/lib/places";
@@ -41,6 +43,17 @@ export default function PlannerScreen() {
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [pickerModal, setPickerModal] = useState<"origin" | "dest" | null>(null);
   const [fitKey, setFitKey] = useState(0);
+
+  // Android: hardware back → Home (when no modal open), or closes modal
+  useTabBackHandler(pickerModal === null);
+  useEffect(() => {
+    if (pickerModal === null) return;
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      setPickerModal(null);
+      return true;
+    });
+    return () => sub.remove();
+  }, [pickerModal]);
 
   const swapPlaces = () => {
     setStartIndex(destIndex);
@@ -235,7 +248,7 @@ export default function PlannerScreen() {
         </View>
 
         {plan.kind === "idle" || plan.kind === "loading" ? (
-          <Card style={styles.emptyCard}>
+          <Card style={styles.emptyCard} accessibilityLiveRegion={plan.kind === "loading" ? "polite" : "none"}>
             <Text style={styles.emptyTitle}>{plan.kind === "loading" ? "Checking the selected route…" : "Choose two places to check a route"}</Text>
             <Text style={styles.emptyBody}>{plan.kind === "loading" ? "Fetching route options and the current community-report feed." : "Route distance, baseline duration, and community reports appear after a successful check."}</Text>
           </Card>

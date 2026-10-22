@@ -11,8 +11,10 @@ import {
   Icon,
 } from "../src/components/ui";
 import { colors, layout, radius, space, typography } from "../src/theme/tokens";
+import { useTabBackHandler } from "../src/lib/use-tab-back-handler";
 
 export default function WorkspaceScreen() {
+  useTabBackHandler();
   const { session, loading, signOut } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);

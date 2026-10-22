@@ -216,14 +216,15 @@ export function TrafficMap(props: Props) {
         <Text style={styles.noticeText}>{locationNote}</Text>
       ) : null}
 
-      {/* Map Legend */}
-      <View style={styles.legend} accessibilityLabel="Map legend">
-        <LegendItem colour={ROUTE_COLOURS.primary} label="Recommended route" />
-        <LegendItem colour={ROUTE_COLOURS.alternative} label="Your alternative" />
-        <LegendItem colour={INCIDENT_COLOUR} label="Community report" />
-        <LegendItem colour={SEVERITY_COLOURS.slowdown} label="Corridor slowdown" />
-        <LegendItem colour={SEVERITY_COLOURS.clear} label="Clear flow" />
-      </View>
+      {props.routes?.length || props.incidents.length || props.segments.length ? (
+        <View style={styles.legend} accessibilityLabel="Map legend">
+          {props.routes?.length ? <LegendItem colour={ROUTE_COLOURS.primary} label="Recommended route" /> : null}
+          {props.routes && props.routes.length > 1 ? <LegendItem colour={ROUTE_COLOURS.alternative} label="Your alternative" /> : null}
+          {props.incidents.length ? <LegendItem colour={INCIDENT_COLOUR} label="Community report" /> : null}
+          {props.segments.some((segment) => segment.severity === "slowdown") ? <LegendItem colour={SEVERITY_COLOURS.slowdown} label="Corridor slowdown" /> : null}
+          {props.segments.some((segment) => segment.severity === "clear") ? <LegendItem colour={SEVERITY_COLOURS.clear} label="Clear flow" /> : null}
+        </View>
+      ) : null}
 
       <View style={styles.attributionRow}>
         <Text style={styles.attribution}>{MAP_ATTRIBUTION}. Corridor lines are schematic and SIMULATED.</Text>
