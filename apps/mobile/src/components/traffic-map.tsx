@@ -1,11 +1,12 @@
 import * as Location from "expo-location";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import { WebView, type WebViewMessageEvent } from "react-native-webview";
 import type { LiveIncident, RouteOption, TrafficSegment } from "@trafficsense/shared";
 import { buildMapHtml, MAP_ATTRIBUTION } from "../map/map-html";
 import { buildMapPayload, ROUTE_COLOURS, SEVERITY_COLOURS, INCIDENT_COLOUR, type MapPayload } from "../map/map-data";
 import { Button, Card, Icon, SimulatedBadge } from "./ui";
+import { SchematicMap } from "./schematic-map";
 import { colors, minTouchTarget, radius, space, typography } from "../theme/tokens";
 
 export type MapStatus = "idle" | "loading" | "ready" | "fallback" | "failed";
@@ -39,6 +40,7 @@ export function TrafficMap(props: Props) {
   const [attempt, setAttempt] = useState(0);
   const [you, setYou] = useState<[number, number] | null>(null);
   const [locationNote, setLocationNote] = useState<string | null>(null);
+  const [fullScreen, setFullScreen] = useState(false);
   const webRef = useRef<WebView>(null);
   const latestPayload = useRef<MapPayload | null>(null);
   const sentFitKey = useRef<number | null>(null);
@@ -127,45 +129,10 @@ export function TrafficMap(props: Props) {
     }
   }
 
-  if (status === "idle") {
-    return (
-      <Card style={styles.gate}>
-        <View style={styles.gateHeader}>
-          <View style={styles.gateIconBox}>
-            <Icon name="explore" size={24} color={colors.primary} />
-          </View>
-          <View style={styles.gateHeaderTextCol}>
-            <Text style={styles.gateTitle}>Interactive Coastal Map</Text>
-            <Text style={styles.gateSubtitle}>OpenFreeMap · jsDelivr MapLibre</Text>
-          </View>
-        </View>
-        <Text style={styles.gateBody}>
-          Loading the map contacts OpenFreeMap for street tiles and jsDelivr for the rendering library. Those services receive your IP address and viewed tiles. TrafficSense does not send your location to them, and the incident list stays available without the map.
-        </Text>
-        <Button
-          title="Load street map"
-          onPress={startLoading}
-          variant="primary"
-        />
-      </Card>
-    );
-  }
-
   return (
     <View style={styles.wrapper}>
       <View style={styles.mapFrame}>
-        {status === "failed" ? (
-          <View style={styles.failure} accessibilityLiveRegion="polite">
-            <Text style={styles.failureTitle}>Map Display Unavailable</Text>
-            <Text style={styles.failureText}>{failure ?? FAILURE_MESSAGES.renderer}</Text>
-            <Button
-              title="Retry loading map"
-              onPress={startLoading}
-              variant="outline"
-              style={styles.retryButton}
-            />
-          </View>
-        ) : (
+        {status === "ready" || status === "fallback" || status === "loading" ? (
           <WebView
             key={attempt}
             ref={webRef}
@@ -184,6 +151,14 @@ export function TrafficMap(props: Props) {
             onShouldStartLoadWithRequest={(request) => request.url.startsWith("about:") || request.url.startsWith("data:")}
             accessibilityLabel="Interactive traffic map showing road incidents and corridor segments"
           />
+        ) : (
+          <SchematicMap
+            segments={props.segments}
+            routes={props.routes}
+            incidents={props.incidents}
+            selectedIncidentId={props.selectedIncidentId}
+            onSelectIncident={props.onSelectIncident}
+          />
         )}
         {status === "loading" ? (
           <View style={styles.loading} pointerEvents="none">
@@ -192,6 +167,14 @@ export function TrafficMap(props: Props) {
           </View>
         ) : null}
       </View>
+
+      {status === "idle" || status === "failed" ? (
+        <Card style={styles.gate}>
+          <Text style={styles.gateTitle}>{status === "failed" ? "Street map unavailable" : "Schematic map ready"}</Text>
+          <Text style={styles.gateBody}>{status === "failed" ? failure ?? FAILURE_MESSAGES.renderer : "Use the schematic map now, or load an optional street map. Loading it contacts OpenFreeMap and jsDelivr; TrafficSense does not send your location."}</Text>
+          <Button title={status === "failed" ? "Retry street map" : "Load detailed street map"} onPress={startLoading} variant="outline" />
+        </Card>
+      ) : null}
 
       {status === "fallback" ? (
         <View style={styles.fallbackNotice} accessibilityLiveRegion="polite">
@@ -224,6 +207,11 @@ export function TrafficMap(props: Props) {
         </View>
       )}
 
+      <Pressable accessibilityRole="button" accessibilityLabel="Open full-screen schematic map" onPress={() => setFullScreen(true)} style={styles.fullScreenButton}>
+        <Icon name="fullscreen" size={16} color={colors.primary} />
+        <Text style={styles.toolText}>Full screen</Text>
+      </Pressable>
+
       {locationNote ? (
         <Text style={styles.noticeText}>{locationNote}</Text>
       ) : null}
@@ -241,6 +229,16 @@ export function TrafficMap(props: Props) {
         <Text style={styles.attribution}>{MAP_ATTRIBUTION}. Corridor lines are schematic and SIMULATED.</Text>
         <SimulatedBadge label="SCHEMATIC" />
       </View>
+
+      <Modal visible={fullScreen} animationType="slide" onRequestClose={() => setFullScreen(false)}>
+        <View style={styles.fullScreenModal}>
+          <View style={styles.fullScreenHeader}>
+            <View><Text style={styles.gateTitle}>Full-screen schematic map</Text><Text style={styles.gateSubtitle}>Reports and routes only; not street navigation.</Text></View>
+            <Pressable accessibilityRole="button" accessibilityLabel="Close full-screen map" onPress={() => setFullScreen(false)} style={styles.closeButton}><Icon name="close" size={22} color={colors.text} /></Pressable>
+          </View>
+          <SchematicMap segments={props.segments} routes={props.routes} incidents={props.incidents} selectedIncidentId={props.selectedIncidentId} onSelectIncident={props.onSelectIncident} fullScreen />
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -316,6 +314,7 @@ const styles = StyleSheet.create({
     flexWrap: "wrap",
     marginTop: space.xs,
   },
+  fullScreenButton: { minHeight: minTouchTarget, alignSelf: "flex-start", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: space.md, borderRadius: radius.control, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface },
   toolButton: {
     minHeight: minTouchTarget,
     minWidth: 120,
@@ -376,6 +375,9 @@ const styles = StyleSheet.create({
     padding: space.lg,
     gap: space.md,
   },
+  fullScreenModal: { flex: 1, backgroundColor: colors.background, padding: space.md, gap: space.md },
+  fullScreenHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: space.sm },
+  closeButton: { width: minTouchTarget, height: minTouchTarget, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.surfaceContainer },
   gateHeader: {
     flexDirection: "row",
     alignItems: "center",

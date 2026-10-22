@@ -4,6 +4,13 @@ Record only mobile implementation updates, device verification evidence, blocker
 
 Cross-app changes also belong in [shared progress](../../../packages/shared/docs/progress.md).
 
+## Map, planner and report-location recovery — verified in automated checks, 22 Oct 2026
+
+- **Implementation:** Added an on-device schematic map fallback that stays usable when the optional MapLibre street map cannot load, plus a functional full-screen schematic view. The planner no longer clips its map controls or invents route, incident, alternative, or sync data: it renders summaries only after a successful route check and selecting a returned alternative updates the selected route. The report form now requires an explicit hazard and location choice: commuters can request current device GPS after tapping, or choose an honestly labelled approximate Mangaluru reference point. Reference points submit no GPS accuracy or fix timestamp. Removed the preview-only report controls.
+- **Verification:** `just mobile-typecheck`, `just lint`, and `just test` passed in Docker (223 tests, 0 failures). Added tests for schematic-point projection and reference-point GPS semantics. `git diff --check` passed.
+- **Not verified:** Android/iOS device rendering of the WebView, full-screen modal, native GPS prompt, and a real authenticated report submission require an Expo Go device session. Street-map provider availability is still network-dependent; the schematic fallback is available without it.
+- **Commit:** Pending.
+
 ## UI polish plan — implemented, 22 Oct 2026
 
 - **Scope:** Implemented the UI polish phases across the Expo mobile client (`apps/mobile`): shared readability typography scale, semantic layout tokens, unified safe bottom navigation reservation, semantic equality and refresh efficiency, touch target enforcement (>=48px), and keyboard avoidance support.

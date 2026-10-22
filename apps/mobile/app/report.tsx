@@ -15,6 +15,8 @@ import {
 import type { ReportCategory } from "@trafficsense/shared";
 import { submitIncident } from "../src/lib/api";
 import { MobileApiError } from "../src/lib/request";
+import { mangaluruPlaces } from "../src/lib/places";
+import { formatCoordinates, toReportLocationInput, type ReportLocation } from "../src/lib/report-location";
 import { useAuth } from "../src/providers/auth-provider";
 import {
   AppHeader,
@@ -103,12 +105,38 @@ export default function ReportScreen() {
 
 function ReportForm() {
   const { session } = useAuth();
-  const [selectedCategory, setSelectedCategory] = useState<ReportCategory>("flood");
+  const [selectedCategory, setSelectedCategory] = useState<ReportCategory | null>(null);
   const [note, setNote] = useState("");
   const [state, setState] = useState<ReportState>({ kind: "idle" });
   const [submitting, setSubmitting] = useState(false);
-  const [showPermissionBanner, setShowPermissionBanner] = useState(true);
-  const [previewSuccessModal, setPreviewSuccessModal] = useState(false);
+  const [location, setLocation] = useState<ReportLocation | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
+
+  const useCurrentLocation = async () => {
+    setState({ kind: "idle" });
+    setLocating(true);
+    try {
+      const permission = await Location.requestForegroundPermissionsAsync();
+      if (permission.status !== Location.PermissionStatus.GRANTED) {
+        setState({ kind: "error", message: LOCATION_DENIED });
+        return;
+      }
+      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setLocation({
+        source: "device",
+        label: "Current device location",
+        lat: position.coords.latitude,
+        lng: position.coords.longitude,
+        gpsAccuracyM: position.coords.accuracy ?? null,
+        gpsFixAt: new Date(position.timestamp).toISOString(),
+      });
+    } catch {
+      setState({ kind: "error", message: LOCATION_UNAVAILABLE });
+    } finally {
+      setLocating(false);
+    }
+  };
 
   const submit = async () => {
     setState({ kind: "idle" });
@@ -120,32 +148,21 @@ function ReportForm() {
       });
       return;
     }
+    if (!selectedCategory) {
+      setState({ kind: "error", message: "Select the hazard you observed before submitting." });
+      return;
+    }
+    if (!location) {
+      setState({ kind: "error", message: "Choose the report location before submitting." });
+      return;
+    }
 
     setSubmitting(true);
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status !== Location.PermissionStatus.GRANTED) {
-        setState({ kind: "error", message: LOCATION_DENIED });
-        return;
-      }
-
-      let position: Location.LocationObject;
-      try {
-        position = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
-      } catch {
-        setState({ kind: "error", message: LOCATION_UNAVAILABLE });
-        return;
-      }
-
       const result = await submitIncident(
         {
           category: selectedCategory,
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-          gpsAccuracyM: position.coords.accuracy ?? null,
-          gpsFixAt: new Date(position.timestamp).toISOString(),
+          ...toReportLocationInput(location),
           note: note.trim() || null,
         },
         session.access_token,
@@ -202,67 +219,6 @@ function ReportForm() {
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Interactive State / Preview Banner */}
-          <View style={styles.previewStateBanner}>
-            <View style={styles.previewStateLeft}>
-              <Icon name="tune" size={18} color={colors.secondary} />
-              <Text style={styles.previewStateText}>Preview State:</Text>
-            </View>
-            <View style={styles.previewStateButtons}>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setShowPermissionBanner(!showPermissionBanner)}
-                style={styles.previewSmallBtn}
-              >
-                <Text style={styles.previewSmallBtnText}>Toggle GPS Alert</Text>
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => setPreviewSuccessModal(true)}
-                style={styles.previewSuccessBtn}
-              >
-                <Icon name="check" size={13} color="#ffffff" />
-                <Text style={styles.previewSuccessBtnText}>Test Success Modal</Text>
-              </Pressable>
-            </View>
-          </View>
-
-          {/* Dynamic Location Permission Banner */}
-          {showPermissionBanner ? (
-            <View style={styles.permissionBanner}>
-              <View style={styles.permissionIconCircle}>
-                <Icon name="my_location" size={22} color="#2f1500" />
-              </View>
-              <View style={styles.permissionTextCol}>
-                <Text style={styles.permissionTitle}>
-                  Precise location recommended
-                </Text>
-                <Text style={styles.permissionSubtitle}>
-                  Location permission required to pinpoint hazard accurately along coastal roads.
-                </Text>
-                <View style={styles.permissionActionRow}>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={async () => {
-                      await Location.requestForegroundPermissionsAsync();
-                      setShowPermissionBanner(false);
-                    }}
-                    style={styles.allowBtn}
-                  >
-                    <Text style={styles.allowBtnText}>Allow While Using</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => setShowPermissionBanner(false)}
-                    style={styles.dismissBtn}
-                  >
-                    <Text style={styles.dismissBtnText}>Dismiss</Text>
-                  </Pressable>
-                </View>
-              </View>
-            </View>
-          ) : null}
-
           {/* Unauthenticated Commuter Note */}
           {!session ? (
             <FeedbackBox
@@ -419,9 +375,9 @@ function ReportForm() {
             </View>
           </Card>
 
-          {/* 2. Verification & Trust Tier Section */}
+          {/* 2. Location and trust */}
           <View style={styles.trustSection}>
-            <Text style={styles.trustSectionTitle}>2. Verification & Trust Tier</Text>
+            <Text style={styles.trustSectionTitle}>2. Report location</Text>
 
             {/* Sub-card 1: Location Corridor */}
             <Card style={styles.trustCard}>
@@ -431,25 +387,27 @@ function ReportForm() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={styles.trustRowBetween}>
-                    <Text style={styles.trustRoadName}>Mangaluru Central Corridor</Text>
+                    <Text style={styles.trustRoadName}>{location?.label ?? "Choose where this hazard is"}</Text>
                     <View style={styles.autoDetectedBadge}>
-                      <Text style={styles.autoDetectedText}>Auto-detected</Text>
+                      <Text style={styles.autoDetectedText}>{location?.source === "device" ? "Device GPS" : location?.source === "reference" ? "Reference point" : "Required"}</Text>
                     </View>
                   </View>
                   <Text style={styles.trustCoords}>
-                    Coordinates: 12.8702° N, 74.8436° E
+                    {location ? formatCoordinates(location) : "Use current device location or choose an approximate Mangaluru reference point."}
                   </Text>
                 </View>
               </View>
               <View style={styles.trustNoticePill}>
                 <Icon name="lock" size={13} color={colors.textSecondary} />
-                <Text style={styles.trustNoticePillText}>
-                  Location is requested only when you submit
-                </Text>
+                <Text style={styles.trustNoticePillText}>{location?.source === "device" ? "GPS was requested only after your tap" : "Reference points are approximate and are not GPS"}</Text>
+              </View>
+              <View style={styles.locationActions}>
+                <Button title={locating ? "Getting current location…" : "Use current location"} loading={locating} onPress={() => void useCurrentLocation()} variant="outline" />
+                <Button title="Choose reference point" onPress={() => setLocationPickerOpen(true)} variant="outline" />
               </View>
             </Card>
 
-            {/* Sub-card 2: Tier Assignment */}
+            {/* Tier assignment */}
             <Card style={styles.trustCard}>
               <View style={styles.trustCardTop}>
                 <View style={[styles.trustIconCircle, { backgroundColor: colors.evidenceSurface }]}>
@@ -457,7 +415,7 @@ function ReportForm() {
                 </View>
                 <View style={{ flex: 1 }}>
                   <View style={styles.trustRowBetween}>
-                    <Text style={styles.trustRoadName}>Tier Assignment: Level 1</Text>
+                    <Text style={styles.trustRoadName}>3. Verification & Trust Tier</Text>
                     <View style={styles.tierL1Badge}>
                       <Text style={styles.tierL1BadgeText}>L1 Tier</Text>
                     </View>
@@ -507,9 +465,28 @@ function ReportForm() {
         </ScrollView>
       </KeyboardAvoidingView>
 
+      <Modal visible={locationPickerOpen} transparent animationType="slide" onRequestClose={() => setLocationPickerOpen(false)}>
+        <View style={styles.locationModalBackdrop}>
+          <Card style={styles.locationModalCard}>
+            <View style={styles.locationModalHeader}>
+              <View><Text style={styles.locationModalTitle}>Choose a reference point</Text><Text style={styles.locationModalBody}>Use this when you cannot use device GPS. It submits an approximate point.</Text></View>
+              <Pressable accessibilityRole="button" accessibilityLabel="Close reference-point picker" onPress={() => setLocationPickerOpen(false)} style={styles.locationModalClose}><Icon name="close" size={20} color={colors.text} /></Pressable>
+            </View>
+            <ScrollView style={styles.locationList}>
+              {mangaluruPlaces.map((place) => (
+                <Pressable key={place.name} accessibilityRole="button" onPress={() => { setLocation({ source: "reference", label: place.name, lat: place.coords[1], lng: place.coords[0], gpsAccuracyM: null, gpsFixAt: null }); setLocationPickerOpen(false); }} style={styles.locationOption}>
+                  <Icon name="location_on" size={18} color={colors.primary} />
+                  <Text style={styles.locationOptionText}>{place.name}</Text>
+                </Pressable>
+              ))}
+            </ScrollView>
+          </Card>
+        </View>
+      </Modal>
+
       {/* Success Modal */}
       <Modal
-        visible={state.kind === "success" || previewSuccessModal}
+        visible={state.kind === "success"}
         transparent
         animationType="fade"
       >
@@ -522,14 +499,13 @@ function ReportForm() {
             <Text style={styles.successSubtitle}>
               {state.kind === "success"
                 ? `Assigned tier: ${state.level}. ${state.levelReason}`
-                : "Assigned tier: Level 1 (Single observation). Your observation is active on the civic feed."}
+                : ""}
             </Text>
 
             <Button
               title="View on Live Traffic Map"
               onPress={() => {
                 setState({ kind: "idle" });
-                setPreviewSuccessModal(false);
                 router.replace("/traffic");
               }}
               variant="primary"
@@ -537,7 +513,6 @@ function ReportForm() {
             <Pressable
               onPress={() => {
                 setState({ kind: "idle" });
-                setPreviewSuccessModal(false);
               }}
               style={styles.doneBtn}
             >
@@ -962,6 +937,16 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingTop: 6,
   },
+  locationActions: { gap: space.sm, marginTop: space.sm },
+  locationModalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.45)", padding: space.gutter },
+  locationModalCard: { maxHeight: "78%", padding: space.md, gap: space.md },
+  locationModalHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: space.sm },
+  locationModalTitle: { ...typography.titleMd, color: colors.text, fontWeight: "700" },
+  locationModalBody: { ...typography.bodySm, color: colors.textSecondary, marginTop: 4, maxWidth: 290 },
+  locationModalClose: { width: minTouchTarget, height: minTouchTarget, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.surfaceContainer },
+  locationList: { maxHeight: 420 },
+  locationOption: { minHeight: minTouchTarget, flexDirection: "row", alignItems: "center", gap: space.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingVertical: space.sm },
+  locationOptionText: { ...typography.bodyMd, color: colors.text, flex: 1 },
   cancelBtn: {
     minHeight: minTouchTarget,
     alignItems: "center",

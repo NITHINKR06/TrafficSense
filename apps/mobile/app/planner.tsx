@@ -37,6 +37,7 @@ export default function PlannerScreen() {
   const [preferBus, setPreferBus] = useState(false);
   const [plan, setPlan] = useState<PlanState>({ kind: "idle" });
   const [showAlternative, setShowAlternative] = useState(false);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [pickerModal, setPickerModal] = useState<"origin" | "dest" | null>(null);
   const [fitKey, setFitKey] = useState(0);
@@ -49,6 +50,7 @@ export default function PlannerScreen() {
   const checkRoute = async () => {
     setShowAlternative(false);
     setSelectedIncidentId(null);
+    setSelectedRouteId(null);
     setPlan({ kind: "loading" });
     try {
       const [routes, incidentsResult] = await Promise.all([
@@ -58,6 +60,7 @@ export default function PlannerScreen() {
           () => ({ incidents: [] as LiveIncident[], ok: false }),
         ),
       ]);
+      setSelectedRouteId(routes.find((route) => route.is_recommended)?.id ?? routes[0]?.id ?? null);
       setFitKey((val) => val + 1);
       setPlan({
         kind: "result",
@@ -74,14 +77,19 @@ export default function PlannerScreen() {
     }
   };
 
-  const primaryRoute =
+  const recommendedRoute =
     plan.kind === "result"
       ? plan.routes.find((r) => r.is_recommended) ?? plan.routes[0]
       : null;
 
+  const primaryRoute =
+    plan.kind === "result"
+      ? plan.routes.find((route) => route.id === selectedRouteId) ?? recommendedRoute
+      : null;
+
   const alternativeRoute =
     plan.kind === "result"
-      ? plan.routes.find((r) => !r.is_recommended) ?? (plan.routes.length > 1 ? plan.routes[1] : null)
+      ? plan.routes.find((r) => r.id !== primaryRoute?.id && r.avoids_incident) ?? null
       : null;
 
   const primaryIncidents =
@@ -212,7 +220,7 @@ export default function PlannerScreen() {
           />
         ) : null}
 
-        {/* Interactive Map Preview Container */}
+        {/* The map has a native schematic fallback if detailed street tiles cannot load. */}
         <View style={styles.mapCard}>
           <TrafficMap
             segments={[]}
@@ -224,43 +232,16 @@ export default function PlannerScreen() {
             onSelectIncident={(id) => setSelectedIncidentId(id)}
             fitKey={fitKey}
           />
-
-          {/* Fullscreen Prompt Badge */}
-          <View style={styles.mapPromptBadge}>
-            <Icon name="fullscreen" size={16} color={colors.primary} />
-            <Text style={styles.mapPromptText}>Tap to inspect full screen map</Text>
-          </View>
-
-          {/* Floating Hazard Badges */}
-          <View style={styles.floatingHazardBadges}>
-            <View style={styles.hazardFloatPill}>
-              <Icon name="warning" size={12} color="#ffffff" />
-              <Text style={styles.hazardFloatText}>Bunts Hostel · 1.2 km away</Text>
-            </View>
-            <View style={styles.hazardFloatPill}>
-              <Icon name="construction" size={12} color="#ffffff" />
-              <Text style={styles.hazardFloatText}>Jyothi Rd Work · 1.2 km away</Text>
-            </View>
-          </View>
-
-          {/* Map Legend Bar */}
-          <View style={styles.mapLegendBar}>
-            <View style={styles.mapLegendItem}>
-              <View style={[styles.legendBarLine, { backgroundColor: colors.primary }]} />
-              <Text style={styles.legendBarText}>Primary (NH 66)</Text>
-            </View>
-            <View style={styles.mapLegendItem}>
-              <View style={[styles.legendBarLine, { backgroundColor: colors.secondary }]} />
-              <Text style={styles.legendBarText}>Alternative (Bolar)</Text>
-            </View>
-            <View style={styles.mapLegendItem}>
-              <View style={[styles.legendBarDot, { backgroundColor: colors.error }]} />
-              <Text style={[styles.legendBarText, { color: colors.error }]}>2 Hazards</Text>
-            </View>
-          </View>
         </View>
 
-        {/* Primary Corridor Summary Card */}
+        {plan.kind === "idle" || plan.kind === "loading" ? (
+          <Card style={styles.emptyCard}>
+            <Text style={styles.emptyTitle}>{plan.kind === "loading" ? "Checking the selected route…" : "Choose two places to check a route"}</Text>
+            <Text style={styles.emptyBody}>{plan.kind === "loading" ? "Fetching route options and the current community-report feed." : "Route distance, baseline duration, and community reports appear after a successful check."}</Text>
+          </Card>
+        ) : null}
+
+        {plan.kind === "result" && primaryRoute ? <>
         <Card style={styles.summaryCard}>
           <View style={styles.summaryHeader}>
             <View style={styles.summaryTitleGroup}>
@@ -273,7 +254,7 @@ export default function PlannerScreen() {
           </View>
 
           <Text style={styles.corridorName}>
-            {primaryRoute?.name ?? "NH 66 via Kadri & Kankanady Bypass"}
+            {primaryRoute.name}
           </Text>
 
           {/* Telemetry Strip */}
@@ -281,16 +262,14 @@ export default function PlannerScreen() {
             <View style={styles.telemetryItem}>
               <Icon name="directions_car" size={16} color={colors.primary} />
               <Text style={styles.telemetryNumber}>
-                {primaryRoute ? formatDistance(primaryRoute.distance_m) : "11.4 km"}
+                {formatDistance(primaryRoute.distance_m)}
               </Text>
             </View>
             <View style={styles.telemetryDivider} />
             <View style={styles.telemetryItem}>
               <Icon name="radar" size={16} color={colors.primary} />
               <Text style={styles.telemetryNumber}>
-                {primaryRoute
-                  ? `${formatEstimatedDuration(primaryRoute.duration_s)} free-flow`
-                  : "24 mins free-flow"}
+                {`${formatEstimatedDuration(primaryRoute.duration_s)} free-flow`}
               </Text>
             </View>
           </View>
@@ -313,10 +292,10 @@ export default function PlannerScreen() {
               <Text style={styles.warningCardTitle}>
                 {primaryIncidents.length > 0
                   ? `${primaryIncidents.length} Community report${primaryIncidents.length > 1 ? "s" : ""} affect this corridor`
-                  : "2 Community reports affect this corridor"}
+                  : "No active community reports affect this corridor"}
               </Text>
               <Text style={styles.warningCardSubtitle}>
-                Crowdsourced within the last 25 minutes
+                {plan.incidentsOk ? "Based on the current community-report feed" : "The report feed could not be refreshed for this check"}
               </Text>
             </View>
           </View>
@@ -349,46 +328,10 @@ export default function PlannerScreen() {
                 </View>
               );
             })
-          ) : (
-            <>
-              {/* Incident 1 */}
-              <View style={styles.affectingReportItem}>
-                <View style={styles.affectingReportTop}>
-                  <Text style={styles.affectingReportTitle}>Heavy Volume</Text>
-                  <View style={styles.corroboratedBadge}>
-                    <Text style={styles.corroboratedBadgeText}>L2 Corroborated</Text>
-                  </View>
-                </View>
-                <Text style={styles.affectingReportDesc}>
-                  Heavy volume near Bunts Hostel (0.4 km from route)
-                </Text>
-                <View style={styles.affectingReportMeta}>
-                  <Text style={styles.affectingMetaText}>Confirmed by 5 motorists</Text>
-                  <Text style={styles.affectingMetaText}>8m ago</Text>
-                </View>
-              </View>
-
-              {/* Incident 2 */}
-              <View style={styles.affectingReportItem}>
-                <View style={styles.affectingReportTop}>
-                  <Text style={styles.affectingReportTitle}>Road Work</Text>
-                  <View style={styles.independentBadge}>
-                    <Text style={styles.independentBadgeText}>L3 Multiple independent reports</Text>
-                  </View>
-                </View>
-                <Text style={styles.affectingReportDesc}>
-                  Reported road repair near Jyothi Circle · Lane restriction active
-                </Text>
-                <View style={styles.affectingReportMeta}>
-                  <Text style={styles.affectingMetaText}>MCC PWD notification tag</Text>
-                  <Text style={styles.affectingMetaText}>14m ago</Text>
-                </View>
-              </View>
-            </>
-          )}
+          ) : <Text style={styles.noReportsText}>{plan.incidentsOk ? "No matching reports were returned for this route." : "Try refresh when the community-report feed is available."}</Text>}
 
           {/* Toggle Alternative Route Button */}
-          <Pressable
+          {alternativeRoute ? <Pressable
             accessibilityRole="button"
             accessibilityLabel="Show alternative route on the map"
             onPress={() => setShowAlternative(!showAlternative)}
@@ -401,11 +344,11 @@ export default function PlannerScreen() {
             <Text style={styles.showAltBtnText}>
               {showAlternative ? "Hide alternative route" : "Show alternative route on the map"}
             </Text>
-          </Pressable>
+          </Pressable> : null}
         </View>
 
         {/* Detour Recommendation Card (When Alternative active) */}
-        {showAlternative ? (
+        {showAlternative && alternativeRoute ? (
           <Card style={styles.detourCard}>
             <View style={styles.detourHeader}>
               <View style={styles.detourTitleGroup}>
@@ -414,26 +357,26 @@ export default function PlannerScreen() {
               </View>
               <View style={styles.clearBadge}>
                 <View style={[styles.legendBarDot, { backgroundColor: colors.success }]} />
-                <Text style={styles.clearBadgeText}>Clear</Text>
+                <Text style={styles.clearBadgeText}>{alternativeRoute.avoids_incident ? "Avoids reported incident" : "Alternative"}</Text>
               </View>
             </View>
 
             <Text style={styles.detourName}>
-              Alternative: Via Coastal bypass (Bolar road)
+              {alternativeRoute.name}
             </Text>
 
             <View style={styles.telemetryStrip}>
               <View style={styles.telemetryItem}>
-                <Text style={styles.telemetryNumber}>12.8 km</Text>
+                <Text style={styles.telemetryNumber}>{formatDistance(alternativeRoute.distance_m)}</Text>
               </View>
               <View style={styles.telemetryDivider} />
               <View style={styles.telemetryItem}>
-                <Text style={styles.telemetryNumber}>26 mins</Text>
+                <Text style={styles.telemetryNumber}>{formatEstimatedDuration(alternativeRoute.duration_s)}</Text>
               </View>
               <View style={styles.telemetryDivider} />
               <View style={styles.telemetryItem}>
                 <Text style={[styles.telemetryNumber, { color: colors.success }]}>
-                  0 active reports
+                  {alternativeRoute.incidents_on_route?.length ?? 0} active reports
                 </Text>
               </View>
             </View>
@@ -441,9 +384,9 @@ export default function PlannerScreen() {
             <View style={styles.detourSelectRow}>
               <View style={styles.detourL0Badge}>
                 <Icon name="shield" size={14} color={colors.secondary} />
-                <Text style={styles.detourL0Text}>L0 · Free of community reports</Text>
+                <Text style={styles.detourL0Text}>{alternativeRoute.avoids_incident ? "Marked as avoiding an incident" : "Alternative returned by the planner"}</Text>
               </View>
-              <Pressable style={styles.selectThisBtn}>
+              <Pressable accessibilityRole="button" onPress={() => { setSelectedRouteId(alternativeRoute.id); setFitKey((value) => value + 1); }} style={styles.selectThisBtn}>
                 <Text style={styles.selectThisBtnText}>Select this</Text>
                 <Icon name="chevron_right" size={14} color={colors.text} />
               </Pressable>
@@ -456,14 +399,14 @@ export default function PlannerScreen() {
           <View style={styles.civicHonestyHeader}>
             <Icon name="thumb_up" size={16} color={colors.primary} />
             <Text style={styles.civicHonestyTitle}>
-              No active reports affect alternative corridor
+              Community-report coverage
             </Text>
           </View>
           <Text style={styles.civicHonestyBody}>
-            This reflects community reports only, not automated sensor traffic. Road conditions are verified through citizen submissions across Mangaluru Urban limits and updated in 3-minute intervals.
+            This route uses community reports only, not automated traffic sensors. Report availability and freshness depend on the latest successful feed refresh.
           </Text>
           <View style={styles.syncFooterRow}>
-            <Text style={styles.syncFooterText}>Last synced 14:02 IST</Text>
+            <Text style={styles.syncFooterText}>Checked {plan.checkedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</Text>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Refresh corridor state"
@@ -475,6 +418,7 @@ export default function PlannerScreen() {
             </Pressable>
           </View>
         </View>
+        </> : null}
 
         <View style={{ height: layout.safeBottomPadding }} />
       </ScrollView>
@@ -688,13 +632,15 @@ const styles = StyleSheet.create({
   },
   mapCard: {
     width: "100%",
-    height: 288,
     borderRadius: radius.card,
     backgroundColor: colors.surfaceContainer,
-    overflow: "hidden",
-    position: "relative",
+    padding: space.sm,
     ...shadows.card,
   },
+  emptyCard: { padding: space.md, gap: space.xs },
+  emptyTitle: { ...typography.titleSm, color: colors.text, fontWeight: "700" },
+  emptyBody: { ...typography.bodySm, color: colors.textSecondary, lineHeight: 19 },
+  noReportsText: { ...typography.bodySm, color: colors.textSecondary },
   mapPromptBadge: {
     position: "absolute",
     top: 12,
