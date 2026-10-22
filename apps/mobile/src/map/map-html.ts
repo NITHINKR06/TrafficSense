@@ -64,6 +64,7 @@ export function buildMapHtml(options: { baseUrl?: string; styleUrl?: string } = 
   let map = null;
   let ready = false;
   let usingFallback = false;
+  let fallbackReason = null;
   let lastData = null;
 
   function applyData(payload) {
@@ -132,8 +133,9 @@ export function buildMapHtml(options: { baseUrl?: string; styleUrl?: string } = 
     });
   }
 
-  function createMap(style, isFallback) {
+  function createMap(style, isFallback, reason) {
     usingFallback = isFallback;
+    fallbackReason = reason || null;
     map = new maplibregl.Map({
       container: "map",
       style: style,
@@ -144,16 +146,11 @@ export function buildMapHtml(options: { baseUrl?: string; styleUrl?: string } = 
       pitchWithRotate: false,
       touchPitch: false,
     });
-    let failedOnce = false;
+    // Individual tile, sprite or glyph errors are normal on a slow network and must not
+    // replace a working street map. The style itself is checked before the map is created.
     map.on("error", (event) => {
       const message = (event && event.error && event.error.message) || "";
-      if (!ready && !failedOnce && !isFallback && /style|fetch|tile|network|failed/i.test(message + " " + (event.error && event.error.status))) {
-        failedOnce = true;
-        map.remove();
-        map = null;
-        setStatus("Street map unavailable · schematic corridor only");
-        createMap(FALLBACK_STYLE, true);
-      }
+      post("map-error", { detail: message.slice(0, 160) });
     });
     map.on("load", () => {
       if (!ready) {
@@ -161,7 +158,7 @@ export function buildMapHtml(options: { baseUrl?: string; styleUrl?: string } = 
         addLayers();
         if (usingFallback) setStatus("Street map unavailable · schematic corridor only");
         else setStatus("");
-        post("ready", { fallback: usingFallback });
+        post("ready", { fallback: usingFallback, reason: fallbackReason });
         if (pending) { applyData(pending); pending = null; }
         else if (lastData) applyData(lastData);
       }
@@ -181,17 +178,35 @@ export function buildMapHtml(options: { baseUrl?: string; styleUrl?: string } = 
     },
   };
 
+  // Checks that the phone can reach the street style file before MapLibre tries to use it.
+  // Returns null when reachable, otherwise a short description of the problem.
+  async function checkStyle() {
+    try {
+      const response = await fetch(STYLE_URL, { cache: "no-store" });
+      if (!response.ok) return "OpenFreeMap answered HTTP " + response.status;
+      return null;
+    } catch (error) {
+      return "the phone could not reach OpenFreeMap (" + ((error && error.message) || "network error") + ")";
+    }
+  }
+
   if (!hasWebGL()) {
     post("failed", { reason: "webgl" });
   } else {
-    import(BASE + "/maplibre-gl.mjs").then((module) => {
+    import(BASE + "/maplibre-gl.mjs").then(async (module) => {
       window.maplibregl = module.default || module;
       const css = document.createElement("link");
       css.rel = "stylesheet";
       css.href = BASE + "/maplibre-gl.css";
       document.head.appendChild(css);
       try {
-        createMap(STYLE_URL, false);
+        const problem = await checkStyle();
+        if (problem) {
+          post("map-error", { detail: problem });
+          createMap(FALLBACK_STYLE, true, problem);
+        } else {
+          createMap(STYLE_URL, false, null);
+        }
       } catch (error) {
         post("failed", { reason: "renderer" });
       }
