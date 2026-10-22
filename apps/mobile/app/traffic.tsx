@@ -1,5 +1,6 @@
 import { router, Stack, useFocusEffect } from "expo-router";
 import { useCallback, useMemo, useRef, useState } from "react";
+import { useTabBackHandler } from "../src/lib/use-tab-back-handler";
 import {
   ActivityIndicator,
   Pressable,
@@ -24,7 +25,7 @@ import {
   FeedbackBox,
   FreshnessChip,
   Icon,
-  SimulatedBadge,
+  StatusBadge,
 } from "../src/components/ui";
 import { areIncidentListsEqual, areSegmentListsEqual } from "../src/lib/traffic-equality";
 import { colors, layout, minTouchTarget, radius, shadows, space, typography } from "../src/theme/tokens";
@@ -39,6 +40,7 @@ type TrafficData = {
 type ViewMode = "map" | "list";
 
 export default function TrafficScreen() {
+  useTabBackHandler();
   const [view, setView] = useState<ViewMode>("map");
   const [data, setData] = useState<TrafficData | null>(null);
   const [error, setError] = useState<string | null>(apiConfigurationError);
@@ -106,7 +108,7 @@ export default function TrafficScreen() {
     );
   }, [data, searchQuery]);
 
-  const clockString = data ? formatClock(data.updatedAt) : "09:44:12";
+  const clockString = data ? formatClock(data.updatedAt) : "Not synced";
 
   return (
     <View style={styles.screenWrapper}>
@@ -162,7 +164,7 @@ export default function TrafficScreen() {
               </Text>
               <View style={styles.countBadge}>
                 <Text style={styles.countBadgeText}>
-                  {data?.incidents.length ?? 4}
+                  {data?.incidents.length ?? "—"}
                 </Text>
               </View>
             </Pressable>
@@ -225,54 +227,12 @@ export default function TrafficScreen() {
             fitKey={fitKey}
           />
 
-          {/* Floating Map Controls Stack on Right */}
-          <View style={styles.floatingControlsStack}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Fit to corridor"
-              onPress={() => setFitKey((val) => val + 1)}
-              style={({ pressed }) => [styles.roundFab, pressed && styles.pressedFab]}
-            >
-              <Icon name="crop_free" size={20} color={colors.primary} />
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Show my location"
-              style={({ pressed }) => [styles.roundFab, pressed && styles.pressedFab]}
-            >
-              <Icon name="my_location" size={20} color={colors.primary} />
-            </Pressable>
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Map layers and legend"
-              style={({ pressed }) => [styles.roundFab, pressed && styles.pressedFab]}
-            >
-              <Icon name="layers" size={20} color={colors.textSecondary} />
-            </Pressable>
-          </View>
-
-          {/* Floating Map Legend Pill */}
-          <View style={styles.legendPill}>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: colors.primary }]} />
-              <Text style={styles.legendText}>Rec. Route</Text>
+          {loading && !data ? (
+            <View style={styles.mapLoadingOverlay} accessibilityLiveRegion="polite" accessibilityLabel="Loading live reports and corridor feeds">
+              <ActivityIndicator color={colors.primary} size="large" />
+              <Text style={styles.loadingText}>Loading live reports and corridor feeds…</Text>
             </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: colors.secondary }]} />
-              <Text style={styles.legendText}>Alt. Route</Text>
-            </View>
-            <View style={styles.legendItem}>
-              <View style={[styles.legendDot, { backgroundColor: "#ea580c" }]} />
-              <Text style={styles.legendText}>Slowdown</Text>
-            </View>
-          </View>
-
-          {/* OpenFreeMap Attribution */}
-          <View style={styles.mapAttribution}>
-            <Text style={styles.attributionText}>OpenFreeMap · © OpenStreetMap</Text>
-          </View>
+          ) : null}
 
           {/* Collapsible Inspection Bottom Sheet */}
           {selected ? (
@@ -312,7 +272,7 @@ export default function TrafficScreen() {
                     label={describeFreshness(selected.last_confirmed_at).label}
                     stale={describeFreshness(selected.last_confirmed_at).stale}
                   />
-                  <SimulatedBadge label="SIMULATED IMPACT" />
+                  <StatusBadge label={provenanceLabel(selected.provenance)} variant={selected.provenance === "authority" ? "info" : "neutral"} />
                 </View>
 
                 {/* Location Descriptor */}
@@ -323,7 +283,7 @@ export default function TrafficScreen() {
                       {categoryLabel(selected.category)}
                     </Text>
                     <Text style={styles.locationDescriptorSubtitle}>
-                      {selected.level_reason || "Mangaluru Central · Est. delay: +11 mins vs typical flow"}
+                      {selected.level_reason || "No additional detail was returned for this report."}
                     </Text>
                   </View>
                 </View>
@@ -392,7 +352,7 @@ export default function TrafficScreen() {
           }
         >
           {loading && !data ? (
-            <View style={styles.centerLoading}>
+            <View style={styles.centerLoading} accessibilityLiveRegion="polite" accessibilityLabel="Loading live reports and corridor feeds">
               <ActivityIndicator color={colors.primary} size="large" />
               <Text style={styles.loadingText}>Loading live reports and corridor feeds…</Text>
             </View>
@@ -439,7 +399,7 @@ export default function TrafficScreen() {
 
                   <View style={styles.listBadgesRow}>
                     <EvidenceBadge level={incident.level} label={label} />
-                    <SimulatedBadge label="SIMULATED FLOW" />
+                    <StatusBadge label={provenanceLabel(incident.provenance)} variant={incident.provenance === "authority" ? "info" : "neutral"} />
                   </View>
                 </Card>
               );
@@ -452,6 +412,12 @@ export default function TrafficScreen() {
       <BottomNav activeTab="map" />
     </View>
   );
+}
+
+function provenanceLabel(provenance: LiveIncident["provenance"]) {
+  if (provenance === "authority") return "Authority update";
+  if (provenance === "verified") return "Verified incident";
+  return "Community report";
 }
 
 const styles = StyleSheet.create({
@@ -573,6 +539,14 @@ const styles = StyleSheet.create({
   mapContainer: {
     flex: 1,
     position: "relative",
+  },
+  mapLoadingOverlay: {
+    ...StyleSheet.absoluteFill,
+    zIndex: 50,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: space.sm,
+    backgroundColor: "rgba(250, 248, 255, 0.82)",
   },
   floatingControlsStack: {
     position: "absolute",

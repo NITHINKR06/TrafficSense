@@ -15,8 +15,18 @@ export default function RootLayout() {
           headerTitleStyle: { ...typography.headlineSm, color: colors.text },
           headerShadowVisible: false,
           contentStyle: { backgroundColor: colors.background },
+          animation: "fade",
         }}
-      />
+      >
+        <Stack.Screen name="index" options={{ animation: "fade" }} />
+        <Stack.Screen name="traffic" options={{ animation: "fade" }} />
+        <Stack.Screen name="planner" options={{ animation: "fade" }} />
+        <Stack.Screen name="workspace" options={{ animation: "fade" }} />
+        <Stack.Screen name="report" options={{ animation: "slide_from_bottom" }} />
+        <Stack.Screen name="journeys" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="auth/login" options={{ animation: "slide_from_right" }} />
+        <Stack.Screen name="auth/register" options={{ animation: "slide_from_right" }} />
+      </Stack>
     </AuthProvider>
   );
 }

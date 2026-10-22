@@ -7,6 +7,7 @@ type CardProps = {
   onPress?: (event: GestureResponderEvent) => void;
   accessibilityRole?: "button" | "none";
   accessibilityLabel?: string;
+  accessibilityLiveRegion?: "none" | "polite" | "assertive";
   elevated?: boolean;
 };
 
@@ -16,6 +17,7 @@ export function Card({
   onPress,
   accessibilityRole,
   accessibilityLabel,
+  accessibilityLiveRegion,
   elevated = false,
 }: CardProps) {
   if (onPress) {
@@ -37,7 +39,7 @@ export function Card({
   }
 
   return (
-    <View style={[styles.card, elevated && styles.elevated, style]}>
+    <View style={[styles.card, elevated && styles.elevated, style]} accessibilityLiveRegion={accessibilityLiveRegion}>
       {children}
     </View>
   );

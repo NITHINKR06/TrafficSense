@@ -6,6 +6,8 @@ import { parseTrafficSegmentsResponse } from "../apps/mobile/src/lib/response-pa
 import { sharePreviewLines } from "../apps/mobile/src/lib/journeys.ts";
 import { safeReturnPath } from "../apps/mobile/src/lib/auth-rules.ts";
 import { EVIDENCE_LABELS, evidenceLabel } from "../apps/mobile/src/lib/evidence.ts";
+import { projectSchematicPoint } from "../apps/mobile/src/lib/schematic-map.ts";
+import { formatCoordinates, toReportLocationInput } from "../apps/mobile/src/lib/report-location.ts";
 
 const segment = {
   id: "s1",
@@ -119,4 +121,16 @@ test("evidence labels cover every level and never claim a confirmed cause", () =
     assert.doesNotMatch(evidenceLabel(level), /cause (is )?confirmed/i);
   }
   assert.equal(evidenceLabel("L9"), "Evidence level unavailable");
+});
+
+test("schematic fallback keeps an incident within the map bounds", () => {
+  const point = projectSchematicPoint([74.84, 12.87], [[74.83, 12.86], [74.85, 12.88]]);
+  assert.equal(point.left, "50%");
+  assert.equal(point.top, "50%");
+});
+
+test("a chosen reference point never claims a GPS fix", () => {
+  const reference = { source: "reference", label: "Hampankatta Junction", lat: 12.8698, lng: 74.8426, gpsAccuracyM: null, gpsFixAt: null };
+  assert.deepEqual(toReportLocationInput(reference), { lat: 12.8698, lng: 74.8426, gpsAccuracyM: null, gpsFixAt: null });
+  assert.equal(formatCoordinates(reference), "12.8698° N, 74.8426° E");
 });
