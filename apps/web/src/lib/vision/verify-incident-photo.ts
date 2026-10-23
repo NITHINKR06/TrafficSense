@@ -96,7 +96,11 @@ function offlineFallback(input: L5VerificationInput, reason?: string): L5Verific
 // Gemini API call
 // ---------------------------------------------------------------------------
 
-const GEMINI_MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash"] as const;
+const GEMINI_MODELS = [
+  "gemini-3.5-flash-lite",
+  "gemini-3.5-flash",
+  "gemini-3.8-flash",
+] as const;
 
 const VISION_PROMPT = `You are a strict traffic incident image verifier for an Indian civic road-safety platform.
 Examine the uploaded image carefully and return ONLY valid JSON matching this exact schema:
