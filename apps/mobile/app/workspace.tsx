@@ -2,6 +2,7 @@ import { router, Stack } from "expo-router";
 import { useEffect, useState } from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useAuth } from "../src/providers/auth-provider";
+import { supabase } from "../src/lib/supabase";
 import {
   AppHeader,
   BottomNav,
@@ -18,9 +19,25 @@ export default function WorkspaceScreen() {
   const { session, loading, signOut } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [leaving, setLeaving] = useState(false);
+  const [orgName, setOrgName] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !session) router.replace("/auth/login");
+    if (session && supabase) {
+      const sb = supabase;
+      void (async () => {
+        try {
+          const { data } = await sb.from("organisations").select("id, name");
+          if (data && data.length > 0 && typeof data[0]?.name === "string") {
+            setOrgName(data[0].name);
+          } else {
+            setOrgName(null);
+          }
+        } catch {
+          setOrgName(null);
+        }
+      })();
+    }
   }, [loading, session]);
 
   if (loading || !session) {
@@ -82,7 +99,9 @@ export default function WorkspaceScreen() {
             <View style={styles.accountTextGroup}>
               <Text style={styles.accountEmail}>{session.user.email}</Text>
               <View style={styles.roleBadge}>
-                <Text style={styles.roleBadgeText}>Verified Commuter Account</Text>
+                <Text style={styles.roleBadgeText}>
+                  {orgName ? `Employee · ${orgName}` : "Verified Commuter Account"}
+                </Text>
               </View>
             </View>
           </View>

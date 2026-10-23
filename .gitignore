@@ -30,4 +30,6 @@ yarn-error.log*
 
 apps/web/.next/
 apps/mobile/.expo/
-app
+/app
+!apps/web/src/app/**
+!apps/mobile/app/**

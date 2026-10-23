@@ -24,7 +24,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             </div>
             <nav aria-label="Main navigation">
               <Link href="/">Home</Link>
-              <Link href="/planner">Route planner</Link>
+              <Link href="/traffic">Traffic</Link>
+              <Link href="/planner">Planner</Link>
+              <Link href="/report">Report</Link>
               <Link href="/demo">Guest preview</Link>
               <Link href="/workspace" prefetch={false}>My account</Link>
             </nav>
