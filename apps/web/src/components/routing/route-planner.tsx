@@ -749,6 +749,8 @@ export function RoutePlanner() {
                     type="button"
                     onClick={() => {
                       setCustomStartCoord(null);
+                      setActiveDetour(null);
+                      setRecalculateError(null);
                       fetchRoutes(MANGALURU_PRESETS[startIndex].coords, activeDest);
                     }}
                     className="text-[11px] font-semibold underline ml-2 shrink-0"
@@ -761,7 +763,12 @@ export function RoutePlanner() {
                   <span className="font-medium truncate">GPS: {userLocation[1].toFixed(4)}, {userLocation[0].toFixed(4)}</span>
                   <button
                     type="button"
-                    onClick={() => setUseGpsStart(false)}
+                    onClick={() => {
+                      setUseGpsStart(false);
+                      setActiveDetour(null);
+                      setRecalculateError(null);
+                      fetchRoutes(MANGALURU_PRESETS[startIndex].coords, activeDest);
+                    }}
                     className="text-[11px] font-semibold underline ml-2 shrink-0"
                   >
                     Reset
@@ -773,9 +780,13 @@ export function RoutePlanner() {
                   className="w-full text-xs font-medium rounded-xl border border-surface-container-highest bg-surface-container-lowest px-3 py-2 text-surface-on shadow-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition"
                   value={startIndex}
                   onChange={(e) => {
+                    const newIdx = Number(e.target.value);
                     setUseGpsStart(false);
                     setCustomStartCoord(null);
-                    setStartIndex(Number(e.target.value));
+                    setStartIndex(newIdx);
+                    setActiveDetour(null);
+                    setRecalculateError(null);
+                    fetchRoutes(MANGALURU_PRESETS[newIdx].coords, activeDest);
                   }}
                 >
                   {MANGALURU_PRESETS.map((p, idx) => (
@@ -798,7 +809,13 @@ export function RoutePlanner() {
                 id="dest-select"
                 className="w-full text-xs font-medium rounded-xl border border-surface-container-highest bg-surface-container-lowest px-3 py-2 text-surface-on shadow-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition"
                 value={destIndex}
-                onChange={(e) => setDestIndex(Number(e.target.value))}
+                onChange={(e) => {
+                  const newIdx = Number(e.target.value);
+                  setDestIndex(newIdx);
+                  setActiveDetour(null);
+                  setRecalculateError(null);
+                  fetchRoutes(activeStart, MANGALURU_PRESETS[newIdx].coords);
+                }}
               >
                 {MANGALURU_PRESETS.map((p, idx) => (
                   <option key={p.name} value={idx}>
@@ -815,7 +832,11 @@ export function RoutePlanner() {
                 type="button"
                 className="button text-xs px-4 py-2 font-semibold shadow-xs"
                 disabled={isPending || isRecalculating}
-                onClick={() => fetchRoutes(activeStart, activeDest)}
+                onClick={() => {
+                  setActiveDetour(null);
+                  setRecalculateError(null);
+                  fetchRoutes(activeStart, activeDest);
+                }}
               >
                 {isPending ? "Calculating paths…" : "Find Best Route"}
               </button>

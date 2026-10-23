@@ -51,6 +51,61 @@ export type RerouteResult =
     };
 
 /**
+ * Evaluates whether a route polyline safely clears an obstacle.
+ * Takes into account starting/destination proximity so commuters departing from an area near a hazard
+ * are evaluated accurately as they move away from the incident rather than falsely rejected.
+ */
+export function routeClearsObstacle(
+  routeCoords: Coordinate[],
+  obstaclePoint: Coordinate,
+  exclusionRadiusM: number,
+  startPoint: Coordinate,
+  destPoint: Coordinate
+): { clears: boolean; minDistanceM: number } {
+  const startDist = haversineDistanceM(startPoint, obstaclePoint);
+  const destDist = haversineDistanceM(destPoint, obstaclePoint);
+  const minDistanceM = Math.round(minDistanceToRoute(obstaclePoint, routeCoords));
+
+  // Standard case: obstacle is well away from start and destination (> exclusionRadiusM + 25m)
+  if (startDist > exclusionRadiusM + 25 && destDist > exclusionRadiusM + 25) {
+    return {
+      clears: minDistanceM >= exclusionRadiusM,
+      minDistanceM,
+    };
+  }
+
+  // Edge case: commuter is currently positioned near the incident zone (e.g. within 200m).
+  // 1. The route must NEVER penetrate the crash/obstruction epicenter (< 40m).
+  if (minDistanceM < 40) {
+    return { clears: false, minDistanceM };
+  }
+
+  // 2. The route must not drive into the hazard (must not get significantly closer than origin/dest).
+  const baselineDist = Math.min(
+    startDist <= exclusionRadiusM + 25 ? startDist : Number.POSITIVE_INFINITY,
+    destDist <= exclusionRadiusM + 25 ? destDist : Number.POSITIVE_INFINITY
+  );
+  if (minDistanceM < Math.max(40, baselineDist - 60)) {
+    return { clears: false, minDistanceM };
+  }
+
+  // 3. For vertices past the initial departure zone (250m along path),
+  // the route must not cut back through the exclusion radius.
+  let cumulativeDistM = 0;
+  for (let i = 1; i < routeCoords.length; i++) {
+    cumulativeDistM += haversineDistanceM(routeCoords[i - 1], routeCoords[i]);
+    if (cumulativeDistM > 250) {
+      const vDist = haversineDistanceM(routeCoords[i], obstaclePoint);
+      if (vDist < exclusionRadiusM) {
+        return { clears: false, minDistanceM };
+      }
+    }
+  }
+
+  return { clears: true, minDistanceM };
+}
+
+/**
  * Computes candidate bypass waypoints around an obstacle point at various radial
  * bearings and distances.
  */
@@ -254,8 +309,14 @@ export async function calculateDetourRoute(
       const coords = primary.geometry.coordinates as Coordinate[];
 
       // Critical Check: Does the generated polyline maintain exclusion radius from blocked incident?
-      const obstacleDist = minDistanceToRoute(blockedIncident.point, coords);
-      if (obstacleDist < exclusionRadiusM) {
+      const clearance = routeClearsObstacle(
+        coords,
+        blockedIncident.point,
+        exclusionRadiusM,
+        currentLocation,
+        destination
+      );
+      if (!clearance.clears) {
         // Path clipped through the exclusion zone; reject
         continue;
       }
@@ -271,7 +332,7 @@ export async function calculateDetourRoute(
         distance_m: Math.round(primary.distance),
         duration_s: Math.round(primary.duration),
         coordinates: coords,
-        minDistanceToObstacleM: Math.round(obstacleDist),
+        minDistanceToObstacleM: clearance.minDistanceM,
         otherIncidentWarnings: otherWarnings,
         score,
       });

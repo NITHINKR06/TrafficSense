@@ -5,6 +5,7 @@ import {
   generateCandidateWaypoints,
   snapToRoadNetwork,
   calculateDetourRoute,
+  routeClearsObstacle,
 } from "../apps/web/src/lib/routing/reroute.ts";
 import { haversineDistanceM, minDistanceToRoute } from "../apps/web/src/lib/routing/engine.ts";
 
@@ -208,5 +209,43 @@ describe("Dynamic Rerouting Engine (Coordinate-Accurate Avoidance)", () => {
 
     assert.equal(result.ok, false);
     assert.match(result.error, /No (navigable|viable) road detour/i);
+  });
+
+  it("permits safe departure clearance when commuter starts near hazard zone but drives away", () => {
+    const origin = [74.8427, 12.8687]; // Hampankatta
+    const incidentPoint = [74.8420, 12.8680]; // ~107m away
+    const destination = [74.8870, 12.9613]; // Airport
+
+    // Route moving progressively north away from the incident
+    const departingRoute = [
+      origin,
+      [74.8435, 12.8710],
+      [74.8460, 12.8780],
+      destination,
+    ];
+
+    const result = routeClearsObstacle(
+      departingRoute,
+      incidentPoint,
+      200,
+      origin,
+      destination
+    );
+    assert.equal(result.clears, true);
+
+    // Route plunging straight into the crash point (<40m)
+    const dangerousRoute = [
+      origin,
+      [74.84205, 12.86805], // 7m from incident!
+      destination,
+    ];
+    const dangerResult = routeClearsObstacle(
+      dangerousRoute,
+      incidentPoint,
+      200,
+      origin,
+      destination
+    );
+    assert.equal(dangerResult.clears, false);
   });
 });

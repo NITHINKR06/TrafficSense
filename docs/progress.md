@@ -1,5 +1,30 @@
 # Project Progress
 
+## Route Planner Auto-Refresh on Dropdown Change and Origin Hazard Departure Clearance — verified, 24 Oct 2026
+
+- **Issue:**
+  1. On `/planner`, when changing origin or destination in the dropdown (e.g. from Hampankatta Junction to Mangalore International Airport), the map retained the previously calculated route (e.g. Kadri Manjunatha Temple, 3.1 km) because `<select>` `onChange` only updated state without triggering `fetchRoutes()`. This caused a severe visual and calculation mismatch where the destination was set to Airport in UI, but the map and detour calculations operated on mismatched endpoints.
+  2. Commuters starting from or departing areas near an incident (e.g. Hampankatta Junction, where an incident was located 210m away and initial one-way road alignment passed 159m away before heading north) were erroneously met with `"No Alternative Route Available: No street detour can safely clear this bottleneck"`. The detour search hardcoded `minDistanceToRoute < exclusionRadiusM` across the entire polyline, rejecting valid detours that were safely moving away from the obstacle.
+- **Root Cause:**
+  1. In `apps/web/src/components/routing/route-planner.tsx`, `start-select` and `dest-select` `onChange` handlers only invoked `setStartIndex` / `setDestIndex` without dispatching `fetchRoutes()`.
+  2. In `apps/web/src/lib/routing/reroute.ts`, `calculateDetourRoute` checked `minDistanceToRoute(blockedIncident.point, coords) < exclusionRadiusM` globally without taking into account initial departure clearance. A car starting 210m away from an incident whose exit street curves at 159m was rejected even though its trajectory led 15 km away to the destination and never penetrated the core hazard zone.
+- **Implementation:**
+  - `apps/web/src/lib/routing/reroute.ts`:
+    - Implemented and exported `routeClearsObstacle(routeCoords, obstaclePoint, exclusionRadiusM, startPoint, destPoint)`:
+      - Normal clearance: if both origin and destination are outside the exclusion zone (`> exclusionRadiusM + 25m`), enforces full `minDistanceM >= exclusionRadiusM`.
+      - Departure clearance: if origin or destination is in the vicinity of the hazard, ensures: (1) route never penetrates the core hazard impact epicenter (`< 40m`), (2) route does not get significantly closer than the starting position (`baselineDist - 60m`), and (3) once past the initial 250m departure segment, route strictly stays outside the exclusion zone.
+    - Integrated `routeClearsObstacle` into `calculateDetourRoute` candidate polyline validation loop.
+  - `apps/web/src/components/routing/route-planner.tsx`:
+    - Updated `start-select` and `dest-select` `onChange` handlers to immediately call `fetchRoutes(newCoords)` and reset `activeDetour(null)` and `recalculateError(null)`.
+    - Updated "Reset" buttons on GPS/custom start fix and "Find Best Route" button to reset `activeDetour` and `recalculateError` for a fresh calculation.
+  - `tests/reroute.test.mjs`:
+    - Added unit tests for `routeClearsObstacle` verifying that safe departing trajectories away from a hazard zone are approved while paths plunging into the hazard core are strictly rejected.
+- **Verification:**
+  - `docker compose exec app pnpm test`: Passed (**237/237** tests across 11 suites, including new departure clearance test).
+  - `docker compose exec app sh -c "cd apps/web && pnpm exec tsc --noEmit"`: 0 errors.
+  - `docker compose exec app sh -c "cd apps/web && pnpm exec eslint src/lib/routing/reroute.ts src/components/routing/route-planner.tsx"`: 0 errors.
+  - End-to-end endpoint verification: Hampankatta -> Mangalore Airport now correctly fetches 2 full alternative routes (16.3 km and 15.2 km) and successfully recalculates dynamic detour routes around obstacles (e.g. via Sri Kuruamba Temple road / KS Rao Road) without false "No Alternative Route Available" errors.
+
 ## Route Planner Side Panel UI Styling and Traffic Corridor Overlay Filter — verified, 23 Oct 2026
 
 - **Issue:**
