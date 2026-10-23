@@ -265,6 +265,12 @@ export function RoutePlanner() {
         setReportFeedback(`Reported. ${reporters} ${reporters === 1 ? "person has" : "people have"} reported this.`);
         setReportNote("");
         setShowReportForm(false);
+        if (data.incident_id) {
+          setSelectedIncidentId(data.incident_id);
+        }
+        if (mapRef.current) {
+          mapRef.current.flyTo({ center: reportCoords, zoom: 15, duration: 800 });
+        }
         // Refresh incidents and recalculate route
         await Promise.all([loadIncidents(), loadTrafficSeverity()]);
         fetchRoutes(activeStart, activeDest);

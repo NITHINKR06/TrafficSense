@@ -139,6 +139,14 @@ function MapAttempt({
   }, [assessments, slowdowns, episodeCounts, lifecycleLabels, traversalViews, alertViews, fixture, reports, state]);
 
   useEffect(() => {
+    if (!effectiveSelectedIncidentId || !mapRef.current) return;
+    const target = liveIncidents.find(i => i.id === effectiveSelectedIncidentId);
+    if (target) {
+      mapRef.current.flyTo({ center: [target.lng, target.lat], zoom: 15.5, duration: 800 });
+    }
+  }, [effectiveSelectedIncidentId, liveIncidents]);
+
+  useEffect(() => {
     const map = mapRef.current;
     if (!map || state !== "ready") return;
     let disposed = false;
@@ -157,11 +165,16 @@ function MapAttempt({
         const label = `${category}. ${liveIncidentLevelLabel(incident)}. Reported ${formatLiveIncidentTime(incident.first_reported_at)}.`;
         button.setAttribute("aria-label", `Show report details: ${label}`);
         button.title = label;
+        if (incident.id === effectiveSelectedIncidentId) {
+          button.style.transform = "scale(1.25)";
+          button.style.boxShadow = "0 0 0 4px #fbbf24, 0 6px 20px rgba(0,0,0,0.5)";
+          button.style.zIndex = "30";
+        }
         button.addEventListener("click", () => {
           setIncidentSelection(incident.id);
-          map?.flyTo({ center: [incident.lng, incident.lat], zoom: 15, duration: 600 });
+          map?.flyTo({ center: [incident.lng, incident.lat], zoom: 15.5, duration: 600 });
         });
-        const marker = new Marker({ element: button, anchor: "bottom" })
+        const marker = new Marker({ element: button, anchor: "center" })
           .setLngLat([incident.lng, incident.lat])
           .addTo(map);
         liveMarkers.current.push(marker);
@@ -173,7 +186,7 @@ function MapAttempt({
       for (const marker of liveMarkers.current) marker.remove();
       liveMarkers.current = [];
     };
-  }, [liveIncidents, state, setIncidentSelection]);
+  }, [liveIncidents, state, effectiveSelectedIncidentId, setIncidentSelection]);
 
   useEffect(() => {
     const segments = JSON.parse(geometryKey) as Pick<TrafficFixture["segments"][number], "id" | "name" | "direction" | "geometry">[];
@@ -281,7 +294,7 @@ function MapAttempt({
           style: "https://tiles.openfreemap.org/styles/liberty",
           center: [74.85, 12.88], zoom: 13,
           minZoom: 11, maxZoom: 17,
-          maxBounds: [[74.79, 12.82], [74.92, 12.94]],
+          maxBounds: [[74.70, 12.75], [74.95, 13.05]],
           attributionControl: false, dragRotate: false, pitchWithRotate: false,
           touchPitch: false, cooperativeGestures: true,
         });

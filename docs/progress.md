@@ -1,5 +1,36 @@
 # Project Progress
 
+## Exact Incident Location Precision & Map Visualization Fix — verified, 23 Oct 2026
+
+- **Issue:** Reports submitted by commuters either did not show on the map at the exact reported location or failed to appear in the map viewport:
+  1. `submit_live_incident_report_internal` in PostgreSQL used a 300m clustering radius and retained the coordinates of the *first* report, causing new reports at distinct intersections to snap up to 300m away on map markers.
+  2. The interactive map on `/report` never fetched or rendered active community incidents or the newly submitted report pin.
+  3. The full-screen map on `/traffic` had constrained `maxBounds` (`[[74.79, 12.82], [74.92, 12.94]]`) cutting off northern Mangaluru (such as the airport at 12.961), used `anchor: "bottom"` on round CSS markers offsetting pins 21px vertically above the true coordinate, and did not auto-pan or fly to an incident when selected from the sidebar feed or deep-linked from `/report`.
+  4. Landmark presets in `web-report-screen.tsx` differed by hundreds of meters from `MANGALURU_PRESETS` in `presets.ts`.
+- **Implementation:**
+  - `supabase/migrations/20261023000200_exact_incident_location_precision.sql`:
+    - Tightened cluster search distance from 300m to 50m (road/intersection level).
+    - When an existing incident is within 50m, updated `public.incidents` coordinates (`lat = p_lat, lng = p_lng`) to track the latest verified report location.
+    - Applied migration cleanly to PostgreSQL container `supabase_db_trafficsense-nk-local`.
+  - `apps/web/src/lib/routing/presets.ts`: Added Lalbagh Junction, Bunts Hostel Circle, Nanthoor Junction, and Kottara Chowki to the canonical `MANGALURU_PRESETS` list.
+  - `apps/web/src/components/reports/web-report-screen.tsx`:
+    - Unified presets with `MANGALURU_PRESETS`.
+    - Rendered active community incident markers on the report map.
+    - Automatically centered and zoomed the map on the exact reported coordinate upon submission.
+    - Deep-linked "View on Live Traffic Map →" to `/traffic?incident=${incident_id}`.
+  - `apps/web/src/components/traffic/traffic-map.tsx`:
+    - Expanded `maxBounds` to `[[74.70, 12.75], [74.95, 13.05]]` covering all of Mangaluru.
+    - Aligned marker anchor to `"center"` for circular badges to eliminate vertical offset.
+    - Added reactive `flyTo` effect to auto-center and highlight whichever live incident is selected.
+  - `apps/web/src/components/traffic/traffic-explorer.tsx`: Read `incident` URL search parameter on mount to auto-select and focus the incident.
+  - `apps/web/src/components/routing/route-planner.tsx`: Added auto-fly and incident selection to the reported coordinate on submission.
+- **Verification:**
+  - `docker compose exec app pnpm test`: Passed (**236/236** across 11 test suites).
+  - `docker compose exec app sh -c "cd apps/web && pnpm exec tsc --noEmit"`: Passed with 0 errors.
+  - `docker compose exec app pnpm lint`: Passed with 0 errors and 0 warnings.
+  - `git diff --check`: Passed with 0 whitespace issues.
+- **Commit:** `5398aea` — `fix(reports): ensure exact incident location precision and map visualization`.
+
 ## Dynamic Coordinate-Accurate Incident Detour Recalculation for /planner — verified, 23 Oct 2026
 
 - **Issue:** Commuters navigating in `/planner` had no mechanism to recalculate an alternative route when an incident (accident, road closure, hazard, flood) blocked their active route, particularly when default OSRM alternatives also intersected the blockage (`"⛔ No clear alternative route found"`). Furthermore, routes required meter-accurate street coordinates rather than coarse verbal directions or mock detours.

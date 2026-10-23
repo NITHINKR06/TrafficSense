@@ -51,7 +51,8 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
 
   const fixture = snapshot.fixture;
 
-  const [selectedLiveIncidentId, setSelectedLiveIncidentId] = useState<string | null>(null);
+  const initialIncidentId = params.get("incident");
+  const [selectedLiveIncidentId, setSelectedLiveIncidentId] = useState<string | null>(initialIncidentId);
   const [liveIncidents, setLiveIncidents] = useState<LiveIncident[]>([]);
   const [incidentFilter, setIncidentFilter] = useState<"all" | "verified" | "accident" | "hazards">("all");
 
