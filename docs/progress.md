@@ -1,6 +1,28 @@
 # Project Progress
 
-## Multi-Corridor Route Alternatives & Comprehensive 360° Detour Search — verified, 23 Oct 2026
+## Fix Live Incident Marker Coordinates and Flow Stacking on /traffic — verified, 23 Oct 2026
+
+- **Issue:**
+  - On `/traffic` (`http://localhost:3000/traffic`), live incident pins did not appear at their exact reported GPS coordinates and drifted vertically downward ("comes down"). Every time `just up` or `just db-seed` ran, adding or confirming reports caused markers to shift further down on the screen, while other map pages (`/report`, `/planner`, `/authority`) showed markers accurately.
+- **Root Cause:**
+  1. In `apps/web/src/components/traffic/traffic.module.css`, `.liveIncidentMarker` was styled with `position: relative;`. Because MapLibre GL JS positions marker elements using `position: absolute; top: 0; left: 0; transform: translate(...)`, the CSS module's `position: relative` overrode MapLibre's `position: absolute`.
+  2. As relative block buttons in normal layout flow within the map container, each marker button occupied 42px of height and pushed every subsequent incident marker vertically down by `42px * index`. Running `just up` seeded additional synthetic reports, increasing the cumulative DOM offset and causing pins to drop further down the map.
+  3. Setting `button.style.transform = "scale(1.25)"` directly on the MapLibre marker element in `traffic-map.tsx` destroyed MapLibre's inline `translate(x, y)` coordinate positioning on selection, while `.liveIncidentMarker:hover` transform transition interfered with pan/zoom positioning.
+- **Implementation:**
+  - `apps/web/src/components/traffic/traffic.module.css`:
+    - Added `.liveIncidentWrapper` with `margin: 0; padding: 0; border: 0; background: transparent; width: 42px; height: 42px; pointer-events: auto;` to serve as MapLibre's positioned marker element.
+    - Removed `position: relative;` and `outline: none;` from `.liveIncidentMarker`.
+    - Added clean scoped `.liveIncidentMarker[data-selected="true"]` with `transform: scale(1.25); box-shadow: 0 0 0 4px #fbbf24, 0 6px 20px rgba(0, 0, 0, 0.5); z-index: 30;` on the child button.
+  - `apps/web/src/components/traffic/traffic-map.tsx`:
+    - Wrapped each incident `<button>` inside a dedicated `wrapper` div passed to `new Marker({ element: wrapper, anchor: "center" })`.
+    - Separated marker DOM instantiation from selection synchronization so clicking an incident updates `data-selected` and `zIndex` without tearing down and rebuilding markers.
+    - Preserved exact geographic `[lng, lat]` coordinates on the outer wrapper with zero vertical flow drift.
+- **Verification:**
+  - `docker compose exec app pnpm test`: Passed (**236/236** tests across 11 suites).
+  - `docker compose exec app pnpm run lint`: 0 errors.
+  - `docker compose exec -e CI=1 app pnpm run build`: Production build succeeded in 1.49s (all 25 routes generated).
+  - Confirmed marker pins stay strictly anchored to their exact latitude and longitude on `/traffic` regardless of incident count or database reseeding.
+- **Commit:** `0db3a85` — `fix(traffic): resolve marker vertical flow stacking and coordinate drift`.
 
 - **Issue:**
   1. For major corridors (such as Bunts Hostel Circle $\rightarrow$ Mangalore International Airport), OSRM default contraction hierarchies returned only a single route, depriving commuters of real alternative paths.

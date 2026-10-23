@@ -156,6 +156,9 @@ function MapAttempt({
     void import("maplibre-gl").then(({ Marker }) => {
       if (disposed || !mapRef.current) return;
       for (const incident of liveIncidents) {
+        const wrapper = document.createElement("div");
+        wrapper.className = styles.liveIncidentWrapper;
+
         const button = document.createElement("button");
         button.type = "button";
         button.className = styles.liveIncidentMarker;
@@ -165,16 +168,15 @@ function MapAttempt({
         const label = `${category}. ${liveIncidentLevelLabel(incident)}. Reported ${formatLiveIncidentTime(incident.first_reported_at)}.`;
         button.setAttribute("aria-label", `Show report details: ${label}`);
         button.title = label;
-        if (incident.id === effectiveSelectedIncidentId) {
-          button.style.transform = "scale(1.25)";
-          button.style.boxShadow = "0 0 0 4px #fbbf24, 0 6px 20px rgba(0,0,0,0.5)";
-          button.style.zIndex = "30";
-        }
-        button.addEventListener("click", () => {
+        button.addEventListener("click", (e) => {
+          e.stopPropagation();
           setIncidentSelection(incident.id);
           map?.flyTo({ center: [incident.lng, incident.lat], zoom: 15.5, duration: 600 });
         });
-        const marker = new Marker({ element: button, anchor: "center" })
+
+        wrapper.appendChild(button);
+
+        const marker = new Marker({ element: wrapper, anchor: "center" })
           .setLngLat([incident.lng, incident.lat])
           .addTo(map);
         liveMarkers.current.push(marker);
@@ -186,7 +188,19 @@ function MapAttempt({
       for (const marker of liveMarkers.current) marker.remove();
       liveMarkers.current = [];
     };
-  }, [liveIncidents, state, effectiveSelectedIncidentId, setIncidentSelection]);
+  }, [liveIncidents, state, setIncidentSelection]);
+
+  useEffect(() => {
+    for (const marker of liveMarkers.current) {
+      const wrapper = marker.getElement();
+      const button = wrapper.querySelector<HTMLButtonElement>("button");
+      if (button) {
+        const isSelected = button.dataset.liveIncidentMarker === effectiveSelectedIncidentId;
+        button.dataset.selected = isSelected ? "true" : "false";
+        wrapper.style.zIndex = isSelected ? "30" : "";
+      }
+    }
+  }, [effectiveSelectedIncidentId, liveIncidents]);
 
   useEffect(() => {
     const segments = JSON.parse(geometryKey) as Pick<TrafficFixture["segments"][number], "id" | "name" | "direction" | "geometry">[];
