@@ -799,6 +799,23 @@ Verdict: **Gate passed** — all four decisions recorded. WP1 begins immediately
 
 ## Current implementation
 
+## UI utility-style rendering repair — completed and verified, 23 Oct 2026
+
+- **Goal/scope:** repair the shared web styling pipeline after review screenshots showed `/report`, `/planner`, and `/admin` rendering Tailwind utility-based layouts as unstyled text. Inspect the remaining web routes sharing the same global stylesheet and verify desktop/mobile rendering after the shared repair. This is a Phase 2 regression repair; it changes no reporting, verification, authorization, or data behavior.
+- **Baseline/cause:** `compose.yaml` starts Next.js with `--webpack`, while `apps/web/next.config.ts` only configured `@tailwindcss/turbopack` and had no PostCSS configuration file. In Webpack dev mode, PostCSS did not run, leaving Tailwind v4 utility classes ungenerated. In addition, `@theme` in `globals.css` was missing semantic token aliases used across components (`text-surface-on`, `text-surface-on-variant`, `text-primary-on`, `bg-error-container`, `text-success`).
+- **Fixes:**
+  1. Created `apps/web/postcss.config.mjs` with `@tailwindcss/postcss` plugin export for Webpack dev compatibility.
+  2. Expanded `@theme` in `apps/web/src/app/globals.css` with semantic color mappings (`--color-surface-on`, `--color-surface-on-variant`, `--color-primary-on`, `--color-secondary-on`, `--color-error-on`, `--color-error-container`, `--color-success`, `--color-warning-on-container`, etc.).
+  3. Added `.panel` wrapper class to `/report` and `/planner` pages for consistent card containment matching `/admin`, `/authority`, and `/workspace`.
+  4. Formatted the `/admin` incident table with proper horizontal cell padding (`px-3`), row hover styles, and clean column alignment.
+  5. Refined the `/planner` button layout to use `.button.secondary` with consistent button sizing.
+- **Verification evidence:**
+  - Runtime CSS generation verified in container: layout CSS expanded from minimal fallback to 54KB, containing `grid-cols-12`, `gap-6`, `space-y-4`, `text-surface-on`, and arbitrary dimensions (`480px`).
+  - Routes `/report`, `/planner`, and `/admin` verified returning HTTP 200 with complete CSS links.
+  - Node test suite: 223 passed, 0 failed across all 9 test suites (`pnpm test`).
+  - Linter: `pnpm lint` passed with 0 errors.
+  - Production build: `pnpm build` completed cleanly in 5.1s (Turbopack + TypeScript check passed).
+
 - Next.js, TypeScript, Tailwind and Docker development/check/production-preview workflows exist. Phase 2 integrates the supplied visual direction into the homepage and existing public/account/role/error screens; its current verification record is above.
 - Local Supabase authentication, server-enforced roles, profiles/organisation memberships, RLS and synthetic seeding are implemented. Phase 1 verification, including recovery, permission changes, signed expiry and non-destructive restart, is recorded complete in `092ebc2`; earlier pending entries below are historical.
 - Phase 3's typed synthetic corridor, database, local simulator and public map/list/details are verified locally. Phase 4 includes persisted guest/account reporting, directed report-source evidence and server-derived simulated slowdown support; their verification records are above. Persistent incident episodes, supported recovery/clearance and complete-traversal delay remain required Phase 4 work. Alerts, journey sharing, analytics and receipts remain unimplemented. The homepage drawing remains an explicitly labelled illustration, not a geographic map or traffic-data reader. No hosted deployment is verified.

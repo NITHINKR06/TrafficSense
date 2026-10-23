@@ -563,7 +563,7 @@ export function RoutePlanner() {
             </button>
             <button
               type="button"
-              className="text-xs px-3 py-2 rounded-lg border border-surface-container bg-surface-container-low text-surface-on hover:bg-surface-container transition flex items-center gap-1.5 font-medium"
+              className="button secondary text-xs px-3 py-2 font-medium flex items-center gap-1.5"
               onClick={() => setShowReportForm((prev) => !prev)}
             >
               <span>📢</span>

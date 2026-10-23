@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function ReportPage() {
   return (
-    <section className="space-y-6">
+    <section className="panel space-y-6">
       <div className="panel-heading">
         <p className="eyebrow m-0">Citizen Hazard Reporting</p>
         <span className="simulated-pill">COMMUNITY EVIDENCE</span>

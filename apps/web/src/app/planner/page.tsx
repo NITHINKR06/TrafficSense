@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default function PlannerPage() {
   return (
-    <section className="space-y-6">
+    <section className="panel space-y-6">
       <div className="panel-heading">
         <p className="eyebrow m-0">Dynamic Route Intelligence</p>
         <span className="simulated-pill">FREE-FLOW ESTIMATE</span>
