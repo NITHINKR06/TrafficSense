@@ -57,7 +57,7 @@ export type RerouteResult =
 export function generateCandidateWaypoints(
   currentLocation: Coordinate,
   incidentPoint: Coordinate,
-  radiiM: number[] = [350, 550, 800]
+  radiiM: number[] = [450, 750, 1200, 2000, 3200]
 ): Coordinate[] {
   const [cLng, cLat] = currentLocation;
   const [iLng, iLat] = incidentPoint;
@@ -68,7 +68,7 @@ export function generateCandidateWaypoints(
   const approachBearingRad = Math.atan2(dLat, dLng);
 
   // Lateral angle offsets (orthogonal left/right and forward/reverse diagonals)
-  const angleOffsetsDeg = [90, -90, 60, -60, 120, -120, 45, -45, 135, -135];
+  const angleOffsetsDeg = [90, -90, 60, -60, 120, -120, 45, -45, 135, -135, 150, -150, 180];
   const candidates: Coordinate[] = [];
 
   const latMPerDeg = 111000;
@@ -152,12 +152,26 @@ export async function calculateDetourRoute(
     };
   }
 
-  // 1. Generate candidate bypass waypoints around the incident at 450m, 750m, and 1100m radii
+  // 1. Generate candidate bypass waypoints around the incident at diverse radial tiers
   const rawWaypoints = generateCandidateWaypoints(
     currentLocation,
     blockedIncident.point,
-    [450, 750, 1100]
+    [450, 750, 1200, 2000, 3200]
   );
+
+  // Strategic Mangaluru arterial corridor bypass nodes
+  const MANGALURU_CORRIDORS: Coordinate[] = [
+    [74.8380, 12.9080], // Kottara Chowki / NH66
+    [74.8450, 12.9000], // Kuntikan / Derebail
+    [74.8970, 12.9100], // Vamanjoor / Gurupura
+    [74.8650, 12.8850], // Bikarnakatte
+  ];
+
+  for (const c of MANGALURU_CORRIDORS) {
+    if (haversineDistanceM(c, blockedIncident.point) >= exclusionRadiusM * 2) {
+      rawWaypoints.push(c);
+    }
+  }
 
   if (rawWaypoints.length === 0) {
     return {
@@ -183,20 +197,11 @@ export async function calculateDetourRoute(
     // Continue even if direct route baseline lookup fails
   }
 
-  // 3. Snap candidate waypoints to drivable road network and prune duplicates
-  // Sample candidates across multiple distance tiers to find genuine road bypasses
+  // 3. Snap candidate waypoints to drivable road network and prune duplicates across all bearings
   const snappedNodes: SnappedRoadNode[] = [];
   const snappedCoordKeys = new Set<string>();
 
-  // Pick candidates across all tiers (tier 1: 450m, tier 2: 750m, tier 3: 1100m)
-  const tierSize = Math.max(1, Math.floor(rawWaypoints.length / 3));
-  const candidateSlice: Coordinate[] = [];
-  for (let t = 0; t < 3; t++) {
-    const slice = rawWaypoints.slice(t * tierSize, (t + 1) * tierSize);
-    candidateSlice.push(...slice.slice(0, 4));
-  }
-
-  for (const raw of candidateSlice) {
+  for (const raw of rawWaypoints) {
     const snapped = await snapToRoadNetwork(raw, fetchFn, baseUrl);
     if (!snapped) continue;
 
@@ -206,13 +211,13 @@ export async function calculateDetourRoute(
       continue;
     }
 
-    const key = `${snapped.coordinate[0].toFixed(4)},${snapped.coordinate[1].toFixed(4)}`;
+    const key = `${snapped.coordinate[0].toFixed(3)},${snapped.coordinate[1].toFixed(3)}`;
     if (!snappedCoordKeys.has(key)) {
       snappedCoordKeys.add(key);
       snappedNodes.push(snapped);
     }
 
-    if (snappedNodes.length >= 6) break; // Have enough diverse viable road candidates
+    if (snappedNodes.length >= 16) break; // Gather a diverse set of road candidates across all compass directions
   }
 
   if (snappedNodes.length === 0) {

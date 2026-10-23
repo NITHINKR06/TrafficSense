@@ -1,5 +1,27 @@
 # Project Progress
 
+## Multi-Corridor Route Alternatives & Comprehensive 360° Detour Search — verified, 23 Oct 2026
+
+- **Issue:**
+  1. For major corridors (such as Bunts Hostel Circle $\rightarrow$ Mangalore International Airport), OSRM default contraction hierarchies returned only a single route, depriving commuters of real alternative paths.
+  2. When an incident (e.g. Strike at Kavoor on Airport Road) was present, the dynamic detour search prematurely restricted candidates to a tiny cluster of 4 angles and only 6 nodes, falsely claiming "No Alternative Route Available" despite parallel avenues (Derebail, Maryhill, NH66 via Kottara Chowki) being completely open and viable.
+- **Implementation:**
+  - `apps/web/src/lib/routing/reroute.ts`:
+    - Expanded radial distance tiers to `[450, 750, 1200, 2000, 3200]` meters.
+    - Expanded angular search offsets to full 360° coverage (13 directions: $\pm 90^\circ, \pm 60^\circ, \pm 120^\circ, \pm 45^\circ, \pm 135^\circ, \pm 150^\circ, 180^\circ$).
+    - Integrated strategic Mangaluru arterial corridor anchors (Kottara Chowki / NH66, Kuntikan / Derebail, Vamanjoor / Gurupura, Bikarnakatte).
+    - Snapped up to 16 diverse nodes across distinct compass directions to guarantee alternate corridor coverage.
+  - `apps/web/src/lib/routing/engine.ts`:
+    - Enhanced `parseOsrmResponse` to promote routes that avoid the primary blocked hazard even when secondary minor warnings exist elsewhere.
+    - Updated `queryRoute` to enrich single-route OSRM results with parallel Mangaluru corridors (via NH66, via Derebail) when `enableCorridors` is enabled.
+  - `apps/web/src/app/api/route/route.ts`: Enabled corridor alternatives for commuter route planning.
+- **Verification:**
+  - `docker compose exec app pnpm test`: Passed (**236/236** tests across 11 suites).
+  - `docker compose exec app sh -c "cd apps/web && pnpm exec tsc --noEmit"`: 0 errors.
+  - `POST /api/route`: Returns 3 calculated routes for Bunts Hostel $\rightarrow$ Airport (Recommended detour via parallel corridor at 26 min, standard route at 23 min, alternative via Derebail at 25 min).
+  - `POST /api/route/reroute`: Successfully computes a 518-coordinate dynamic street detour avoiding the Kavoor Strike by 342m–1043m.
+- **Commit:** `518231f` — `feat(routing): enable multi-corridor route alternatives and full-bearing detour search`.
+
 ## Authority Big-Screen Full-Width Map & Dedicated Fullscreen Mode — verified, 23 Oct 2026
 
 - **Issue:** The Corridor Hotspot Map was constrained inside a narrow 7-column column (~680px width) within a 1200px container with a 440px height, making it feel small on wide desktop displays and causing popup cards to cover map features.
