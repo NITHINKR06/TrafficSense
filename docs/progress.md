@@ -1,5 +1,36 @@
 # Project Progress
 
+## Authority Corridor OpenStreetMap & Multi-Column Executive Dashboard — verified, 23 Oct 2026
+
+- **Issue:**
+  1. The Corridor Hotspot Map on `/authority` was a static SVG schematic (`<svg viewBox="0 0 320 180">`) with hardcoded circle coordinates instead of real OpenStreetMap tiles with true Mangaluru geographic coordinates.
+  2. The UI on `http://localhost:3000/authority` was laid out as a single-column, vertically stacked list of cards and tables wrapped inside a single `.panel` container ("list in single line"), making executive overview and operational decision-making difficult.
+- **Implementation:**
+  - `apps/web/src/components/analytics/hotspot-map.tsx`:
+    - Created an interactive client component utilizing MapLibre GL with OpenFreeMap liberty tiles (`https://tiles.openfreemap.org/styles/liberty`) and offline schematic fallback basemap (`createFallbackStyle()`).
+    - Rendered ranked markers (`#1` to `#5`) at canonical Mangaluru geographic coordinates (Hampankatta `[74.842, 12.868]`, KSRTC Bejai `[74.848, 12.885]`, Jyothi Ambedkar Circle `[74.845, 12.871]`, Ladyhill `[74.841, 12.894]`, Pumpwell `[74.862, 12.858]`).
+    - High-visibility pulsing badge for `#1 Top Hotspot`, interactive popup cards on click showing rank, delay hours, event count, avg delay, and cause.
+    - Synchronized selection: clicking a hotspot on the map highlights it in the rankings list, and selecting in the table flies the map camera to the junction.
+    - Overlay of active community incidents (`LIVE` badge pins) with clickable report popups.
+    - Reset corridor view control and legend overlays.
+  - `apps/web/src/components/analytics/authority-dashboard.tsx`:
+    - Redesigned into a multi-column, responsive civic executive dashboard layout.
+    - Top executive command toolbar with analysis period selector, demo history toggle, refresh, and CSV export.
+    - 4-card top KPI metric indicator row (Total Incidents, Total Commuter Delay, Top Hotspot with 1-click locate, Primary Cause).
+    - Operations Grid (`grid-cols-1 lg:grid-cols-12`): OpenStreetMap Hotspot Map and Authority Problem Report in the primary column; Corridor Hotspot Rankings and Active Incident Review Queue in the secondary column.
+    - Tab navigation (`Executive Dashboard Grid`, `Corridor Hotspot Map & Rankings`, `Incident Review & Verification`, `Recurrence Heatmap & Causes`, `Incident Audit Log`).
+    - Integrated `IncidentReviewPanel` seamlessly into the dashboard.
+    - Diagnostics Grid: Recurrence Heatmap (Day × 30-min slot with localized recurrence calculation) alongside Incident Cause Distribution and Delay by Incident Type.
+    - Auditable Incident Log with IST timestamps and provenance chips.
+  - `apps/web/src/app/authority/page.tsx`:
+    - Modernized page container with responsive header, quick navigation links to My Account and Live Traffic Map, and methodology footer.
+- **Verification:**
+  - `docker compose exec app pnpm test`: Passed (**236/236** tests across 11 suites).
+  - `docker compose exec app sh -c "cd apps/web && pnpm exec tsc --noEmit"`: 0 errors.
+  - `docker compose exec app pnpm lint`: 0 errors.
+  - `docker compose exec -e CI=1 app pnpm build`: Production build succeeded in 1.5s with static/prerendered generation of 25 routes including `/authority`.
+- **Commit:** `3cf4cc9` — `feat(authority): replace svg with openstreetmap and redesign dashboard layout`.
+
 ## Route Planner No-Alternative UI & L5 Incident Rerouting Support — verified, 23 Oct 2026
 
 - **Issue:**
