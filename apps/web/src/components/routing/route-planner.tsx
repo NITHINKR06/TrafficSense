@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useTransition } from "react";
+import { useState, useEffect, useRef, useTransition, useCallback } from "react";
 import Link from "next/link";
 import type { Map as MapInstance, Marker as MarkerInstance } from "maplibre-gl";
 import { formatRouteDuration, formatRouteDistance, type RouteOption } from "@/lib/routing/types";
@@ -11,6 +11,8 @@ import { createFallbackStyle } from "@/lib/traffic/mangaluru-basemap";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import { MANGALURU_PRESETS } from "@/lib/routing/presets";
+import { L5PhotoPanel, toL5Category } from "@/components/reports/l5-photo-panel";
+import type { L5VerificationResult } from "@/lib/vision/verify-incident-photo";
 export { MANGALURU_PRESETS };
 
 function createGeoJsonCircle(center: [number, number], radiusM = 250, points = 32) {
@@ -79,6 +81,8 @@ export function RoutePlanner() {
   const [reportLocationIndex, setReportLocationIndex] = useState<number>(0);
   const [useGpsReport, setUseGpsReport] = useState<boolean>(false);
   const [reportNote, setReportNote] = useState<string>("");
+  const [reportL5Result, setReportL5Result] = useState<L5VerificationResult | null>(null);
+  const handleReportL5Result = useCallback((r: L5VerificationResult | null) => setReportL5Result(r), []);
   const [reportFeedback, setReportFeedback] = useState<string | null>(null);
   const [isSubmittingReport, setIsSubmittingReport] = useState<boolean>(false);
 
@@ -256,6 +260,10 @@ export function RoutePlanner() {
           gps_accuracy_m: useGpsReport ? gpsAccuracy : null,
           gps_fix_at: useGpsReport ? new Date().toISOString() : null,
           note: reportNote || null,
+          l5_verified: Boolean(reportL5Result?.isGenuineIncident && reportL5Result.confidenceTier !== "low"),
+          l5_summary: reportL5Result?.isGenuineIncident ? reportL5Result.visualSummary : null,
+          l5_photo_data_url: reportL5Result?.isGenuineIncident ? (reportL5Result.photoDataUrl ?? null) : null,
+          l5_confidence_tier: reportL5Result?.confidenceTier ?? null,
         }),
       });
 
@@ -264,6 +272,7 @@ export function RoutePlanner() {
         const reporters = typeof data.distinct_reporters === "number" ? data.distinct_reporters : 1;
         setReportFeedback(`Reported. ${reporters} ${reporters === 1 ? "person has" : "people have"} reported this.`);
         setReportNote("");
+        setReportL5Result(null);
         setShowReportForm(false);
         if (data.incident_id) {
           setSelectedIncidentId(data.incident_id);
@@ -1109,6 +1118,21 @@ export function RoutePlanner() {
           <div><dt className="text-surface-on-variant">Reported</dt><dd className="font-semibold text-surface-on mt-0.5">{formatIncidentTime(selectedIncident.first_reported_at)} IST</dd></div>
           <div><dt className="text-surface-on-variant">Status</dt><dd className="font-semibold text-surface-on mt-0.5 capitalize">{selectedIncident.status}</dd></div>
         </dl>
+        {selectedIncident.photo_data_url && (
+          <div className="rounded-lg overflow-hidden border border-surface-container bg-surface-container-low">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={selectedIncident.photo_data_url}
+              alt="Verified road incident evidence"
+              className="w-full h-32 object-cover block"
+            />
+            <div className="px-2 py-1 text-[10px] font-mono bg-emerald-950 text-emerald-100 flex items-center justify-between">
+              <span>📷 BEST VERIFIED PHOTO · L5 AI VISION</span>
+              <span>{(selectedIncident.photo_confidence ?? "moderate").toUpperCase()}</span>
+            </div>
+          </div>
+        )}
+        <p className="text-xs text-surface-on-variant m-0">{selectedIncident.level_reason}</p>
         <p className="text-[11px] text-surface-on-variant m-0">This open incident expires if it receives no new confirmation by {formatIncidentTime(new Date(Date.parse(selectedIncident.last_confirmed_at) + 3 * 60 * 60 * 1000).toISOString())} IST.</p>
 
         <div className="pt-2.5 border-t border-surface-container flex flex-wrap items-center justify-between gap-2">
@@ -1345,6 +1369,16 @@ export function RoutePlanner() {
                 value={reportNote}
                 onChange={(e) => setReportNote(e.target.value)}
                 maxLength={200}
+              />
+            </div>
+
+            {/* Optional L5 photo evidence */}
+            <div className="space-y-1.5">
+              <p className="text-xs font-semibold text-surface-on m-0">4. Photo Evidence (Optional · L5 AI Vision)</p>
+              <L5PhotoPanel
+                segmentId="planner-live-report"
+                userSelectedCategory={toL5Category(reportCategory)}
+                onResult={handleReportL5Result}
               />
             </div>
 

@@ -245,6 +245,8 @@ export function WebReportScreen({ viewer }: { viewer?: { email?: string; role: s
           note: note.trim() || null,
           l5_verified: Boolean(l5Result?.isGenuineIncident && l5Result.confidenceTier !== "low"),
           l5_summary: l5Result?.isGenuineIncident ? l5Result.visualSummary : null,
+          l5_photo_data_url: l5Result?.isGenuineIncident ? (l5Result.photoDataUrl ?? null) : null,
+          l5_confidence_tier: l5Result?.confidenceTier ?? null,
         }),
       });
 
