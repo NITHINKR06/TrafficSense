@@ -989,7 +989,7 @@ export function RoutePlanner() {
                           <span>{showCoordinatesId === r.id ? "Hide Road Coordinates" : `View ${r.geometry.coordinates.length} Road Coordinates`}</span>
                         </button>
                         <Link
-                          href="/workspace"
+                          href={`/workspace?corridor=${encodeURIComponent(r.name)}`}
                           className="text-xs font-semibold px-3 py-1 rounded bg-primary text-primary-on hover:opacity-90 transition"
                           onClick={(e) => e.stopPropagation()}
                         >
