@@ -45,7 +45,12 @@ export type IconName =
   | "tune"
   | "fullscreen"
   | "group"
-  | "visibility";
+  | "visibility"
+  | "camera_alt"
+  | "check_circle"
+  | "photo_camera"
+  | "photo_library"
+  | "smart_toy";
 
 type IconProps = {
   name: IconName;
@@ -999,6 +1004,146 @@ export function Icon({ name, size = 20, color = "#191c20", style }: IconProps) {
           >
             <View style={{ width: size * 0.22, height: size * 0.22, borderRadius: size * 0.11, backgroundColor: color }} />
           </View>
+        </View>
+      );
+
+    case "camera_alt":
+    case "photo_camera":
+      return (
+        <View style={containerStyle}>
+          <View
+            style={{
+              width: size * 0.8,
+              height: size * 0.6,
+              borderRadius: 4,
+              backgroundColor: color,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <View
+              style={{
+                width: size * 0.3,
+                height: size * 0.3,
+                borderRadius: size * 0.15,
+                borderWidth: 2,
+                borderColor: "#ffffff",
+              }}
+            />
+          </View>
+          <View
+            style={{
+              position: "absolute",
+              top: size * 0.05,
+              left: size * 0.28,
+              width: size * 0.22,
+              height: size * 0.12,
+              borderRadius: 2,
+              backgroundColor: color,
+            }}
+          />
+        </View>
+      );
+
+    case "check_circle":
+      return (
+        <View style={containerStyle}>
+          <View
+            style={{
+              width: size * 0.85,
+              height: size * 0.85,
+              borderRadius: size * 0.425,
+              borderWidth: 2,
+              borderColor: color,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <View
+              style={{
+                width: size * 0.38,
+                height: size * 0.2,
+                borderLeftWidth: 2.2,
+                borderBottomWidth: 2.2,
+                borderColor: color,
+                transform: [{ rotate: "-45deg" }],
+                marginTop: -size * 0.06,
+              }}
+            />
+          </View>
+        </View>
+      );
+
+    case "photo_library":
+      return (
+        <View style={containerStyle}>
+          <View
+            style={{
+              position: "absolute",
+              right: 0,
+              top: 0,
+              width: size * 0.72,
+              height: size * 0.72,
+              borderRadius: 3,
+              borderWidth: 1.5,
+              borderColor: color,
+            }}
+          />
+          <View
+            style={{
+              position: "absolute",
+              left: 0,
+              bottom: 0,
+              width: size * 0.72,
+              height: size * 0.72,
+              borderRadius: 3,
+              backgroundColor: color,
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            <View
+              style={{
+                width: size * 0.28,
+                height: size * 0.28,
+                borderRadius: size * 0.14,
+                borderWidth: 1.5,
+                borderColor: "#ffffff",
+              }}
+            />
+          </View>
+        </View>
+      );
+
+    case "smart_toy":
+      return (
+        <View style={containerStyle}>
+          <View
+            style={{
+              width: size * 0.65,
+              height: size * 0.55,
+              borderRadius: 4,
+              borderWidth: 2,
+              borderColor: color,
+              alignItems: "center",
+              justifyContent: "center",
+              flexDirection: "row",
+              gap: size * 0.1,
+            }}
+          >
+            <View style={{ width: size * 0.12, height: size * 0.12, borderRadius: size * 0.06, backgroundColor: color }} />
+            <View style={{ width: size * 0.12, height: size * 0.12, borderRadius: size * 0.06, backgroundColor: color }} />
+          </View>
+          <View
+            style={{
+              position: "absolute",
+              top: 0,
+              width: 2,
+              height: size * 0.22,
+              backgroundColor: color,
+              borderRadius: 1,
+            }}
+          />
         </View>
       );
 
