@@ -41,6 +41,7 @@ mobile-lan host="192.168.0.224":
 [private]
 _mobile-lan-run target_host:
     @echo "==> LAN mode exposes local Supabase and Expo on a trusted network only..."
+    @docker compose --profile mobile rm --stop --force app mobile 2>/dev/null || true
     LOCAL_SUPABASE_HOST_BIND=0.0.0.0 bash scripts/local-supabase.sh start
     LOCAL_SUPABASE_HOST_BIND=0.0.0.0 bash scripts/local-supabase.sh seed
     APP_HOST_BIND=0.0.0.0 docker compose up --build -d app

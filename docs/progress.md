@@ -1,5 +1,11 @@
 # Project Progress
 
+## Mobile LAN bridge transition — in progress, 23 Oct 2026
+
+- **Scope:** Repair `just mobile-lan <LAN-IP>` when the dedicated local Supabase bridge was previously created with loopback-only port bindings. This is local developer infrastructure supporting the mobile public-traffic reader; it does not alter the report, verification, alert, or analytics contracts.
+- **Observed blocker:** `just mobile-lan 192.168.1.104` stopped before seeding because `trafficsense-nk_supabase` was configured with `127.0.0.1`, whereas LAN mode requires `0.0.0.0`. Docker bridge host-binding options cannot be changed in place, and the Supabase tooling correctly rejected the mismatch.
+- **Acceptance checks:** Preserve the local database volume while changing only this project's bridge and containers; complete the exact LAN recipe; confirm the web API and Metro are reachable through the supplied LAN address; run relevant Docker/static checks and whitespace review.
+
 ## Mobile UI implementation rules — documented, 22 Oct 2026
 
 - **Scope:** Added the mandatory mobile-only UI implementation contract at `apps/mobile/docs/ui-implementation-rules.md`. It makes the native mobile design specification and screen references the visual source, requires preservation of working mobile UI/backend behaviour, defines design tokens and navigation/accessibility/state rules, prevents fake UI-only data, and requires planned wiring plus focused/device verification. Added `apps/mobile/docs/ui-implementation-plan.md`, a phased mobile roadmap that preserves the working screens, permits backend-supported supporting pages, maps every flow to its server contract, and defines a Docker/map/device/accessibility verification gate. Linked these sources only from the mobile AI rules and mobile plan.

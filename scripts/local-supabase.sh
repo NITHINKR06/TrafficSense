@@ -9,6 +9,22 @@ supabase_project_id="trafficsense-nk-local"
 supabase_db_container="supabase_db_${supabase_project_id}"
 supabase_network="trafficsense-nk_supabase"
 
+recreate_supabase_network() {
+  local container_name
+  local containers
+
+  mapfile -t containers < <(docker network inspect "$supabase_network" --format '{{range .Containers}}{{.Name}}{{"\n"}}{{end}}')
+  for container_name in "${containers[@]}"; do
+    [[ -z "$container_name" ]] && continue
+    if [[ "$container_name" != supabase_*_"$supabase_project_id" ]]; then
+      printf '%s\n' "Cannot switch local Supabase to LAN binding while project container $container_name is attached to $supabase_network. Stop that container and retry." >&2
+      exit 1
+    fi
+    docker rm -f "$container_name" >/dev/null
+  done
+  docker network rm "$supabase_network" >/dev/null
+}
+
 # Reuse an existing project bridge's binding when the caller did not choose one.
 # This keeps repeated `just up` runs compatible with the bridge already in use.
 if [[ -z "${LOCAL_SUPABASE_HOST_BIND+x}" ]] && docker network inspect "$supabase_network" >/dev/null 2>&1; then
@@ -20,6 +36,14 @@ fi
 
 case "${1:-}" in
   start)
+    requested_host_bind="${LOCAL_SUPABASE_HOST_BIND:-127.0.0.1}"
+    if docker network inspect "$supabase_network" >/dev/null 2>&1; then
+      existing_host_bind="$(docker network inspect "$supabase_network" --format '{{ index .Options "com.docker.network.bridge.host_binding_ipv4" }}')"
+      if [[ "$existing_host_bind" != "$requested_host_bind" ]]; then
+        printf '%s\n' "==> Recreating the local Supabase bridge for ${requested_host_bind} bindings (database volumes are preserved)..."
+        recreate_supabase_network
+      fi
+    fi
     if ! docker network inspect "$supabase_network" >/dev/null 2>&1; then
       docker network create --driver bridge \
         --opt com.docker.network.bridge.host_binding_ipv4="${LOCAL_SUPABASE_HOST_BIND:-127.0.0.1}" \
