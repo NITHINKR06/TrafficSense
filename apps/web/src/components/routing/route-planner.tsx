@@ -739,7 +739,7 @@ export function RoutePlanner() {
                     <div className="pt-2 border-t border-surface-container flex items-center justify-between">
                       <span className="text-[11px] text-surface-on-variant">Ready to commute?</span>
                       <Link
-                        href="/workspace"
+                        href={`/workspace?corridor=${encodeURIComponent(r.name)}`}
                         className="text-xs font-semibold px-3 py-1 rounded bg-primary text-primary-on hover:opacity-90 transition"
                         onClick={(e) => e.stopPropagation()}
                       >
