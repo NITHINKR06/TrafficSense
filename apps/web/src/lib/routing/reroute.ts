@@ -278,7 +278,7 @@ export async function calculateDetourRoute(
   if (validDetours.length === 0) {
     return {
       ok: false,
-      error: "No viable road detour around this blockage clears the exclusion zone. Travel delay advised.",
+      error: "No viable road detour around this blockage clears the exclusion zone. No alternative route exists.",
     };
   }
 

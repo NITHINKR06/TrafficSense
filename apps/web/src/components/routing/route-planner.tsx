@@ -620,7 +620,7 @@ export function RoutePlanner() {
   const selectedIncident = liveIncidents.find((incident) => incident.id === selectedIncidentId) ?? null;
   const selectedRouteWarnings = activeRoute?.incidents_on_route ?? [];
   const avoidingRoute = routes.find(route => route.avoids_incident && route.id !== activeRoute?.id) ?? null;
-  const verifiedRouteImpact = selectedRouteWarnings.some((warning) => ["L3", "L4", "L6"].includes(warning.level));
+  const verifiedRouteImpact = selectedRouteWarnings.some((warning) => ["L3", "L4", "L5", "L6"].includes(warning.level));
   const hasClearAlternative = routes.some((route) => route.id !== activeRoute?.id && route.incidents_on_route.length === 0);
   const roadClosure = liveIncidents.find((incident) => incident.category === "road_closed");
   const closureLocation = roadClosure ? MANGALURU_PRESETS.reduce((closest, preset) => {
@@ -824,28 +824,44 @@ export function RoutePlanner() {
         </div>
       )}
 
+      {/* No Alternative Available Alert Banner */}
       {recalculateError && (
-        <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950 border border-rose-300 dark:border-rose-800 text-xs text-rose-900 dark:text-rose-100 flex items-center justify-between">
-          <span>⚠️ {recalculateError}</span>
-          <button
-            type="button"
-            onClick={() => setRecalculateError(null)}
-            className="text-xs font-bold opacity-60 hover:opacity-100 px-1 ml-2"
-          >
-            ✕
-          </button>
+        <div role="alert" className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/90 border-2 border-rose-500 text-rose-950 dark:text-rose-100 space-y-2.5 shadow-md">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <span className="text-xl">🚫</span>
+              <h4 className="text-sm font-bold text-rose-900 dark:text-rose-100 m-0">
+                No Alternative Route Available
+              </h4>
+            </div>
+            <button
+              type="button"
+              onClick={() => setRecalculateError(null)}
+              className="text-xs text-rose-600 dark:text-rose-400 hover:text-rose-900 dark:hover:text-rose-100 font-bold px-1"
+              aria-label="Dismiss alert"
+            >
+              ✕
+            </button>
+          </div>
+          <p className="text-xs text-rose-800 dark:text-rose-200 leading-relaxed m-0">
+            <strong>There is no alternative route.</strong> All navigable roads to your destination pass directly through this hazard zone ({selectedRouteWarnings[0]?.label || "reported incident"}). No street detour can safely clear this bottleneck.
+          </p>
+          <div className="text-[11px] font-semibold text-rose-900 dark:text-rose-100 pt-1.5 border-t border-rose-200 dark:border-rose-900 flex items-center gap-1.5">
+            <span>⏱️ Travel delay or postponing departure is strongly advised.</span>
+          </div>
         </div>
       )}
 
       {/* Reroute Warning & Dynamic Recalculation Button */}
-      {verifiedRouteImpact && !activeRoute?.avoids_incident && (
+      {selectedRouteWarnings.length > 0 && !activeRoute?.avoids_incident && (
         <div role="alert" className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950 border border-rose-300 dark:border-rose-800 space-y-3">
           <div className="flex items-start gap-3">
             <span className="text-xl">⚠️</span>
             <div className="space-y-1">
-              <p className="text-xs font-bold text-rose-900 dark:text-rose-100">Your selected route intersects a reported incident</p>
-              <p className="text-xs text-rose-800 dark:text-rose-200">
-                {selectedRouteWarnings[0].label} ({selectedRouteWarnings[0].distance_to_route_m}m from path). Choose whether to avoid it.
+              <p className="text-xs font-bold text-rose-900 dark:text-rose-100 m-0">Your selected route intersects a reported incident</p>
+              <p className="text-xs text-rose-800 dark:text-rose-200 m-0">
+                {selectedRouteWarnings[0].label} ({selectedRouteWarnings[0].distance_to_route_m}m from path).
+                {!hasClearAlternative && !avoidingRoute ? " No standard alternative highway route is available." : " Choose whether to avoid it."}
               </p>
             </div>
           </div>
@@ -864,7 +880,7 @@ export function RoutePlanner() {
               type="button"
               disabled={isRecalculating}
               onClick={() => handleDynamicReroute(selectedRouteWarnings[0].id)}
-              className="button text-xs px-3.5 py-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm flex items-center gap-1.5"
+              className="button text-xs px-3.5 py-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm flex items-center gap-1.5 disabled:opacity-50"
             >
               {isRecalculating ? (
                 <>
@@ -882,11 +898,14 @@ export function RoutePlanner() {
         </div>
       )}
 
-      {verifiedRouteImpact && !hasClearAlternative && !activeDetour && (
-        <div role="alert" className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-100">
-          <p className="font-semibold mb-1">Standard highway alternatives also cross this hazard.</p>
-          <p className="text-[11px] text-amber-800 dark:text-amber-200">
-            Click <strong>&quot;Recalculate Detour Around Incident&quot;</strong> above to dynamically synthesize a coordinate-accurate street bypass avoiding the 250m obstruction zone.
+      {selectedRouteWarnings.length > 0 && !hasClearAlternative && !activeDetour && !recalculateError && (
+        <div role="status" className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-100 space-y-1">
+          <p className="font-bold flex items-center gap-1.5 m-0">
+            <span>⚠️</span>
+            <span>No standard alternative route available</span>
+          </p>
+          <p className="text-[11px] text-amber-800 dark:text-amber-200 m-0">
+            All primary road options intersect this hazard. Click <strong>&quot;Recalculate Detour Around Incident&quot;</strong> to synthesize a local road bypass or confirm if this corridor is an impassable bottleneck.
           </p>
         </div>
       )}
@@ -969,8 +988,33 @@ export function RoutePlanner() {
                   </p>
 
                   {r.incidents_on_route.length > 0 && (
-                    <div className="pt-1 text-[11px] text-amber-700 dark:text-amber-300">
-                      ⚠️ Passes near {r.incidents_on_route.length} reported incident ({r.incidents_on_route[0].label})
+                    <div className="pt-2 space-y-1.5">
+                      <div className="flex flex-wrap items-center justify-between gap-1.5 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-100 text-[11px]">
+                        <span className="font-semibold">
+                          ⚠️ Passes near {r.incidents_on_route.length} incident ({r.incidents_on_route[0].label})
+                        </span>
+                        {!r.avoids_incident && (
+                          <button
+                            type="button"
+                            disabled={isRecalculating}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedRouteId(r.id);
+                              handleDynamicReroute(r.incidents_on_route[0].id);
+                            }}
+                            className="px-2 py-0.5 rounded bg-amber-600 hover:bg-amber-700 text-white font-semibold text-[10px] shadow-sm transition disabled:opacity-50 whitespace-nowrap"
+                          >
+                            {isRecalculating ? "⏳ Checking…" : "🔄 Recalculate Detour"}
+                          </button>
+                        )}
+                      </div>
+
+                      {recalculateError && isSelected && (
+                        <div className="px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/70 border border-rose-300 dark:border-rose-800 text-[11px] font-semibold text-rose-800 dark:text-rose-200 flex items-center gap-1.5">
+                          <span>🚫</span>
+                          <span>No alternative route exists for this bottleneck</span>
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1065,8 +1109,35 @@ export function RoutePlanner() {
           <div><dt className="text-surface-on-variant">Reported</dt><dd className="font-semibold text-surface-on mt-0.5">{formatIncidentTime(selectedIncident.first_reported_at)} IST</dd></div>
           <div><dt className="text-surface-on-variant">Status</dt><dd className="font-semibold text-surface-on mt-0.5 capitalize">{selectedIncident.status}</dd></div>
         </dl>
-        <p className="text-xs text-surface-on-variant m-0">{selectedIncident.level_reason}</p>
         <p className="text-[11px] text-surface-on-variant m-0">This open incident expires if it receives no new confirmation by {formatIncidentTime(new Date(Date.parse(selectedIncident.last_confirmed_at) + 3 * 60 * 60 * 1000).toISOString())} IST.</p>
+
+        <div className="pt-2.5 border-t border-surface-container flex flex-wrap items-center justify-between gap-2">
+          <span className="text-[11px] font-medium text-surface-on-variant">
+            {selectedRouteWarnings.some((w) => w.id === selectedIncident.id)
+              ? (recalculateError
+                  ? "🚫 No alternative route exists around this bottleneck."
+                  : "⚠️ Directly blocks your active route.")
+              : "Reported incident in the city network."}
+          </span>
+          <button
+            type="button"
+            disabled={isRecalculating}
+            onClick={() => handleDynamicReroute(selectedIncident.id)}
+            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50"
+          >
+            {isRecalculating ? (
+              <>
+                <span className="inline-block animate-spin">⏳</span>
+                <span>Calculating detour…</span>
+              </>
+            ) : (
+              <>
+                <span>🔄</span>
+                <span>Plan Detour Around This</span>
+              </>
+            )}
+          </button>
+        </div>
       </section>
     )}
 

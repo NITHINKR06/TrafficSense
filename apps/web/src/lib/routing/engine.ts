@@ -159,7 +159,7 @@ export function parseOsrmResponse(
   // If the primary route (index 0) passes within 200m of a verified incident (L3+ or L6),
   // and there is an alternative route that avoids it, promote the avoiding alternative.
   const primaryIncidents = parsedRoutes[0].incidents_on_route.filter(
-    (w) => w.level === "L3" || w.level === "L4" || w.level === "L6"
+    (w) => w.level === "L3" || w.level === "L4" || w.level === "L5" || w.level === "L6"
   );
 
   if (primaryIncidents.length > 0 && parsedRoutes.length > 1) {

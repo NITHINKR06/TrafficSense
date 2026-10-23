@@ -1,5 +1,28 @@
 # Project Progress
 
+## Route Planner No-Alternative UI & L5 Incident Rerouting Support — verified, 23 Oct 2026
+
+- **Issue:**
+  1. Incidents with verification level `L5` (such as the Gemini AI Vision verified landslide on Kenjar Road near the airport) did not trigger the rerouting alert or detour recalculation button because `verifiedRouteImpact` in `route-planner.tsx` and `primaryIncidents` in `engine.ts` only checked `["L3", "L4", "L6"]`, omitting `L5`.
+  2. When an incident blocks an essential bottleneck corridor (e.g. Kenjar Road leading into Mangaluru Airport where all access roads pass through the single entrance gate) or when no viable road detour can clear the obstruction zone, the UI did not explicitly communicate that no alternative route exists.
+- **Implementation:**
+  - `apps/web/src/lib/routing/engine.ts`: Added `L5` to the `primaryIncidents` verification level filter (`L3`, `L4`, `L5`, `L6`).
+  - `apps/web/src/lib/routing/reroute.ts`: Updated detour search rejection error to explicitly state: `"No viable road detour around this blockage clears the exclusion zone. No alternative route exists."`.
+  - `apps/web/src/components/routing/route-planner.tsx`:
+    - Updated `verifiedRouteImpact` to include `L5`.
+    - Allowed dynamic detour recalculation for any incident intersecting the selected route (`selectedRouteWarnings.length > 0`).
+    - Added high-visibility **"🚫 No Alternative Route Available"** alert banner stating: *"There is no alternative route. All navigable roads to your destination pass directly through this hazard zone... No street detour can safely clear this bottleneck. Travel delay or postponing departure is strongly advised."*
+    - Added pre-emptive notice when no alternative standard highway route exists for the selected corridor.
+    - Added inline **"🔄 Recalculate Detour"** button and bottleneck notice directly inside the route card under incident warnings.
+    - Added **"🔄 Plan Detour Around This"** and bottleneck status directly inside the Floating Selected Incident card when inspecting map markers.
+- **Verification:**
+  - `docker compose exec app pnpm test`: Passed (**236/236** tests across 11 suites).
+  - `docker compose exec app sh -c "cd apps/web && pnpm exec tsc --noEmit"`: 0 errors.
+  - `POST /api/route`: Successfully flags Kenjar Road landslide (L5) on Ladyhill Circle $\rightarrow$ Airport route with 16m proximity.
+  - `POST /api/route/reroute`: Confirms no bypass clears the 200m bottleneck around the single airport access road.
+  - UI displays honest and prominent "No Alternative Route Available" status.
+- **Commit:** `245c70a` — `feat(planner): show explicit no alternative route UI and support L5 incidents`.
+
 ## Exact Incident Location Precision & Map Visualization Fix — verified, 23 Oct 2026
 
 - **Issue:** Reports submitted by commuters either did not show on the map at the exact reported location or failed to appear in the map viewport:
