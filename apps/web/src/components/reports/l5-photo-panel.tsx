@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useCallback, useEffect } from "react";
 import type { L5VerificationResult, L5DetectedCategory, L5MimeType } from "@/lib/vision/verify-incident-photo";
 import type { ReportCategory } from "@/lib/reports/rules";
 
@@ -128,13 +128,19 @@ export function L5PhotoPanel({ segmentId, userSelectedCategory, onResult }: L5Ph
         setThumbnail(photoDataUrl ?? URL.createObjectURL(blob));
         setStatus("verifying");
 
+        const compressedBase64 = photoDataUrl?.startsWith("data:image/jpeg;base64,")
+          ? photoDataUrl.slice("data:image/jpeg;base64,".length)
+          : null;
+        const payloadBase64 = compressedBase64 ?? imageBase64;
+        const payloadMimeType: L5MimeType = compressedBase64 ? "image/jpeg" : normalizedType;
+
         // Call the verification endpoint
         const response = await fetch("/api/verify-evidence", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            imageBase64,
-            mimeType: normalizedType,
+            imageBase64: payloadBase64,
+            mimeType: payloadMimeType,
             userSelectedCategory,
             segmentId,
           }),
@@ -159,6 +165,19 @@ export function L5PhotoPanel({ segmentId, userSelectedCategory, onResult }: L5Ph
     },
     [segmentId, userSelectedCategory, onResult],
   );
+
+  useEffect(() => {
+    setResult((prev) => {
+      if (!prev || prev.source !== "gemini") return prev;
+      const matches =
+        prev.isGenuineIncident &&
+        (prev.detectedCategory === userSelectedCategory || userSelectedCategory === "unknown");
+      if (prev.categoryMatchesReport === matches) return prev;
+      const updated = { ...prev, categoryMatchesReport: matches };
+      onResult(updated);
+      return updated;
+    });
+  }, [userSelectedCategory, onResult]);
 
   return (
     <div

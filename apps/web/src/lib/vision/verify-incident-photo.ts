@@ -77,39 +77,16 @@ function validateInput(input: L5VerificationInput): void {
  * Uses the user's reported category as the primary signal and produces
  * consistent labels that look credible on stage even without an API key.
  */
-function offlineFallback(input: L5VerificationInput): L5VerificationResult {
-  const categoryMap: Record<L5DetectedCategory, { severity: L5Severity; summary: string }> = {
-    accident: {
-      severity: "severe",
-      summary: "Vehicle incident visible on arterial lane causing obstruction.",
-    },
-    flood: {
-      severity: "critical",
-      summary: "Severe waterlogging visible on road surface; lanes partially submerged.",
-    },
-    road_repair: {
-      severity: "moderate",
-      summary: "Road repair equipment and barriers visible; one lane restricted.",
-    },
-    heavy_volume: {
-      severity: "moderate",
-      summary: "High vehicle density detected; queue extending beyond intersection.",
-    },
-    unknown: {
-      severity: "moderate",
-      summary: "Road obstruction visible; category could not be determined from image.",
-    },
-  };
-
-  const entry = categoryMap[input.userSelectedCategory] ?? categoryMap.unknown;
-
+function offlineFallback(input: L5VerificationInput, reason?: string): L5VerificationResult {
   return {
-    isGenuineIncident: true,
-    detectedCategory: input.userSelectedCategory,
-    categoryMatchesReport: true,
-    confidenceTier: "moderate",
-    severity: entry.severity,
-    visualSummary: entry.summary,
+    isGenuineIncident: false,
+    detectedCategory: "unknown",
+    categoryMatchesReport: false,
+    confidenceTier: "low",
+    severity: "moderate",
+    visualSummary:
+      reason ??
+      `AI vision check unavailable (set GEMINI_API_KEY in apps/web/.env.local). Report for ${input.userSelectedCategory} will submit as L1/L2 without L5 promotion.`,
     verificationTier: "L5",
     source: "offline_fallback",
   };
@@ -119,24 +96,23 @@ function offlineFallback(input: L5VerificationInput): L5VerificationResult {
 // Gemini API call
 // ---------------------------------------------------------------------------
 
-const GEMINI_ENDPOINT =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+const GEMINI_MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash"] as const;
 
-const VISION_PROMPT = `You are a traffic incident classifier for a civic mobility platform.
-Analyse the provided road image and return ONLY valid JSON matching this exact schema:
+const VISION_PROMPT = `You are a strict traffic incident image verifier for an Indian civic road-safety platform.
+Examine the uploaded image carefully and return ONLY valid JSON matching this exact schema:
 {
-  "isGenuineIncident": <boolean — true if any road disruption is visible>,
+  "isGenuineIncident": <boolean>,
   "detectedCategory": <"accident"|"road_repair"|"heavy_volume"|"flood"|"unknown">,
   "categoryMatchesReport": <boolean>,
   "confidenceTier": <"high"|"moderate"|"low">,
   "severity": <"moderate"|"severe"|"critical">,
-  "visualSummary": "<one sentence, objective civic description, max 120 chars>"
+  "visualSummary": "<one objective sentence describing what is actually visible in the image, max 120 chars>"
 }
-Rules:
-- Do NOT include any text outside the JSON object.
-- If the image shows no road at all, set isGenuineIncident to false and detectedCategory to "unknown".
-- Never fabricate measurements or claim legal certainty.
-- The reported category to compare against is: REPORTED_CATEGORY`;
+Strict verification rules:
+- Set "isGenuineIncident": true ONLY if the image clearly shows a real outdoor road/street scene with an active traffic disruption: a vehicle crash/breakdown ("accident"), road construction/barricades/pothole/fallen tree/blockade ("road_repair"), heavy traffic congestion/gridlock ("heavy_volume"), or waterlogged/flooded road ("flood").
+- If the image shows a person/selfie, indoor room, computer screen, document, meme, animal, blank frame, or a completely clear/normal road with no disruption, you MUST set "isGenuineIncident": false, "detectedCategory": "unknown", and "confidenceTier": "low".
+- The user's reported category is: REPORTED_CATEGORY. Set "categoryMatchesReport": true if the visible disruption matches or is closely related to REPORTED_CATEGORY.
+- Do NOT include markdown fences or any text outside the JSON object.`;
 
 type GeminiRawResponse = {
   candidates?: Array<{
@@ -194,10 +170,17 @@ function parseGeminiResponse(
       ? parsed.visualSummary.slice(0, 160)
       : "Visual assessment inconclusive.";
 
+  const isGenuine = parsed.isGenuineIncident === true;
+  const categoryMatches =
+    isGenuine &&
+    (parsed.categoryMatchesReport === true ||
+      detectedCategory === userSelectedCategory ||
+      userSelectedCategory === "unknown");
+
   return {
-    isGenuineIncident: parsed.isGenuineIncident === true,
+    isGenuineIncident: isGenuine,
     detectedCategory,
-    categoryMatchesReport: detectedCategory === userSelectedCategory,
+    categoryMatchesReport: categoryMatches,
     confidenceTier,
     severity,
     visualSummary,
@@ -211,15 +194,15 @@ function parseGeminiResponse(
 // ---------------------------------------------------------------------------
 
 /**
- * Verifies an incident photo using Gemini Vision API with a 4-second timeout.
- * Falls back to the offline heuristic if the API key is missing or unavailable.
+ * Verifies an incident photo using Gemini Vision API with fallback to flash.
+ * Returns an unverified result without throwing if API key is missing or calls fail.
  */
 export async function verifyIncidentPhoto(
   input: L5VerificationInput,
 ): Promise<L5VerificationResult> {
   validateInput(input);
 
-  const apiKey = process.env.GEMINI_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) {
     return offlineFallback(input);
   }
@@ -247,25 +230,38 @@ export async function verifyIncidentPhoto(
   };
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 4000);
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
 
   try {
-    const response = await fetch(`${GEMINI_ENDPOINT}?key=${apiKey}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-      signal: controller.signal,
-    });
+    for (const model of GEMINI_MODELS) {
+      try {
+        const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+        const response = await fetch(endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
 
-    if (!response.ok) {
-      // API error — fall back silently.
-      return offlineFallback(input);
+        if (!response.ok) {
+          continue;
+        }
+
+        const raw: GeminiRawResponse = await response.json();
+        return parseGeminiResponse(raw, input.userSelectedCategory);
+      } catch (err: unknown) {
+        if ((err as Error)?.name === "AbortError") {
+          break;
+        }
+        continue;
+      }
     }
 
-    const raw: GeminiRawResponse = await response.json();
-    return parseGeminiResponse(raw, input.userSelectedCategory);
+    return offlineFallback(
+      input,
+      "Gemini API request failed or quota exceeded; submitting without L5 AI promotion.",
+    );
   } catch {
-    // Network failure, timeout, or JSON parse error — fall back silently.
     return offlineFallback(input);
   } finally {
     clearTimeout(timeoutId);

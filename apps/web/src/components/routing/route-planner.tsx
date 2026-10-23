@@ -249,6 +249,13 @@ export function RoutePlanner() {
       ? userLocation
       : MANGALURU_PRESETS[reportLocationIndex].coords;
 
+    const isL5Verified = Boolean(
+      reportL5Result &&
+        reportL5Result.source === "gemini" &&
+        reportL5Result.isGenuineIncident &&
+        reportL5Result.confidenceTier !== "low",
+    );
+
     try {
       const res = await fetch("/api/incidents", {
         method: "POST",
@@ -260,10 +267,10 @@ export function RoutePlanner() {
           gps_accuracy_m: useGpsReport ? gpsAccuracy : null,
           gps_fix_at: useGpsReport ? new Date().toISOString() : null,
           note: reportNote || null,
-          l5_verified: Boolean(reportL5Result?.isGenuineIncident && reportL5Result.confidenceTier !== "low"),
-          l5_summary: reportL5Result?.isGenuineIncident ? reportL5Result.visualSummary : null,
-          l5_photo_data_url: reportL5Result?.isGenuineIncident ? (reportL5Result.photoDataUrl ?? null) : null,
-          l5_confidence_tier: reportL5Result?.confidenceTier ?? null,
+          l5_verified: isL5Verified,
+          l5_summary: isL5Verified ? (reportL5Result?.visualSummary ?? null) : null,
+          l5_photo_data_url: isL5Verified ? (reportL5Result?.photoDataUrl ?? null) : null,
+          l5_confidence_tier: isL5Verified ? (reportL5Result?.confidenceTier ?? null) : null,
         }),
       });
 
