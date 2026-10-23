@@ -47,7 +47,7 @@ export async function checkSpread(
   fetchFn?: typeof fetch,
   cacheTtlMs = 5 * 60 * 1000
 ): Promise<SpreadResult> {
-  if (incident.level !== "L3" && incident.level !== "L6") {
+  if (incident.level !== "L3" && incident.level !== "L5" && incident.level !== "L6") {
     throw new Error(`Incident must be verified at level L3 or L6. Got: ${incident.level}`);
   }
 
