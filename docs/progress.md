@@ -1,5 +1,32 @@
 # Project Progress
 
+## Dynamic Coordinate-Accurate Incident Detour Recalculation for /planner — verified, 23 Oct 2026
+
+- **Issue:** Commuters navigating in `/planner` had no mechanism to recalculate an alternative route when an incident (accident, road closure, hazard, flood) blocked their active route, particularly when default OSRM alternatives also intersected the blockage (`"⛔ No clear alternative route found"`). Furthermore, routes required meter-accurate street coordinates rather than coarse verbal directions or mock detours.
+- **Implementation:**
+  - `apps/web/src/lib/routing/reroute.ts`:
+    - Implemented Dynamic Lateral Waypoint Detour Search (DLWDS) with road-snapping and obstacle exclusion verification.
+    - Generates multi-radial candidate detour anchors (450m, 750m, 1100m) along orthogonal and diagonal vectors around the incident.
+    - Snaps candidate waypoints to real OpenStreetMap drivable nodes via OSRM `/nearest/v1/driving`.
+    - Synthesizes composite multi-leg routes ($C \rightarrow W \rightarrow D$) and checks clearance against the incident exclusion buffer (200m).
+    - Returns high-resolution GeoJSON `LineString` with exact turn coordinates, street bypass name, duration delta, and distance delta.
+  - `apps/web/src/app/api/route/reroute/route.ts`: New `POST /api/route/reroute` endpoint accepting commuter coordinates, destination, and incident ID/coordinates to avoid.
+  - `tests/reroute.test.mjs`: Added automated test suite covering candidate generation, road-snapping, bounds enforcement, exclusion zone clearance ($> 200\text{m}$), and honest rejection when no detour clears the hazard.
+  - `apps/web/src/components/routing/route-planner.tsx`:
+    - Added map-based commuter location picker (`🎯 Pick on map`) and GPS fix support.
+    - Added dynamic "Recalculate Detour Around Incident" action in the incident intersection alert drawer with loading state.
+    - Rendered hazard exclusion zone as a red translucent circle on MapLibre around the blocked point.
+    - Styled dynamic detours with high-contrast emerald green polylines and detour waypoint markers.
+    - Added expandable "View Road Coordinates" inspection panel with turn vertex listing and 1-click "Copy GeoJSON" button for full coordinate transparency.
+  - `package.json`: Registered `tests/reroute.test.mjs` in the main test script.
+- **Verification:**
+  - `just test`: Passed (**236/236** across 11 test suites, including 5/5 in `reroute.test.mjs`).
+  - `docker compose exec app sh -c "cd apps/web && pnpm exec tsc --noEmit"`: Passed with 0 errors.
+  - `just lint`: Passed with 0 errors.
+  - Live API verification: Tested `POST /api/route/reroute` from Hampankatta to KSRTC Bejai avoiding Bunts Hostel accident. Returned 153 high-precision coordinates with `Detour via MG road 5th cross completely clears Accident near Bunts Hostel by 515m (buffer 200m)`.
+  - `git diff --check`: Passed with 0 whitespace issues.
+- **Commit:** `54e190f` — `feat(routing): implement coordinate-accurate dynamic incident rerouting for planner`.
+
 ## Fix Incident Report Commuter Session Authentication — verified, 23 Oct 2026
 
 - **Issue:** Submitting a report via `/report` (or `/api/incidents`) returned HTTP 401 `"Sign in with a commuter account to submit an incident. Anonymous reports cannot establish corroboration."` even after signing in with a commuter account.

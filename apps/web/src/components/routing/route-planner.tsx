@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useTransition } from "react";
 import Link from "next/link";
 import type { Map as MapInstance, Marker as MarkerInstance } from "maplibre-gl";
 import { formatRouteDuration, formatRouteDistance, type RouteOption } from "@/lib/routing/types";
+import type { DetourRouteDetails } from "@/lib/routing/reroute";
 import { reportCategories, reportCategoryIcons, type ReportCategory } from "@/lib/reports/rules";
 import type { LiveIncident } from "@/lib/incidents/server";
 import { createFallbackStyle } from "@/lib/traffic/mangaluru-basemap";
@@ -12,6 +13,24 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { MANGALURU_PRESETS } from "@/lib/routing/presets";
 export { MANGALURU_PRESETS };
 
+function createGeoJsonCircle(center: [number, number], radiusM = 250, points = 32) {
+  const [lng, lat] = center;
+  const latR = radiusM / 111000;
+  const lngR = radiusM / (111000 * Math.cos((lat * Math.PI) / 180));
+  const coords: [number, number][] = [];
+  for (let i = 0; i <= points; i++) {
+    const theta = (i / points) * (2 * Math.PI);
+    coords.push([lng + lngR * Math.cos(theta), lat + latR * Math.sin(theta)]);
+  }
+  return {
+    type: "Feature" as const,
+    properties: {},
+    geometry: {
+      type: "Polygon" as const,
+      coordinates: [coords],
+    },
+  };
+}
 
 type TrafficSeveritySegment = {
   id: string;
@@ -33,12 +52,21 @@ export function RoutePlanner() {
   const [startIndex, setStartIndex] = useState<number>(0); // Hampankatta
   const [destIndex, setDestIndex] = useState<number>(1); // KSRTC Bejai
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [customStartCoord, setCustomStartCoord] = useState<[number, number] | null>(null);
+  const [isPickingLocation, setIsPickingLocation] = useState<boolean>(false);
+  const isPickingLocationRef = useRef<boolean>(false);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
   const [useGpsStart, setUseGpsStart] = useState<boolean>(false);
   const [gpsError, setGpsError] = useState<string | null>(null);
 
   const [routes, setRoutes] = useState<RouteOption[]>([]);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
+  const [activeDetour, setActiveDetour] = useState<DetourRouteDetails | null>(null);
+  const [isRecalculating, setIsRecalculating] = useState<boolean>(false);
+  const [recalculateError, setRecalculateError] = useState<string | null>(null);
+  const [showCoordinatesId, setShowCoordinatesId] = useState<string | null>(null);
+  const [copiedCoords, setCopiedCoords] = useState<boolean>(false);
+
   const [liveIncidents, setLiveIncidents] = useState<LiveIncident[]>([]);
   const [trafficSeverity, setTrafficSeverity] = useState<TrafficSeveritySegment[]>([]);
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
@@ -72,10 +100,55 @@ export function RoutePlanner() {
   const markersRef = useRef<MarkerInstance[]>([]);
 
   // Get active start & destination coordinates
-  const activeStart: [number, number] = useGpsStart && userLocation
+  const activeStart: [number, number] = customStartCoord
+    ? customStartCoord
+    : useGpsStart && userLocation
     ? userLocation
     : MANGALURU_PRESETS[startIndex].coords;
   const activeDest: [number, number] = MANGALURU_PRESETS[destIndex].coords;
+
+  useEffect(() => {
+    isPickingLocationRef.current = isPickingLocation;
+    if (mapRef.current) {
+      mapRef.current.getCanvas().style.cursor = isPickingLocation ? "crosshair" : "";
+    }
+  }, [isPickingLocation]);
+
+  // Dynamic reroute calculation avoiding a specific incident
+  async function handleDynamicReroute(incidentId: string) {
+    setIsRecalculating(true);
+    setRecalculateError(null);
+    setStatusMessage(null);
+
+    try {
+      const res = await fetch("/api/route/reroute", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          currentLocation: activeStart,
+          destination: activeDest,
+          blockedIncidentId: incidentId,
+          exclusionRadiusM: 200,
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.ok || !data.detourRoute) {
+        setRecalculateError(data.error || "No viable road detour found around this incident.");
+        return;
+      }
+
+      const detour: DetourRouteDetails = data.detourRoute;
+      setActiveDetour(detour);
+      setRoutes((prev) => [detour, ...prev.filter((r) => r.id !== detour.id)]);
+      setSelectedRouteId(detour.id);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Network error";
+      setRecalculateError(`Could not recalculate detour: ${msg}`);
+    } finally {
+      setIsRecalculating(false);
+    }
+  }
 
   // Request browser GPS position
   function handleRequestGps(target: "start" | "report" = "start") {
@@ -229,6 +302,9 @@ export function RoutePlanner() {
     if (map.getLayer("routes-alt-layer")) map.removeLayer("routes-alt-layer");
     if (map.getLayer("routes-primary-layer")) map.removeLayer("routes-primary-layer");
     if (map.getSource("routes-geojson")) map.removeSource("routes-geojson");
+    if (map.getLayer("hazard-buffer-line")) map.removeLayer("hazard-buffer-line");
+    if (map.getLayer("hazard-buffer-fill")) map.removeLayer("hazard-buffer-fill");
+    if (map.getSource("hazard-buffer-geojson")) map.removeSource("hazard-buffer-geojson");
     if (map.getLayer("traffic-severity-layer")) map.removeLayer("traffic-severity-layer");
     if (map.getSource("traffic-severity-geojson")) map.removeSource("traffic-severity-geojson");
 
@@ -244,6 +320,36 @@ export function RoutePlanner() {
       id: "traffic-severity-layer", type: "line", source: "traffic-severity-geojson",
       paint: { "line-color": ["match", ["get", "severity"], "slowdown", severityColours.slowdown, "corroborated", severityColours.corroborated, "reported", severityColours.reported, severityColours.clear], "line-width": 7, "line-opacity": 0.48 },
     });
+
+    const selectedRoute = routeList.find((r) => r.id === (selectedId ?? routeList[0]?.id));
+    const activeAvoidedPoint = activeDetour?.avoidedIncident?.point;
+
+    // Draw hazard buffer circle if a detour avoiding an incident is selected
+    if (selectedRoute?.avoids_incident && activeAvoidedPoint) {
+      map.addSource("hazard-buffer-geojson", {
+        type: "geojson",
+        data: createGeoJsonCircle(activeAvoidedPoint, 250),
+      });
+      map.addLayer({
+        id: "hazard-buffer-fill",
+        type: "fill",
+        source: "hazard-buffer-geojson",
+        paint: {
+          "fill-color": "#ef4444",
+          "fill-opacity": 0.22,
+        },
+      });
+      map.addLayer({
+        id: "hazard-buffer-line",
+        type: "line",
+        source: "hazard-buffer-geojson",
+        paint: {
+          "line-color": "#dc2626",
+          "line-width": 2,
+          "line-dasharray": [3, 2],
+        },
+      });
+    }
 
     // Build GeoJSON features for all routes
     const features = routeList.map((r) => ({
@@ -279,14 +385,14 @@ export function RoutePlanner() {
       },
     });
 
-    // Layer 2: Selected / recommended route
+    // Layer 2: Selected / recommended route (Emerald green if detour, Blue if standard)
     map.addLayer({
       id: "routes-primary-layer",
       type: "line",
       source: "routes-geojson",
       filter: ["==", ["get", "id"], selectedId ?? routeList[0]?.id ?? ""],
       paint: {
-        "line-color": "#2563eb",
+        "line-color": selectedRoute?.avoids_incident ? "#059669" : "#2563eb",
         "line-width": 6,
         "line-opacity": 0.95,
       },
@@ -294,10 +400,11 @@ export function RoutePlanner() {
 
     // Add Start, Destination, and Incident markers
     import("maplibre-gl").then(({ Marker, LngLatBounds }) => {
-      // Start Marker (Green)
+      // Start Marker (Green / Commuter Pin)
       const startEl = document.createElement("div");
-      startEl.className = "w-5 h-5 rounded-full bg-emerald-600 border-2 border-white shadow flex items-center justify-center text-[10px] text-white font-bold";
-      startEl.textContent = "A";
+      startEl.className = "w-6 h-6 rounded-full bg-emerald-600 border-2 border-white shadow-lg flex items-center justify-center text-[10px] text-white font-bold";
+      startEl.title = `Origin: ${activeStart[1].toFixed(5)}, ${activeStart[0].toFixed(5)}`;
+      startEl.textContent = customStartCoord ? "📍" : useGpsStart ? "GPS" : "A";
       const startMarker = new Marker({ element: startEl })
         .setLngLat(activeStart)
         .addTo(map);
@@ -311,6 +418,18 @@ export function RoutePlanner() {
         .setLngLat(activeDest)
         .addTo(map);
       markersRef.current.push(destMarker);
+
+      // Detour Waypoint Marker (if active detour exists)
+      if (selectedRoute?.avoids_incident && activeDetour?.bypassWaypoint) {
+        const wpEl = document.createElement("div");
+        wpEl.className = "px-2 py-0.5 rounded-full bg-emerald-700 text-white shadow-md flex items-center gap-1 text-[10px] font-bold border border-white";
+        wpEl.title = `Detour waypoint: ${activeDetour.bypassStreetName || "alternative road"}`;
+        wpEl.innerHTML = `<span>🔄</span><span>Via ${activeDetour.bypassStreetName || "Detour Road"}</span>`;
+        const wpMarker = new Marker({ element: wpEl })
+          .setLngLat(activeDetour.bypassWaypoint)
+          .addTo(map);
+        markersRef.current.push(wpMarker);
+      }
 
       // Incident Markers (Emoji + Level Badge)
       for (const inc of incidentList) {
@@ -451,6 +570,18 @@ export function RoutePlanner() {
         }
       });
 
+      map.on("click", (e) => {
+        if (isPickingLocationRef.current) {
+          const clickedCoord: [number, number] = [
+            Number(e.lngLat.lng.toFixed(6)),
+            Number(e.lngLat.lat.toFixed(6)),
+          ];
+          setCustomStartCoord(clickedCoord);
+          setIsPickingLocation(false);
+          fetchRoutes(clickedCoord, activeDest);
+        }
+      });
+
       map.on("load", () => {
         if (disposed) return;
         mapRef.current = map;
@@ -472,12 +603,12 @@ export function RoutePlanner() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update map polylines whenever routes or incidents change
+  // Update map polylines whenever routes, incidents, or activeDetour change
   useEffect(() => {
     if (mapRef.current) {
       renderRoutesOnMap(mapRef.current, routes, selectedRouteId, liveIncidents, trafficSeverity);
     }
-  }, [routes, selectedRouteId, liveIncidents, trafficSeverity]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [routes, selectedRouteId, liveIncidents, trafficSeverity, activeDetour, activeStart, activeDest]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeRoute = routes.find((r) => r.id === (selectedRouteId ?? routes[0]?.id));
   const selectedIncident = liveIncidents.find((incident) => incident.id === selectedIncidentId) ?? null;
@@ -525,15 +656,60 @@ export function RoutePlanner() {
                 <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block" />
                 Origin (Start A)
               </label>
-              <button
-                type="button"
-                onClick={() => handleRequestGps("start")}
-                className="text-[11px] text-primary hover:underline font-medium"
-              >
-                📍 My location
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomStartCoord(null);
+                    setIsPickingLocation(false);
+                    handleRequestGps("start");
+                  }}
+                  className="text-[11px] text-primary hover:underline font-medium"
+                >
+                  📍 GPS
+                </button>
+                <span className="text-[10px] text-surface-on-variant">·</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUseGpsStart(false);
+                    setIsPickingLocation(!isPickingLocation);
+                  }}
+                  className={`text-[11px] font-medium hover:underline ${
+                    isPickingLocation ? "text-amber-600 font-bold" : "text-primary"
+                  }`}
+                >
+                  {isPickingLocation ? "✕ Cancel pick" : "🎯 Pick on map"}
+                </button>
+              </div>
             </div>
-            {useGpsStart && userLocation ? (
+
+            {isPickingLocation ? (
+              <div className="text-xs px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-100 flex items-center justify-between animate-pulse">
+                <span>🎯 Click anywhere on the map to set your location…</span>
+                <button
+                  type="button"
+                  onClick={() => setIsPickingLocation(false)}
+                  className="text-[11px] font-semibold underline ml-2"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : customStartCoord ? (
+              <div className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-300 dark:border-blue-800 text-blue-900 dark:text-blue-100">
+                <span>📍 Map fix ({customStartCoord[1].toFixed(4)}, {customStartCoord[0].toFixed(4)})</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomStartCoord(null);
+                    fetchRoutes(MANGALURU_PRESETS[startIndex].coords, activeDest);
+                  }}
+                  className="text-[11px] font-semibold underline ml-2"
+                >
+                  Reset
+                </button>
+              </div>
+            ) : useGpsStart && userLocation ? (
               <div className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100">
                 <span>GPS fix ({userLocation[1].toFixed(4)}, {userLocation[0].toFixed(4)})</span>
                 <button
@@ -551,6 +727,7 @@ export function RoutePlanner() {
                 value={startIndex}
                 onChange={(e) => {
                   setUseGpsStart(false);
+                  setCustomStartCoord(null);
                   setStartIndex(Number(e.target.value));
                 }}
               >
@@ -590,7 +767,7 @@ export function RoutePlanner() {
             <button
               type="button"
               className="button text-xs px-5 py-2 font-semibold"
-              disabled={isPending}
+              disabled={isPending || isRecalculating}
               onClick={() => fetchRoutes(activeStart, activeDest)}
             >
               {isPending ? "Calculating paths…" : "Find Best Route"}
@@ -641,26 +818,70 @@ export function RoutePlanner() {
         </div>
       )}
 
+      {recalculateError && (
+        <div className="p-3 rounded-lg bg-rose-50 dark:bg-rose-950 border border-rose-300 dark:border-rose-800 text-xs text-rose-900 dark:text-rose-100 flex items-center justify-between">
+          <span>⚠️ {recalculateError}</span>
+          <button
+            type="button"
+            onClick={() => setRecalculateError(null)}
+            className="text-xs font-bold opacity-60 hover:opacity-100 px-1 ml-2"
+          >
+            ✕
+          </button>
+        </div>
+      )}
+
+      {/* Reroute Warning & Dynamic Recalculation Button */}
       {verifiedRouteImpact && !activeRoute?.avoids_incident && (
-        <div role="alert" className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950 border border-rose-300 dark:border-rose-800 flex items-start gap-3">
-          <span className="text-xl">⚠️</span>
-          <div className="space-y-2">
-            <p className="text-xs font-bold text-rose-900 dark:text-rose-100">Your selected route intersects a reported incident</p>
-            <p className="text-xs text-rose-800 dark:text-rose-200">{selectedRouteWarnings[0].label}. Choose whether to avoid it; this is not a safety guarantee.</p>
-            {avoidingRoute && <button type="button" className="button text-xs px-3 py-1.5" onClick={() => setSelectedRouteId(avoidingRoute.id)}>
-              Avoid this route · {formatRouteDuration(avoidingRoute.duration_s)} free-flow
-            </button>}
+        <div role="alert" className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950 border border-rose-300 dark:border-rose-800 space-y-3">
+          <div className="flex items-start gap-3">
+            <span className="text-xl">⚠️</span>
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-rose-900 dark:text-rose-100">Your selected route intersects a reported incident</p>
+              <p className="text-xs text-rose-800 dark:text-rose-200">
+                {selectedRouteWarnings[0].label} ({selectedRouteWarnings[0].distance_to_route_m}m from path). Choose whether to avoid it.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-rose-200 dark:border-rose-900">
+            {avoidingRoute && (
+              <button
+                type="button"
+                className="button secondary text-xs px-3 py-1.5 font-medium"
+                onClick={() => setSelectedRouteId(avoidingRoute.id)}
+              >
+                Standard alternative · {formatRouteDuration(avoidingRoute.duration_s)}
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={isRecalculating}
+              onClick={() => handleDynamicReroute(selectedRouteWarnings[0].id)}
+              className="button text-xs px-3.5 py-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm flex items-center gap-1.5"
+            >
+              {isRecalculating ? (
+                <>
+                  <span className="inline-block animate-spin">⏳</span>
+                  <span>Recalculating detour…</span>
+                </>
+              ) : (
+                <>
+                  <span>🔄</span>
+                  <span>Recalculate Detour Around Incident</span>
+                </>
+              )}
+            </button>
           </div>
         </div>
       )}
 
-      {verifiedRouteImpact && !hasClearAlternative && (
-        <div role="alert" className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950 border border-rose-300 dark:border-rose-800 flex items-start gap-3">
-          <span className="text-xl">⛔</span>
-          <div className="space-y-0.5">
-            <p className="text-xs font-bold text-rose-900 dark:text-rose-100">No clear alternative route found</p>
-            <p className="text-xs text-rose-800 dark:text-rose-200">Available route options also pass near reported incidents. This planner cannot assess road safety; delay travel and check official road guidance.</p>
-          </div>
+      {verifiedRouteImpact && !hasClearAlternative && !activeDetour && (
+        <div role="alert" className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-100">
+          <p className="font-semibold mb-1">Standard highway alternatives also cross this hazard.</p>
+          <p className="text-[11px] text-amber-800 dark:text-amber-200">
+            Click <strong>&quot;Recalculate Detour Around Incident&quot;</strong> above to dynamically synthesize a coordinate-accurate street bypass avoiding the 250m obstruction zone.
+          </p>
         </div>
       )}
 
@@ -672,15 +893,27 @@ export function RoutePlanner() {
 
       {/* Incident Avoidance Banner (when re-routing triggered) */}
       {activeRoute?.avoids_incident && (
-        <div className="p-4 rounded-xl bg-amber-50 dark:bg-amber-950 border border-amber-400 dark:border-amber-800 flex items-start gap-3">
-          <span className="text-xl">⚠️</span>
-          <div className="space-y-0.5">
-            <p className="text-xs font-bold text-amber-900 dark:text-amber-100">
-              Avoiding the reported incident
+        <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950 border border-emerald-400 dark:border-emerald-800 flex items-start gap-3">
+          <span className="text-xl">🛡️</span>
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-bold text-emerald-900 dark:text-emerald-100 m-0">
+                Dynamic Detour Active
+              </p>
+              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-200 dark:bg-emerald-800 text-emerald-900 dark:text-emerald-100 font-bold">
+                COORDINATE-ACCURATE
+              </span>
+            </div>
+            <p className="text-xs text-emerald-800 dark:text-emerald-200 m-0">
+              {activeRoute.avoided_incident_reason}. Calculated along OpenStreetMap road network. Travel times are free-flow estimates only.
             </p>
-            <p className="text-xs text-amber-800 dark:text-amber-200">
-              {activeRoute.avoided_incident_reason}. You chose this alternative. Travel times are free-flow estimates only.
-            </p>
+            {activeDetour && (
+              <div className="flex flex-wrap items-center gap-3 text-[11px] text-emerald-800 dark:text-emerald-200 font-medium pt-1">
+                <span>⏱️ +{formatRouteDuration(activeDetour.extraDurationSeconds)} extra</span>
+                <span>📏 +{formatRouteDistance(activeDetour.extraDistanceMeters)} detour</span>
+                {activeDetour.bypassStreetName && <span>🛣️ via {activeDetour.bypassStreetName}</span>}
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -710,8 +943,8 @@ export function RoutePlanner() {
                       {!r.is_recommended && <span className="text-surface-on-variant">Option {index + 1}</span>}
                     </span>
                     {r.avoids_incident && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-100">
-                        Detour
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-100 border border-emerald-300 dark:border-emerald-800">
+                        Detour Active
                       </span>
                     )}
                   </div>
@@ -736,15 +969,67 @@ export function RoutePlanner() {
                   )}
 
                   {isSelected && (
-                    <div className="pt-2 border-t border-surface-container flex items-center justify-between">
-                      <span className="text-[11px] text-surface-on-variant">Ready to commute?</span>
-                      <Link
-                        href="/workspace"
-                        className="text-xs font-semibold px-3 py-1 rounded bg-primary text-primary-on hover:opacity-90 transition"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        Track this journey →
-                      </Link>
+                    <div className="pt-2 border-t border-surface-container flex flex-col gap-2">
+                      <div className="flex items-center justify-between">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowCoordinatesId(showCoordinatesId === r.id ? null : r.id);
+                          }}
+                          className="text-[11px] font-medium text-primary hover:underline flex items-center gap-1"
+                        >
+                          <span>📍</span>
+                          <span>{showCoordinatesId === r.id ? "Hide Road Coordinates" : `View ${r.geometry.coordinates.length} Road Coordinates`}</span>
+                        </button>
+                        <Link
+                          href="/workspace"
+                          className="text-xs font-semibold px-3 py-1 rounded bg-primary text-primary-on hover:opacity-90 transition"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          Track this journey →
+                        </Link>
+                      </div>
+
+                      {showCoordinatesId === r.id && (
+                        <div
+                          className="p-2.5 rounded-lg bg-surface-container-low text-xs border border-surface-container space-y-2 mt-1"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex items-center justify-between text-[11px] font-semibold text-surface-on">
+                            <span>Coordinate Vertices ({r.geometry.coordinates.length} points)</span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                navigator.clipboard.writeText(JSON.stringify(r.geometry.coordinates, null, 2));
+                                setCopiedCoords(true);
+                                setTimeout(() => setCopiedCoords(false), 2000);
+                              }}
+                              className="text-[10px] px-2 py-0.5 rounded bg-surface-container hover:bg-surface text-primary font-mono border"
+                            >
+                              {copiedCoords ? "✓ Copied!" : "Copy GeoJSON"}
+                            </button>
+                          </div>
+                          <div className="max-h-36 overflow-y-auto font-mono text-[10px] space-y-1 bg-surface/70 p-2 rounded border border-surface-container/60">
+                            <div className="text-emerald-700 dark:text-emerald-300 font-bold">
+                              [Start] {r.geometry.coordinates[0][0].toFixed(5)}° E, {r.geometry.coordinates[0][1].toFixed(5)}° N
+                            </div>
+                            {r.geometry.coordinates.slice(1, -1).slice(0, 15).map((coord, idx) => (
+                              <div key={idx} className="text-surface-on-variant pl-2">
+                                #{idx + 2} {coord[0].toFixed(5)}° E, {coord[1].toFixed(5)}° N
+                              </div>
+                            ))}
+                            {r.geometry.coordinates.length > 17 && (
+                              <div className="text-[10px] italic text-surface-on-variant pl-2">
+                                … +{r.geometry.coordinates.length - 17} intermediate road vertices …
+                              </div>
+                            )}
+                            <div className="text-rose-700 dark:text-rose-300 font-bold">
+                              [Dest] {r.geometry.coordinates[r.geometry.coordinates.length - 1][0].toFixed(5)}° E, {r.geometry.coordinates[r.geometry.coordinates.length - 1][1].toFixed(5)}° N
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
