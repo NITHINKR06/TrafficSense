@@ -232,6 +232,13 @@ export function WebReportScreen({ viewer }: { viewer?: { email?: string; role: s
     setIsSubmitting(true);
     setErrorMessage(null);
 
+    const isL5Verified = Boolean(
+      l5Result &&
+        l5Result.source === "gemini" &&
+        l5Result.isGenuineIncident &&
+        l5Result.confidenceTier !== "low",
+    );
+
     try {
       const res = await fetch("/api/incidents", {
         method: "POST",
@@ -243,10 +250,10 @@ export function WebReportScreen({ viewer }: { viewer?: { email?: string; role: s
           gps_accuracy_m: useGps ? gpsAccuracy : null,
           gps_fix_at: useGps ? new Date().toISOString() : null,
           note: note.trim() || null,
-          l5_verified: Boolean(l5Result?.isGenuineIncident && l5Result.confidenceTier !== "low"),
-          l5_summary: l5Result?.isGenuineIncident ? l5Result.visualSummary : null,
-          l5_photo_data_url: l5Result?.isGenuineIncident ? (l5Result.photoDataUrl ?? null) : null,
-          l5_confidence_tier: l5Result?.confidenceTier ?? null,
+          l5_verified: isL5Verified,
+          l5_summary: isL5Verified ? (l5Result?.visualSummary ?? null) : null,
+          l5_photo_data_url: isL5Verified ? (l5Result?.photoDataUrl ?? null) : null,
+          l5_confidence_tier: isL5Verified ? (l5Result?.confidenceTier ?? null) : null,
         }),
       });
 
