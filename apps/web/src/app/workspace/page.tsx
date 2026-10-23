@@ -55,7 +55,7 @@ export default async function WorkspacePage() {
           <Link className="button" href="/traffic">
             Public Traffic Map & Details
           </Link>
-          <Link className="button" href="/reports/new">
+          <Link className="button" href="/report">
             Submit Incident Report
           </Link>
           {viewer.role === "employer" && (

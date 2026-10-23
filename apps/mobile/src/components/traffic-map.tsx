@@ -1,7 +1,7 @@
 import * as Location from "expo-location";
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { Modal, Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
-import MapView, { Marker, Polyline, type LatLng, type Region } from "react-native-maps";
+import MapView, { Marker, Polyline, UrlTile, type LatLng, type Region } from "react-native-maps";
 import type { LiveIncident, RouteOption, TrafficSegment } from "@trafficsense/shared";
 import { INCIDENT_COLOUR, ROUTE_COLOURS, SEVERITY_COLOURS } from "../map/map-data";
 import { Card, Icon, SimulatedBadge } from "./ui";
@@ -96,8 +96,16 @@ function MapCanvas({
       rotateEnabled={false}
       pitchEnabled={false}
       toolbarEnabled={false}
-      accessibilityLabel="Traffic map showing community reports, corridor segments and routes"
+      accessibilityLabel="Traffic map showing community reports, corridor segments and routes on OpenStreetMap"
     >
+      {/* OpenStreetMap Tile Layer SDK */}
+      <UrlTile
+        urlTemplate="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+        maximumZ={19}
+        flipY={false}
+        zIndex={-1}
+      />
+
       {/* Corridor segments, coloured by the server-provided severity (simulated data). */}
       {segments.map((segment) => {
         const coordinates = lineCoordinates(segment.geometry.coordinates);
@@ -294,7 +302,7 @@ export function TrafficMap(props: Props) {
       ) : null}
 
       <View style={styles.attributionRow}>
-        <Text style={styles.attribution}>Map data from the map provider. Corridor lines are SIMULATED.</Text>
+        <Text style={styles.attribution}>Map data © OpenStreetMap contributors. Corridor lines are SIMULATED.</Text>
         <SimulatedBadge label="SIMULATED" />
       </View>
 

@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireRole } from "@/lib/auth/server";
 import { getEmployerSharedJourneys } from "@/lib/journeys/server";
 
-export default async function OrganisationPage({ params }: PageProps<"/employer/[orgId]">) {
+export default async function OrganisationPage({ params }: { params: Promise<{ orgId: string }> }) {
   const { supabase } = await requireRole("employer");
   const { orgId } = await params;
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(orgId)) notFound();

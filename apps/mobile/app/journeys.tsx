@@ -84,6 +84,7 @@ export default function JourneysScreen() {
   const activeJourney = data?.journeys.find((j) => j.status === "active") ?? null;
   const previousJourneys = data?.journeys.filter((j) => j.status === "ended") ?? [];
   const selectedOrg = data?.organisations.find((org) => org.id === selectedOrgId) ?? null;
+  const hasMembership = (data?.organisations?.length ?? 0) > 0;
 
   async function handleStart() {
     try {
@@ -238,28 +239,35 @@ export default function JourneysScreen() {
                 </View>
               ) : null}
 
-              {/* Actions on Active Journey */}
+              {/* Actions on Active Journey: Sharing controls shown only to users with membership */}
               <View style={styles.activeActionsRow}>
-                <Button
-                  title="Share with organisation"
-                  disabled={Boolean(busyAction) || Boolean(sharingJourneyId)}
-                  onPress={() => {
-                    setSharingJourneyId(activeJourney.id);
-                    setSelectedOrgId(data?.organisations[0]?.id ?? null);
-                    setConsentChecked(false);
-                  }}
-                  variant="secondary"
-                  style={styles.actionFlex}
-                />
+                {hasMembership ? (
+                  <Button
+                    title="Share with organisation"
+                    disabled={Boolean(busyAction) || Boolean(sharingJourneyId)}
+                    onPress={() => {
+                      setSharingJourneyId(activeJourney.id);
+                      setSelectedOrgId(data?.organisations[0]?.id ?? null);
+                      setConsentChecked(false);
+                    }}
+                    variant="secondary"
+                    style={styles.actionFlex}
+                  />
+                ) : null}
                 <Button
                   title="End journey"
                   loading={busyAction === `end_${activeJourney.id}`}
                   disabled={Boolean(busyAction)}
                   onPress={() => void handleEnd(activeJourney.id)}
-                  variant="outline"
+                  variant={hasMembership ? "outline" : "primary"}
                   style={styles.actionFlex}
                 />
               </View>
+              {!hasMembership ? (
+                <Text style={styles.membershipNotice}>
+                  Sharing controls are hidden: your account is an independent commuter without an organisation membership. Employees with memberships can share journey status with employers.
+                </Text>
+              ) : null}
             </Card>
           ) : (
             <Card style={styles.noActiveCard}>
@@ -282,7 +290,7 @@ export default function JourneysScreen() {
         </View>
 
         {/* Consent Preview and Sharing Form Modal Card */}
-        {sharingJourneyId && selectedOrg ? (
+        {sharingJourneyId && selectedOrg && hasMembership ? (
           <Card style={styles.consentCard} elevated>
             <View style={styles.consentHeader}>
               <Icon name="lock" size={20} color={colors.primary} />
@@ -504,6 +512,14 @@ const styles = StyleSheet.create({
   },
   actionFlex: {
     flex: 1,
+  },
+  membershipNotice: {
+    ...typography.bodySm,
+    color: colors.textSecondary,
+    backgroundColor: colors.surfaceContainerLow,
+    padding: space.sm,
+    borderRadius: radius.sm,
+    marginTop: space.xs,
   },
   noActiveCard: {
     padding: 24,

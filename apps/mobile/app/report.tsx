@@ -646,7 +646,7 @@ function ReportForm() {
             <Text style={styles.successTitle}>Report Recorded</Text>
             <Text style={styles.successSubtitle}>
               {state.kind === "success"
-                ? `Assigned tier: ${state.level}. ${state.levelReason}`
+                ? `Assigned tier: ${state.level}. ${state.levelReason} Dispatched to the Civic Traffic Authority dashboard for verification.`
                 : ""}
             </Text>
 
