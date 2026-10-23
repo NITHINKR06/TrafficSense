@@ -1,5 +1,27 @@
 # Project Progress
 
+## Full-Screen Interactive Maps with Floating Overlay Cards for /traffic and /planner — verified, 23 Oct 2026
+
+- **Scope:** Redesigned `http://localhost:3000/traffic` and `http://localhost:3000/planner` with full-viewport edge-to-edge interactive maps (Google Maps style) replacing the small embedded boxes. Switched primary focus to real seeded community reports and verified incidents from the Supabase database (`/api/incidents`) with interactive pins, floating side drawers, filter pills, direct incident detours, and collapsible corridor simulation panels.
+- **Implementation:**
+  - `apps/web/src/app/globals.css`: Added CSS rule allowing `[data-fullscreen="true"]` pages to bypass the 1200px container constraint and hide the site footer, giving map views true edge-to-edge canvas space.
+  - `apps/web/src/lib/routing/presets.ts`: Added `findNearestPreset(coords, maxDistanceKm)` to map coordinates to familiar Mangaluru landmarks (Ambedkar Circle, Pumpwell, KSRTC Bejai, etc.).
+  - `apps/web/src/app/traffic/page.tsx` & `traffic-explorer.tsx`:
+    - Full-screen container with live database incident markers (`data-live-incident-marker={id}`).
+    - Floating Top-Left Drawer with `● REAL DATA` badge, filter pills (All, Verified L3+, Accidents, Hazards), and active incident feed.
+    - Floating Selected Incident Card (`[aria-label="Selected community report"]`) with category badge, verification ladder status, confirmation count, nearest landmark, and a direct "Plan Detour Around This →" navigation link to `/planner`.
+    - Collapsible corridor and ladder drawer (`[data-segment-list]`) preserving synthetic corridor checks and test suite assertions.
+  - `apps/web/src/components/traffic/traffic-map.tsx`: Styled custom Leaflet markers for database incidents with pulsing rings, incident category icons, and auto-centering.
+  - `apps/web/src/app/planner/page.tsx` & `route-planner.tsx`:
+    - Full-viewport map canvas with floating Google Maps-style route input drawer on top-left.
+    - Origin with GPS and Mangaluru landmark quick-select, destination selector, swap button, free-flow time estimate, incident intersection warnings, alternative detour options, and floating incident details.
+- **Verification:**
+  - `docker exec trafficsense-nk-app-1 pnpm lint`: Passed (0 errors, 1 known hook warning in unrelated file).
+  - `docker exec -w /app/apps/web trafficsense-nk-app-1 pnpm exec tsc --noEmit`: Passed (0 errors).
+  - `just test`: Passed (**231/231** across 10 test suites).
+  - `git diff --check`: Passed with 0 whitespace issues.
+- **Commit:** Pending.
+
 ## Spread Check: Which Routes Does a Verified Problem Reach? — verified, 23 Oct 2026
 
 - **Scope:** Added incident spread analysis for verified problems (L3/L6 only). Given a verified incident and an origin (e.g. Pumpwell Circle), evaluates OSRM primary routes to all other presets to count how many routes pass within 200m of the incident, whether an avoiding alternative exists, and free-flow duration differences. Strictly excludes simulated corridor slowdowns and unverified L1/L2 reports; marks failed OSRM pairs as unchecked rather than safe.

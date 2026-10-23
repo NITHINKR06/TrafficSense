@@ -491,21 +491,24 @@ export function RoutePlanner() {
   }).format(new Date(value));
 
   return (
-    <div className="space-y-4">
-      {/* Search / Selection Card */}
-      <div className="p-4 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-surface-on">City Route Intelligence</h2>
-          <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-surface-container text-surface-on-variant">
-            ESTIMATED · FREE-FLOW ONLY
-          </span>
-        </div>
+    <div className="relative w-full h-full overflow-hidden flex flex-col">
+      {/* Fullscreen Map Canvas */}
+      <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
 
-        <p className="text-xs text-surface-on-variant">
-          Select any origin and destination across Mangaluru to calculate real driving paths, compare alternatives, and automatically detour around verified incidents.
-        </p>
+      {/* Floating Directions Drawer (Top-Left) */}
+      <aside className="absolute top-4 left-4 z-20 w-80 sm:w-[420px] max-h-[calc(100vh-95px)] flex flex-col bg-surface/95 dark:bg-surface-dim/95 backdrop-blur-md rounded-2xl border border-surface-container shadow-2xl overflow-hidden pointer-events-auto">
+        <div className="p-3.5 pb-2.5 border-b border-surface-container bg-surface-container-low/60 space-y-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold text-surface-on flex items-center gap-1.5 m-0">
+              <span>🗺️</span>
+              <span>City Route Intelligence</span>
+            </h2>
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-surface-container text-surface-on-variant">
+              FREE-FLOW
+            </span>
+          </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
           {/* Origin selector */}
           <div className="space-y-1">
             <div className="flex items-center justify-between">
@@ -598,7 +601,9 @@ export function RoutePlanner() {
         </div>
       </div>
 
-      {reportFeedback && (
+      {/* Scrollable Drawer Body */}
+      <div className="overflow-y-auto p-3.5 space-y-3 flex-1">
+        {reportFeedback && (
         <div className="p-3 rounded-lg bg-surface-container-low border border-surface-container text-xs text-surface-on">
           {reportFeedback}
         </div>
@@ -770,110 +775,133 @@ export function RoutePlanner() {
         </div>
       )}
 
-      {selectedIncident && (
-        <section className="p-4 rounded-xl bg-surface-container-lowest border border-primary/30 shadow-sm space-y-3" aria-labelledby="selected-incident-title">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-[10px] font-mono text-surface-on-variant">SELECTED MAP INCIDENT</p>
-              <h3 id="selected-incident-title" className="text-base font-bold text-surface-on">{reportCategoryIcons[selectedIncident.category]} {reportCategories[selectedIncident.category]}</h3>
+        {/* Route Cards */}
+        {routes.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-bold text-surface-on-variant uppercase tracking-wider">Calculated Routes</span>
+              <span className="text-[10px] text-surface-on-variant">{routes.length} options</span>
             </div>
-            <button type="button" className="text-xs text-primary hover:underline" onClick={() => setSelectedIncidentId(null)}>Close details</button>
-          </div>
-          <dl className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-            <div><dt className="text-surface-on-variant">Verification</dt><dd className="font-semibold text-surface-on mt-0.5">{selectedIncident.level} · {selectedIncident.provenance}</dd></div>
-            <div><dt className="text-surface-on-variant">Reports</dt><dd className="font-semibold text-surface-on mt-0.5">{selectedIncident.report_count}</dd></div>
-            <div><dt className="text-surface-on-variant">First reported</dt><dd className="font-semibold text-surface-on mt-0.5">{formatIncidentTime(selectedIncident.first_reported_at)} IST</dd></div>
-            <div><dt className="text-surface-on-variant">Status</dt><dd className="font-semibold text-surface-on mt-0.5 capitalize">{selectedIncident.status}</dd></div>
-          </dl>
-          <p className="text-xs text-surface-on-variant">{selectedIncident.level_reason}</p>
-          <p className="text-[11px] text-surface-on-variant">This open incident expires if it receives no new confirmation by {formatIncidentTime(new Date(Date.parse(selectedIncident.last_confirmed_at) + 3 * 60 * 60 * 1000).toISOString())} IST.</p>
-        </section>
-      )}
-
-      {/* Map display */}
-      <div className="relative rounded-xl overflow-hidden border border-surface-container shadow-sm bg-surface-container-low">
-        <div ref={mapContainer} className="w-full h-80 sm:h-96" />
-        <div className="absolute top-2 left-2 bg-surface-container-lowest/90 backdrop-blur-sm px-3 py-1.5 rounded-lg border border-surface-container text-[11px] space-y-0.5">
-          <div className="flex items-center gap-2">
-            <span className="w-3 h-1 bg-blue-600 rounded" />
-            <span className="font-semibold text-surface-on">Recommended route</span>
-          </div>
-          {routes.length > 1 && (
-            <div className="flex items-center gap-2">
-              <span className="w-3 h-1 bg-slate-500 rounded border-dashed" />
-              <span className="text-surface-on-variant">Alternative path</span>
-            </div>
-          )}
-          <div className="pt-1 mt-1 border-t border-surface-container text-surface-on-variant">Current reports</div>
-          <div className="flex items-center gap-2"><span className="w-3 h-1 bg-emerald-600 rounded" /><span className="text-surface-on-variant">Clear</span></div>
-          <div className="flex items-center gap-2"><span className="w-3 h-1 bg-amber-500 rounded" /><span className="text-surface-on-variant">Reported / corroborated</span></div>
-          <div className="flex items-center gap-2"><span className="w-3 h-1 bg-orange-600 rounded" /><span className="text-surface-on-variant">L4 slowdown support</span></div>
-        </div>
-      </div>
-
-      {/* Route Cards */}
-      {routes.length > 0 && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          {routes.map((r, index) => {
-            const isSelected = r.id === (selectedRouteId ?? routes[0]?.id);
-            return (
-              <div
-                key={r.id}
-                onClick={() => setSelectedRouteId(r.id)}
-                className={`p-4 rounded-xl border transition cursor-pointer space-y-2 ${
-                  isSelected
-                    ? "bg-primary/5 border-primary shadow-sm"
-                    : "bg-surface-container-lowest border-surface-container hover:bg-surface-container-low"
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-surface-on flex items-center gap-1.5">
-                    {r.is_recommended && <span className="text-primary font-bold">★ Recommended</span>}
-                    {!r.is_recommended && <span className="text-surface-on-variant">Option {index + 1}</span>}
-                  </span>
-                  {r.avoids_incident && (
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-100">
-                      Detour
+            {routes.map((r, index) => {
+              const isSelected = r.id === (selectedRouteId ?? routes[0]?.id);
+              return (
+                <div
+                  key={r.id}
+                  onClick={() => setSelectedRouteId(r.id)}
+                  className={`p-3 rounded-xl border transition cursor-pointer space-y-1.5 ${
+                    isSelected
+                      ? "bg-primary/5 border-primary shadow-sm"
+                      : "bg-surface-container-lowest border-surface-container hover:bg-surface-container-low"
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-surface-on flex items-center gap-1.5">
+                      {r.is_recommended && <span className="text-primary font-bold">★ Recommended</span>}
+                      {!r.is_recommended && <span className="text-surface-on-variant">Option {index + 1}</span>}
                     </span>
+                    {r.avoids_incident && (
+                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-100">
+                        Detour
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="flex items-baseline gap-2.5">
+                    <span className="text-xl font-bold text-surface-on">
+                      {formatRouteDuration(r.duration_s)}
+                    </span>
+                    <span className="text-xs font-medium text-surface-on-variant">
+                      {formatRouteDistance(r.distance_m)}
+                    </span>
+                  </div>
+
+                  <p className="text-xs text-surface-on-variant leading-tight m-0">
+                    {r.name} · free-flow estimate
+                  </p>
+
+                  {r.incidents_on_route.length > 0 && (
+                    <div className="pt-1 text-[11px] text-amber-700 dark:text-amber-300">
+                      ⚠️ Passes near {r.incidents_on_route.length} reported incident ({r.incidents_on_route[0].label})
+                    </div>
+                  )}
+
+                  {isSelected && (
+                    <div className="pt-2 border-t border-surface-container flex items-center justify-between">
+                      <span className="text-[11px] text-surface-on-variant">Ready to commute?</span>
+                      <Link
+                        href="/workspace"
+                        className="text-xs font-semibold px-3 py-1 rounded bg-primary text-primary-on hover:opacity-90 transition"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        Track this journey →
+                      </Link>
+                    </div>
                   )}
                 </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </aside>
 
-                <div className="flex items-baseline gap-3">
-                  <span className="text-2xl font-bold text-surface-on">
-                    {formatRouteDuration(r.duration_s)}
-                  </span>
-                  <span className="text-sm font-medium text-surface-on-variant">
-                    {formatRouteDistance(r.distance_m)}
-                  </span>
-                </div>
-
-                <p className="text-xs text-surface-on-variant leading-tight">
-                  {r.name} · free-flow estimate
-                </p>
-
-                {r.incidents_on_route.length > 0 && (
-                  <div className="pt-1 text-[11px] text-amber-700 dark:text-amber-300">
-                    ⚠️ Passes near {r.incidents_on_route.length} reported incident ({r.incidents_on_route[0].label})
-                  </div>
-                )}
-
-                {isSelected && (
-                  <div className="pt-2 border-t border-surface-container flex items-center justify-between">
-                    <span className="text-[11px] text-surface-on-variant">Ready to commute?</span>
-                    <Link
-                      href="/workspace"
-                      className="text-xs font-semibold px-3 py-1 rounded bg-primary text-primary-on hover:opacity-90 transition"
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      Track this journey →
-                    </Link>
-                  </div>
-                )}
-              </div>
-            );
-          })}
+    {/* Floating Selected Incident Card (Bottom-Right) */}
+    {selectedIncident && (
+      <section className="absolute bottom-6 right-4 sm:right-6 z-20 w-[calc(100vw-2rem)] sm:w-96 bg-surface/95 dark:bg-surface-dim/95 backdrop-blur-md rounded-2xl border border-surface-container shadow-2xl p-4 space-y-2.5 pointer-events-auto" aria-labelledby="selected-incident-title">
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div>
+            <p className="text-[10px] font-mono text-surface-on-variant">SELECTED MAP INCIDENT</p>
+            <h3 id="selected-incident-title" className="text-base font-bold text-surface-on flex items-center gap-1.5 mt-0.5">
+              <span>{reportCategoryIcons[selectedIncident.category]}</span>
+              <span>{reportCategories[selectedIncident.category]}</span>
+            </h3>
+          </div>
+          <button type="button" className="text-xs text-surface-on-variant hover:text-surface-on p-1" onClick={() => setSelectedIncidentId(null)} aria-label="Close">✕</button>
         </div>
-      )}
+        <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs m-0">
+          <div><dt className="text-surface-on-variant">Verification</dt><dd className="font-semibold text-surface-on mt-0.5">{selectedIncident.level} · {selectedIncident.provenance}</dd></div>
+          <div><dt className="text-surface-on-variant">Reports</dt><dd className="font-semibold text-surface-on mt-0.5">{selectedIncident.report_count}</dd></div>
+          <div><dt className="text-surface-on-variant">Reported</dt><dd className="font-semibold text-surface-on mt-0.5">{formatIncidentTime(selectedIncident.first_reported_at)} IST</dd></div>
+          <div><dt className="text-surface-on-variant">Status</dt><dd className="font-semibold text-surface-on mt-0.5 capitalize">{selectedIncident.status}</dd></div>
+        </dl>
+        <p className="text-xs text-surface-on-variant m-0">{selectedIncident.level_reason}</p>
+        <p className="text-[11px] text-surface-on-variant m-0">This open incident expires if it receives no new confirmation by {formatIncidentTime(new Date(Date.parse(selectedIncident.last_confirmed_at) + 3 * 60 * 60 * 1000).toISOString())} IST.</p>
+      </section>
+    )}
+
+    {/* Floating Bottom-Right Map Controls & Legend */}
+    <div className="absolute bottom-4 right-4 z-10 flex flex-col items-end gap-2 pointer-events-auto">
+      <button
+        type="button"
+        onClick={() => {
+          const selected = routes.find((r) => r.id === (selectedRouteId ?? routes[0]?.id));
+          if (mapRef.current && selected && selected.geometry.coordinates.length > 0) {
+            import("maplibre-gl").then(({ LngLatBounds }) => {
+              const bounds = new LngLatBounds();
+              for (const coord of selected.geometry.coordinates) {
+                bounds.extend(coord as [number, number]);
+              }
+              mapRef.current?.fitBounds(bounds, { padding: 50, maxZoom: 15 });
+            });
+          } else {
+            mapRef.current?.flyTo({ center: [74.856, 12.870], zoom: 13, duration: 800 });
+          }
+        }}
+        className="px-3 py-1.5 rounded-xl bg-surface/95 backdrop-blur border border-surface-container shadow-md text-xs font-semibold text-surface-on hover:bg-surface-container flex items-center gap-1.5"
+        title="Recenter route view"
+      >
+        <span>🎯</span>
+        <span>Recenter Route</span>
+      </button>
+      <div className="text-[11px] bg-surface/80 backdrop-blur px-2.5 py-1 rounded-lg border border-surface-container/60 shadow-xs flex items-center gap-2 text-surface-on-variant">
+        <span className="w-2.5 h-1 bg-blue-600 rounded" />
+        <span>Recommended</span>
+        <span className="w-2.5 h-1 bg-slate-500 rounded border-dashed" />
+        <span>Alternative</span>
+        <span>·</span>
+        <a href="/map-notices.txt" target="_blank" rel="noreferrer" className="hover:underline">Notices</a>
+      </div>
     </div>
-  );
+  </div>
+);
 }

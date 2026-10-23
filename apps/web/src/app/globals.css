@@ -224,6 +224,20 @@ nav a[aria-current="page"] {
   padding-block: 2.5rem;
 }
 
+body:has([data-fullscreen="true"]) .site-main {
+  width: 100%;
+  max-width: 100%;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+body:has([data-fullscreen="true"]) .site-footer {
+  display: none;
+}
+
 .site-footer {
   width: min(100% - 2rem, 1200px);
   margin-inline: auto;
