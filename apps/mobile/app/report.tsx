@@ -1,7 +1,9 @@
+import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { router, Stack } from "expo-router";
 import { useState } from "react";
 import {
+  Image,
   KeyboardAvoidingView,
   Modal,
   Platform,
@@ -15,6 +17,7 @@ import {
 import type { ReportCategory } from "@trafficsense/shared";
 import { submitIncident } from "../src/lib/api";
 import { MobileApiError } from "../src/lib/request";
+import { verifyEvidence, type L5VerifyResult } from "../src/lib/verify-evidence";
 import { mangaluruPlaces } from "../src/lib/places";
 import { formatCoordinates, toReportLocationInput, type ReportLocation } from "../src/lib/report-location";
 import { useAuth } from "../src/providers/auth-provider";
@@ -31,7 +34,7 @@ import { colors, layout, minTouchTarget, radius, shadows, space, typography } fr
 type ReportState =
   | { kind: "idle" }
   | { kind: "error"; message: string; signInRequired?: boolean }
-  | { kind: "success"; level: string; levelReason: string };
+  | { kind: "success"; level: string; levelReason: string; l5Result?: L5VerifyResult };
 
 const LOCATION_DENIED =
   "Location permission was denied. Allow location in your phone settings to submit a report.";
@@ -107,8 +110,10 @@ function ReportForm() {
   const { session } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<ReportCategory | null>(null);
   const [note, setNote] = useState("");
-  const [state, setState] = useState<ReportState>({ kind: "idle" });
+  const [state, setState] = useState<ReportState>({ kind: "idle" })
   const [submitting, setSubmitting] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<{ uri: string; base64: string; mimeType: string } | null>(null);
+  const [verifying, setVerifying] = useState(false);
   const [location, setLocation] = useState<ReportLocation | null>(null);
   const [locating, setLocating] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
@@ -138,6 +143,53 @@ function ReportForm() {
     }
   };
 
+  const pickFromCamera = async () => {
+    const perm = await ImagePicker.requestCameraPermissionsAsync();
+    if (perm.status !== "granted") {
+      setState({ kind: "error", message: "Camera permission is required to attach a photo." });
+      return;
+    }
+    const result = await ImagePicker.launchCameraAsync({
+      mediaTypes: ["images"],
+      quality: 0.7,
+      base64: true,
+      exif: false,
+    });
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      if (!asset.base64) return;
+      // Guard: ~4 MB base64 limit (4MB * 0.75 = 3MB raw; base64 is ~1.33x)
+      if (asset.base64.length > 5_600_000) {
+        setState({ kind: "error", message: "Photo is too large. Choose a smaller image (max 4 MB)." });
+        return;
+      }
+      setCapturedImage({ uri: asset.uri, base64: asset.base64, mimeType: asset.mimeType ?? "image/jpeg" });
+    }
+  };
+
+  const pickFromGallery = async () => {
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (perm.status !== "granted") {
+      setState({ kind: "error", message: "Gallery permission is required to attach a photo." });
+      return;
+    }
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      quality: 0.7,
+      base64: true,
+      exif: false,
+    });
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      if (!asset.base64) return;
+      if (asset.base64.length > 5_600_000) {
+        setState({ kind: "error", message: "Photo is too large. Choose a smaller image (max 4 MB)." });
+        return;
+      }
+      setCapturedImage({ uri: asset.uri, base64: asset.base64, mimeType: asset.mimeType ?? "image/jpeg" });
+    }
+  };
+
   const submit = async () => {
     setState({ kind: "idle" });
     if (!session) {
@@ -158,6 +210,33 @@ function ReportForm() {
     }
 
     setSubmitting(true);
+    let l5Result: L5VerifyResult | undefined;
+
+    // Optional L5 vision verification if image is attached
+    if (capturedImage) {
+      setVerifying(true);
+      try {
+        const verifyResponse = await verifyEvidence(
+          {
+            imageBase64: capturedImage.base64,
+            mimeType: capturedImage.mimeType,
+            userSelectedCategory: selectedCategory,
+            lat: location.lat,
+            lng: location.lng,
+          },
+          session.access_token,
+        );
+        if (verifyResponse.ok) {
+          l5Result = verifyResponse.result;
+        }
+        // If verify fails (ok: false), we proceed without L5 — never block submission
+      } catch {
+        // Vision errors are non-fatal — submit the report regardless
+      } finally {
+        setVerifying(false);
+      }
+    }
+
     try {
       const result = await submitIncident(
         {
@@ -172,8 +251,10 @@ function ReportForm() {
         kind: "success",
         level: result.level,
         levelReason: result.level_reason,
+        l5Result,
       });
       setNote("");
+      setCapturedImage(null);
     } catch (reason) {
       if (reason instanceof MobileApiError && reason.authRequired) {
         setState({
@@ -197,6 +278,7 @@ function ReportForm() {
       }
     } finally {
       setSubmitting(false);
+      setVerifying(false);
     }
   };
 
@@ -375,6 +457,63 @@ function ReportForm() {
             </View>
           </Card>
 
+          {/* 3. Photo Evidence (optional) */}
+          <Card style={styles.photoCard}>
+            <View style={styles.photoHeader}>
+              <Icon name="camera_alt" size={20} color={colors.evidence} />
+              <Text style={styles.photoTitle}>Optional photo evidence (L5 upgrade)</Text>
+            </View>
+            <Text style={styles.photoSubtitle}>
+              Attach a clear photo to enable AI vision verification. This may upgrade your report to a higher trust tier.
+            </Text>
+
+            {capturedImage ? (
+              <View style={styles.photoPreviewBox}>
+                <Image source={{ uri: capturedImage.uri }} style={styles.photoPreview} resizeMode="cover" />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Remove attached photo"
+                  onPress={() => setCapturedImage(null)}
+                  style={styles.photoRemoveBtn}
+                >
+                  <Icon name="close" size={16} color="#ffffff" />
+                </Pressable>
+                <View style={styles.photoAttachedBadge}>
+                  <Icon name="check_circle" size={13} color={colors.success} />
+                  <Text style={styles.photoAttachedText}>Photo ready for AI analysis</Text>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.photoActions}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Take a photo with camera"
+                  onPress={() => void pickFromCamera()}
+                  style={styles.photoActionBtn}
+                >
+                  <Icon name="photo_camera" size={20} color={colors.primary} />
+                  <Text style={styles.photoActionText}>Camera</Text>
+                </Pressable>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Pick a photo from gallery"
+                  onPress={() => void pickFromGallery()}
+                  style={styles.photoActionBtn}
+                >
+                  <Icon name="photo_library" size={20} color={colors.primary} />
+                  <Text style={styles.photoActionText}>Gallery</Text>
+                </Pressable>
+              </View>
+            )}
+
+            <View style={styles.photoPrivacyRow}>
+              <Icon name="lock" size={13} color={colors.textMuted} />
+              <Text style={styles.photoPrivacyText}>
+                EXIF location is not captured. Image is analyzed server-side and not stored permanently.
+              </Text>
+            </View>
+          </Card>
+
           {/* 2. Location and trust */}
           <View style={styles.trustSection}>
             <Text style={styles.trustSectionTitle}>2. Report location</Text>
@@ -444,8 +583,8 @@ function ReportForm() {
           {/* Action Buttons */}
           <View style={styles.actionsStack}>
             <Button
-              title={submitting ? "Submitting observation…" : "Submit report"}
-              loading={submitting}
+              title={verifying ? "Analysing photo…" : submitting ? "Submitting observation…" : "Submit report"}
+              loading={submitting || verifying}
               onPress={() => void submit()}
               variant="primary"
               icon={<Icon name="send" size={18} color="#ffffff" />}
@@ -492,8 +631,17 @@ function ReportForm() {
       >
         <View style={styles.successBackdrop}>
           <Card style={styles.successModalCard}>
-            <View style={styles.successIconCircle}>
-              <Icon name="check" size={28} color="#ffffff" />
+            <View style={[
+              styles.successIconCircle,
+              state.kind === "success" && state.l5Result?.upgradeEligible
+                ? { backgroundColor: colors.evidence }
+                : undefined
+            ]}>
+              <Icon
+                name={state.kind === "success" && state.l5Result?.upgradeEligible ? "verified" : "check"}
+                size={28}
+                color="#ffffff"
+              />
             </View>
             <Text style={styles.successTitle}>Report Recorded</Text>
             <Text style={styles.successSubtitle}>
@@ -501,6 +649,38 @@ function ReportForm() {
                 ? `Assigned tier: ${state.level}. ${state.levelReason}`
                 : ""}
             </Text>
+
+            {state.kind === "success" && state.l5Result ? (
+              <View style={styles.l5ResultBox}>
+                <View style={styles.l5ResultHeader}>
+                  <Icon name="smart_toy" size={16} color={colors.evidence} />
+                  <Text style={styles.l5ResultTitle}>AI Vision Analysis</Text>
+                  {state.l5Result.upgradeEligible ? (
+                    <View style={styles.l5UpgradeBadge}>
+                      <Text style={styles.l5UpgradeBadgeText}>Upgrade eligible</Text>
+                    </View>
+                  ) : null}
+                </View>
+                <Text style={styles.l5ResultSummary}>{state.l5Result.summary}</Text>
+                <View style={styles.l5ResultRow}>
+                  <Text style={styles.l5ResultLabel}>Detected:</Text>
+                  <Text style={styles.l5ResultValue}>{state.l5Result.detectedCategory}</Text>
+                </View>
+                <View style={styles.l5ResultRow}>
+                  <Text style={styles.l5ResultLabel}>Confidence:</Text>
+                  <Text style={styles.l5ResultValue}>{Math.round(state.l5Result.confidence * 100)}%</Text>
+                </View>
+                <View style={styles.l5ResultRow}>
+                  <Text style={styles.l5ResultLabel}>Category match:</Text>
+                  <Text style={[
+                    styles.l5ResultValue,
+                    { color: state.l5Result.matchesUserCategory ? colors.success : colors.warning }
+                  ]}>
+                    {state.l5Result.matchesUserCategory ? "✓ Confirmed" : "⚠ Differs"}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
 
             <Button
               title="View on Live Traffic Map"
@@ -996,4 +1176,140 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontWeight: "600",
   },
+photoCard: {
+    padding: space.md,
+    gap: 10,
+  },
+  photoHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  photoTitle: {
+    ...typography.titleSm,
+    fontWeight: "600",
+    color: colors.text,
+    flex: 1,
+  },
+  photoSubtitle: {
+    ...typography.bodySm,
+    color: colors.textSecondary,
+    fontSize: 11.5,
+  },
+  photoActions: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  photoActionBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 14,
+    borderWidth: 1.5,
+    borderColor: colors.primary,
+    borderRadius: radius.control,
+    borderStyle: "dashed",
+    backgroundColor: colors.primaryFixed,
+  },
+  photoActionText: {
+    ...typography.labelMd,
+    color: colors.primary,
+    fontWeight: "700",
+  },
+  photoPreviewBox: {
+    borderRadius: radius.card,
+    overflow: "hidden",
+    position: "relative",
+  },
+  photoPreview: {
+    width: "100%",
+    height: 180,
+    borderRadius: radius.card,
+  },
+  photoRemoveBtn: {
+    position: "absolute",
+    top: 8,
+    right: 8,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  photoAttachedBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingTop: 6,
+  },
+  photoAttachedText: {
+    ...typography.labelSm,
+    color: colors.success,
+  },
+  photoPrivacyRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 4,
+  },
+  photoPrivacyText: {
+    ...typography.bodySm,
+    fontSize: 10.5,
+    color: colors.textMuted,
+    flex: 1,
+  },
+  l5ResultBox: {
+    backgroundColor: colors.evidenceSurface,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderColor: colors.evidence + "33",
+    padding: space.md,
+    gap: 8,
+    width: "100%",
+  },
+  l5ResultHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+  },
+  l5ResultTitle: {
+    ...typography.labelMd,
+    color: colors.evidence,
+    fontWeight: "700",
+    flex: 1,
+  },
+  l5UpgradeBadge: {
+    backgroundColor: colors.evidence,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: radius.pill,
+  },
+  l5UpgradeBadgeText: {
+    ...typography.codeSm,
+    color: "#ffffff",
+    fontSize: 9.5,
+  },
+  l5ResultSummary: {
+    ...typography.bodySm,
+    color: colors.textSecondary,
+    lineHeight: 18,
+  },
+  l5ResultRow: {
+    flexDirection: "row",
+    gap: 6,
+  },
+  l5ResultLabel: {
+    ...typography.labelSm,
+    color: colors.textMuted,
+    minWidth: 80,
+  },
+  l5ResultValue: {
+    ...typography.labelSm,
+    color: colors.text,
+    fontWeight: "600",
+    flex: 1,
+  },
+
 });
