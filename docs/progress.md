@@ -1,5 +1,21 @@
 # Project Progress
 
+## Fix Incident Report Commuter Session Authentication — verified, 23 Oct 2026
+
+- **Issue:** Submitting a report via `/report` (or `/api/incidents`) returned HTTP 401 `"Sign in with a commuter account to submit an incident. Anonymous reports cannot establish corroboration."` even after signing in with a commuter account.
+- **Root Cause:** `apps/web/src/app/api/incidents/route.ts` used `createServerClient` without passing `cookieOptions: authCookieOptions`. It defaulted to looking for `sb-*-auth-token` cookies rather than the application's configured `trafficsense-auth` cookies, so `supabase.auth.getUser()` always returned `null`.
+- **Implementation:**
+  - `apps/web/src/app/api/incidents/route.ts`: Updated `getSupabase` to use `createAuthClient(true)` for web cookie sessions and pass `authCookieOptions` for `authorization` header requests.
+  - `apps/web/src/app/api/spread/route.ts`: Updated `getSupabase` to use `createAuthClient(false)` and `authCookieOptions`.
+  - `apps/web/src/app/report/page.tsx`: Injected `viewer` via `getViewer()` into `WebReportScreen`.
+  - `apps/web/src/components/reports/web-report-screen.tsx`: Added authentication status indicator showing the active commuter's email and role, or a clean prompt linking to `/login` if unauthenticated. Enhanced the 401 error message with an actionable button linking directly to the sign-in / 1-click demo accounts page.
+- **Verification:**
+  - `pnpm build`: Passed (`✓ Generating static pages using 11 workers (24/24)`).
+  - `pnpm lint`: Passed (0 errors).
+  - `just test`: Passed (**231/231** across 10 test suites).
+  - `git diff --check`: Passed with 0 errors.
+- **Commit:** `4cb722a` — `fix(reports): resolve session authentication in api/incidents for signed-in commuters`.
+
 ## Fix Next.js cacheComponents Route Config Build Error — verified, 23 Oct 2026
 
 - **Issue:** Next.js 16 build failed with `Error: Route segment config "dynamic" is not compatible with nextConfig.cacheComponents. Please remove it.` in `apps/web/src/app/api/demo-accounts/route.ts`.

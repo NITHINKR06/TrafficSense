@@ -41,7 +41,7 @@ function toL5Category(category: ReportCategory): L5DetectedCategory {
   }
 }
 
-export function WebReportScreen() {
+export function WebReportScreen({ viewer }: { viewer?: { email?: string; role: string } | null } = {}) {
   const [category, setCategory] = useState<ReportCategory>("accident");
   const [locationIndex, setLocationIndex] = useState<number>(0);
   const [useGps, setUseGps] = useState<boolean>(false);
@@ -264,9 +264,49 @@ export function WebReportScreen() {
               </p>
             </div>
 
+            {viewer ? (
+              <div className="flex items-center justify-between p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-300 dark:border-emerald-800 text-xs text-emerald-900 dark:text-emerald-100">
+                <div className="flex items-center gap-2">
+                  <span className="text-base leading-none">👤</span>
+                  <span>
+                    Reporting as <strong>{viewer.email}</strong> ({viewer.role})
+                  </span>
+                </div>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-900 font-bold">
+                  AUTHENTICATED
+                </span>
+              </div>
+            ) : (
+              <div className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-base leading-none">⚠️</span>
+                  <span>You are not signed in. Commuter sign-in is required to submit verified reports.</span>
+                </div>
+                <Link
+                  href="/login"
+                  className="button secondary text-xs py-1 px-3 self-start sm:self-auto font-semibold whitespace-nowrap"
+                >
+                  Sign In (1-Click Demo) →
+                </Link>
+              </div>
+            )}
+
             {errorMessage && (
-              <div className="p-3 rounded-lg bg-error-container text-error-on text-xs">
-                {errorMessage}
+              <div className="p-3.5 rounded-xl bg-rose-50 dark:bg-rose-950/60 border border-rose-300 dark:border-rose-800 text-xs text-rose-900 dark:text-rose-100 space-y-2">
+                <div className="flex items-center gap-2">
+                  <span>⚠️</span>
+                  <span>{errorMessage}</span>
+                </div>
+                {errorMessage.includes("Sign in") && (
+                  <div>
+                    <Link
+                      href="/login"
+                      className="inline-block button text-xs py-1 px-3 font-semibold"
+                    >
+                      Sign In with Demo Commuter Account →
+                    </Link>
+                  </div>
+                )}
               </div>
             )}
 

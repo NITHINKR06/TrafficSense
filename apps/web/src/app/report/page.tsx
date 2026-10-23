@@ -1,13 +1,15 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { WebReportScreen } from "@/components/reports/web-report-screen";
+import { getViewer } from "@/lib/auth/server";
 
 export const metadata: Metadata = {
   title: "Report Traffic Incident · TrafficSense Mangaluru",
   description: "Report road hazards, accidents, flooding, and traffic obstacles. Dispatched to the Civic Traffic Authority dashboard for verification.",
 };
 
-export default function ReportPage() {
+export default async function ReportPage() {
+  const viewer = await getViewer();
   return (
     <section className="panel space-y-6">
       <div className="panel-heading">
@@ -29,7 +31,7 @@ export default function ReportPage() {
         </p>
       </div>
 
-      <WebReportScreen />
+      <WebReportScreen viewer={viewer ? { email: viewer.email ?? "", role: viewer.role } : null} />
 
       <div className="pt-4 border-t border-surface-container-high flex flex-wrap items-center justify-between gap-3 text-xs">
         <div className="flex items-center gap-4">
