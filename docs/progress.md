@@ -1,5 +1,34 @@
 # Project Progress
 
+## Local Database Persistence, Idempotent Startup, and Extended Incident Retention — verified, 23 Oct 2026
+
+- **Issue:**
+  - Running `just up` or `just web-up` repeatedly wiped the local database back to default initial seed data. User-reported incidents, planned routes, custom corridor observations, and active login sessions disappeared across restarts, forcing commuters and administrators to re-login, re-report, and re-plan from scratch on every run.
+- **Root Cause:**
+  1. `just up`, `just web-up`, and `just _mobile-lan-run` in `justfile` unconditionally executed `just db-seed` on every startup.
+  2. `scripts/seed-demo.mjs` called `replace_traffic_demo` (which runs `DELETE FROM demo_traffic_corridors`), generated fresh random passwords (`randomBytes(24)`) that invalidated active sessions and rotated `demo-accounts.json`, and re-injected the 4 hardcoded demo reports.
+  3. In PostgreSQL, `read_active_live_incidents()` contained an aggressive 3-hour expiration timer (`last_confirmed_at < clock_timestamp() - interval '3 hours'`). Any user-reported incidents older than 3 hours were automatically transitioned to `status = 'expired'` and hidden from the map and route detour planner (`"Blocked incident to avoid was not found or has expired"`).
+- **Implementation:**
+  - `justfile`:
+    - Updated `up`, `web-up`, and `_mobile-lan-run` to call `just db-seed-if-empty` instead of unconditional `db-seed`.
+    - Added dedicated recipe `db-seed-if-empty:` pointing to `bash scripts/local-supabase.sh seed-if-empty`.
+    - Preserved `just db-seed` and `just db-reset` for explicit, manual database clean starts.
+  - `scripts/local-supabase.sh`:
+    - Added `seed-if-empty` case passing `--if-empty` to `seed-demo.mjs`.
+  - `scripts/seed-demo.mjs`:
+    - Added `--if-empty` check: if Supabase Auth contains users and `demo_traffic_corridors` contains data, it logs `Preserving existing accounts, corridors, and user reports` and exits with zero mutations.
+    - Added existing password preservation from `supabase/.temp/demo-accounts.json`: avoids rotating credentials for existing test accounts, keeping login sessions intact across restarts.
+  - `supabase/migrations/20261023000300_persistent_incidents_and_safe_lifecycle.sql`:
+    - Updated `read_active_live_incidents()` to use a 7-day expiration window (`interval '7 days'`) instead of 3 hours for local development, allowing commuter reports and detour testing to persist over multiple days.
+    - Restored existing reports that had been prematurely expired under the 3-hour timer back to `status = 'open'`.
+- **Verification:**
+  - `just db-seed-if-empty`: Confirmed output: `==> Database already initialized with synthetic data. Preserving existing accounts, corridors, and user reports.`
+  - `POST /api/incidents` & `GET /api/incidents`: 14 active incidents (including user-reported hazards) now returned.
+  - `docker compose exec app pnpm test`: Passed (**236/236** tests across 11 suites).
+  - `docker compose exec app sh -c "cd apps/web && pnpm exec tsc --noEmit"`: 0 errors.
+  - `docker compose exec app pnpm lint`: 0 errors.
+  - `docker compose exec -e CI=1 app pnpm build`: Production build succeeded in 1.55s (all 25 routes generated).
+
 ## Fix Live Incident Marker Coordinates and Flow Stacking on /traffic — verified, 23 Oct 2026
 
 - **Issue:**
