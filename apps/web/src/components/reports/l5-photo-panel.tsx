@@ -32,6 +32,55 @@ type L5PhotoPanelProps = {
 const ACCEPTED_MIME_TYPES: L5MimeType[] = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 4 * 1024 * 1024;
 
+const AI_METADATA_SIGNATURES = [
+  "trainedalgorithmicmedia",
+  "compositewithtrainedalgorithmicmedia",
+  "c2pa.actions",
+  "dall-e",
+  "dalle",
+  "openai",
+  "midjourney",
+  "stable diffusion",
+  "stablediffusion",
+  "comfyui",
+  "automatic1111",
+  "adobe firefly",
+  "synthid",
+  "bing image creator",
+  "imagen",
+] as const;
+
+/**
+ * Scans raw file header/trailer bytes (before canvas EXIF stripping) and filename
+ * for C2PA, IPTC, XMP, or PNG tEXt markers injected by AI image generators.
+ */
+function detectAiMetadataSignature(bytes: Uint8Array, fileName: string): string | null {
+  const lowerName = fileName.toLowerCase();
+  if (
+    lowerName.includes("dalle") ||
+    lowerName.includes("midjourney") ||
+    lowerName.includes("chatgpt") ||
+    lowerName.includes("gemini_generated") ||
+    lowerName.includes("ai_generated")
+  ) {
+    return "Filename matches known AI generator pattern";
+  }
+  // Decode first 64 KB and last 32 KB as Latin-1 to inspect XMP/C2PA/EXIF/tEXt chunks
+  const decoder = new TextDecoder("latin1");
+  const head = decoder.decode(bytes.subarray(0, Math.min(bytes.length, 65536))).toLowerCase();
+  const tail =
+    bytes.length > 65536
+      ? decoder.decode(bytes.subarray(Math.max(0, bytes.length - 32768))).toLowerCase()
+      : "";
+  const combined = `${head}\n${tail}`;
+  for (const sig of AI_METADATA_SIGNATURES) {
+    if (combined.includes(sig)) {
+      return `Embedded AI metadata signature detected (${sig.toUpperCase()})`;
+    }
+  }
+  return null;
+}
+
 /**
  * Downscales the image to at most 480px on its longest side and re-encodes it as JPEG.
  * Drawing onto a canvas drops all EXIF metadata (including GPS) from the stored copy.
@@ -126,6 +175,28 @@ export function L5PhotoPanel({ segmentId, userSelectedCategory, onResult }: L5Ph
         const blob = new Blob([arrayBuffer], { type: file.type });
         const photoDataUrl = await createCompressedDataUrl(blob);
         setThumbnail(photoDataUrl ?? URL.createObjectURL(blob));
+
+        const aiMetaHit = detectAiMetadataSignature(bytes, file.name);
+        if (aiMetaHit) {
+          const rejectedAiResult: L5VerificationResult = {
+            isGenuineIncident: false,
+            isAiGenerated: true,
+            rejectionReason: "ai_generated",
+            detectedCategory: "unknown",
+            categoryMatchesReport: false,
+            confidenceTier: "low",
+            severity: "moderate",
+            visualSummary: `Blocked by C2PA/Metadata forensics: ${aiMetaHit}. Only authentic on-site camera photos are accepted.`,
+            verificationTier: "L5",
+            source: "gemini",
+            photoDataUrl,
+          };
+          setResult(rejectedAiResult);
+          onResult(rejectedAiResult);
+          setStatus("done");
+          return;
+        }
+
         setStatus("verifying");
 
         const compressedBase64 = photoDataUrl?.startsWith("data:image/jpeg;base64,")
@@ -296,7 +367,11 @@ export function L5PhotoPanel({ segmentId, userSelectedCategory, onResult }: L5Ph
             >
               {result.isGenuineIncident
                 ? `L5 · AI VISUAL CORROBORATION · ${confidenceLabel(result.confidenceTier)} CONFIDENCE`
-                : "L5 · UNVERIFIED IMAGE"}
+                : result.isAiGenerated || result.rejectionReason === "ai_generated"
+                  ? "🚫 L5 REJECTED · AI-GENERATED / SYNTHETIC IMAGE BLOCKED"
+                  : result.rejectionReason === "screen_recapture"
+                    ? "🚫 L5 REJECTED · SCREENSHOT / MONITOR RECAPTURE BLOCKED"
+                    : "L5 · UNVERIFIED IMAGE (NO ROAD INCIDENT DETECTED)"}
             </span>
             {result.source === "offline_fallback" && (
               <span
@@ -339,6 +414,51 @@ export function L5PhotoPanel({ segmentId, userSelectedCategory, onResult }: L5Ph
               </span>
             </span>
           </div>
+
+          {/* Forensic verification badges */}
+          {result.isGenuineIncident && (
+            <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.5rem" }}>
+              <span
+                style={{
+                  fontSize: "0.68rem",
+                  fontFamily: "monospace",
+                  padding: "2px 6px",
+                  borderRadius: "4px",
+                  background: "#dcfce7",
+                  color: "#166534",
+                  border: "1px solid #bbf7d0",
+                }}
+              >
+                ✓ C2PA / AI Metadata: Clean
+              </span>
+              <span
+                style={{
+                  fontSize: "0.68rem",
+                  fontFamily: "monospace",
+                  padding: "2px 6px",
+                  borderRadius: "4px",
+                  background: "#dcfce7",
+                  color: "#166534",
+                  border: "1px solid #bbf7d0",
+                }}
+              >
+                ✓ Vision Forensics: Authentic Camera Scene
+              </span>
+              <span
+                style={{
+                  fontSize: "0.68rem",
+                  fontFamily: "monospace",
+                  padding: "2px 6px",
+                  borderRadius: "4px",
+                  background: "#dcfce7",
+                  color: "#166534",
+                  border: "1px solid #bbf7d0",
+                }}
+              >
+                ✓ EXIF GPS Stripped
+              </span>
+            </div>
+          )}
 
           {/* Privacy note */}
           <p
