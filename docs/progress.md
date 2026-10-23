@@ -1,6 +1,25 @@
 # Project Progress
 
-## Mobile LAN bridge transition — in progress, 23 Oct 2026
+## Spread Check: Which Routes Does a Verified Problem Reach? — verified, 23 Oct 2026
+
+- **Scope:** Added incident spread analysis for verified problems (L3/L6 only). Given a verified incident and an origin (e.g. Pumpwell Circle), evaluates OSRM primary routes to all other presets to count how many routes pass within 200m of the incident, whether an avoiding alternative exists, and free-flow duration differences. Strictly excludes simulated corridor slowdowns and unverified L1/L2 reports; marks failed OSRM pairs as unchecked rather than safe.
+- **Implementation:**
+  - `apps/web/src/lib/routing/presets.ts`: Extracted `MANGALURU_PRESETS` into a shared module accessible to server routes, lib functions, and client components.
+  - `apps/web/src/lib/routing/spread.ts`: Implemented `checkSpread(origin, destinations, incident, fetchFn, cacheTtlMs)` with L3/L6 verification gate, simulated slowdown rejection, sequential route querying, 5-minute TTL caching, avoidance comparison, and OSRM failure isolation.
+  - `tests/spread.test.mjs`: Added automated test suite covering 199m affected, 201m unaffected, L1 rejection, simulated slowdown rejection, OSRM failure handling (5 of 7 checked), zero-affected honest wording, negative extra time clamping (0 min extra), and 5-minute caching.
+  - `apps/web/src/app/api/spread/route.ts`: New `GET /api/spread?incident=<id>&origin=<preset>` endpoint reading active incidents from Supabase, rejecting non-verified incidents (400) or missing incidents (404).
+  - `apps/web/src/components/analytics/incident-review-panel.tsx`: Added "Check spread from Pumpwell" button for L3/L6 incidents, rendering the summary sentence ("Affects {affected} of {checked} routes from {origin}."), unchecked route notice if OSRM is partial, honesty footnote, and interactive table with avoid option and direct links to the route planner.
+  - `apps/web/src/components/routing/route-planner.tsx`: Added URL query parameter support (`?from=...&to=...`) allowing direct pair navigation from the authority spread table.
+  - `scripts/seed-demo.mjs`: Added spread check demo note to the seed completion log.
+- **Verification:**
+  - `docker compose exec app node --test tests/spread.test.mjs` passed (8/8).
+  - `just test` passed (**231/231** across 10 test suites).
+  - `docker compose exec app sh -c "cd apps/web && pnpm exec tsc --noEmit"` passed (0 errors).
+  - `just lint` passed (0 errors).
+  - `git diff --check` passed with no whitespace violations.
+  - Tested live endpoint `GET /api/spread?incident=1fac7b98-093f-4205-97bd-e5577cc1bef3&origin=Pumpwell+(Mahaveera)+Circle`: returned `total: 7`, `checked: 7`, `affected: 1` (Ambedkar Circle accident affected), L1 rejection returned 400, unknown incident returned 404.
+- **Commit:** `dcd7a59` — `feat(routing): add spread check for verified incidents`.
+
 
 - **Scope:** Repair `just mobile-lan <LAN-IP>` when the dedicated local Supabase bridge was previously created with loopback-only port bindings. This is local developer infrastructure supporting the mobile public-traffic reader; it does not alter the report, verification, alert, or analytics contracts.
 - **Observed blocker:** `just mobile-lan 192.168.1.104` stopped before seeding because `trafficsense-nk_supabase` was configured with `127.0.0.1`, whereas LAN mode requires `0.0.0.0`. Docker bridge host-binding options cannot be changed in place, and the Supabase tooling correctly rejected the mismatch.

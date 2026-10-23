@@ -9,16 +9,9 @@ import type { LiveIncident } from "@/lib/incidents/server";
 import { createFallbackStyle } from "@/lib/traffic/mangaluru-basemap";
 import "maplibre-gl/dist/maplibre-gl.css";
 
-export const MANGALURU_PRESETS = [
-  { name: "Hampankatta Junction", coords: [74.8426, 12.8698] as [number, number] },
-  { name: "KSRTC / Bejai Circle", coords: [74.8530, 12.8856] as [number, number] },
-  { name: "Ambedkar (Jyothi) Circle", coords: [74.8465, 12.8715] as [number, number] },
-  { name: "Ladyhill Circle", coords: [74.8385, 12.8890] as [number, number] },
-  { name: "Pumpwell (Mahaveera) Circle", coords: [74.8685, 12.8550] as [number, number] },
-  { name: "Mangaluru Central Railway", coords: [74.8390, 12.8640] as [number, number] },
-  { name: "Kadri Manjunatha Temple", coords: [74.8580, 12.8820] as [number, number] },
-  { name: "Mangalore International Airport", coords: [74.8900, 12.9610] as [number, number] },
-];
+import { MANGALURU_PRESETS } from "@/lib/routing/presets";
+export { MANGALURU_PRESETS };
+
 
 type TrafficSeveritySegment = {
   id: string;
@@ -347,16 +340,45 @@ export function RoutePlanner() {
     });
   };
 
-  // Initialize route & incidents on mount
+  // Initialize route & incidents on mount, reading ?from=...&to=... if present
   useEffect(() => {
     let cancelled = false;
     async function loadInitial() {
       try {
+        let currentStart = activeStart;
+        let currentDest = activeDest;
+
+        if (typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search);
+          const fromParam = params.get("from");
+          const toParam = params.get("to");
+
+          if (fromParam) {
+            const idx = MANGALURU_PRESETS.findIndex((p) =>
+              p.name.toLowerCase().includes(fromParam.toLowerCase())
+            );
+            if (idx !== -1) {
+              setStartIndex(idx);
+              currentStart = MANGALURU_PRESETS[idx].coords;
+            }
+          }
+
+          if (toParam) {
+            const idx = MANGALURU_PRESETS.findIndex((p) =>
+              p.name.toLowerCase().includes(toParam.toLowerCase())
+            );
+            if (idx !== -1) {
+              setDestIndex(idx);
+              currentDest = MANGALURU_PRESETS[idx].coords;
+            }
+          }
+        }
+
         const [routeRes, incidentRes, trafficRes] = await Promise.all([
           fetch("/api/route", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ start: activeStart, destination: activeDest }),
+            body: JSON.stringify({ start: currentStart, destination: currentDest }),
           }),
           fetch("/api/incidents"),
           fetch("/api/traffic", { cache: "no-store" }),
