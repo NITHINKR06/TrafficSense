@@ -13,3 +13,18 @@ export const MANGALURU_PRESETS: PresetLocation[] = [
   { name: "Kadri Manjunatha Temple", coords: [74.8580, 12.8820] },
   { name: "Mangalore International Airport", coords: [74.8900, 12.9610] },
 ];
+
+export function findNearestPreset(coords: [number, number], maxDistanceKm = 1.0): PresetLocation | null {
+  let closest: PresetLocation | null = null;
+  let minDistance = Number.POSITIVE_INFINITY;
+  for (const preset of MANGALURU_PRESETS) {
+    const dLng = preset.coords[0] - coords[0];
+    const dLat = preset.coords[1] - coords[1];
+    const dist = Math.hypot(dLng * 111.32 * Math.cos((coords[1] * Math.PI) / 180), dLat * 110.574);
+    if (dist < minDistance) {
+      minDistance = dist;
+      closest = preset;
+    }
+  }
+  return minDistance <= maxDistanceKm ? closest : null;
+}
