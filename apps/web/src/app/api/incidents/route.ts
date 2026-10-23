@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { category, lat, lng, gps_accuracy_m, gps_fix_at, note } = body;
+    const { category, lat, lng, gps_accuracy_m, gps_fix_at, note, l5_verified, l5_summary } = body;
 
     if (
       typeof category !== "string" ||
@@ -84,6 +84,8 @@ export async function POST(req: NextRequest) {
       gps_accuracy_m: typeof gps_accuracy_m === "number" ? gps_accuracy_m : null,
       gps_fix_at: typeof gps_fix_at === "string" ? gps_fix_at : null,
       note: typeof note === "string" ? note.slice(0, 300) : null,
+      l5_verified: l5_verified === true,
+      l5_summary: typeof l5_summary === "string" ? l5_summary.slice(0, 160) : null,
     };
 
     const result = await submitIncidentReport(supabase, input);
