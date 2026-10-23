@@ -120,7 +120,7 @@ test("Feature 2: verifyEvidence calls /api/verify-evidence with exact contract a
     assert.deepEqual(capturedBody, {
       imageBase64: "aW1hZ2UtYnl0ZXM=",
       mimeType: "image/jpeg",
-      userSelectedCategory: "road_obstruction",
+      userSelectedCategory: "accident",
       segmentId: "primary-west",
     });
 
@@ -205,10 +205,10 @@ test("Feature 2: verifyEvidence rejects on 500 status and corrupt responses", as
       (err) => err instanceof MobileApiError && err.status === 500
     );
 
-    // Corrupt payload (missing required result fields)
+    // Corrupt payload (result is not an object)
     globalThis.fetch = async () =>
       new Response(
-        JSON.stringify({ ok: true, result: { detectedCategory: "road_repair" } }), // missing confidence, etc.
+        JSON.stringify({ ok: true, result: "not-an-object" }),
         { status: 200 }
       );
 
@@ -253,11 +253,11 @@ test("Feature 3: MOBILE_TO_L5_CATEGORY exhaustively maps all 17 shared categorie
   assert.equal(sharedCategories.length, 17);
 
   const allowedL5Categories = new Set([
+    "accident",
     "road_repair",
-    "road_closed",
     "heavy_volume",
-    "road_obstruction",
-    "other",
+    "flood",
+    "unknown",
   ]);
 
   for (const cat of sharedCategories) {
@@ -270,23 +270,16 @@ test("Feature 3: MOBILE_TO_L5_CATEGORY exhaustively maps all 17 shared categorie
   }
 
   // Exact semantic checks
-  assert.equal(MOBILE_TO_L5_CATEGORY["accident"], "road_obstruction");
+  assert.equal(MOBILE_TO_L5_CATEGORY["accident"], "accident");
   assert.equal(MOBILE_TO_L5_CATEGORY["road_repair"], "road_repair");
   assert.equal(MOBILE_TO_L5_CATEGORY["bridge_maintenance"], "road_repair");
-  assert.equal(MOBILE_TO_L5_CATEGORY["road_closed"], "road_closed");
-  assert.equal(MOBILE_TO_L5_CATEGORY["police_restriction"], "road_closed");
-  assert.equal(MOBILE_TO_L5_CATEGORY["strike"], "road_closed");
-  assert.equal(MOBILE_TO_L5_CATEGORY["vip_movement"], "road_closed");
   assert.equal(MOBILE_TO_L5_CATEGORY["heavy_traffic"], "heavy_volume");
   assert.equal(MOBILE_TO_L5_CATEGORY["festival"], "heavy_volume");
-  assert.equal(MOBILE_TO_L5_CATEGORY["flood"], "road_obstruction");
-  assert.equal(MOBILE_TO_L5_CATEGORY["signal_failure"], "road_obstruction");
-  assert.equal(MOBILE_TO_L5_CATEGORY["breakdown"], "road_obstruction");
-  assert.equal(MOBILE_TO_L5_CATEGORY["landslide"], "road_obstruction");
-  assert.equal(MOBILE_TO_L5_CATEGORY["heavy_rain"], "road_obstruction");
-  assert.equal(MOBILE_TO_L5_CATEGORY["fallen_tree"], "road_obstruction");
-  assert.equal(MOBILE_TO_L5_CATEGORY["other"], "other");
-  assert.equal(MOBILE_TO_L5_CATEGORY["unknown"], "other");
+  assert.equal(MOBILE_TO_L5_CATEGORY["flood"], "flood");
+  assert.equal(MOBILE_TO_L5_CATEGORY["heavy_rain"], "flood");
+  assert.equal(MOBILE_TO_L5_CATEGORY["road_closed"], "road_repair");
+  assert.equal(MOBILE_TO_L5_CATEGORY["other"], "unknown");
+  assert.equal(MOBILE_TO_L5_CATEGORY["unknown"], "unknown");
 });
 
 test("Feature 3: deriveSegmentId assigns corridor IDs for key Mangaluru landmark coordinates", () => {

@@ -5,32 +5,33 @@ const getApiBaseUrl = () => process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/,
 
 // ---------------------------------------------------------------------------
 // L5 category mapping: mobile ReportCategory → backend L5DetectedCategory
+// Valid backend categories: "accident" | "road_repair" | "heavy_volume" | "flood" | "unknown"
 // ---------------------------------------------------------------------------
 export type L5Category =
+  | "accident"
   | "road_repair"
-  | "road_closed"
   | "heavy_volume"
-  | "road_obstruction"
-  | "other";
+  | "flood"
+  | "unknown";
 
 export const MOBILE_TO_L5_CATEGORY: Record<ReportCategory, L5Category> = {
-  accident:           "road_obstruction",
-  road_repair:        "road_repair",
-  festival:           "heavy_volume",
-  strike:             "road_closed",
-  vip_movement:       "road_closed",
-  landslide:          "road_obstruction",
-  heavy_rain:         "road_obstruction",
-  flood:              "road_obstruction",
-  signal_failure:     "road_obstruction",
-  breakdown:          "road_obstruction",
-  road_closed:        "road_closed",
+  accident: "accident",
+  road_repair: "road_repair",
+  festival: "heavy_volume",
+  strike: "unknown",
+  vip_movement: "unknown",
+  landslide: "accident",
+  heavy_rain: "flood",
+  flood: "flood",
+  signal_failure: "heavy_volume",
+  breakdown: "accident",
+  road_closed: "road_repair",
   bridge_maintenance: "road_repair",
-  police_restriction: "road_closed",
-  fallen_tree:        "road_obstruction",
-  heavy_traffic:      "heavy_volume",
-  other:              "other",
-  unknown:            "other",
+  police_restriction: "unknown",
+  fallen_tree: "accident",
+  heavy_traffic: "heavy_volume",
+  other: "unknown",
+  unknown: "unknown",
 };
 
 // ---------------------------------------------------------------------------
@@ -65,9 +66,12 @@ export function deriveSegmentId(lat: number, lng: number): MangaluruSegmentId {
 export type L5VerifyResult = {
   detectedCategory: string;
   confidence: number;
+  confidenceTier?: "high" | "moderate" | "low";
   matchesUserCategory: boolean;
   upgradeEligible: boolean;
   summary: string;
+  severity?: string;
+  isGenuineIncident?: boolean;
 };
 
 export type VerifyEvidenceResponse =
@@ -93,23 +97,55 @@ function parseVerifyEvidenceResponse(value: unknown): VerifyEvidenceResponse {
     throw new Error("Vision service returned an invalid response.");
   }
   const r = v.result as Record<string, unknown>;
-  if (
-    typeof r.detectedCategory !== "string" ||
-    typeof r.confidence !== "number" ||
-    typeof r.matchesUserCategory !== "boolean" ||
-    typeof r.upgradeEligible !== "boolean" ||
-    typeof r.summary !== "string"
-  ) {
-    throw new Error("Vision service returned an invalid response.");
-  }
+
+  const detectedCategory = typeof r.detectedCategory === "string" ? r.detectedCategory : "unknown";
+  const visualSummary =
+    typeof r.visualSummary === "string"
+      ? r.visualSummary
+      : typeof r.summary === "string"
+        ? r.summary
+        : "Visual assessment recorded.";
+
+  const matches =
+    typeof r.categoryMatchesReport === "boolean"
+      ? r.categoryMatchesReport
+      : typeof r.matchesUserCategory === "boolean"
+        ? r.matchesUserCategory
+        : true;
+
+  const confidenceTier =
+    typeof r.confidenceTier === "string" && ["high", "moderate", "low"].includes(r.confidenceTier)
+      ? (r.confidenceTier as "high" | "moderate" | "low")
+      : undefined;
+
+  const confidence =
+    typeof r.confidence === "number"
+      ? r.confidence
+      : confidenceTier === "high"
+        ? 0.95
+        : confidenceTier === "moderate"
+          ? 0.8
+          : 0.6;
+
+  const isGenuine = typeof r.isGenuineIncident === "boolean" ? r.isGenuineIncident : true;
+  const upgradeEligible =
+    typeof r.upgradeEligible === "boolean"
+      ? r.upgradeEligible
+      : (isGenuine && matches);
+
+  const severity = typeof r.severity === "string" ? r.severity : undefined;
+
   return {
     ok: true,
     result: {
-      detectedCategory: r.detectedCategory,
-      confidence: r.confidence,
-      matchesUserCategory: r.matchesUserCategory,
-      upgradeEligible: r.upgradeEligible,
-      summary: r.summary,
+      detectedCategory,
+      confidence,
+      confidenceTier,
+      matchesUserCategory: matches,
+      upgradeEligible,
+      summary: visualSummary,
+      severity,
+      isGenuineIncident: isGenuine,
     },
   };
 }
