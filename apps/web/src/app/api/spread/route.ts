@@ -69,7 +69,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    if (liveMatch.level !== "L3" && liveMatch.level !== "L6") {
+    if (liveMatch.level !== "L3" && liveMatch.level !== "L5" && liveMatch.level !== "L6") {
       return NextResponse.json(
         {
           ok: false,

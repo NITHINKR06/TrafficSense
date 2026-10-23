@@ -156,7 +156,7 @@ export function IncidentReviewPanel() {
           {incidents.map((incident) => {
             const isPending = pendingIncidentId === incident.id;
             const category = reportCategories[incident.category] ?? incident.category;
-            const isVerified = incident.level === "L3" || incident.level === "L6";
+            const isVerified = incident.level === "L3" || incident.level === "L5" || incident.level === "L6";
             const isCheckingSpread = spreadLoading && spreadIncidentId === incident.id;
             const isSpreadOpen = spreadIncidentId === incident.id;
 
