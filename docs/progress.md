@@ -1,5 +1,29 @@
 # Project Progress
 
+## Route Planner Side Panel UI Styling and Traffic Corridor Overlay Filter — verified, 23 Oct 2026
+
+- **Issue:**
+  1. On `/planner`, a thick green polyline loop was drawn permanently across the city of Mangaluru, cutting straight through city blocks without any explanation in the legend or any toggle, confusing commuters who mistook it for a recommended detour or an unintended flight path.
+  2. The "City Route Intelligence" side panel suffered from severe dark-mode color clashes (harsh pitch-black/maroon boxes inside a pale surface), triple-redundant stacked hazard warnings, cramped origin controls, and unpolished dropdowns and buttons.
+- **Root Cause:**
+  1. `RoutePlanner` fetched `/api/traffic` containing the 5 simulated schematic demonstration corridor segments (`primary-west`, `primary-east`, etc.) and rendered them unconditionally. When traffic was normal, `severity: "clear"` was rendered as `#059669` (7px green polyline, 0.48 opacity), without being referenced in the legend or providing a layer toggle.
+  2. The side panel used hardcoded Tailwind `dark:bg-*-950` overrides inside a light container (`bg-surface/95`), which turned black when the user's OS or browser was in dark mode. Additionally, separate condition blocks for intersected hazards, lack of alternative routes, and road closures all stacked simultaneously, repeating the same message and recalculate button up to 4 times.
+- **Implementation:**
+  - `apps/web/src/components/routing/route-planner.tsx`:
+    - Added `showTrafficOverlay` state (defaulting to `false`) and a dedicated **"🚦 Corridor Traffic: On / Off"** toggle in the bottom-right map controls.
+    - Updated `renderRoutesOnMap` to filter out `clear` corridor segments when the overlay is off, so normal roads don't display intrusive schematic green loops while active slowdowns/incidents remain visible.
+    - Updated the map legend to dynamically reflect corridor conditions (`Corridor Clear`, `Slowdown`) when enabled.
+    - Harmonized all alert cards with the TrafficSense design reference (`--surface` and soft tinted alert backgrounds with dark high-contrast readable text), eliminating jarring dark-on-light theme clashes.
+    - Merged redundant warnings into a single high-impact Alert Card with clear hazard badges (`Verified` vs `Reported`) and primary recalculation actions.
+    - Streamlined the road closure notice into a compact, dismissible banner with `dismissRoadClosure` state.
+    - Polished Origin and Destination controls into tactile micro-pill buttons (`GPS`, `Pick on map`) and refined dropdown selects.
+- **Verification:**
+  - `docker compose exec app pnpm test`: Passed (**236/236** tests across 11 suites).
+  - `docker compose exec app pnpm run lint`: 0 errors, 0 warnings.
+  - `docker compose exec app sh -c "cd apps/web && pnpm exec tsc --noEmit"`: 0 errors.
+  - `docker compose exec -e CI=1 app pnpm run build`: Production build succeeded in 1.36s (all 25 routes generated).
+  - Confirmed map on `/planner` no longer displays the unexplained green loop by default, corridor traffic can be toggled on demand with updated legend entries, and side panel alerts render with clean contrast and zero duplicate warnings.
+
 ## Local Database Persistence, Idempotent Startup, and Extended Incident Retention — verified, 23 Oct 2026
 
 - **Issue:**

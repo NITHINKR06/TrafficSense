@@ -71,6 +71,8 @@ export function RoutePlanner() {
 
   const [liveIncidents, setLiveIncidents] = useState<LiveIncident[]>([]);
   const [trafficSeverity, setTrafficSeverity] = useState<TrafficSeveritySegment[]>([]);
+  const [showTrafficOverlay, setShowTrafficOverlay] = useState<boolean>(false);
+  const [dismissRoadClosure, setDismissRoadClosure] = useState<boolean>(false);
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -300,11 +302,12 @@ export function RoutePlanner() {
     routeList: RouteOption[],
     selectedId: string | null,
     incidentList: LiveIncident[],
-    severityList: TrafficSeveritySegment[]
+    severityList: TrafficSeveritySegment[],
+    showAllTraffic: boolean
   ) => {
     if (!map.isStyleLoaded()) {
       map.once("style.load", () => {
-        renderRoutesOnMap(map, routeList, selectedId, incidentList, severityList);
+        renderRoutesOnMap(map, routeList, selectedId, incidentList, severityList, showAllTraffic);
       });
       return;
     }
@@ -323,18 +326,44 @@ export function RoutePlanner() {
     if (map.getLayer("traffic-severity-layer")) map.removeLayer("traffic-severity-layer");
     if (map.getSource("traffic-severity-geojson")) map.removeSource("traffic-severity-geojson");
 
-    map.addSource("traffic-severity-geojson", {
-      type: "geojson",
-      data: { type: "FeatureCollection", features: severityList.map((segment) => ({
-        type: "Feature" as const,
-        properties: { severity: segment.severity, name: segment.name, provenance: segment.provenance },
-        geometry: segment.geometry,
-      })) },
-    });
-    map.addLayer({
-      id: "traffic-severity-layer", type: "line", source: "traffic-severity-geojson",
-      paint: { "line-color": ["match", ["get", "severity"], "slowdown", severityColours.slowdown, "corroborated", severityColours.corroborated, "reported", severityColours.reported, severityColours.clear], "line-width": 7, "line-opacity": 0.48 },
-    });
+    // Only render corridor segments when enabled, or show only active slowdowns/reports
+    const visibleSeverity = showAllTraffic
+      ? severityList
+      : severityList.filter((segment) => segment.severity !== "clear");
+
+    if (visibleSeverity.length > 0) {
+      map.addSource("traffic-severity-geojson", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: visibleSeverity.map((segment) => ({
+            type: "Feature" as const,
+            properties: { severity: segment.severity, name: segment.name, provenance: segment.provenance },
+            geometry: segment.geometry,
+          })),
+        },
+      });
+      map.addLayer({
+        id: "traffic-severity-layer",
+        type: "line",
+        source: "traffic-severity-geojson",
+        paint: {
+          "line-color": [
+            "match",
+            ["get", "severity"],
+            "slowdown",
+            severityColours.slowdown,
+            "corroborated",
+            severityColours.corroborated,
+            "reported",
+            severityColours.reported,
+            severityColours.clear,
+          ],
+          "line-width": 6,
+          "line-opacity": 0.55,
+        },
+      });
+    }
 
     const selectedRoute = routeList.find((r) => r.id === (selectedId ?? routeList[0]?.id));
     const activeAvoidedPoint = activeDetour?.avoidedIncident?.point;
@@ -600,12 +629,12 @@ export function RoutePlanner() {
       map.on("load", () => {
         if (disposed) return;
         mapRef.current = map;
-        renderRoutesOnMap(map, routes, selectedRouteId, liveIncidents, trafficSeverity);
+        renderRoutesOnMap(map, routes, selectedRouteId, liveIncidents, trafficSeverity, showTrafficOverlay);
       });
 
       map.on("style.load", () => {
         if (disposed || !mapRef.current) return;
-        renderRoutesOnMap(map, routes, selectedRouteId, liveIncidents, trafficSeverity);
+        renderRoutesOnMap(map, routes, selectedRouteId, liveIncidents, trafficSeverity, showTrafficOverlay);
       });
     }
 
@@ -618,12 +647,12 @@ export function RoutePlanner() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Update map polylines whenever routes, incidents, or activeDetour change
+  // Update map polylines whenever routes, incidents, activeDetour, or traffic overlay change
   useEffect(() => {
     if (mapRef.current) {
-      renderRoutesOnMap(mapRef.current, routes, selectedRouteId, liveIncidents, trafficSeverity);
+      renderRoutesOnMap(mapRef.current, routes, selectedRouteId, liveIncidents, trafficSeverity, showTrafficOverlay);
     }
-  }, [routes, selectedRouteId, liveIncidents, trafficSeverity, activeDetour, activeStart, activeDest]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [routes, selectedRouteId, liveIncidents, trafficSeverity, activeDetour, activeStart, activeDest, showTrafficOverlay]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const activeRoute = routes.find((r) => r.id === (selectedRouteId ?? routes[0]?.id));
   const selectedIncident = liveIncidents.find((incident) => incident.id === selectedIncidentId) ?? null;
@@ -651,100 +680,125 @@ export function RoutePlanner() {
       <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
 
       {/* Floating Directions Drawer (Top-Left) */}
-      <aside className="absolute top-4 left-4 z-20 w-80 sm:w-[420px] max-h-[calc(100vh-95px)] flex flex-col bg-surface/95 dark:bg-surface-dim/95 backdrop-blur-md rounded-2xl border border-surface-container shadow-2xl overflow-hidden pointer-events-auto">
-        <div className="p-3.5 pb-2.5 border-b border-surface-container bg-surface-container-low/60 space-y-2">
+      <aside className="absolute top-4 left-4 z-20 w-80 sm:w-[420px] max-h-[calc(100vh-80px)] flex flex-col bg-surface/95 backdrop-blur-md rounded-2xl border border-surface-container shadow-2xl overflow-hidden pointer-events-auto">
+        <div className="p-3.5 pb-3 border-b border-surface-container bg-surface-container-low/70 space-y-2.5">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-bold text-surface-on flex items-center gap-1.5 m-0">
               <span>🗺️</span>
               <span>City Route Intelligence</span>
             </h2>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-surface-container text-surface-on-variant">
+            <span className="text-[10px] font-mono font-medium px-2 py-0.5 rounded-full bg-surface-container text-surface-on-variant border border-surface-container-highest">
               FREE-FLOW
             </span>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-0.5">
-          {/* Origin selector */}
-          <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-surface-on flex items-center gap-1.5" htmlFor="start-select">
-                <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block" />
-                Origin (Start A)
-              </label>
-              <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCustomStartCoord(null);
-                    setIsPickingLocation(false);
-                    handleRequestGps("start");
-                  }}
-                  className="text-[11px] text-primary hover:underline font-medium"
-                >
-                  📍 GPS
-                </button>
-                <span className="text-[10px] text-surface-on-variant">·</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setUseGpsStart(false);
-                    setIsPickingLocation(!isPickingLocation);
-                  }}
-                  className={`text-[11px] font-medium hover:underline ${
-                    isPickingLocation ? "text-amber-600 font-bold" : "text-primary"
-                  }`}
-                >
-                  {isPickingLocation ? "✕ Cancel pick" : "🎯 Pick on map"}
-                </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-0.5">
+            {/* Origin selector */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-surface-on flex items-center gap-1.5" htmlFor="start-select">
+                  <span className="w-2 h-2 rounded-full bg-emerald-600 inline-block" />
+                  Origin (Start A)
+                </label>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomStartCoord(null);
+                      setIsPickingLocation(false);
+                      handleRequestGps("start");
+                    }}
+                    className="text-[10px] px-1.5 py-0.5 rounded bg-surface-container hover:bg-surface-container-high text-primary font-medium border border-surface-container-highest transition"
+                    title="Use GPS current position"
+                  >
+                    📍 GPS
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setUseGpsStart(false);
+                      setIsPickingLocation(!isPickingLocation);
+                    }}
+                    className={`text-[10px] px-1.5 py-0.5 rounded font-medium border transition ${
+                      isPickingLocation
+                        ? "bg-amber-100 text-amber-900 border-amber-300 font-bold"
+                        : "bg-surface-container hover:bg-surface-container-high text-primary border-surface-container-highest"
+                    }`}
+                    title="Pick origin point on map"
+                  >
+                    {isPickingLocation ? "✕ Cancel" : "🎯 Pick"}
+                  </button>
+                </div>
               </div>
+
+              {isPickingLocation ? (
+                <div className="text-xs px-3 py-2 rounded-xl bg-amber-50 border border-amber-300 text-amber-900 flex items-center justify-between animate-pulse">
+                  <span>🎯 Click map to set origin…</span>
+                  <button
+                    type="button"
+                    onClick={() => setIsPickingLocation(false)}
+                    className="text-[11px] font-semibold underline ml-2"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : customStartCoord ? (
+                <div className="flex items-center justify-between text-xs px-3 py-2 rounded-xl bg-blue-50 border border-blue-200 text-blue-900">
+                  <span className="font-medium truncate">📍 Fix: {customStartCoord[1].toFixed(4)}, {customStartCoord[0].toFixed(4)}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setCustomStartCoord(null);
+                      fetchRoutes(MANGALURU_PRESETS[startIndex].coords, activeDest);
+                    }}
+                    className="text-[11px] font-semibold underline ml-2 shrink-0"
+                  >
+                    Reset
+                  </button>
+                </div>
+              ) : useGpsStart && userLocation ? (
+                <div className="flex items-center justify-between text-xs px-3 py-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900">
+                  <span className="font-medium truncate">GPS: {userLocation[1].toFixed(4)}, {userLocation[0].toFixed(4)}</span>
+                  <button
+                    type="button"
+                    onClick={() => setUseGpsStart(false)}
+                    className="text-[11px] font-semibold underline ml-2 shrink-0"
+                  >
+                    Reset
+                  </button>
+                </div>
+              ) : (
+                <select
+                  id="start-select"
+                  className="w-full text-xs font-medium rounded-xl border border-surface-container-highest bg-surface-container-lowest px-3 py-2 text-surface-on shadow-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition"
+                  value={startIndex}
+                  onChange={(e) => {
+                    setUseGpsStart(false);
+                    setCustomStartCoord(null);
+                    setStartIndex(Number(e.target.value));
+                  }}
+                >
+                  {MANGALURU_PRESETS.map((p, idx) => (
+                    <option key={p.name} value={idx}>
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {gpsError && <p className="text-[11px] text-rose-600 m-0">{gpsError}</p>}
             </div>
 
-            {isPickingLocation ? (
-              <div className="text-xs px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-950 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-100 flex items-center justify-between animate-pulse">
-                <span>🎯 Click anywhere on the map to set your location…</span>
-                <button
-                  type="button"
-                  onClick={() => setIsPickingLocation(false)}
-                  className="text-[11px] font-semibold underline ml-2"
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : customStartCoord ? (
-              <div className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-blue-50 dark:bg-blue-950 border border-blue-300 dark:border-blue-800 text-blue-900 dark:text-blue-100">
-                <span>📍 Map fix ({customStartCoord[1].toFixed(4)}, {customStartCoord[0].toFixed(4)})</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setCustomStartCoord(null);
-                    fetchRoutes(MANGALURU_PRESETS[startIndex].coords, activeDest);
-                  }}
-                  className="text-[11px] font-semibold underline ml-2"
-                >
-                  Reset
-                </button>
-              </div>
-            ) : useGpsStart && userLocation ? (
-              <div className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100">
-                <span>GPS fix ({userLocation[1].toFixed(4)}, {userLocation[0].toFixed(4)})</span>
-                <button
-                  type="button"
-                  onClick={() => setUseGpsStart(false)}
-                  className="text-[11px] font-semibold underline ml-2"
-                >
-                  Reset
-                </button>
-              </div>
-            ) : (
+            {/* Destination selector */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-surface-on flex items-center gap-1.5" htmlFor="dest-select">
+                <span className="w-2 h-2 rounded-full bg-rose-600 inline-block" />
+                Destination (End B)
+              </label>
               <select
-                id="start-select"
-                className="w-full text-xs rounded-lg border border-surface-container bg-surface-container-low px-3 py-2 text-surface-on"
-                value={startIndex}
-                onChange={(e) => {
-                  setUseGpsStart(false);
-                  setCustomStartCoord(null);
-                  setStartIndex(Number(e.target.value));
-                }}
+                id="dest-select"
+                className="w-full text-xs font-medium rounded-xl border border-surface-container-highest bg-surface-container-lowest px-3 py-2 text-surface-on shadow-xs focus:ring-2 focus:ring-primary/20 focus:border-primary outline-none transition"
+                value={destIndex}
+                onChange={(e) => setDestIndex(Number(e.target.value))}
               >
                 {MANGALURU_PRESETS.map((p, idx) => (
                   <option key={p.name} value={idx}>
@@ -752,452 +806,450 @@ export function RoutePlanner() {
                   </option>
                 ))}
               </select>
-            )}
-            {gpsError && <p className="text-[11px] text-rose-600">{gpsError}</p>}
+            </div>
           </div>
 
-          {/* Destination selector */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-surface-on flex items-center gap-1.5" htmlFor="dest-select">
-              <span className="w-2 h-2 rounded-full bg-rose-600 inline-block" />
-              Destination (End B)
-            </label>
-            <select
-              id="dest-select"
-              className="w-full text-xs rounded-lg border border-surface-container bg-surface-container-low px-3 py-2 text-surface-on"
-              value={destIndex}
-              onChange={(e) => setDestIndex(Number(e.target.value))}
-            >
-              {MANGALURU_PRESETS.map((p, idx) => (
-                <option key={p.name} value={idx}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="button text-xs px-5 py-2 font-semibold"
-              disabled={isPending || isRecalculating}
-              onClick={() => fetchRoutes(activeStart, activeDest)}
-            >
-              {isPending ? "Calculating paths…" : "Find Best Route"}
-            </button>
-            <button
-              type="button"
-              className="button secondary text-xs px-3 py-2 font-medium flex items-center gap-1.5"
-              onClick={() => setShowReportForm(true)}
-            >
-              <span>📢</span>
-              <span>Report Incident</span>
-            </button>
-          </div>
-          <span className="text-[11px] text-surface-on-variant">
-            {liveIncidents.length} active live incident{liveIncidents.length !== 1 ? "s" : ""} on map
-          </span>
-        </div>
-      </div>
-
-      {/* Scrollable Drawer Body */}
-      <div className="overflow-y-auto p-3.5 space-y-3 flex-1">
-        {reportFeedback && (
-          <div
-            className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-2 shadow-sm ${
-              reportFeedback.startsWith("❌")
-                ? "bg-rose-50 dark:bg-rose-950 border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-100"
-                : "bg-emerald-50 dark:bg-emerald-950 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100"
-            }`}
-          >
+          <div className="flex flex-wrap items-center justify-between gap-2.5 pt-1">
             <div className="flex items-center gap-2">
-              <span>{reportFeedback.startsWith("❌") ? "⚠️" : "✓"}</span>
-              <span>{reportFeedback}</span>
-            </div>
-            <button
-              type="button"
-              onClick={() => setReportFeedback(null)}
-              className="text-xs font-bold opacity-60 hover:opacity-100 px-1"
-              aria-label="Dismiss feedback"
-            >
-              ✕
-            </button>
-          </div>
-        )}
-
-      {statusMessage && (
-        <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-100">
-          {statusMessage}
-        </div>
-      )}
-
-      {/* No Alternative Available Alert Banner */}
-      {recalculateError && (
-        <div role="alert" className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950/90 border-2 border-rose-500 text-rose-950 dark:text-rose-100 space-y-2.5 shadow-md">
-          <div className="flex items-start justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <span className="text-xl">🚫</span>
-              <h4 className="text-sm font-bold text-rose-900 dark:text-rose-100 m-0">
-                No Alternative Route Available
-              </h4>
-            </div>
-            <button
-              type="button"
-              onClick={() => setRecalculateError(null)}
-              className="text-xs text-rose-600 dark:text-rose-400 hover:text-rose-900 dark:hover:text-rose-100 font-bold px-1"
-              aria-label="Dismiss alert"
-            >
-              ✕
-            </button>
-          </div>
-          <p className="text-xs text-rose-800 dark:text-rose-200 leading-relaxed m-0">
-            <strong>There is no alternative route.</strong> All navigable roads to your destination pass directly through this hazard zone ({selectedRouteWarnings[0]?.label || "reported incident"}). No street detour can safely clear this bottleneck.
-          </p>
-          <div className="text-[11px] font-semibold text-rose-900 dark:text-rose-100 pt-1.5 border-t border-rose-200 dark:border-rose-900 flex items-center gap-1.5">
-            <span>⏱️ Travel delay or postponing departure is strongly advised.</span>
-          </div>
-        </div>
-      )}
-
-      {/* Reroute Warning & Dynamic Recalculation Button */}
-      {selectedRouteWarnings.length > 0 && !activeRoute?.avoids_incident && (
-        <div role="alert" className="p-4 rounded-xl bg-rose-50 dark:bg-rose-950 border border-rose-300 dark:border-rose-800 space-y-3">
-          <div className="flex items-start gap-3">
-            <span className="text-xl">⚠️</span>
-            <div className="space-y-1">
-              <p className="text-xs font-bold text-rose-900 dark:text-rose-100 m-0">Your selected route intersects a reported incident</p>
-              <p className="text-xs text-rose-800 dark:text-rose-200 m-0">
-                {selectedRouteWarnings[0].label} ({selectedRouteWarnings[0].distance_to_route_m}m from path).
-                {!hasClearAlternative && !avoidingRoute ? " No standard alternative highway route is available." : " Choose whether to avoid it."}
-              </p>
-            </div>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2 pt-1 border-t border-rose-200 dark:border-rose-900">
-            {avoidingRoute && (
               <button
                 type="button"
-                className="button secondary text-xs px-3 py-1.5 font-medium"
-                onClick={() => setSelectedRouteId(avoidingRoute.id)}
+                className="button text-xs px-4 py-2 font-semibold shadow-xs"
+                disabled={isPending || isRecalculating}
+                onClick={() => fetchRoutes(activeStart, activeDest)}
               >
-                Standard alternative · {formatRouteDuration(avoidingRoute.duration_s)}
+                {isPending ? "Calculating paths…" : "Find Best Route"}
               </button>
-            )}
+              <button
+                type="button"
+                className="button secondary text-xs px-3 py-2 font-medium flex items-center gap-1.5 border border-surface-container"
+                onClick={() => setShowReportForm(true)}
+              >
+                <span>📢</span>
+                <span>Report Incident</span>
+              </button>
+            </div>
+            <span className="text-[11px] font-medium text-surface-on-variant flex items-center gap-1">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-500 inline-block" />
+              <span>{liveIncidents.length} active live incident{liveIncidents.length !== 1 ? "s" : ""}</span>
+            </span>
+          </div>
+        </div>
+
+        {/* Scrollable Drawer Body */}
+        <div className="overflow-y-auto p-3.5 space-y-3 flex-1">
+          {reportFeedback && (
+            <div
+              className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-2 shadow-xs ${
+                reportFeedback.startsWith("❌")
+                  ? "bg-rose-50 border-rose-200 text-rose-950"
+                  : "bg-emerald-50 border-emerald-200 text-emerald-950"
+              }`}
+            >
+              <div className="flex items-center gap-2">
+                <span>{reportFeedback.startsWith("❌") ? "⚠️" : "✓"}</span>
+                <span>{reportFeedback}</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setReportFeedback(null)}
+                className="text-xs font-bold opacity-60 hover:opacity-100 px-1"
+                aria-label="Dismiss feedback"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {statusMessage && (
+            <div className="p-3 rounded-xl bg-amber-50 border border-amber-200 text-xs text-amber-950 shadow-xs">
+              {statusMessage}
+            </div>
+          )}
+
+          {/* No Alternative Available Alert Banner */}
+          {recalculateError && (
+            <div role="alert" className="p-3.5 rounded-xl bg-rose-50 border-2 border-rose-400 text-rose-950 space-y-2 shadow-xs">
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">🚫</span>
+                  <h4 className="text-xs font-bold text-rose-950 m-0">
+                    No Alternative Route Available
+                  </h4>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setRecalculateError(null)}
+                  className="text-xs text-rose-700 hover:text-rose-950 font-bold px-1"
+                  aria-label="Dismiss alert"
+                >
+                  ✕
+                </button>
+              </div>
+              <p className="text-xs text-rose-900 leading-relaxed m-0">
+                <strong>No street detour can safely clear this bottleneck.</strong> All primary roads pass directly through this hazard zone ({selectedRouteWarnings[0]?.label || "reported incident"}).
+              </p>
+              <div className="text-[11px] font-semibold text-rose-900 pt-1 border-t border-rose-200 flex items-center gap-1.5">
+                <span>⏱️ Delaying departure or using alternate transit is strongly advised.</span>
+              </div>
+            </div>
+          )}
+
+          {/* Consolidated Hazard Intersect & Dynamic Recalculation Alert */}
+          {selectedRouteWarnings.length > 0 && !activeRoute?.avoids_incident && !recalculateError && (
+            <div role="alert" className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-950 space-y-2.5 shadow-xs">
+              <div className="flex items-start gap-2.5">
+                <span className="text-lg leading-none mt-0.5">⚠️</span>
+                <div className="space-y-1 flex-1">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-bold text-rose-950 m-0">Route Intersects Reported Hazard</p>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-rose-100 text-rose-900 border border-rose-200">
+                      {verifiedRouteImpact ? `${selectedRouteWarnings[0].level} Verified` : `${selectedRouteWarnings[0].level} Reported`}
+                    </span>
+                  </div>
+                  <p className="text-xs text-rose-900 leading-relaxed m-0">
+                    <strong>{selectedRouteWarnings[0].label}</strong> ({selectedRouteWarnings[0].distance_to_route_m}m from path).
+                    {!hasClearAlternative && !avoidingRoute
+                      ? " All primary road options intersect this bottleneck. Recalculate detour to search secondary street bypasses."
+                      : " A clear alternative road exists or can be recalculated."}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2 pt-1.5 border-t border-rose-200/80">
+                <button
+                  type="button"
+                  disabled={isRecalculating}
+                  onClick={() => handleDynamicReroute(selectedRouteWarnings[0].id)}
+                  className="text-xs px-3.5 py-1.5 font-semibold bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg shadow-xs flex items-center gap-1.5 transition disabled:opacity-50"
+                >
+                  {isRecalculating ? (
+                    <>
+                      <span className="inline-block animate-spin">⏳</span>
+                      <span>Recalculating detour…</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>🔄</span>
+                      <span>Recalculate Detour Around Incident</span>
+                    </>
+                  )}
+                </button>
+                {avoidingRoute && (
+                  <button
+                    type="button"
+                    className="text-xs px-3 py-1.5 font-medium rounded-lg bg-surface-container hover:bg-surface-container-high text-surface-on border border-surface-container-highest transition"
+                    onClick={() => setSelectedRouteId(avoidingRoute.id)}
+                  >
+                    Alternative · {formatRouteDuration(avoidingRoute.duration_s)}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Compact Dismissible Road Closure Notice */}
+          {roadClosure && closureLocation && !dismissRoadClosure && (
+            <div role="status" className="px-3 py-2 rounded-xl bg-amber-50/90 border border-amber-200 text-xs text-amber-950 flex items-center justify-between gap-2 shadow-xs">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="shrink-0 text-sm">🚧</span>
+                <span className="truncate">
+                  Road closure near <strong>{closureLocation}</strong> ({roadClosure.level}, {roadClosure.report_count} report{roadClosure.report_count === 1 ? "" : "s"}).
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setDismissRoadClosure(true)}
+                className="text-xs text-amber-800 hover:text-amber-950 p-0.5 rounded shrink-0 font-bold"
+                aria-label="Dismiss notice"
+                title="Dismiss notice"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          {/* Incident Avoidance Banner (when re-routing triggered) */}
+          {activeRoute?.avoids_incident && (
+            <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-950 flex items-start gap-2.5 shadow-xs">
+              <span className="text-xl">🛡️</span>
+              <div className="space-y-1 text-xs">
+                <div className="flex items-center gap-2">
+                  <p className="font-bold text-emerald-950 m-0">Dynamic Detour Active</p>
+                  <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-900 border border-emerald-200">
+                    ROAD-SNAPPED
+                  </span>
+                </div>
+                <p className="text-emerald-900 m-0 leading-relaxed">
+                  {activeRoute.avoided_incident_reason}. Calculated along OpenStreetMap road network.
+                </p>
+                {activeDetour && (
+                  <div className="flex flex-wrap items-center gap-3 text-[11px] text-emerald-950 font-medium pt-1">
+                    <span>⏱️ +{formatRouteDuration(activeDetour.extraDurationSeconds)} extra</span>
+                    <span>📏 +{formatRouteDistance(activeDetour.extraDistanceMeters)} detour</span>
+                    {activeDetour.bypassStreetName && <span>🛣️ via {activeDetour.bypassStreetName}</span>}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Route Cards */}
+          {routes.length > 0 && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-bold text-surface-on-variant uppercase tracking-wider">Calculated Routes</span>
+                <span className="text-[10px] text-surface-on-variant font-medium">{routes.length} options</span>
+              </div>
+              {routes.map((r, index) => {
+                const isSelected = r.id === (selectedRouteId ?? routes[0]?.id);
+                return (
+                  <div
+                    key={r.id}
+                    onClick={() => setSelectedRouteId(r.id)}
+                    className={`p-3 rounded-xl border transition cursor-pointer space-y-1.5 shadow-xs ${
+                      isSelected
+                        ? "bg-primary/5 border-primary shadow-sm"
+                        : "bg-surface-container-lowest border-surface-container hover:bg-surface-container-low"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-surface-on flex items-center gap-1.5">
+                        {r.is_recommended && <span className="text-primary font-bold">★ Recommended</span>}
+                        {!r.is_recommended && <span className="text-surface-on-variant">Option {index + 1}</span>}
+                      </span>
+                      {r.avoids_incident && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
+                          Detour Active
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex items-baseline gap-2.5">
+                      <span className="text-xl font-bold text-surface-on">
+                        {formatRouteDuration(r.duration_s)}
+                      </span>
+                      <span className="text-xs font-medium text-surface-on-variant">
+                        {formatRouteDistance(r.distance_m)}
+                      </span>
+                    </div>
+
+                    <p className="text-xs text-surface-on-variant leading-tight m-0">
+                      {r.name} · free-flow estimate
+                    </p>
+
+                    {r.incidents_on_route.length > 0 && (
+                      <div className="pt-1.5">
+                        <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50 border border-amber-200 text-amber-950 text-[11px] font-medium">
+                          <span>⚠️</span>
+                          <span>Passes near {r.incidents_on_route[0].label} ({r.incidents_on_route[0].distance_to_route_m}m)</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {isSelected && (
+                      <div className="pt-2 border-t border-surface-container flex flex-col gap-2">
+                        <div className="flex items-center justify-between">
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setShowCoordinatesId(showCoordinatesId === r.id ? null : r.id);
+                            }}
+                            className="text-[11px] font-medium text-primary hover:underline flex items-center gap-1"
+                          >
+                            <span>📍</span>
+                            <span>{showCoordinatesId === r.id ? "Hide Road Coordinates" : `View ${r.geometry.coordinates.length} Road Coordinates`}</span>
+                          </button>
+                          <Link
+                            href={`/workspace?corridor=${encodeURIComponent(r.name)}`}
+                            className="text-xs font-semibold px-3 py-1 rounded-lg bg-primary text-primary-on hover:opacity-90 transition shadow-xs"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            Track this journey →
+                          </Link>
+                        </div>
+
+                        {showCoordinatesId === r.id && (
+                          <div
+                            className="p-2.5 rounded-xl bg-surface-container-low text-xs border border-surface-container space-y-2 mt-1"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <div className="flex items-center justify-between text-[11px] font-semibold text-surface-on">
+                              <span>Coordinate Vertices ({r.geometry.coordinates.length} points)</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  navigator.clipboard.writeText(JSON.stringify(r.geometry.coordinates, null, 2));
+                                  setCopiedCoords(true);
+                                  setTimeout(() => setCopiedCoords(false), 2000);
+                                }}
+                                className="text-[10px] px-2 py-0.5 rounded bg-surface-container hover:bg-surface text-primary font-mono border"
+                              >
+                                {copiedCoords ? "✓ Copied!" : "Copy GeoJSON"}
+                              </button>
+                            </div>
+                            <div className="max-h-36 overflow-y-auto font-mono text-[10px] space-y-1 bg-surface/70 p-2 rounded-lg border border-surface-container/60">
+                              <div className="text-emerald-700 font-bold">
+                                [Start] {r.geometry.coordinates[0][0].toFixed(5)}° E, {r.geometry.coordinates[0][1].toFixed(5)}° N
+                              </div>
+                              {r.geometry.coordinates.slice(1, -1).slice(0, 15).map((coord, idx) => (
+                                <div key={idx} className="text-surface-on-variant pl-2">
+                                  #{idx + 2} {coord[0].toFixed(5)}° E, {coord[1].toFixed(5)}° N
+                                </div>
+                              ))}
+                              {r.geometry.coordinates.length > 17 && (
+                                <div className="text-[10px] italic text-surface-on-variant pl-2">
+                                  … +{r.geometry.coordinates.length - 17} intermediate road vertices …
+                                </div>
+                              )}
+                              <div className="text-rose-700 font-bold">
+                                [Dest] {r.geometry.coordinates[r.geometry.coordinates.length - 1][0].toFixed(5)}° E, {r.geometry.coordinates[r.geometry.coordinates.length - 1][1].toFixed(5)}° N
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </aside>
+
+      {/* Floating Selected Incident Card (Bottom-Right) */}
+      {selectedIncident && (
+        <section className="absolute bottom-6 right-4 sm:right-6 z-20 w-[calc(100vw-2rem)] sm:w-96 bg-surface/95 backdrop-blur-md rounded-2xl border border-surface-container shadow-2xl p-4 space-y-2.5 pointer-events-auto" aria-labelledby="selected-incident-title">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <p className="text-[10px] font-mono text-surface-on-variant">SELECTED MAP INCIDENT</p>
+              <h3 id="selected-incident-title" className="text-base font-bold text-surface-on flex items-center gap-1.5 mt-0.5">
+                <span>{reportCategoryIcons[selectedIncident.category]}</span>
+                <span>{reportCategories[selectedIncident.category]}</span>
+              </h3>
+            </div>
+            <button type="button" className="text-xs text-surface-on-variant hover:text-surface-on p-1" onClick={() => setSelectedIncidentId(null)} aria-label="Close">✕</button>
+          </div>
+          <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs m-0">
+            <div><dt className="text-surface-on-variant">Verification</dt><dd className="font-semibold text-surface-on mt-0.5">{selectedIncident.level} · {selectedIncident.provenance}</dd></div>
+            <div><dt className="text-surface-on-variant">Reports</dt><dd className="font-semibold text-surface-on mt-0.5">{selectedIncident.report_count}</dd></div>
+            <div><dt className="text-surface-on-variant">Reported</dt><dd className="font-semibold text-surface-on mt-0.5">{formatIncidentTime(selectedIncident.first_reported_at)} IST</dd></div>
+            <div><dt className="text-surface-on-variant">Status</dt><dd className="font-semibold text-surface-on mt-0.5 capitalize">{selectedIncident.status}</dd></div>
+          </dl>
+          {selectedIncident.photo_data_url && (
+            <div className="rounded-lg overflow-hidden border border-surface-container bg-surface-container-low">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={selectedIncident.photo_data_url}
+                alt="Verified road incident evidence"
+                className="w-full h-32 object-cover block"
+              />
+              <div className="px-2 py-1 text-[10px] font-mono bg-emerald-950 text-emerald-100 flex items-center justify-between">
+                <span>📷 BEST VERIFIED PHOTO · L5 AI VISION</span>
+                <span>{(selectedIncident.photo_confidence ?? "moderate").toUpperCase()}</span>
+              </div>
+            </div>
+          )}
+          <p className="text-xs text-surface-on-variant m-0">{selectedIncident.level_reason}</p>
+          <p className="text-[11px] text-surface-on-variant m-0">This open incident expires if it receives no new confirmation by {formatIncidentTime(new Date(Date.parse(selectedIncident.last_confirmed_at) + 3 * 60 * 60 * 1000).toISOString())} IST.</p>
+
+          <div className="pt-2.5 border-t border-surface-container flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[11px] font-medium text-surface-on-variant">
+              {selectedRouteWarnings.some((w) => w.id === selectedIncident.id)
+                ? (recalculateError
+                    ? "🚫 No alternative route exists around this bottleneck."
+                    : "⚠️ Directly blocks your active route.")
+                : "Reported incident in the city network."}
+            </span>
             <button
               type="button"
               disabled={isRecalculating}
-              onClick={() => handleDynamicReroute(selectedRouteWarnings[0].id)}
-              className="button text-xs px-3.5 py-1.5 font-semibold bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+              onClick={() => handleDynamicReroute(selectedIncident.id)}
+              className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50"
             >
               {isRecalculating ? (
                 <>
                   <span className="inline-block animate-spin">⏳</span>
-                  <span>Recalculating detour…</span>
+                  <span>Calculating detour…</span>
                 </>
               ) : (
                 <>
                   <span>🔄</span>
-                  <span>Recalculate Detour Around Incident</span>
+                  <span>Plan Detour Around This</span>
                 </>
               )}
             </button>
           </div>
-        </div>
+        </section>
       )}
 
-      {selectedRouteWarnings.length > 0 && !hasClearAlternative && !activeDetour && !recalculateError && (
-        <div role="status" className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-100 space-y-1">
-          <p className="font-bold flex items-center gap-1.5 m-0">
-            <span>⚠️</span>
-            <span>No standard alternative route available</span>
-          </p>
-          <p className="text-[11px] text-amber-800 dark:text-amber-200 m-0">
-            All primary road options intersect this hazard. Click <strong>&quot;Recalculate Detour Around Incident&quot;</strong> to synthesize a local road bypass or confirm if this corridor is an impassable bottleneck.
-          </p>
-        </div>
-      )}
-
-      {roadClosure && closureLocation && (
-        <div role="status" className="p-3 rounded-xl bg-amber-50 dark:bg-amber-950 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-100">
-          <strong>Road closure reported near {closureLocation}.</strong> It has {roadClosure.report_count} signed-in report{roadClosure.report_count === 1 ? "" : "s"} and is currently {roadClosure.level}; inspect its marker before travelling.
-        </div>
-      )}
-
-      {/* Incident Avoidance Banner (when re-routing triggered) */}
-      {activeRoute?.avoids_incident && (
-        <div className="p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950 border border-emerald-400 dark:border-emerald-800 flex items-start gap-3">
-          <span className="text-xl">🛡️</span>
-          <div className="space-y-1">
-            <div className="flex items-center gap-2">
-              <p className="text-xs font-bold text-emerald-900 dark:text-emerald-100 m-0">
-                Dynamic Detour Active
-              </p>
-              <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-200 dark:bg-emerald-800 text-emerald-900 dark:text-emerald-100 font-bold">
-                COORDINATE-ACCURATE
-              </span>
-            </div>
-            <p className="text-xs text-emerald-800 dark:text-emerald-200 m-0">
-              {activeRoute.avoided_incident_reason}. Calculated along OpenStreetMap road network. Travel times are free-flow estimates only.
-            </p>
-            {activeDetour && (
-              <div className="flex flex-wrap items-center gap-3 text-[11px] text-emerald-800 dark:text-emerald-200 font-medium pt-1">
-                <span>⏱️ +{formatRouteDuration(activeDetour.extraDurationSeconds)} extra</span>
-                <span>📏 +{formatRouteDistance(activeDetour.extraDistanceMeters)} detour</span>
-                {activeDetour.bypassStreetName && <span>🛣️ via {activeDetour.bypassStreetName}</span>}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-
-        {/* Route Cards */}
-        {routes.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-bold text-surface-on-variant uppercase tracking-wider">Calculated Routes</span>
-              <span className="text-[10px] text-surface-on-variant">{routes.length} options</span>
-            </div>
-            {routes.map((r, index) => {
-              const isSelected = r.id === (selectedRouteId ?? routes[0]?.id);
-              return (
-                <div
-                  key={r.id}
-                  onClick={() => setSelectedRouteId(r.id)}
-                  className={`p-3 rounded-xl border transition cursor-pointer space-y-1.5 ${
-                    isSelected
-                      ? "bg-primary/5 border-primary shadow-sm"
-                      : "bg-surface-container-lowest border-surface-container hover:bg-surface-container-low"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-surface-on flex items-center gap-1.5">
-                      {r.is_recommended && <span className="text-primary font-bold">★ Recommended</span>}
-                      {!r.is_recommended && <span className="text-surface-on-variant">Option {index + 1}</span>}
-                    </span>
-                    {r.avoids_incident && (
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-100 dark:bg-emerald-950 text-emerald-900 dark:text-emerald-100 border border-emerald-300 dark:border-emerald-800">
-                        Detour Active
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="flex items-baseline gap-2.5">
-                    <span className="text-xl font-bold text-surface-on">
-                      {formatRouteDuration(r.duration_s)}
-                    </span>
-                    <span className="text-xs font-medium text-surface-on-variant">
-                      {formatRouteDistance(r.distance_m)}
-                    </span>
-                  </div>
-
-                  <p className="text-xs text-surface-on-variant leading-tight m-0">
-                    {r.name} · free-flow estimate
-                  </p>
-
-                  {r.incidents_on_route.length > 0 && (
-                    <div className="pt-2 space-y-1.5">
-                      <div className="flex flex-wrap items-center justify-between gap-1.5 p-2 rounded-lg bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-amber-900 dark:text-amber-100 text-[11px]">
-                        <span className="font-semibold">
-                          ⚠️ Passes near {r.incidents_on_route.length} incident ({r.incidents_on_route[0].label})
-                        </span>
-                        {!r.avoids_incident && (
-                          <button
-                            type="button"
-                            disabled={isRecalculating}
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setSelectedRouteId(r.id);
-                              handleDynamicReroute(r.incidents_on_route[0].id);
-                            }}
-                            className="px-2 py-0.5 rounded bg-amber-600 hover:bg-amber-700 text-white font-semibold text-[10px] shadow-sm transition disabled:opacity-50 whitespace-nowrap"
-                          >
-                            {isRecalculating ? "⏳ Checking…" : "🔄 Recalculate Detour"}
-                          </button>
-                        )}
-                      </div>
-
-                      {recalculateError && isSelected && (
-                        <div className="px-2.5 py-1.5 rounded-lg bg-rose-50 dark:bg-rose-950/70 border border-rose-300 dark:border-rose-800 text-[11px] font-semibold text-rose-800 dark:text-rose-200 flex items-center gap-1.5">
-                          <span>🚫</span>
-                          <span>No alternative route exists for this bottleneck</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {isSelected && (
-                    <div className="pt-2 border-t border-surface-container flex flex-col gap-2">
-                      <div className="flex items-center justify-between">
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setShowCoordinatesId(showCoordinatesId === r.id ? null : r.id);
-                          }}
-                          className="text-[11px] font-medium text-primary hover:underline flex items-center gap-1"
-                        >
-                          <span>📍</span>
-                          <span>{showCoordinatesId === r.id ? "Hide Road Coordinates" : `View ${r.geometry.coordinates.length} Road Coordinates`}</span>
-                        </button>
-                        <Link
-                          href={`/workspace?corridor=${encodeURIComponent(r.name)}`}
-                          className="text-xs font-semibold px-3 py-1 rounded bg-primary text-primary-on hover:opacity-90 transition"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          Track this journey →
-                        </Link>
-                      </div>
-
-                      {showCoordinatesId === r.id && (
-                        <div
-                          className="p-2.5 rounded-lg bg-surface-container-low text-xs border border-surface-container space-y-2 mt-1"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <div className="flex items-center justify-between text-[11px] font-semibold text-surface-on">
-                            <span>Coordinate Vertices ({r.geometry.coordinates.length} points)</span>
-                            <button
-                              type="button"
-                              onClick={() => {
-                                navigator.clipboard.writeText(JSON.stringify(r.geometry.coordinates, null, 2));
-                                setCopiedCoords(true);
-                                setTimeout(() => setCopiedCoords(false), 2000);
-                              }}
-                              className="text-[10px] px-2 py-0.5 rounded bg-surface-container hover:bg-surface text-primary font-mono border"
-                            >
-                              {copiedCoords ? "✓ Copied!" : "Copy GeoJSON"}
-                            </button>
-                          </div>
-                          <div className="max-h-36 overflow-y-auto font-mono text-[10px] space-y-1 bg-surface/70 p-2 rounded border border-surface-container/60">
-                            <div className="text-emerald-700 dark:text-emerald-300 font-bold">
-                              [Start] {r.geometry.coordinates[0][0].toFixed(5)}° E, {r.geometry.coordinates[0][1].toFixed(5)}° N
-                            </div>
-                            {r.geometry.coordinates.slice(1, -1).slice(0, 15).map((coord, idx) => (
-                              <div key={idx} className="text-surface-on-variant pl-2">
-                                #{idx + 2} {coord[0].toFixed(5)}° E, {coord[1].toFixed(5)}° N
-                              </div>
-                            ))}
-                            {r.geometry.coordinates.length > 17 && (
-                              <div className="text-[10px] italic text-surface-on-variant pl-2">
-                                … +{r.geometry.coordinates.length - 17} intermediate road vertices …
-                              </div>
-                            )}
-                            <div className="text-rose-700 dark:text-rose-300 font-bold">
-                              [Dest] {r.geometry.coordinates[r.geometry.coordinates.length - 1][0].toFixed(5)}° E, {r.geometry.coordinates[r.geometry.coordinates.length - 1][1].toFixed(5)}° N
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-    </aside>
-
-    {/* Floating Selected Incident Card (Bottom-Right) */}
-    {selectedIncident && (
-      <section className="absolute bottom-6 right-4 sm:right-6 z-20 w-[calc(100vw-2rem)] sm:w-96 bg-surface/95 dark:bg-surface-dim/95 backdrop-blur-md rounded-2xl border border-surface-container shadow-2xl p-4 space-y-2.5 pointer-events-auto" aria-labelledby="selected-incident-title">
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div>
-            <p className="text-[10px] font-mono text-surface-on-variant">SELECTED MAP INCIDENT</p>
-            <h3 id="selected-incident-title" className="text-base font-bold text-surface-on flex items-center gap-1.5 mt-0.5">
-              <span>{reportCategoryIcons[selectedIncident.category]}</span>
-              <span>{reportCategories[selectedIncident.category]}</span>
-            </h3>
-          </div>
-          <button type="button" className="text-xs text-surface-on-variant hover:text-surface-on p-1" onClick={() => setSelectedIncidentId(null)} aria-label="Close">✕</button>
-        </div>
-        <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs m-0">
-          <div><dt className="text-surface-on-variant">Verification</dt><dd className="font-semibold text-surface-on mt-0.5">{selectedIncident.level} · {selectedIncident.provenance}</dd></div>
-          <div><dt className="text-surface-on-variant">Reports</dt><dd className="font-semibold text-surface-on mt-0.5">{selectedIncident.report_count}</dd></div>
-          <div><dt className="text-surface-on-variant">Reported</dt><dd className="font-semibold text-surface-on mt-0.5">{formatIncidentTime(selectedIncident.first_reported_at)} IST</dd></div>
-          <div><dt className="text-surface-on-variant">Status</dt><dd className="font-semibold text-surface-on mt-0.5 capitalize">{selectedIncident.status}</dd></div>
-        </dl>
-        {selectedIncident.photo_data_url && (
-          <div className="rounded-lg overflow-hidden border border-surface-container bg-surface-container-low">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={selectedIncident.photo_data_url}
-              alt="Verified road incident evidence"
-              className="w-full h-32 object-cover block"
-            />
-            <div className="px-2 py-1 text-[10px] font-mono bg-emerald-950 text-emerald-100 flex items-center justify-between">
-              <span>📷 BEST VERIFIED PHOTO · L5 AI VISION</span>
-              <span>{(selectedIncident.photo_confidence ?? "moderate").toUpperCase()}</span>
-            </div>
-          </div>
-        )}
-        <p className="text-xs text-surface-on-variant m-0">{selectedIncident.level_reason}</p>
-        <p className="text-[11px] text-surface-on-variant m-0">This open incident expires if it receives no new confirmation by {formatIncidentTime(new Date(Date.parse(selectedIncident.last_confirmed_at) + 3 * 60 * 60 * 1000).toISOString())} IST.</p>
-
-        <div className="pt-2.5 border-t border-surface-container flex flex-wrap items-center justify-between gap-2">
-          <span className="text-[11px] font-medium text-surface-on-variant">
-            {selectedRouteWarnings.some((w) => w.id === selectedIncident.id)
-              ? (recalculateError
-                  ? "🚫 No alternative route exists around this bottleneck."
-                  : "⚠️ Directly blocks your active route.")
-              : "Reported incident in the city network."}
-          </span>
+      {/* Floating Bottom-Right Map Controls & Legend */}
+      <div className="absolute bottom-4 right-4 z-10 flex flex-col items-end gap-2 pointer-events-auto">
+        <div className="flex items-center gap-2">
           <button
             type="button"
-            disabled={isRecalculating}
-            onClick={() => handleDynamicReroute(selectedIncident.id)}
-            className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs shadow-sm transition flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50"
+            onClick={() => setShowTrafficOverlay((prev) => !prev)}
+            className={`px-3 py-1.5 rounded-xl backdrop-blur border shadow-md text-xs font-semibold flex items-center gap-1.5 transition ${
+              showTrafficOverlay
+                ? "bg-primary text-primary-on border-primary"
+                : "bg-surface/95 border-surface-container text-surface-on hover:bg-surface-container"
+            }`}
+            title="Toggle central traffic corridor overlay"
           >
-            {isRecalculating ? (
-              <>
-                <span className="inline-block animate-spin">⏳</span>
-                <span>Calculating detour…</span>
-              </>
-            ) : (
-              <>
-                <span>🔄</span>
-                <span>Plan Detour Around This</span>
-              </>
-            )}
+            <span>🚦</span>
+            <span>Corridor Traffic: {showTrafficOverlay ? "On" : "Off"}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              const selected = routes.find((r) => r.id === (selectedRouteId ?? routes[0]?.id));
+              if (mapRef.current && selected && selected.geometry.coordinates.length > 0) {
+                import("maplibre-gl").then(({ LngLatBounds }) => {
+                  const bounds = new LngLatBounds();
+                  for (const coord of selected.geometry.coordinates) {
+                    bounds.extend(coord as [number, number]);
+                  }
+                  mapRef.current?.fitBounds(bounds, { padding: 50, maxZoom: 15 });
+                });
+              } else {
+                mapRef.current?.flyTo({ center: [74.856, 12.870], zoom: 13, duration: 800 });
+              }
+            }}
+            className="px-3 py-1.5 rounded-xl bg-surface/95 backdrop-blur border border-surface-container shadow-md text-xs font-semibold text-surface-on hover:bg-surface-container flex items-center gap-1.5"
+            title="Recenter route view"
+          >
+            <span>🎯</span>
+            <span>Recenter Route</span>
           </button>
         </div>
-      </section>
-    )}
 
-    {/* Floating Bottom-Right Map Controls & Legend */}
-    <div className="absolute bottom-4 right-4 z-10 flex flex-col items-end gap-2 pointer-events-auto">
-      <button
-        type="button"
-        onClick={() => {
-          const selected = routes.find((r) => r.id === (selectedRouteId ?? routes[0]?.id));
-          if (mapRef.current && selected && selected.geometry.coordinates.length > 0) {
-            import("maplibre-gl").then(({ LngLatBounds }) => {
-              const bounds = new LngLatBounds();
-              for (const coord of selected.geometry.coordinates) {
-                bounds.extend(coord as [number, number]);
-              }
-              mapRef.current?.fitBounds(bounds, { padding: 50, maxZoom: 15 });
-            });
-          } else {
-            mapRef.current?.flyTo({ center: [74.856, 12.870], zoom: 13, duration: 800 });
-          }
-        }}
-        className="px-3 py-1.5 rounded-xl bg-surface/95 backdrop-blur border border-surface-container shadow-md text-xs font-semibold text-surface-on hover:bg-surface-container flex items-center gap-1.5"
-        title="Recenter route view"
-      >
-        <span>🎯</span>
-        <span>Recenter Route</span>
-      </button>
-      <div className="text-[11px] bg-surface/80 backdrop-blur px-2.5 py-1 rounded-lg border border-surface-container/60 shadow-xs flex items-center gap-2 text-surface-on-variant">
-        <span className="w-2.5 h-1 bg-blue-600 rounded" />
-        <span>Recommended</span>
-        <span className="w-2.5 h-1 bg-slate-500 rounded border-dashed" />
-        <span>Alternative</span>
-        <span>·</span>
-        <a href="/map-notices.txt" target="_blank" rel="noreferrer" className="hover:underline">Notices</a>
+        <div className="text-[11px] bg-surface/90 backdrop-blur px-3 py-1.5 rounded-xl border border-surface-container shadow-xs flex flex-wrap items-center gap-2.5 text-surface-on-variant">
+          <span className="flex items-center gap-1">
+            <span className="w-2.5 h-1 bg-blue-600 rounded" />
+            <span>Recommended</span>
+          </span>
+          <span className="flex items-center gap-1">
+            <span className="w-2.5 h-1 bg-slate-500 rounded border-dashed" />
+            <span>Alternative</span>
+          </span>
+          {showTrafficOverlay && (
+            <>
+              <span className="flex items-center gap-1">
+                <span className="w-2.5 h-1 bg-emerald-600 rounded" />
+                <span>Corridor Clear</span>
+              </span>
+              <span className="flex items-center gap-1">
+                <span className="w-2.5 h-1 bg-amber-500 rounded" />
+                <span>Slowdown</span>
+              </span>
+            </>
+          )}
+          <span>·</span>
+          <a href="/map-notices.txt" target="_blank" rel="noreferrer" className="hover:underline">Notices</a>
+        </div>
       </div>
-    </div>
 
     {/* Incident Reporting Modal (Plan 4 Module 3) */}
     {showReportForm && (
@@ -1325,7 +1377,7 @@ export function RoutePlanner() {
               </div>
 
               {useGpsReport && userLocation ? (
-                <div className="flex items-center justify-between text-xs px-3.5 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100">
+                <div className="flex items-center justify-between text-xs px-3.5 py-2.5 rounded-xl bg-emerald-50 border border-emerald-300 text-emerald-900">
                   <span className="font-mono">
                     GPS Fix: {userLocation[1].toFixed(5)}° N, {userLocation[0].toFixed(5)}° E
                   </span>
