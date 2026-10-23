@@ -17,12 +17,16 @@
     - Merged redundant warnings into a single high-impact Alert Card with clear hazard badges (`Verified` vs `Reported`) and primary recalculation actions.
     - Streamlined the road closure notice into a compact, dismissible banner with `dismissRoadClosure` state.
     - Polished Origin and Destination controls into tactile micro-pill buttons (`GPS`, `Pick on map`) and refined dropdown selects.
+  - `apps/web/src/components/traffic/traffic-explorer.tsx`:
+    - Removed `dark:bg-surface-dim/95` and discordant `dark:` badges from the `/traffic` "Mangaluru Live Traffic" drawer.
+    - Standardized incident level badges (`L3`–`L6` verified vs `L1`–`L2` reported) using clean, high-contrast tinted surface tokens (`bg-emerald-50`, `bg-amber-50`).
+    - Standardized filter chip active states to `bg-primary text-primary-on`.
 - **Verification:**
   - `docker compose exec app pnpm test`: Passed (**236/236** tests across 11 suites).
   - `docker compose exec app pnpm run lint`: 0 errors, 0 warnings.
   - `docker compose exec app sh -c "cd apps/web && pnpm exec tsc --noEmit"`: 0 errors.
   - `docker compose exec -e CI=1 app pnpm run build`: Production build succeeded in 1.36s (all 25 routes generated).
-  - Confirmed map on `/planner` no longer displays the unexplained green loop by default, corridor traffic can be toggled on demand with updated legend entries, and side panel alerts render with clean contrast and zero duplicate warnings.
+  - Confirmed map on `/planner` no longer displays the unexplained green loop by default, corridor traffic can be toggled on demand with updated legend entries, and side panel alerts on both `/planner` and `/traffic` render with clean contrast and zero duplicate warnings.
 
 ## Local Database Persistence, Idempotent Startup, and Extended Incident Retention — verified, 23 Oct 2026
 
