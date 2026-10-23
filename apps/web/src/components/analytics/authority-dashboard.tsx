@@ -76,6 +76,7 @@ function liveCategoryToCause(category: string): HistoricalIncident["cause"] {
 }
 
 type DashboardTab = "all" | "map" | "review" | "diagnostics" | "history";
+type MapLayout = "hero" | "split";
 
 export function AuthorityDashboard() {
   const [selectedMonth, setSelectedMonth] = useState("all");
@@ -83,6 +84,7 @@ export function AuthorityDashboard() {
   const [showDemoHistory, setShowDemoHistory] = useState(false);
   const [selectedHotspotId, setSelectedHotspotId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<DashboardTab>("all");
+  const [mapLayout, setMapLayout] = useState<MapLayout>("hero");
   const [liveIncidents, setLiveIncidents] = useState<HistoricalIncident[]>([]);
 
   const refreshLiveIncidents = useCallback(() => {
@@ -196,6 +198,164 @@ export function AuthorityDashboard() {
     link.click();
     document.body.removeChild(link);
   }
+
+  const problemReportCard = (
+    <section
+      className="p-5 rounded-xl bg-surface-container-lowest border border-primary/30 shadow-sm space-y-3"
+      aria-labelledby="problem-report-title"
+    >
+      <div className="flex items-center justify-between gap-2 border-b border-surface-container pb-2">
+        <div>
+          <span className="text-[10px] font-mono uppercase tracking-wider text-primary font-bold">
+            DECISION-SUPPORT DIRECTIVE
+          </span>
+          <h2 id="problem-report-title" className="text-base font-bold text-surface-on m-0">
+            Authority Problem Report
+          </h2>
+        </div>
+        <span className="text-xs text-surface-on-variant">Advisory finding</span>
+      </div>
+
+      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+        <div className="rounded-lg bg-surface-container-low p-3">
+          <dt className="text-xs text-surface-on-variant">Priority corridor location</dt>
+          <dd className="font-semibold text-surface-on mt-1">{data.top_hotspot}</dd>
+        </div>
+        <div className="rounded-lg bg-surface-container-low p-3">
+          <dt className="text-xs text-surface-on-variant">Reported cause mix</dt>
+          <dd className="font-semibold text-surface-on mt-1 capitalize">{data.primary_cause.replace("_", " ")}</dd>
+        </div>
+        <div className="rounded-lg bg-surface-container-low p-3">
+          <dt className="text-xs text-surface-on-variant">Recurrence pattern</dt>
+          <dd className="font-semibold text-surface-on mt-1">
+            {showDemoHistory ? recurrenceStatement : "Live-only records; collect a longer time window."}
+          </dd>
+        </div>
+        <div className="rounded-lg bg-surface-container-low p-3">
+          <dt className="text-xs text-surface-on-variant">Delay evidence</dt>
+          <dd className="font-semibold text-surface-on mt-1">
+            {showDemoHistory ? `${data.total_delay_hours} hrs observed` : "Not measured for live reports"}
+          </dd>
+        </div>
+      </dl>
+
+      <div className="text-xs border-l-4 border-primary bg-surface-container-low px-3.5 py-2.5 rounded-r-lg text-surface-on space-y-1">
+        <p className="font-bold text-primary m-0">Suggested investigation protocol:</p>
+        <p className="text-surface-on m-0">{investigation}</p>
+      </div>
+    </section>
+  );
+
+  const hotspotRankingsCard = (
+    <div className="p-5 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm space-y-3">
+      <div className="flex items-center justify-between border-b border-surface-container pb-2">
+        <div>
+          <h2 className="text-base font-bold text-surface-on m-0">Corridor Hotspot Rankings</h2>
+          <p className="text-xs text-surface-on-variant m-0">
+            Prioritized by commuter delay-hours and recurrence frequency.
+          </p>
+        </div>
+        <span className="text-[10px] font-mono text-primary font-bold">
+          SORT: DELAY (DESC)
+        </span>
+      </div>
+
+      <div className="space-y-2.5">
+        {data.hotspots.map((h, index) => {
+          const rankNumber = index + 1;
+          const isSelected = selectedHotspotId === h.junction_id;
+          const isTop = rankNumber === 1;
+
+          return (
+            <div
+              key={h.junction_id}
+              onClick={() => setSelectedHotspotId(h.junction_id)}
+              className={`p-3 rounded-lg border cursor-pointer transition flex items-center justify-between gap-3 ${
+                isSelected
+                  ? "bg-primary/5 border-primary ring-2 ring-primary/40 shadow-sm"
+                  : "bg-surface-container-low border-surface-container hover:border-primary/40 hover:bg-surface-container"
+              }`}
+              title="Click to center on map"
+            >
+              <div className="flex items-start gap-3">
+                <span
+                  className={`font-mono font-bold text-xs rounded-full w-7 h-7 flex items-center justify-center shrink-0 ${
+                    isTop
+                      ? "bg-red-600 text-white"
+                      : rankNumber <= 3
+                      ? "bg-amber-600 text-white"
+                      : "bg-surface-container-high text-surface-on"
+                  }`}
+                >
+                  #{rankNumber}
+                </span>
+
+                <div className="space-y-0.5">
+                  <p className="font-bold text-surface-on text-xs sm:text-sm m-0 leading-tight">
+                    {h.junction_name}
+                  </p>
+                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-surface-on-variant">
+                    <span>{h.incident_count} events</span>
+                    <span>·</span>
+                    <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-surface-container">
+                      {h.primary_window}
+                    </span>
+                    <span>·</span>
+                    <span className="capitalize">{h.primary_cause.replace("_", " ")}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="text-right shrink-0">
+                <div className="font-bold text-xs sm:text-sm text-warning-on-container">
+                  {showDemoHistory ? `${h.total_delay_hours} hrs` : "Live view"}
+                </div>
+                <span className="text-[10px] text-surface-on-variant block">
+                  {showDemoHistory ? `~${h.average_delay_minutes}m avg` : `${h.incident_count} reports`}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {selectedHotspotId && (
+        <div className="pt-2 flex items-center justify-between text-xs text-surface-on-variant border-t border-surface-container">
+          <span>
+            Focusing on: <strong className="text-surface-on">{selectedHotspotId}</strong>
+          </span>
+          <button
+            type="button"
+            onClick={() => setSelectedHotspotId(null)}
+            className="text-primary hover:underline text-xs"
+          >
+            Clear selection
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
+  const quickReviewCard = (
+    <div className="p-4 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm space-y-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-bold text-surface-on">Active Incident Review Queue</span>
+        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary font-bold">
+          {liveIncidents.length} REPORTED
+        </span>
+      </div>
+      <p className="text-xs text-surface-on-variant m-0">
+        Community reports awaiting authority verification (L6 confirmation, OSRM route spread analysis, or resolution).
+      </p>
+      <button
+        type="button"
+        onClick={() => setActiveTab("review")}
+        className="button secondary text-xs w-full py-1.5 mt-1"
+      >
+        Open Incident Review Console →
+      </button>
+    </div>
+  );
 
   return (
     <div className="space-y-6">
@@ -418,191 +578,93 @@ export function AuthorityDashboard() {
         </div>
       </div>
 
-      {/* Row 2: Operational Corridor Grid (OSM Map + Hotspot Rankings & Decision Support) */}
+      {/* Row 2: Operational Corridor (OSM Map + Hotspot Rankings & Decision Support) */}
       {(activeTab === "all" || activeTab === "map") && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Column (7 cols): Interactive OpenStreetMap + Decision Support */}
-          <div className="lg:col-span-7 space-y-6">
-            {/* Real OpenStreetMap Hotspot Component */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between px-1">
-                <div>
-                  <h2 className="text-base font-bold text-surface-on m-0">Corridor Hotspot Map</h2>
-                  <p className="text-xs text-surface-on-variant m-0">
-                    Live OpenStreetMap showing ranked congestion nodes and citizen reports along Mangaluru central corridor.
-                  </p>
-                </div>
-                <span className="text-[11px] font-mono text-primary font-bold">
-                  {data.hotspots.length} JUNCTIONS
-                </span>
-              </div>
+        <div className="space-y-6">
+          {/* Map Section Header with Big Screen Hero vs Split View Switcher */}
+          <div className="flex flex-wrap items-center justify-between gap-3 px-1">
+            <div>
+              <h2 className="text-base sm:text-lg font-bold text-surface-on m-0">
+                Corridor Hotspot Map
+              </h2>
+              <p className="text-xs text-surface-on-variant m-0">
+                Live OpenStreetMap showing ranked congestion nodes and citizen reports along Mangaluru central corridor.
+              </p>
+            </div>
 
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-mono text-primary font-bold hidden sm:inline">
+                {data.hotspots.length} JUNCTIONS
+              </span>
+              <div className="flex items-center gap-1 bg-surface-container-lowest p-1 rounded-lg border border-surface-container text-xs shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => setMapLayout("hero")}
+                  className={`px-3 py-1 rounded font-semibold transition ${
+                    mapLayout === "hero"
+                      ? "bg-primary text-white shadow-sm"
+                      : "text-surface-on-variant hover:text-surface-on hover:bg-surface-container"
+                  }`}
+                >
+                  🖥️ Big Screen Hero
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMapLayout("split")}
+                  className={`px-3 py-1 rounded font-semibold transition ${
+                    mapLayout === "split"
+                      ? "bg-primary text-white shadow-sm"
+                      : "text-surface-on-variant hover:text-surface-on hover:bg-surface-container"
+                  }`}
+                >
+                  ◫ Split View
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {mapLayout === "hero" ? (
+            /* Big Screen Hero View: Full-width Map across 100% of the screen */
+            <div className="space-y-6">
               <HotspotMap
                 hotspots={data.hotspots}
                 liveIncidents={data.incidents}
                 selectedHotspotId={selectedHotspotId}
                 onSelectHotspot={setSelectedHotspotId}
                 showDemoHistory={showDemoHistory}
+                heightClassName="h-[620px] sm:h-[720px] lg:h-[780px]"
               />
+
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                <div className="lg:col-span-6 space-y-6">
+                  {problemReportCard}
+                </div>
+                <div className="lg:col-span-6 space-y-6">
+                  {hotspotRankingsCard}
+                  {quickReviewCard}
+                </div>
+              </div>
             </div>
-
-            {/* Authority Problem Report & Investigation Protocol */}
-            <section
-              className="p-5 rounded-xl bg-surface-container-lowest border border-primary/30 shadow-sm space-y-3"
-              aria-labelledby="problem-report-title"
-            >
-              <div className="flex items-center justify-between gap-2 border-b border-surface-container pb-2">
-                <div>
-                  <span className="text-[10px] font-mono uppercase tracking-wider text-primary font-bold">
-                    DECISION-SUPPORT DIRECTIVE
-                  </span>
-                  <h2 id="problem-report-title" className="text-base font-bold text-surface-on m-0">
-                    Authority Problem Report
-                  </h2>
-                </div>
-                <span className="text-xs text-surface-on-variant">Advisory finding</span>
+          ) : (
+            /* Split View: Side-by-side 7:5 columns */
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+              <div className="lg:col-span-7 space-y-6">
+                <HotspotMap
+                  hotspots={data.hotspots}
+                  liveIncidents={data.incidents}
+                  selectedHotspotId={selectedHotspotId}
+                  onSelectHotspot={setSelectedHotspotId}
+                  showDemoHistory={showDemoHistory}
+                  heightClassName="h-[620px] lg:h-[680px]"
+                />
+                {problemReportCard}
               </div>
-
-              <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                <div className="rounded-lg bg-surface-container-low p-3">
-                  <dt className="text-xs text-surface-on-variant">Priority corridor location</dt>
-                  <dd className="font-semibold text-surface-on mt-1">{data.top_hotspot}</dd>
-                </div>
-                <div className="rounded-lg bg-surface-container-low p-3">
-                  <dt className="text-xs text-surface-on-variant">Reported cause mix</dt>
-                  <dd className="font-semibold text-surface-on mt-1 capitalize">{data.primary_cause.replace("_", " ")}</dd>
-                </div>
-                <div className="rounded-lg bg-surface-container-low p-3">
-                  <dt className="text-xs text-surface-on-variant">Recurrence pattern</dt>
-                  <dd className="font-semibold text-surface-on mt-1">
-                    {showDemoHistory ? recurrenceStatement : "Live-only records; collect a longer time window."}
-                  </dd>
-                </div>
-                <div className="rounded-lg bg-surface-container-low p-3">
-                  <dt className="text-xs text-surface-on-variant">Delay evidence</dt>
-                  <dd className="font-semibold text-surface-on mt-1">
-                    {showDemoHistory ? `${data.total_delay_hours} hrs observed` : "Not measured for live reports"}
-                  </dd>
-                </div>
-              </dl>
-
-              <div className="text-xs border-l-4 border-primary bg-surface-container-low px-3.5 py-2.5 rounded-r-lg text-surface-on space-y-1">
-                <p className="font-bold text-primary m-0">Suggested investigation protocol:</p>
-                <p className="text-surface-on m-0">{investigation}</p>
+              <div className="lg:col-span-5 space-y-6">
+                {hotspotRankingsCard}
+                {quickReviewCard}
               </div>
-            </section>
-          </div>
-
-          {/* Right Column (5 cols): Hotspot Rankings Table & Quick Selector */}
-          <div className="lg:col-span-5 space-y-6">
-            <div className="p-5 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm space-y-3">
-              <div className="flex items-center justify-between border-b border-surface-container pb-2">
-                <div>
-                  <h2 className="text-base font-bold text-surface-on m-0">Corridor Hotspot Rankings</h2>
-                  <p className="text-xs text-surface-on-variant m-0">
-                    Prioritized by commuter delay-hours and recurrence frequency.
-                  </p>
-                </div>
-                <span className="text-[10px] font-mono text-primary font-bold">
-                  SORT: DELAY (DESC)
-                </span>
-              </div>
-
-              <div className="space-y-2.5">
-                {data.hotspots.map((h, index) => {
-                  const rankNumber = index + 1;
-                  const isSelected = selectedHotspotId === h.junction_id;
-                  const isTop = rankNumber === 1;
-
-                  return (
-                    <div
-                      key={h.junction_id}
-                      onClick={() => setSelectedHotspotId(h.junction_id)}
-                      className={`p-3 rounded-lg border cursor-pointer transition flex items-center justify-between gap-3 ${
-                        isSelected
-                          ? "bg-primary/5 border-primary ring-2 ring-primary/40 shadow-sm"
-                          : "bg-surface-container-low border-surface-container hover:border-primary/40 hover:bg-surface-container"
-                      }`}
-                      title="Click to center on map"
-                    >
-                      <div className="flex items-start gap-3">
-                        <span
-                          className={`font-mono font-bold text-xs rounded-full w-7 h-7 flex items-center justify-center shrink-0 ${
-                            isTop
-                              ? "bg-red-600 text-white"
-                              : rankNumber <= 3
-                              ? "bg-amber-600 text-white"
-                              : "bg-surface-container-high text-surface-on"
-                          }`}
-                        >
-                          #{rankNumber}
-                        </span>
-
-                        <div className="space-y-0.5">
-                          <p className="font-bold text-surface-on text-xs sm:text-sm m-0 leading-tight">
-                            {h.junction_name}
-                          </p>
-                          <div className="flex flex-wrap items-center gap-2 text-[11px] text-surface-on-variant">
-                            <span>{h.incident_count} events</span>
-                            <span>·</span>
-                            <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-surface-container">
-                              {h.primary_window}
-                            </span>
-                            <span>·</span>
-                            <span className="capitalize">{h.primary_cause.replace("_", " ")}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="text-right shrink-0">
-                        <div className="font-bold text-xs sm:text-sm text-warning-on-container">
-                          {showDemoHistory ? `${h.total_delay_hours} hrs` : "Live view"}
-                        </div>
-                        <span className="text-[10px] text-surface-on-variant block">
-                          {showDemoHistory ? `~${h.average_delay_minutes}m avg` : `${h.incident_count} reports`}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {selectedHotspotId && (
-                <div className="pt-2 flex items-center justify-between text-xs text-surface-on-variant border-t border-surface-container">
-                  <span>
-                    Focusing on: <strong className="text-surface-on">{selectedHotspotId}</strong>
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedHotspotId(null)}
-                    className="text-primary hover:underline text-xs"
-                  >
-                    Clear selection
-                  </button>
-                </div>
-              )}
             </div>
-
-            {/* Quick Live Incidents Summary Card */}
-            <div className="p-4 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-surface-on">Active Incident Review Queue</span>
-                <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary font-bold">
-                  {liveIncidents.length} REPORTED
-                </span>
-              </div>
-              <p className="text-xs text-surface-on-variant m-0">
-                Community reports awaiting authority verification (L6 confirmation, OSRM route spread analysis, or resolution).
-              </p>
-              <button
-                type="button"
-                onClick={() => setActiveTab("review")}
-                className="button secondary text-xs w-full py-1.5 mt-1"
-              >
-                Open Incident Review Console →
-              </button>
-            </div>
-          </div>
+          )}
         </div>
       )}
 

@@ -1,5 +1,26 @@
 # Project Progress
 
+## Authority Big-Screen Full-Width Map & Dedicated Fullscreen Mode — verified, 23 Oct 2026
+
+- **Issue:** The Corridor Hotspot Map was constrained inside a narrow 7-column column (~680px width) within a 1200px container with a 440px height, making it feel small on wide desktop displays and causing popup cards to cover map features.
+- **Implementation:**
+  - `apps/web/src/app/authority/page.tsx`:
+    - Added `data-fullscreen="true"` to release the `.site-main` 1200px container cap and allow full display width utilization (`max-w-[1920px] mx-auto w-full`).
+  - `apps/web/src/components/analytics/hotspot-map.tsx`:
+    - Increased default map height to `h-[620px] sm:h-[720px] lg:h-[780px]`.
+    - Added interactive **"⛶ Full Screen"** toggle button that expands the map to `fixed inset-0 z-50 w-screen h-screen` with automatic WebGL canvas resizing and Esc key listener.
+    - Added a floating **Corridor Operations HUD drawer** on the right side in full-screen mode for inspecting and selecting ranked hotspots.
+    - Added top **Quick Jump pills** (`#1 Pumpwell`, `#2 KSRTC`, `#3 Jyothi`, `#4 Ladyhill`, `#5 Hampankatta`) to quickly pan and focus any junction.
+  - `apps/web/src/components/analytics/authority-dashboard.tsx`:
+    - Added a layout mode selector (`mapLayout`: `"hero"` | `"split"`, default `"hero"`).
+    - In Hero mode, the Corridor Hotspot Map spans all 12 columns at full width, with the Authority Problem Report and Hotspot Rankings cards positioned side-by-side beneath it.
+- **Verification:**
+  - `docker compose exec app pnpm test`: Passed (**236/236** tests across 11 suites).
+  - `docker compose exec app sh -c "cd apps/web && pnpm exec tsc --noEmit"`: 0 errors.
+  - `docker compose exec app pnpm lint`: 0 errors.
+  - `docker compose exec -e CI=1 app pnpm build`: Production build succeeded in 1.9s.
+- **Commit:** `c7e97cc` — `feat(authority): expand corridor map to big screen full width and add dedicated fullscreen mode`.
+
 ## Authority Corridor OpenStreetMap & Multi-Column Executive Dashboard — verified, 23 Oct 2026
 
 - **Issue:**

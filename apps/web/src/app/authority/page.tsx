@@ -6,7 +6,7 @@ export default async function AuthorityPage() {
   await requireRole("authority");
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-6 pb-12">
+    <div data-fullscreen="true" className="w-full flex-1 flex flex-col px-4 sm:px-8 py-6 space-y-6 max-w-[1920px] mx-auto">
       {/* Header bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 border-b border-surface-container pb-4">
         <div>
@@ -45,7 +45,7 @@ export default async function AuthorityPage() {
         </p>
       </div>
 
-      <div className="pt-2 flex items-center justify-between text-xs text-surface-on-variant">
+      <div className="pt-2 flex items-center justify-between text-xs text-surface-on-variant border-t border-surface-container">
         <Link className="text-primary hover:underline" href="/workspace">
           ← Return to account workspace
         </Link>
