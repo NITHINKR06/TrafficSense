@@ -36,6 +36,8 @@ export type L5VerificationResult = {
   verificationTier: "L5";
   /** Whether this result came from the live Gemini API or the offline fallback. */
   source: "gemini" | "offline_fallback";
+  /** Client-generated, EXIF-stripped JPEG thumbnail (data URL) attached after verification. */
+  photoDataUrl?: string;
 };
 
 /** Input accepted by the verification endpoint. */

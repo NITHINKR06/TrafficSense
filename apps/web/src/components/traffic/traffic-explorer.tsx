@@ -58,7 +58,7 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
 
   const filteredIncidents = useMemo(() => {
     return liveIncidents.filter((inc) => {
-      if (incidentFilter === "verified") return ["L3", "L4", "L6"].includes(inc.level);
+      if (incidentFilter === "verified") return ["L3", "L4", "L5", "L6"].includes(inc.level);
       if (incidentFilter === "accident") return inc.category === "accident";
       if (incidentFilter === "hazards") return ["flood", "road_closed", "hazard"].includes(inc.category);
       return true;
@@ -129,7 +129,7 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
                 incidentFilter === "verified" ? "bg-primary text-white" : "bg-surface-container text-surface-on hover:bg-surface-container-high"
               }`}
             >
-              L3+ Verified ({liveIncidents.filter(i => ["L3", "L4", "L6"].includes(i.level)).length})
+              L3+ Verified ({liveIncidents.filter(i => ["L3", "L4", "L5", "L6"].includes(i.level)).length})
             </button>
             <button
               type="button"
@@ -176,7 +176,7 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
                         {preset?.name ?? reportCategories[inc.category]}
                       </span>
                       <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
-                        ["L3", "L4", "L6"].includes(inc.level)
+                        ["L3", "L4", "L5", "L6"].includes(inc.level)
                           ? "bg-emerald-100 text-emerald-900 dark:bg-emerald-950 dark:text-emerald-200"
                           : "bg-amber-100 text-amber-900 dark:bg-amber-950 dark:text-amber-200"
                       }`}>

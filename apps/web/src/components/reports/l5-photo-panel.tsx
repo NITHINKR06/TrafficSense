@@ -2,6 +2,26 @@
 
 import { useRef, useState, useCallback } from "react";
 import type { L5VerificationResult, L5DetectedCategory, L5MimeType } from "@/lib/vision/verify-incident-photo";
+import type { ReportCategory } from "@/lib/reports/rules";
+
+/** Maps a live report category onto the coarser set the vision classifier understands. */
+export function toL5Category(category: ReportCategory): L5DetectedCategory {
+  switch (category) {
+    case "accident":
+      return "accident";
+    case "road_repair":
+    case "road_closed":
+    case "bridge_maintenance":
+      return "road_repair";
+    case "heavy_traffic":
+      return "heavy_volume";
+    case "flood":
+    case "heavy_rain":
+      return "flood";
+    default:
+      return "unknown";
+  }
+}
 
 type L5PhotoPanelProps = {
   segmentId: string;
@@ -11,6 +31,37 @@ type L5PhotoPanelProps = {
 
 const ACCEPTED_MIME_TYPES: L5MimeType[] = ["image/jpeg", "image/png", "image/webp"];
 const MAX_BYTES = 4 * 1024 * 1024;
+
+/**
+ * Downscales the image to at most 480px on its longest side and re-encodes it as JPEG.
+ * Drawing onto a canvas drops all EXIF metadata (including GPS) from the stored copy.
+ */
+async function createCompressedDataUrl(blob: Blob): Promise<string | undefined> {
+  const objectUrl = URL.createObjectURL(blob);
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const el = new Image();
+      el.onload = () => resolve(el);
+      el.onerror = () => reject(new Error("Image could not be decoded."));
+      el.src = objectUrl;
+    });
+    const maxSide = 480;
+    const scale = Math.min(1, maxSide / Math.max(img.naturalWidth, img.naturalHeight));
+    const width = Math.max(1, Math.round(img.naturalWidth * scale));
+    const height = Math.max(1, Math.round(img.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return undefined;
+    ctx.drawImage(img, 0, 0, width, height);
+    return canvas.toDataURL("image/jpeg", 0.68);
+  } catch {
+    return undefined;
+  } finally {
+    URL.revokeObjectURL(objectUrl);
+  }
+}
 
 function confidenceLabel(tier: L5VerificationResult["confidenceTier"]): string {
   return tier === "high" ? "HIGH" : tier === "moderate" ? "MODERATE" : "LOW";
@@ -73,8 +124,8 @@ export function L5PhotoPanel({ segmentId, userSelectedCategory, onResult }: L5Ph
 
         // Show thumbnail
         const blob = new Blob([arrayBuffer], { type: file.type });
-        const url = URL.createObjectURL(blob);
-        setThumbnail(url);
+        const photoDataUrl = await createCompressedDataUrl(blob);
+        setThumbnail(photoDataUrl ?? URL.createObjectURL(blob));
         setStatus("verifying");
 
         // Call the verification endpoint
@@ -97,8 +148,9 @@ export function L5PhotoPanel({ segmentId, userSelectedCategory, onResult }: L5Ph
           return;
         }
 
-        setResult(json.result);
-        onResult(json.result);
+        const withPhoto: L5VerificationResult = { ...json.result, photoDataUrl };
+        setResult(withPhoto);
+        onResult(withPhoto);
         setStatus("done");
       } catch {
         setErrorMessage("Could not reach the verification service. The report can still be submitted without L5 evidence.");

@@ -435,6 +435,21 @@ function MapAttempt({
             )}
           </div>
 
+          {selectedLiveIncident.photo_data_url && (
+            <div className="my-2 rounded-lg overflow-hidden border border-surface-container bg-surface-container-low">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={selectedLiveIncident.photo_data_url}
+                alt="Verified road incident evidence"
+                className="w-full h-32 object-cover block"
+              />
+              <div className="px-2 py-1 text-[10px] font-mono bg-emerald-950 text-emerald-100 flex items-center justify-between">
+                <span>📷 BEST VERIFIED PHOTO</span>
+                <span>{(selectedLiveIncident.photo_confidence ?? "moderate").toUpperCase()} CONFIDENCE</span>
+              </div>
+            </div>
+          )}
+
           <p><strong>{liveIncidentLevelLabel(selectedLiveIncident)}.</strong></p>
           <p>Reported <time dateTime={selectedLiveIncident.first_reported_at}>{formatLiveIncidentTime(selectedLiveIncident.first_reported_at)}</time>. This is a reported incident, not a measured traffic delay.</p>
 
