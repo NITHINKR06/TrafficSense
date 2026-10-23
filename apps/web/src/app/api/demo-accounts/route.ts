@@ -2,8 +2,6 @@ import { NextResponse } from "next/server";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-export const dynamic = "force-dynamic";
-
 type DemoAccount = { label: string; role: string; email: string; password: string };
 
 async function readAccountsFile(): Promise<string> {
@@ -13,7 +11,7 @@ async function readAccountsFile(): Promise<string> {
   ];
   for (const filePath of candidates) {
     try {
-      return await readFile(filePath, "utf-8");
+      return await readFile(/* turbopackIgnore: true */ filePath, "utf-8");
     } catch {
       // try next path
     }
