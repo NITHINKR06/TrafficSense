@@ -1,5 +1,18 @@
 # Project Progress
 
+## Fix Next.js cacheComponents Route Config Build Error — verified, 23 Oct 2026
+
+- **Issue:** Next.js 16 build failed with `Error: Route segment config "dynamic" is not compatible with nextConfig.cacheComponents. Please remove it.` in `apps/web/src/app/api/demo-accounts/route.ts`.
+- **Implementation:**
+  - Removed `export const dynamic = "force-dynamic";` from `apps/web/src/app/api/demo-accounts/route.ts`.
+  - Added `/* turbopackIgnore: true */` comment to `readFile` call to eliminate Turbopack whole-project tracing warning.
+  - Updated `tests/verification-ladder.test.mjs` L5 status assertion to `"implemented"` to align with the recently merged L5 Gemini vision integration.
+- **Verification:**
+  - `pnpm build`: Passed (`✓ Generating static pages using 11 workers (24/24)`).
+  - `just test`: Passed (**231/231** across 10 test suites).
+  - `git diff --check`: Passed with 0 errors.
+- **Commit:** `6bbde85` — `fix(web): remove incompatible dynamic route config for nextConfig.cacheComponents`.
+
 ## Full-Screen Interactive Maps with Floating Overlay Cards for /traffic and /planner — verified, 23 Oct 2026
 
 - **Scope:** Redesigned `http://localhost:3000/traffic` and `http://localhost:3000/planner` with full-viewport edge-to-edge interactive maps (Google Maps style) replacing the small embedded boxes. Switched primary focus to real seeded community reports and verified incidents from the Supabase database (`/api/incidents`) with interactive pins, floating side drawers, filter pills, direct incident detours, and collapsible corridor simulation panels.
