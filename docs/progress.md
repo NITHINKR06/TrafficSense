@@ -20,7 +20,24 @@
   - `docker exec -w /app/apps/web trafficsense-nk-app-1 pnpm exec tsc --noEmit`: Passed (0 errors).
   - `just test`: Passed (**231/231** across 10 test suites).
   - `git diff --check`: Passed with 0 whitespace issues.
-- **Commit:** Pending.
+- **Commit:** `028cf5a` — `feat(web): full-screen interactive maps with floating overlay cards for traffic and planner`.
+
+## Styled Incident Reporting Modal Dialog for Route Planner — verified, 23 Oct 2026
+
+- **Issue:** Opening the report form in `/planner` (`showReportForm`) squeezed an entire 17-item button grid, location selector, note input, and actions inside the 380px floating directions drawer. The buttons wrapped awkwardly into 55px wide boxes with truncated labels ("construct...", "waterlogg...", "movemen..."), the note input and submit buttons were cut off below the viewport, and floating UI overlapped the form.
+- **Implementation:**
+  - `apps/web/src/components/routing/route-planner.tsx`:
+    - Replaced the cramped inline drawer form with a centered, modern floating modal dialog overlay (`z-50`) with backdrop blur.
+    - Added quick-select cards for the top 6 frequent road hazards (💥 Accident, ⛔ Road Closure, 🌊 Flood / Waterlogging, 🚧 Road Repair, 🚙 Heavy Traffic, 🌲 Tree / Hazard) and a synced full dropdown with all 17 PDF categories with emoji icons and full labels.
+    - Improved location selection with clean GPS fix badge and preset landmark dropdown with coordinates.
+    - Added Escape key handler and backdrop dismissal.
+    - Upgraded submission feedback with a dismissible toast alert in the directions drawer.
+- **Verification:**
+  - `docker exec trafficsense-nk-app-1 pnpm lint`: Passed (0 errors).
+  - `docker exec -w /app/apps/web trafficsense-nk-app-1 pnpm exec tsc --noEmit`: Passed (0 errors).
+  - `just test`: Passed (**231/231** across 10 test suites).
+  - `git diff --check`: Passed with 0 whitespace issues.
+- **Commit:** `7ca57b4` — `fix(planner): replace cramped inline report form with modern styled modal dialog`.
 
 ## Spread Check: Which Routes Does a Verified Problem Reach? — verified, 23 Oct 2026
 

@@ -54,6 +54,15 @@ export function RoutePlanner() {
   const [reportFeedback, setReportFeedback] = useState<string | null>(null);
   const [isSubmittingReport, setIsSubmittingReport] = useState<boolean>(false);
 
+  useEffect(() => {
+    if (!showReportForm) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setShowReportForm(false);
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [showReportForm]);
+
   function initialRouteId(routeList: RouteOption[]): string | null {
     return routeList.find(route => route.incidents_on_route.length > 0)?.id ?? routeList[0]?.id ?? null;
   }
@@ -589,10 +598,10 @@ export function RoutePlanner() {
             <button
               type="button"
               className="button secondary text-xs px-3 py-2 font-medium flex items-center gap-1.5"
-              onClick={() => setShowReportForm((prev) => !prev)}
+              onClick={() => setShowReportForm(true)}
             >
               <span>📢</span>
-              <span>{showReportForm ? "Close Form" : "Report Incident"}</span>
+              <span>Report Incident</span>
             </button>
           </div>
           <span className="text-[11px] text-surface-on-variant">
@@ -604,126 +613,27 @@ export function RoutePlanner() {
       {/* Scrollable Drawer Body */}
       <div className="overflow-y-auto p-3.5 space-y-3 flex-1">
         {reportFeedback && (
-        <div className="p-3 rounded-lg bg-surface-container-low border border-surface-container text-xs text-surface-on">
-          {reportFeedback}
-        </div>
-      )}
-
-      {/* Expandable Incident Reporting Form (Plan 4 Module 3) */}
-      {showReportForm && (
-        <form
-          onSubmit={handleReportSubmit}
-          className="p-4 rounded-xl bg-surface-container-lowest border border-primary/30 shadow-sm space-y-3"
-        >
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-bold text-surface-on flex items-center gap-2">
-              <span>📢</span> Report Road Incident at Your Location
-            </h3>
-            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-surface-container text-surface-on-variant">
-              L1–L3 SERVER VERIFICATION
-            </span>
-          </div>
-
-          <p className="text-xs text-surface-on-variant">
-            Sign in with a commuter account to submit. A recent device location is recorded as L2 location support; it does not prove the cause or congestion. When 3 distinct signed-in commuters report within 300m and 15 minutes, the server promotes the incident to L3 and can offer a route that avoids the reported area.
-          </p>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            {/* Category selection */}
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-surface-on" htmlFor="report-cat">
-                Incident Type (17 PDF categories)
-              </label>
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5" role="group" aria-label="Incident category">
-                {Object.entries(reportCategories).map(([key, label]) => (
-                  <button key={key} type="button" aria-pressed={reportCategory === key}
-                    className={`text-left text-[11px] px-2 py-1.5 rounded border ${reportCategory === key ? "border-primary bg-primary/10 font-bold" : "border-surface-container bg-surface-container-low"}`}
-                    onClick={() => setReportCategory(key as ReportCategory)}>
-                    {reportCategoryIcons[key as ReportCategory]} {label}
-                  </button>
-                ))}
-              </div>
+          <div
+            className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-2 shadow-sm ${
+              reportFeedback.startsWith("❌")
+                ? "bg-rose-50 dark:bg-rose-950 border-rose-300 dark:border-rose-800 text-rose-900 dark:text-rose-100"
+                : "bg-emerald-50 dark:bg-emerald-950 border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100"
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span>{reportFeedback.startsWith("❌") ? "⚠️" : "✓"}</span>
+              <span>{reportFeedback}</span>
             </div>
-
-            {/* Incident Location */}
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-surface-on" htmlFor="report-loc">
-                  Incident Location
-                </label>
-                <button
-                  type="button"
-                  onClick={() => handleRequestGps("report")}
-                  className="text-[11px] text-primary hover:underline font-medium"
-                >
-                  📍 Use device GPS
-                </button>
-              </div>
-              {useGpsReport && userLocation ? (
-                <div className="flex items-center justify-between text-xs px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100">
-                  <span>GPS fix ({userLocation[1].toFixed(4)}, {userLocation[0].toFixed(4)})</span>
-                  <button
-                    type="button"
-                    onClick={() => setUseGpsReport(false)}
-                    className="text-[11px] font-semibold underline ml-2"
-                  >
-                    Reset
-                  </button>
-                </div>
-              ) : (
-                <select
-                  id="report-loc"
-                  className="w-full text-xs rounded-lg border border-surface-container bg-surface-container-low px-3 py-2 text-surface-on"
-                  value={reportLocationIndex}
-                  onChange={(e) => {
-                    setUseGpsReport(false);
-                    setReportLocationIndex(Number(e.target.value));
-                  }}
-                >
-                  {MANGALURU_PRESETS.map((p, idx) => (
-                    <option key={p.name} value={idx}>
-                      {p.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-          </div>
-
-          {/* Note input */}
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-surface-on" htmlFor="report-note">
-              Optional Note
-            </label>
-            <input
-              id="report-note"
-              type="text"
-              placeholder="e.g. Near traffic signal, left lane blocked"
-              className="w-full text-xs rounded-lg border border-surface-container bg-surface-container-low px-3 py-2 text-surface-on"
-              value={reportNote}
-              onChange={(e) => setReportNote(e.target.value)}
-              maxLength={200}
-            />
-          </div>
-
-          <div className="flex items-center justify-end gap-2 pt-1">
             <button
               type="button"
-              className="text-xs px-3 py-1.5 rounded-lg border border-surface-container text-surface-on-variant hover:bg-surface-container"
-              onClick={() => setShowReportForm(false)}
+              onClick={() => setReportFeedback(null)}
+              className="text-xs font-bold opacity-60 hover:opacity-100 px-1"
+              aria-label="Dismiss feedback"
             >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="button text-xs px-5 py-1.5 font-semibold"
-              disabled={isSubmittingReport}
-            >
-              {isSubmittingReport ? "Submitting…" : "Submit Incident Report"}
+              ✕
             </button>
           </div>
-        </form>
-      )}
+        )}
 
       {statusMessage && (
         <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-100">
@@ -902,6 +812,201 @@ export function RoutePlanner() {
         <a href="/map-notices.txt" target="_blank" rel="noreferrer" className="hover:underline">Notices</a>
       </div>
     </div>
+
+    {/* Incident Reporting Modal (Plan 4 Module 3) */}
+    {showReportForm && (
+      <div
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="report-modal-title"
+        className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150 pointer-events-auto"
+        onClick={(e) => {
+          if (e.target === e.currentTarget) setShowReportForm(false);
+        }}
+      >
+        <div className="w-full max-w-lg bg-surface-container-lowest rounded-2xl shadow-2xl border border-surface-container overflow-hidden flex flex-col max-h-[90vh]">
+          {/* Modal Header */}
+          <div className="p-4 sm:p-5 border-b border-surface-container flex items-center justify-between bg-surface-container-low/50">
+            <div className="flex items-center gap-2.5">
+              <span className="text-xl">📢</span>
+              <div>
+                <h3 id="report-modal-title" className="text-sm sm:text-base font-bold text-surface-on m-0">
+                  Report Road Incident at Your Location
+                </h3>
+                <p className="text-[11px] text-surface-on-variant m-0 mt-0.5">
+                  Dispatched to server verification queue · OpenStreetMap
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-surface-container text-surface-on-variant hidden sm:inline-block">
+                L1–L3 SERVER VERIFICATION
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowReportForm(false)}
+                className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container text-surface-on-variant text-base font-bold transition"
+                aria-label="Close report modal"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+
+          {/* Modal Body Form */}
+          <form onSubmit={handleReportSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4">
+            {/* Verification explanation banner */}
+            <div className="p-3 rounded-xl bg-surface-container-low border border-surface-container text-xs text-surface-on-variant space-y-1">
+              <p className="font-semibold text-surface-on">Commuter Verification Pipeline</p>
+              <p>
+                Sign in with a commuter account to submit. Initial reports record your device location as L2 support. When 3 distinct signed-in commuters report within 300m and 15 minutes, the server promotes the incident to <strong>L3 Corroborated</strong> and automatically offers alternative detours.
+              </p>
+            </div>
+
+            {/* Category selection */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-surface-on" htmlFor="report-cat-dropdown">
+                  1. Incident Type
+                </label>
+                <span className="text-[11px] text-surface-on-variant">17 PDF categories</span>
+              </div>
+
+              {/* Quick select buttons */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2" role="group" aria-label="Incident category quick select">
+                {[
+                  { id: "accident", label: "Accident", icon: "💥" },
+                  { id: "road_closed", label: "Road Closure", icon: "⛔" },
+                  { id: "flood", label: "Flood / Waterlog", icon: "🌊" },
+                  { id: "road_repair", label: "Road Repair", icon: "🚧" },
+                  { id: "heavy_traffic", label: "Heavy Traffic", icon: "🚙" },
+                  { id: "fallen_tree", label: "Tree / Hazard", icon: "🌲" },
+                ].map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    aria-pressed={reportCategory === item.id}
+                    onClick={() => setReportCategory(item.id as ReportCategory)}
+                    className={`flex items-center gap-2 p-2.5 rounded-xl border text-left text-xs font-medium transition ${
+                      reportCategory === item.id
+                        ? "border-primary bg-primary/10 text-primary font-bold shadow-sm ring-1 ring-primary"
+                        : "border-surface-container bg-surface-container-low text-surface-on hover:bg-surface-container"
+                    }`}
+                  >
+                    <span className="text-base leading-none">{item.icon}</span>
+                    <span className="truncate">{item.label}</span>
+                  </button>
+                ))}
+              </div>
+
+              {/* All 17 categories select dropdown */}
+              <div className="pt-1">
+                <label htmlFor="report-cat-dropdown" className="text-[11px] text-surface-on-variant block mb-1">
+                  Or pick from all 17 categories:
+                </label>
+                <select
+                  id="report-cat-dropdown"
+                  value={reportCategory}
+                  onChange={(e) => setReportCategory(e.target.value as ReportCategory)}
+                  className="w-full text-xs rounded-xl border border-surface-container bg-surface-container-low px-3 py-2 text-surface-on focus:outline-none focus:ring-2 focus:ring-primary/40"
+                >
+                  {Object.entries(reportCategories).map(([key, label]) => (
+                    <option key={key} value={key}>
+                      {reportCategoryIcons[key as ReportCategory]} {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Incident Location */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-surface-on" htmlFor="report-loc">
+                  2. Incident Location (Mangaluru)
+                </label>
+                <button
+                  type="button"
+                  onClick={() => handleRequestGps("report")}
+                  className={`text-[11px] px-2.5 py-1 rounded-lg font-medium border transition ${
+                    useGpsReport
+                      ? "bg-primary text-white border-primary"
+                      : "bg-surface-container-low border-surface-container text-primary hover:bg-surface-container"
+                  }`}
+                >
+                  {useGpsReport ? "📍 Using Device GPS" : "📍 Use device GPS"}
+                </button>
+              </div>
+
+              {useGpsReport && userLocation ? (
+                <div className="flex items-center justify-between text-xs px-3.5 py-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950 border border-emerald-300 dark:border-emerald-800 text-emerald-900 dark:text-emerald-100">
+                  <span className="font-mono">
+                    GPS Fix: {userLocation[1].toFixed(5)}° N, {userLocation[0].toFixed(5)}° E
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setUseGpsReport(false)}
+                    className="text-[11px] font-semibold text-primary underline ml-2"
+                  >
+                    Switch to preset
+                  </button>
+                </div>
+              ) : (
+                <select
+                  id="report-loc"
+                  className="w-full text-xs rounded-xl border border-surface-container bg-surface-container-low px-3 py-2.5 text-surface-on focus:outline-none focus:ring-2 focus:ring-primary/40"
+                  value={reportLocationIndex}
+                  onChange={(e) => {
+                    setUseGpsReport(false);
+                    setReportLocationIndex(Number(e.target.value));
+                  }}
+                >
+                  {MANGALURU_PRESETS.map((p, idx) => (
+                    <option key={p.name} value={idx}>
+                      {p.name} ({p.coords[1].toFixed(4)}° N, {p.coords[0].toFixed(4)}° E)
+                    </option>
+                  ))}
+                </select>
+              )}
+            </div>
+
+            {/* Optional Note */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-surface-on" htmlFor="report-note">
+                3. Observed Details (Optional)
+              </label>
+              <input
+                id="report-note"
+                type="text"
+                placeholder="e.g. Near traffic signal, left lane blocked, water depth ~1 ft"
+                className="w-full text-xs rounded-xl border border-surface-container bg-surface-container-low px-3 py-2.5 text-surface-on placeholder:text-surface-on-variant/50 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                value={reportNote}
+                onChange={(e) => setReportNote(e.target.value)}
+                maxLength={200}
+              />
+            </div>
+
+            {/* Modal Actions */}
+            <div className="pt-3 border-t border-surface-container flex items-center justify-end gap-2.5">
+              <button
+                type="button"
+                className="button secondary text-xs px-4 py-2 font-medium"
+                onClick={() => setShowReportForm(false)}
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="button text-xs px-5 py-2 font-bold"
+                disabled={isSubmittingReport}
+              >
+                {isSubmittingReport ? "Submitting Report…" : "Submit Incident Report"}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    )}
   </div>
 );
 }
