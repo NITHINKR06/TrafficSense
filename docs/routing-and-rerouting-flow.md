@@ -157,7 +157,7 @@ $$\text{Candidate Coordinate} = \left(\lambda_i + \Delta\lambda_{\text{offset}},
 ### 4.4. Road Network Snapping (Hidden Markov Model / KD-Tree Nearest Neighbor)
 Raw radial coordinates could land on water (Arabian Sea, Netravati River), buildings, or steep cliffs.
 The engine invokes OSRM `/nearest`:
-$$\text{SnappedNode} = \operatorname{Nearest}_{\text{OSRM}}(\text{CandidateCoord})$$
+$$\text{SnappedNode} = \text{Nearest}_{\text{OSRM}}(\text{CandidateCoord})$$
 - Evaluates closest drivable road segment edge in the OpenStreetMap road graph.
 - Discards candidates with snapping distance $> 350\text{m}$ (off-road or inaccessible).
 
