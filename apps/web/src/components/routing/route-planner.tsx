@@ -699,10 +699,10 @@ export function RoutePlanner() {
 
       {/* Google Maps Style Floating Search & Direction Card (Top) */}
       <div className="absolute top-3 inset-x-3 sm:left-4 sm:right-auto sm:w-[420px] z-30 pointer-events-auto">
-        <div className="bg-surface/95 dark:bg-slate-900/95 backdrop-blur-md rounded-2xl border border-surface-container shadow-xl p-3 sm:p-3.5 space-y-2.5">
+        <div className="bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-xl p-3 sm:p-3.5 space-y-2.5">
           {/* Header Row: Title & Live Telemetry */}
           <div className="flex items-center justify-between">
-            <h2 className="text-xs sm:text-sm font-bold text-surface-on flex items-center gap-1.5 m-0">
+            <h2 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5 m-0">
               <span>🗺️</span>
               <span>City Route Intelligence</span>
             </h2>
@@ -711,21 +711,21 @@ export function RoutePlanner() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
-              <span className="text-[10px] font-semibold text-surface-on-variant">
+              <span className="text-[10px] font-semibold text-slate-600">
                 LIVE · {liveIncidents.length} hazard{liveIncidents.length === 1 ? "" : "s"}
               </span>
-              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-surface-container text-surface-on-variant border border-surface-container-highest">
+              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
                 FREE-FLOW
               </span>
             </div>
           </div>
 
           {/* Google Maps Connected Origin & Destination Inputs */}
-          <div className="flex items-center gap-2 bg-surface-container-low/60 rounded-xl p-2 border border-surface-container/60">
+          <div className="flex items-center gap-2 bg-slate-50/90 rounded-xl p-2 border border-slate-200/80">
             {/* Visual Route Connector Track */}
             <div className="flex flex-col items-center justify-between py-1 self-stretch shrink-0">
               <div className="w-2.5 h-2.5 rounded-full bg-emerald-600 ring-2 ring-emerald-200" />
-              <div className="w-0.5 flex-1 my-1 border-l-2 border-dotted border-surface-on-variant/30" />
+              <div className="w-0.5 flex-1 my-1 border-l-2 border-dotted border-slate-300" />
               <div className="w-2.5 h-2.5 rounded-full bg-rose-600 ring-2 ring-rose-200" />
             </div>
 
@@ -780,7 +780,7 @@ export function RoutePlanner() {
                   <select
                     id="start-select"
                     aria-label="Origin starting location"
-                    className="flex-1 text-xs font-semibold rounded-lg border border-surface-container bg-surface px-2.5 py-1.5 text-surface-on shadow-2xs focus:ring-1 focus:ring-primary outline-none transition truncate"
+                    className="flex-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-slate-800 shadow-2xs focus:ring-1 focus:ring-primary outline-none transition truncate"
                     value={startIndex}
                     onChange={(e) => {
                       const newIdx = Number(e.target.value);
@@ -809,7 +809,7 @@ export function RoutePlanner() {
                       setIsPickingLocation(false);
                       handleRequestGps("start");
                     }}
-                    className="text-[11px] px-2 py-1.5 rounded-lg bg-surface hover:bg-surface-container text-primary font-bold border border-surface-container transition shadow-2xs"
+                    className="text-[11px] px-2 py-1.5 rounded-lg bg-white hover:bg-slate-100 text-primary font-bold border border-slate-200 transition shadow-2xs"
                     title="Use GPS current position"
                   >
                     📍
@@ -823,7 +823,7 @@ export function RoutePlanner() {
                     className={`text-[11px] px-2 py-1.5 rounded-lg font-bold border transition shadow-2xs ${
                       isPickingLocation
                         ? "bg-amber-100 text-amber-900 border-amber-300 font-bold"
-                        : "bg-surface hover:bg-surface-container text-primary border-surface-container"
+                        : "bg-white hover:bg-slate-100 text-primary border-slate-200"
                     }`}
                     title="Pick origin point on map"
                   >
@@ -837,7 +837,7 @@ export function RoutePlanner() {
                 <select
                   id="dest-select"
                   aria-label="Destination location"
-                  className="w-full text-xs font-semibold rounded-lg border border-surface-container bg-surface px-2.5 py-1.5 text-surface-on shadow-2xs focus:ring-1 focus:ring-primary outline-none transition truncate"
+                  className="w-full text-xs font-semibold rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-slate-800 shadow-2xs focus:ring-1 focus:ring-primary outline-none transition truncate"
                   value={destIndex}
                   onChange={(e) => {
                     const newIdx = Number(e.target.value);
@@ -860,7 +860,7 @@ export function RoutePlanner() {
             <button
               type="button"
               onClick={handleSwap}
-              className="w-8 h-8 rounded-full border border-surface-container bg-surface hover:bg-surface-container flex items-center justify-center text-xs font-bold text-surface-on shadow-2xs transition shrink-0"
+              className="w-8 h-8 rounded-full border border-slate-200 bg-white hover:bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-800 shadow-2xs transition shrink-0"
               title="Swap origin and destination"
               aria-label="Swap origin and destination"
             >
@@ -890,7 +890,7 @@ export function RoutePlanner() {
               className={`px-2.5 py-1 rounded-full border transition whitespace-nowrap text-[11px] font-semibold flex items-center gap-1 ${
                 showTrafficOverlay
                   ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs"
-                  : "bg-surface-container hover:bg-surface-container-high text-surface-on border-surface-container"
+                  : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 shadow-2xs"
               }`}
             >
               <span>🚦</span>
@@ -900,7 +900,7 @@ export function RoutePlanner() {
             <button
               type="button"
               onClick={() => setShowReportForm(true)}
-              className="px-2.5 py-1 rounded-full bg-surface-container hover:bg-surface-container-high text-surface-on border border-surface-container transition whitespace-nowrap text-[11px] font-semibold flex items-center gap-1"
+              className="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition whitespace-nowrap text-[11px] font-semibold flex items-center gap-1 shadow-2xs"
             >
               <span>📢</span>
               <span>Report Hazard</span>
@@ -911,7 +911,7 @@ export function RoutePlanner() {
 
       {/* Google Maps Style Expandable Bottom Sheet */}
       <aside
-        className={`absolute bottom-0 inset-x-0 sm:left-4 sm:bottom-4 sm:inset-x-auto sm:w-[420px] z-20 flex flex-col bg-surface/95 dark:bg-slate-900/95 backdrop-blur-md rounded-t-3xl sm:rounded-2xl border border-surface-container shadow-2xl overflow-hidden pointer-events-auto transition-all duration-300 ease-in-out ${
+        className={`absolute bottom-0 inset-x-0 sm:left-4 sm:bottom-4 sm:inset-x-auto sm:w-[420px] z-20 flex flex-col bg-white/95 backdrop-blur-md rounded-t-3xl sm:rounded-2xl border border-slate-200/90 shadow-2xl overflow-hidden pointer-events-auto transition-all duration-300 ease-in-out ${
           isDrawerExpanded
             ? "max-h-[75vh] sm:max-h-[calc(100vh-220px)]"
             : "max-h-[145px]"
@@ -920,40 +920,40 @@ export function RoutePlanner() {
         {/* Drag Handle & Summary Row (Always Visible) */}
         <div
           onClick={() => setIsDrawerExpanded((prev) => !prev)}
-          className="p-3 pb-2.5 border-b border-surface-container/60 cursor-pointer select-none bg-surface-container-low/40 hover:bg-surface-container-low/70 transition"
+          className="p-3 pb-2.5 border-b border-slate-200/80 cursor-pointer select-none bg-slate-50/80 hover:bg-slate-100/80 transition"
         >
           {/* Visual Drag Handle Bar */}
-          <div className="w-10 h-1.5 rounded-full bg-surface-on-variant/30 mx-auto mb-2" />
+          <div className="w-10 h-1.5 rounded-full bg-slate-300 mx-auto mb-2" />
 
           {/* Quick Route Peek View */}
           <div className="flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-baseline gap-2 flex-wrap">
-                <span className="text-2xl font-black text-primary tracking-tight">
+                <span className="text-2xl font-black text-emerald-700 tracking-tight">
                   {activeRoute ? formatRouteDuration(activeRoute.duration_s) : "..."}
                 </span>
-                <span className="text-xs font-semibold text-surface-on-variant">
+                <span className="text-xs font-semibold text-slate-600">
                   {activeRoute ? formatRouteDistance(activeRoute.distance_m) : ""}
                 </span>
                 {activeRoute?.is_recommended && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300">
                     ★ Recommended
                   </span>
                 )}
                 {activeRoute?.avoids_incident && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300">
                     Detour Active
                   </span>
                 )}
               </div>
-              <p className="text-xs font-medium text-surface-on-variant truncate m-0 mt-0.5">
+              <p className="text-xs font-medium text-slate-600 truncate m-0 mt-0.5">
                 {activeRoute?.name ?? "Calculating best route..."} · free-flow
               </p>
             </div>
 
             {/* Expand / Collapse Control Button */}
             <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-xs font-bold text-primary flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-primary/10">
+              <span className="text-xs font-bold text-emerald-800 flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200">
                 <span>{routes.length} options</span>
                 <span>{isDrawerExpanded ? "▼" : "▲"}</span>
               </span>
@@ -962,7 +962,7 @@ export function RoutePlanner() {
 
           {/* Compact Hazard Alert Strip in Peek State if route intersects hazard */}
           {selectedRouteWarnings.length > 0 && !activeRoute?.avoids_incident && !isDrawerExpanded && (
-            <div className="mt-2 flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-900 text-xs">
+            <div className="mt-2 flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-950 text-xs">
               <div className="flex items-center gap-1.5 truncate">
                 <span>⚠️</span>
                 <span className="truncate font-medium">Passes near {selectedRouteWarnings[0].label} ({selectedRouteWarnings[0].distance_to_route_m}m)</span>
@@ -1144,8 +1144,8 @@ export function RoutePlanner() {
           {routes.length > 0 && (
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-[11px] font-bold text-surface-on-variant uppercase tracking-wider">Calculated Routes</span>
-                <span className="text-[10px] text-surface-on-variant font-medium">{routes.length} options</span>
+                <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wider">Calculated Routes</span>
+                <span className="text-[10px] text-slate-500 font-medium">{routes.length} options</span>
               </div>
               {routes.map((r, index) => {
                 const isSelected = r.id === (selectedRouteId ?? routes[0]?.id);
@@ -1153,34 +1153,34 @@ export function RoutePlanner() {
                   <div
                     key={r.id}
                     onClick={() => setSelectedRouteId(r.id)}
-                    className={`p-3 rounded-xl border transition cursor-pointer space-y-1.5 shadow-xs ${
+                    className={`p-3 rounded-xl border transition cursor-pointer space-y-1.5 shadow-2xs ${
                       isSelected
-                        ? "bg-primary/5 border-primary shadow-sm"
-                        : "bg-surface-container-lowest border-surface-container hover:bg-surface-container-low"
+                        ? "bg-emerald-50/60 border-2 border-emerald-600 shadow-sm"
+                        : "bg-white border border-slate-200 hover:bg-slate-50"
                     }`}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-surface-on flex items-center gap-1.5">
-                        {r.is_recommended && <span className="text-primary font-bold">★ Recommended</span>}
-                        {!r.is_recommended && <span className="text-surface-on-variant">Option {index + 1}</span>}
+                      <span className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                        {r.is_recommended && <span className="text-emerald-700 font-bold">★ Recommended</span>}
+                        {!r.is_recommended && <span className="text-slate-600 font-semibold">Option {index + 1}</span>}
                       </span>
                       {r.avoids_incident && (
-                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-300">
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300">
                           Detour Active
                         </span>
                       )}
                     </div>
 
                     <div className="flex items-baseline gap-2.5">
-                      <span className="text-xl font-bold text-surface-on">
+                      <span className="text-xl font-bold text-slate-900">
                         {formatRouteDuration(r.duration_s)}
                       </span>
-                      <span className="text-xs font-medium text-surface-on-variant">
+                      <span className="text-xs font-medium text-slate-600">
                         {formatRouteDistance(r.distance_m)}
                       </span>
                     </div>
 
-                    <p className="text-xs text-surface-on-variant leading-tight m-0">
+                    <p className="text-xs text-slate-600 leading-tight m-0">
                       {r.name} · free-flow estimate
                     </p>
 
@@ -1194,7 +1194,7 @@ export function RoutePlanner() {
                     )}
 
                     {isSelected && (
-                      <div className="pt-2 border-t border-surface-container flex flex-col gap-2">
+                      <div className="pt-2 border-t border-slate-200 flex flex-col gap-2">
                         <div className="flex items-center justify-between">
                           <button
                             type="button"
@@ -1202,14 +1202,14 @@ export function RoutePlanner() {
                               e.stopPropagation();
                               setShowCoordinatesId(showCoordinatesId === r.id ? null : r.id);
                             }}
-                            className="text-[11px] font-medium text-primary hover:underline flex items-center gap-1"
+                            className="text-[11px] font-semibold text-emerald-700 hover:underline flex items-center gap-1"
                           >
                             <span>📍</span>
                             <span>{showCoordinatesId === r.id ? "Hide Road Coordinates" : `View ${r.geometry.coordinates.length} Road Coordinates`}</span>
                           </button>
                           <Link
                             href={`/workspace?corridor=${encodeURIComponent(r.name)}`}
-                            className="text-xs font-semibold px-3 py-1 rounded-lg bg-primary text-primary-on hover:opacity-90 transition shadow-xs"
+                            className="text-xs font-semibold px-3 py-1 rounded-lg bg-emerald-700 text-white hover:bg-emerald-800 transition shadow-2xs"
                             onClick={(e) => e.stopPropagation()}
                           >
                             Track this journey →
@@ -1218,10 +1218,10 @@ export function RoutePlanner() {
 
                         {showCoordinatesId === r.id && (
                           <div
-                            className="p-2.5 rounded-xl bg-surface-container-low text-xs border border-surface-container space-y-2 mt-1"
+                            className="p-2.5 rounded-xl bg-slate-50 text-xs border border-slate-200 space-y-2 mt-1"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <div className="flex items-center justify-between text-[11px] font-semibold text-surface-on">
+                            <div className="flex items-center justify-between text-[11px] font-semibold text-slate-800">
                               <span>Coordinate Vertices ({r.geometry.coordinates.length} points)</span>
                               <button
                                 type="button"
@@ -1230,22 +1230,22 @@ export function RoutePlanner() {
                                   setCopiedCoords(true);
                                   setTimeout(() => setCopiedCoords(false), 2000);
                                 }}
-                                className="text-[10px] px-2 py-0.5 rounded bg-surface-container hover:bg-surface text-primary font-mono border"
+                                className="text-[10px] px-2 py-0.5 rounded bg-white hover:bg-slate-100 text-slate-700 font-mono border border-slate-200"
                               >
                                 {copiedCoords ? "✓ Copied!" : "Copy GeoJSON"}
                               </button>
                             </div>
-                            <div className="max-h-36 overflow-y-auto font-mono text-[10px] space-y-1 bg-surface/70 p-2 rounded-lg border border-surface-container/60">
+                            <div className="max-h-36 overflow-y-auto font-mono text-[10px] space-y-1 bg-white p-2 rounded-lg border border-slate-200">
                               <div className="text-emerald-700 font-bold">
                                 [Start] {r.geometry.coordinates[0][0].toFixed(5)}° E, {r.geometry.coordinates[0][1].toFixed(5)}° N
                               </div>
                               {r.geometry.coordinates.slice(1, -1).slice(0, 15).map((coord, idx) => (
-                                <div key={idx} className="text-surface-on-variant pl-2">
+                                <div key={idx} className="text-slate-600 pl-2">
                                   #{idx + 2} {coord[0].toFixed(5)}° E, {coord[1].toFixed(5)}° N
                                 </div>
                               ))}
                               {r.geometry.coordinates.length > 17 && (
-                                <div className="text-[10px] italic text-surface-on-variant pl-2">
+                                <div className="text-[10px] italic text-slate-500 pl-2">
                                   … +{r.geometry.coordinates.length - 17} intermediate road vertices …
                                 </div>
                               )}
@@ -1267,25 +1267,25 @@ export function RoutePlanner() {
 
       {/* Floating Selected Incident Card (Bottom-Right) */}
       {selectedIncident && (
-        <section className="absolute bottom-40 sm:bottom-6 right-4 sm:right-6 z-20 w-[calc(100vw-2rem)] sm:w-96 bg-surface/95 backdrop-blur-md rounded-2xl border border-surface-container shadow-2xl p-4 space-y-2.5 pointer-events-auto" aria-labelledby="selected-incident-title">
+        <section className="absolute bottom-40 sm:bottom-6 right-4 sm:right-6 z-20 w-[calc(100vw-2rem)] sm:w-96 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-2xl p-4 space-y-2.5 pointer-events-auto" aria-labelledby="selected-incident-title">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
-              <p className="text-[10px] font-mono text-surface-on-variant">SELECTED MAP INCIDENT</p>
-              <h3 id="selected-incident-title" className="text-base font-bold text-surface-on flex items-center gap-1.5 mt-0.5">
+              <p className="text-[10px] font-mono text-slate-500">SELECTED MAP INCIDENT</p>
+              <h3 id="selected-incident-title" className="text-base font-bold text-slate-900 flex items-center gap-1.5 mt-0.5">
                 <span>{reportCategoryIcons[selectedIncident.category]}</span>
                 <span>{reportCategories[selectedIncident.category]}</span>
               </h3>
             </div>
-            <button type="button" className="text-xs text-surface-on-variant hover:text-surface-on p-1" onClick={() => setSelectedIncidentId(null)} aria-label="Close">✕</button>
+            <button type="button" className="text-xs text-slate-500 hover:text-slate-900 p-1" onClick={() => setSelectedIncidentId(null)} aria-label="Close">✕</button>
           </div>
           <dl className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs m-0">
-            <div><dt className="text-surface-on-variant">Verification</dt><dd className="font-semibold text-surface-on mt-0.5">{selectedIncident.level} · {selectedIncident.provenance}</dd></div>
-            <div><dt className="text-surface-on-variant">Reports</dt><dd className="font-semibold text-surface-on mt-0.5">{selectedIncident.report_count}</dd></div>
-            <div><dt className="text-surface-on-variant">Reported</dt><dd className="font-semibold text-surface-on mt-0.5">{formatIncidentTime(selectedIncident.first_reported_at)} IST</dd></div>
-            <div><dt className="text-surface-on-variant">Status</dt><dd className="font-semibold text-surface-on mt-0.5 capitalize">{selectedIncident.status}</dd></div>
+            <div><dt className="text-slate-500">Verification</dt><dd className="font-semibold text-slate-900 mt-0.5">{selectedIncident.level} · {selectedIncident.provenance}</dd></div>
+            <div><dt className="text-slate-500">Reports</dt><dd className="font-semibold text-slate-900 mt-0.5">{selectedIncident.report_count}</dd></div>
+            <div><dt className="text-slate-500">Reported</dt><dd className="font-semibold text-slate-900 mt-0.5">{formatIncidentTime(selectedIncident.first_reported_at)} IST</dd></div>
+            <div><dt className="text-slate-500">Status</dt><dd className="font-semibold text-slate-900 mt-0.5 capitalize">{selectedIncident.status}</dd></div>
           </dl>
           {selectedIncident.photo_data_url && (
-            <div className="rounded-lg overflow-hidden border border-surface-container bg-surface-container-low">
+            <div className="rounded-lg overflow-hidden border border-slate-200 bg-slate-50">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={selectedIncident.photo_data_url}
@@ -1298,11 +1298,11 @@ export function RoutePlanner() {
               </div>
             </div>
           )}
-          <p className="text-xs text-surface-on-variant m-0">{selectedIncident.level_reason}</p>
-          <p className="text-[11px] text-surface-on-variant m-0">This open incident expires if it receives no new confirmation by {formatIncidentTime(new Date(Date.parse(selectedIncident.last_confirmed_at) + 3 * 60 * 60 * 1000).toISOString())} IST.</p>
+          <p className="text-xs text-slate-600 m-0">{selectedIncident.level_reason}</p>
+          <p className="text-[11px] text-slate-500 m-0">This open incident expires if it receives no new confirmation by {formatIncidentTime(new Date(Date.parse(selectedIncident.last_confirmed_at) + 3 * 60 * 60 * 1000).toISOString())} IST.</p>
 
-          <div className="pt-2.5 border-t border-surface-container flex flex-wrap items-center justify-between gap-2">
-            <span className="text-[11px] font-medium text-surface-on-variant">
+          <div className="pt-2.5 border-t border-slate-200 flex flex-wrap items-center justify-between gap-2">
+            <span className="text-[11px] font-medium text-slate-700">
               {selectedRouteWarnings.some((w) => w.id === selectedIncident.id)
                 ? (recalculateError
                     ? "🚫 No alternative route exists around this bottleneck."
@@ -1339,8 +1339,8 @@ export function RoutePlanner() {
             onClick={() => setShowTrafficOverlay((prev) => !prev)}
             className={`px-3 py-1.5 rounded-xl backdrop-blur border shadow-md text-xs font-semibold flex items-center gap-1.5 transition ${
               showTrafficOverlay
-                ? "bg-primary text-primary-on border-primary"
-                : "bg-surface/95 border-surface-container text-surface-on hover:bg-surface-container"
+                ? "bg-emerald-700 text-white border-emerald-700"
+                : "bg-white/95 border-slate-200 text-slate-800 hover:bg-slate-100"
             }`}
             title="Toggle central traffic corridor overlay"
           >
@@ -1364,7 +1364,7 @@ export function RoutePlanner() {
                 mapRef.current?.flyTo({ center: [74.856, 12.870], zoom: 13, duration: 800 });
               }
             }}
-            className="px-3 py-1.5 rounded-xl bg-surface/95 backdrop-blur border border-surface-container shadow-md text-xs font-semibold text-surface-on hover:bg-surface-container flex items-center gap-1.5"
+            className="px-3 py-1.5 rounded-xl bg-white/95 backdrop-blur border border-slate-200 shadow-md text-xs font-semibold text-slate-800 hover:bg-slate-100 flex items-center gap-1.5"
             title="Recenter route view"
           >
             <span>🎯</span>
@@ -1372,7 +1372,7 @@ export function RoutePlanner() {
           </button>
         </div>
 
-        <div className="text-[11px] bg-surface/90 backdrop-blur px-3 py-1.5 rounded-xl border border-surface-container shadow-xs flex flex-wrap items-center gap-2.5 text-surface-on-variant">
+        <div className="text-[11px] bg-white/95 backdrop-blur px-3 py-1.5 rounded-xl border border-slate-200 shadow-xs flex flex-wrap items-center gap-2.5 text-slate-700">
           <span className="flex items-center gap-1">
             <span className="w-2.5 h-1 bg-blue-600 rounded" />
             <span>Recommended</span>
@@ -1394,7 +1394,7 @@ export function RoutePlanner() {
             </>
           )}
           <span>·</span>
-          <a href="/map-notices.txt" target="_blank" rel="noreferrer" className="hover:underline">Notices</a>
+          <a href="/map-notices.txt" target="_blank" rel="noreferrer" className="hover:underline text-slate-600">Notices</a>
         </div>
       </div>
 
