@@ -157,7 +157,7 @@ $$\text{Candidate Coordinate} = \left(\lambda_i + \Delta\lambda_{\text{offset}},
 ### 4.4. Road Network Snapping (Hidden Markov Model / KD-Tree Nearest Neighbor)
 Raw radial coordinates could land on water (Arabian Sea, Netravati River), buildings, or steep cliffs.
 The engine invokes OSRM `/nearest`:
-$$\text{SnappedNode} = \text{OSRM\_Nearest}(\text{CandidateCoord})$$
+$$\text{SnappedNode} = \operatorname{Nearest}_{\text{OSRM}}(\text{CandidateCoord})$$
 - Evaluates closest drivable road segment edge in the OpenStreetMap road graph.
 - Discards candidates with snapping distance $> 350\text{m}$ (off-road or inaccessible).
 
@@ -207,11 +207,11 @@ The underlying routing solver inside the OSRM Docker container executes **Contra
 ### 4.7. Multi-Objective Detour Scoring & Ranking Function
 When multiple road detours safely clear the incident exclusion zone, the engine must select the globally optimal alternative without routing the commuter into secondary traffic jams. The candidate ranking score is evaluated via an objective penalty function:
 
-$$\mathcal{J}(R) = T_{\text{duration}}(R) + \omega_{\text{hazard}} \cdot N_{\text{secondary\_hazards}}(R)$$
+$$\mathcal{J}(R) = T_{\text{duration}}(R) + \omega_{\text{hazard}} \cdot N_{\text{hazards}}(R)$$
 
 Where:
 - $T_{\text{duration}}(R)$ is the estimated travel time in seconds for detour route $R$.
-- $N_{\text{secondary\_hazards}}(R)$ is the count of other verified active incidents (levels L3, L5, L6) within 200m of route $R$.
+- $N_{\text{hazards}}(R)$ is the count of other verified active incidents (levels L3, L5, L6) within 200m of route $R$.
 - $\omega_{\text{hazard}} = 600\text{ seconds}$ (a heavy 10-minute penalty per secondary hazard, strictly prioritizing hazard-free routes over minor travel time savings).
 - **Optimal Detour Selection:**
   $$R^* = \arg\min_{R \in \mathcal{R}_{\text{valid}}} \mathcal{J}(R)$$
@@ -251,8 +251,8 @@ In cases where direct topological alternatives around an obstacle fail or OSRM r
 | **Spatial Hazard Scan** | Discrete Vertex Haversine Scan | $\mathcal{O}(N_{\text{incidents}} \cdot N_{\text{vertices}})$ | $\mathcal{O}(1)$ | $< 0.8\text{ ms}$ |
 | **Bypass Candidates** | Polar Vector Rotation & Projection | $\mathcal{O}(K_{\text{radii}} \cdot K_{\text{angles}})$ | $\mathcal{O}(K)$ | $< 0.2\text{ ms}$ |
 | **Road Snapping** | OSRM R-Tree / KD-Tree Nearest Search | $\mathcal{O}(\log \|\mathcal{V}\|)$ | $\mathcal{O}(1)$ | $3 - 8\text{ ms}$ |
-| **Detour Clearance** | `routeClearsObstacle` Trajectory Math | $\mathcal{O}(N_{\text{detour\_vertices}})$ | $\mathcal{O}(1)$ | $< 0.4\text{ ms}$ |
-| **Detour Cost Scoring** | Multi-Objective Penalty Function $\mathcal{J}(R)$ | $\mathcal{O}(K_{\text{valid\_detours}})$ | $\mathcal{O}(1)$ | $< 0.05\text{ ms}$ |
+| **Detour Clearance** | `routeClearsObstacle` Trajectory Math | $\mathcal{O}(N_{\text{vertices}})$ | $\mathcal{O}(1)$ | $< 0.4\text{ ms}$ |
+| **Detour Cost Scoring** | Multi-Objective Penalty Function $\mathcal{J}(R)$ | $\mathcal{O}(K_{\text{detours}})$ | $\mathcal{O}(1)$ | $< 0.05\text{ ms}$ |
 | **Corridor Expansion** | Parallel NH66 / Arterial Corridor Fallback | $\mathcal{O}(M_{\text{corridors}} \cdot T_{\text{OSRM}})$ | $\mathcal{O}(M)$ | $4 - 10\text{ ms}$ |
 | **Total Engine Budget** | End-to-End Dynamic Avoidance Pipeline | — | — | **$< 25\text{ ms}$** |
 

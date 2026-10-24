@@ -1,5 +1,15 @@
 # Project Progress
 
+## Technical Routing Architecture Documentation & KaTeX Math Formulations — verified, 24 Oct 2026
+
+- **Context & Scope:**
+  - Authored comprehensive route planning and dynamic detour engine specification in `docs/routing-and-rerouting-flow.md`.
+  - Detailed 5W1H matrix, end-to-end decision flowchart, sequence lifecycle diagram, and complete mathematical formulations (Haversine geodesic, point-to-polyline buffer scans, polar vector generator, OSRM road snapping, departure clearance trajectory math, multi-objective detour cost penalty scoring, delta metrics, and parallel arterial corridor expansion).
+  - Resolved KaTeX underscore formatting in math mode to ensure clean rendering.
+- **Verification Evidence:**
+  - Inspected LaTeX math syntax across all equations and verified zero math rendering errors.
+  - Inspected flowchart and sequence diagrams in Mermaid syntax.
+
 ## Mobile Expo Bundler Dependency Mismatch & Route Export Fix — verified, 24 Oct 2026
 
 - **Root Cause & Diagnosis:**
