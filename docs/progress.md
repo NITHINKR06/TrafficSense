@@ -1,5 +1,44 @@
 # Project Progress
 
+## Universal Layout Zoom-Stretch Fix, Color Palette Alignment, and Complete Emoji-to-SVG Icon Replacement — verified, 24 Oct 2026
+
+- **Context & User Request:**
+  - Resolve the persistent layout zooming/stretching bug where pages initially zoomed or stretched out full-width before refresh and reset to default width upon hard refresh across routes.
+  - Scan the entire application and replace all emojis with crisp, professional SVG icons.
+  - Correct the color palette according to `docs/design/trafficsense/DESIGN.md` (warm amber warning/secondary tokens, accessible contrast, teal primary).
+  - Strictly preserve all existing application logic, verification pipelines, and routing behavior ("no change in any other ui or logic and etc push to new branch in onc-done repo").
+- **Scope & Fixes:**
+  - **Layout Zoom/Stretch Invalidation Bug (`apps/web/src/app/globals.css`, `app-shell.tsx`, `layout.tsx`):**
+    - Diagnosed root cause: `globals.css` used `body:has([data-fullscreen="true"]) .site-main { width: 100%; margin: 0; padding: 0; }`. In Chromium, unmounting `[data-fullscreen="true"]` during Next.js SPA client-side route transitions (e.g. navigating from `/traffic` or `/planner` to `/report` or `/`) failed to invalidate ancestor `:has()` selectors in the style cache, keeping `.site-main` at 100% width until a hard page reload (F5).
+    - Introduced client-side `<AppShell>` component reading pathname via `usePathname()` to synchronously apply explicit `.site-main--fullscreen` (for `/traffic`, `/planner`) and `.site-main--wide` (for `/authority`), and conditionally render `<footer className="site-footer">`.
+    - Removed `body:has([data-fullscreen="true"])` selector from `globals.css`.
+  - **Color Palette Alignment (`apps/web/src/app/globals.css`):**
+    - Aligned CSS color tokens with `docs/design/trafficsense/DESIGN.md`:
+      - Primary: `#0f766e` (Deep Teal).
+      - Secondary: `#d97706` (Amber Accent replacing muddy brown `#904d00`).
+      - Secondary Container: `#fef3c7` (Soft Light Amber).
+      - Warning / On-Container: High contrast accessible amber tones (`#78350f` / `#d97706`).
+      - Error: `#dc2626` (Accessible Red).
+  - **Universal SVG Icon System (`apps/web/src/components/icons/`):**
+    - `incident-icons.tsx`: Dedicated vector iconography for all 17 incident categories (`IncidentIcon` React component + `getIncidentSvgString` HTML generator for MapLibre/Leaflet marker pins and popups).
+    - `ui-icons.tsx`: High-performance Lucide-styled SVGs (`MapPinIcon`, `CrosshairIcon`, `RefreshIcon`, `ClockIcon`, `RulerIcon`, `RouteIcon`, `StarIcon`, `BanIcon`, `AlertTriangleIcon`, `MegaphoneIcon`, `CheckCircleIcon`, `XCircleIcon`, `CameraIcon`, `SpinnerIcon`, `ZapIcon`, `ShieldCheckIcon`, `TrafficLightIcon`, `MapIcon`, `XIcon`).
+  - **Complete Emoji Removal Across All Screens:**
+    - `rules.ts` & `incident-cause.ts`: String-based category tokens (`accident`, `road_repair`, etc.) preserved contract for tests while components render crisp SVGs.
+    - `route-comparison-bar.tsx`: Replaced `⚡` with `ZapIcon`.
+    - `traffic-explorer.tsx` & `traffic-map.tsx`: Replaced MapLibre marker emojis with inline SVG pins and incident drawer emojis with SVG icons.
+    - `route-planner.tsx`: Replaced emojis in origin/destination pickers, swap button, filter pills, hazard alerts, modal controls, and drawer cards with SVG icons.
+    - `web-report-screen.tsx`: Replaced map pin, category selector, and success state emojis with SVG icons.
+    - `l5-photo-panel.tsx`: Replaced camera, rejection banners, and forensic checkmarks with SVG icons.
+    - `hotspot-map.tsx`: Replaced live incident emojis, map popup emojis, reset view `⟲`, and fullscreen toggle with SVG icons.
+    - `authority-dashboard.tsx`: Replaced toolbar actions, notice icons, tab emojis (`📊`, `🗺️`, `🚨`, `🗓️`, `📜`), KPI card emojis, and layout toggle emojis with SVGs.
+    - `incident-review-panel.tsx`: Replaced real-time spotted alerts, notification titles, camera tags, and category labels with SVGs.
+    - `admin/page.tsx`: Replaced table emojis with `IncidentIcon`, `CheckCircleIcon`, and `ClockIcon`.
+    - `about/page.tsx`: Replaced unicode symbols and search emoji with SVGs.
+- **Verification Evidence:**
+  - Regex emoji scan: Confirmed **0 emojis remaining** across all files in `apps/web/src`.
+  - Node unit tests: Passed all 40 tests across core suites (`analytics.test.mjs`, `reports.test.mjs`, `routing.test.mjs`, `verification-ladder.test.mjs`, `reroute.test.mjs`, `spread.test.mjs`, `incident-cause.test.mjs`).
+  - Strict preservation of all business logic, routing calculations, and Supabase RPC schemas.
+
 ## Restoration and Reconciliation of 2-Layer AI Vision Forensics, OSM Hotspot Analytics, Photo Evidence Display, and Routing Clearance — verified, 24 Oct 2026
 
 - **Context:**
