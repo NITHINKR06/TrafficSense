@@ -81,6 +81,8 @@ export type SubmitIncidentInput = {
   /** True when the client obtained a genuine L5 AI vision result for an attached photo. */
   l5_verified?: boolean;
   l5_summary?: string | null;
+  l5_photo_data_url?: string | null;
+  l5_confidence_tier?: string | null;
   reporter_email?: string | null;
 };
 
@@ -131,6 +133,8 @@ export async function submitIncidentReport(
     const { data: promoted, error: promoteError } = await supabase.rpc("apply_incident_photo_verification", {
       p_incident_id: result.incident_id,
       p_summary: input.l5_summary ?? null,
+      p_photo_data_url: input.l5_photo_data_url ?? null,
+      p_confidence_tier: input.l5_confidence_tier ?? "moderate",
     });
     if (!promoteError && promoted?.ok) {
       finalLevel = "L5";

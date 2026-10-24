@@ -13,19 +13,18 @@ default:
 list:
     @just --list
 
-# Start development environment (Supabase backend + seed + web + mobile)
+# Start development environment (Supabase backend + seed only if uninitialized + web + mobile)
 up:
     just db-start
-    @echo "==> Seeding synthetic test accounts..."
-    just db-seed
+    just db-seed-if-empty
     docker compose up --build -d app
     just mobile-up
     @echo "==> Ready! Web: http://localhost:3000 | Expo: exp://127.0.0.1:8081"
 
-# Start only the web app (starts local Supabase and synthetic seed first)
+# Start only the web app (starts local Supabase and seeds only if uninitialized)
 web-up:
     just db-start
-    just db-seed
+    just db-seed-if-empty
     docker compose up --build -d app
     @echo "==> Web app ready at http://localhost:3000"
 
@@ -110,6 +109,10 @@ shell service="app":
 # Start local Supabase backend
 db-start:
     bash scripts/local-supabase.sh start
+
+# Seed local Supabase backend only if uninitialized
+db-seed-if-empty:
+    bash scripts/local-supabase.sh seed-if-empty
 
 # Seed local Supabase backend with synthetic accounts and demo data
 db-seed:
