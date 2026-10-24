@@ -1373,4 +1373,19 @@ For each bounded task, record: goal/source module and exclusions; dependencies a
   - Node fetch `GET http://localhost:3000/planner`: Returned HTTP 200.
   - `git diff --check`: Passed with 0 whitespace or formatting issues.
 
+## Mobile OS Push Notifications with expo-notifications — verified, 24 Oct 2026
+
+- **Scope:** Added phone system tray and lockscreen OS notifications to `@trafficsense/mobile` using `expo-notifications`. When logged in as Traffic Authority, newly spotted incidents and verified photo evidence ring the phone and display actionable notifications in the Android/iOS notification drawer.
+- **Implementation:**
+  - Installed `expo-notifications` (`^58.1.6`) in `@trafficsense/mobile` via Docker pnpm.
+  - `apps/mobile/src/lib/notifications.ts`: Configured global foreground notification behavior (`shouldShowBanner: true`, `shouldShowList: true`, `shouldPlaySound: true`, `shouldSetBadge: true`). Added Android channel configuration (`importance: AndroidImportance.MAX`, vibration pattern, sound, badge). Added `dispatchLocalAuthorityNotification(item)` scheduling immediate heads-up alerts with incident category, landmark, and photo evidence indicators. Added `setupNotificationResponseListener` to handle notification taps.
+  - `apps/mobile/app/authority.tsx`: Integrated notification permission request on authority session mount and wired `dispatchLocalAuthorityNotification(newest)` into the 4-second heartbeat poller.
+- **Verification:**
+  - `docker compose exec -T app pnpm --filter @trafficsense/mobile typecheck`: 0 TypeScript errors.
+  - `docker compose exec -T app pnpm lint:mobile`: 0 ESLint errors.
+  - `docker compose exec -T app sh -c "cd apps/web && pnpm exec tsc --noEmit"`: 0 TypeScript errors.
+  - `docker compose exec -T app pnpm test`: All 239 unit tests pass across 11 suites with 0 failures.
+  - `git diff --check`: Clean formatting, 0 errors.
+
+
 
