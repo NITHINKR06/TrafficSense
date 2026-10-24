@@ -1,263 +1,192 @@
 # Project Progress
 
-## Route Planner Auto-Refresh on Dropdown Change and Origin Hazard Departure Clearance — verified, 24 Oct 2026
+## Authority Real-time Push Notification Engine (Incident Spotted + Photo Evidence Alert) — verified, 24 Oct 2026
 
-- **Issue:**
-  1. On `/planner`, when changing origin or destination in the dropdown (e.g. from Hampankatta Junction to Mangalore International Airport), the map retained the previously calculated route (e.g. Kadri Manjunatha Temple, 3.1 km) because `<select>` `onChange` only updated state without triggering `fetchRoutes()`. This caused a severe visual and calculation mismatch where the destination was set to Airport in UI, but the map and detour calculations operated on mismatched endpoints.
-  2. Commuters starting from or departing areas near an incident (e.g. Hampankatta Junction, where an incident was located 210m away and initial one-way road alignment passed 159m away before heading north) were erroneously met with `"No Alternative Route Available: No street detour can safely clear this bottleneck"`. The detour search hardcoded `minDistanceToRoute < exclusionRadiusM` across the entire polyline, rejecting valid detours that were safely moving away from the obstacle.
-- **Root Cause:**
-  1. In `apps/web/src/components/routing/route-planner.tsx`, `start-select` and `dest-select` `onChange` handlers only invoked `setStartIndex` / `setDestIndex` without dispatching `fetchRoutes()`.
-  2. In `apps/web/src/lib/routing/reroute.ts`, `calculateDetourRoute` checked `minDistanceToRoute(blockedIncident.point, coords) < exclusionRadiusM` globally without taking into account initial departure clearance. A car starting 210m away from an incident whose exit street curves at 159m was rejected even though its trajectory led 15 km away to the destination and never penetrated the core hazard zone.
-- **Implementation:**
-  - `apps/web/src/lib/routing/reroute.ts`:
-    - Implemented and exported `routeClearsObstacle(routeCoords, obstaclePoint, exclusionRadiusM, startPoint, destPoint)`:
-      - Normal clearance: if both origin and destination are outside the exclusion zone (`> exclusionRadiusM + 25m`), enforces full `minDistanceM >= exclusionRadiusM`.
-      - Departure clearance: if origin or destination is in the vicinity of the hazard, ensures: (1) route never penetrates the core hazard impact epicenter (`< 40m`), (2) route does not get significantly closer than the starting position (`baselineDist - 60m`), and (3) once past the initial 250m departure segment, route strictly stays outside the exclusion zone.
-    - Integrated `routeClearsObstacle` into `calculateDetourRoute` candidate polyline validation loop.
-  - `apps/web/src/components/routing/route-planner.tsx`:
-    - Updated `start-select` and `dest-select` `onChange` handlers to immediately call `fetchRoutes(newCoords)` and reset `activeDetour(null)` and `recalculateError(null)`.
-    - Updated "Reset" buttons on GPS/custom start fix and "Find Best Route" button to reset `activeDetour` and `recalculateError` for a fresh calculation.
-  - `tests/reroute.test.mjs`:
-    - Added unit tests for `routeClearsObstacle` verifying that safe departing trajectories away from a hazard zone are approved while paths plunging into the hazard core are strictly rejected.
-- **Verification:**
-  - `docker compose exec app pnpm test`: Passed (**237/237** tests across 11 suites, including new departure clearance test).
-  - `docker compose exec app sh -c "cd apps/web && pnpm exec tsc --noEmit"`: 0 errors.
-  - `docker compose exec app sh -c "cd apps/web && pnpm exec eslint src/lib/routing/reroute.ts src/components/routing/route-planner.tsx"`: 0 errors.
-  - End-to-end endpoint verification: Hampankatta -> Mangalore Airport now correctly fetches 2 full alternative routes (16.3 km and 15.2 km) and successfully recalculates dynamic detour routes around obstacles (e.g. via Sri Kuruamba Temple road / KS Rao Road) without false "No Alternative Route Available" errors.
-
-## Route Planner Side Panel UI Styling and Traffic Corridor Overlay Filter — verified, 23 Oct 2026
-
-- **Issue:**
-  1. On `/planner`, a thick green polyline loop was drawn permanently across the city of Mangaluru, cutting straight through city blocks without any explanation in the legend or any toggle, confusing commuters who mistook it for a recommended detour or an unintended flight path.
-  2. The "City Route Intelligence" side panel suffered from severe dark-mode color clashes (harsh pitch-black/maroon boxes inside a pale surface), triple-redundant stacked hazard warnings, cramped origin controls, and unpolished dropdowns and buttons.
-- **Root Cause:**
-  1. `RoutePlanner` fetched `/api/traffic` containing the 5 simulated schematic demonstration corridor segments (`primary-west`, `primary-east`, etc.) and rendered them unconditionally. When traffic was normal, `severity: "clear"` was rendered as `#059669` (7px green polyline, 0.48 opacity), without being referenced in the legend or providing a layer toggle.
-  2. The side panel used hardcoded Tailwind `dark:bg-*-950` overrides inside a light container (`bg-surface/95`), which turned black when the user's OS or browser was in dark mode. Additionally, separate condition blocks for intersected hazards, lack of alternative routes, and road closures all stacked simultaneously, repeating the same message and recalculate button up to 4 times.
-- **Implementation:**
-  - `apps/web/src/components/routing/route-planner.tsx`:
-    - Added `showTrafficOverlay` state (defaulting to `false`) and a dedicated **"🚦 Corridor Traffic: On / Off"** toggle in the bottom-right map controls.
-    - Updated `renderRoutesOnMap` to filter out `clear` corridor segments when the overlay is off, so normal roads don't display intrusive schematic green loops while active slowdowns/incidents remain visible.
-    - Updated the map legend to dynamically reflect corridor conditions (`Corridor Clear`, `Slowdown`) when enabled.
-    - Harmonized all alert cards with the TrafficSense design reference (`--surface` and soft tinted alert backgrounds with dark high-contrast readable text), eliminating jarring dark-on-light theme clashes.
-    - Merged redundant warnings into a single high-impact Alert Card with clear hazard badges (`Verified` vs `Reported`) and primary recalculation actions.
-    - Streamlined the road closure notice into a compact, dismissible banner with `dismissRoadClosure` state.
-    - Polished Origin and Destination controls into tactile micro-pill buttons (`GPS`, `Pick on map`) and refined dropdown selects.
-  - `apps/web/src/components/traffic/traffic-explorer.tsx`:
-    - Removed `dark:bg-surface-dim/95` and discordant `dark:` badges from the `/traffic` "Mangaluru Live Traffic" drawer.
-    - Standardized incident level badges (`L3`–`L6` verified vs `L1`–`L2` reported) using clean, high-contrast tinted surface tokens (`bg-emerald-50`, `bg-amber-50`).
-    - Standardized filter chip active states to `bg-primary text-primary-on`.
-- **Verification:**
-  - `docker compose exec app pnpm test`: Passed (**236/236** tests across 11 suites).
-  - `docker compose exec app pnpm run lint`: 0 errors, 0 warnings.
-  - `docker compose exec app sh -c "cd apps/web && pnpm exec tsc --noEmit"`: 0 errors.
-  - `docker compose exec -e CI=1 app pnpm run build`: Production build succeeded in 1.36s (all 25 routes generated).
-  - Confirmed map on `/planner` no longer displays the unexplained green loop by default, corridor traffic can be toggled on demand with updated legend entries, and side panel alerts on both `/planner` and `/traffic` render with clean contrast and zero duplicate warnings.
-
-## Local Database Persistence, Idempotent Startup, and Extended Incident Retention — verified, 23 Oct 2026
-
-- **Issue:**
-  - Running `just up` or `just web-up` repeatedly wiped the local database back to default initial seed data. User-reported incidents, planned routes, custom corridor observations, and active login sessions disappeared across restarts, forcing commuters and administrators to re-login, re-report, and re-plan from scratch on every run.
-- **Root Cause:**
-  1. `just up`, `just web-up`, and `just _mobile-lan-run` in `justfile` unconditionally executed `just db-seed` on every startup.
-  2. `scripts/seed-demo.mjs` called `replace_traffic_demo` (which runs `DELETE FROM demo_traffic_corridors`), generated fresh random passwords (`randomBytes(24)`) that invalidated active sessions and rotated `demo-accounts.json`, and re-injected the 4 hardcoded demo reports.
-  3. In PostgreSQL, `read_active_live_incidents()` contained an aggressive 3-hour expiration timer (`last_confirmed_at < clock_timestamp() - interval '3 hours'`). Any user-reported incidents older than 3 hours were automatically transitioned to `status = 'expired'` and hidden from the map and route detour planner (`"Blocked incident to avoid was not found or has expired"`).
-- **Implementation:**
-  - `justfile`:
-    - Updated `up`, `web-up`, and `_mobile-lan-run` to call `just db-seed-if-empty` instead of unconditional `db-seed`.
-    - Added dedicated recipe `db-seed-if-empty:` pointing to `bash scripts/local-supabase.sh seed-if-empty`.
-    - Preserved `just db-seed` and `just db-reset` for explicit, manual database clean starts.
-  - `scripts/local-supabase.sh`:
-    - Added `seed-if-empty` case passing `--if-empty` to `seed-demo.mjs`.
-  - `scripts/seed-demo.mjs`:
-    - Added `--if-empty` check: if Supabase Auth contains users and `demo_traffic_corridors` contains data, it logs `Preserving existing accounts, corridors, and user reports` and exits with zero mutations.
-    - Added existing password preservation from `supabase/.temp/demo-accounts.json`: avoids rotating credentials for existing test accounts, keeping login sessions intact across restarts.
-  - `supabase/migrations/20261023000300_persistent_incidents_and_safe_lifecycle.sql`:
-    - Updated `read_active_live_incidents()` to use a 7-day expiration window (`interval '7 days'`) instead of 3 hours for local development, allowing commuter reports and detour testing to persist over multiple days.
-    - Restored existing reports that had been prematurely expired under the 3-hour timer back to `status = 'open'`.
-- **Verification:**
-  - `just db-seed-if-empty`: Confirmed output: `==> Database already initialized with synthetic data. Preserving existing accounts, corridors, and user reports.`
-  - `POST /api/incidents` & `GET /api/incidents`: 14 active incidents (including user-reported hazards) now returned.
-  - `docker compose exec app pnpm test`: Passed (**236/236** tests across 11 suites).
-  - `docker compose exec app sh -c "cd apps/web && pnpm exec tsc --noEmit"`: 0 errors.
-  - `docker compose exec app pnpm lint`: 0 errors.
-  - `docker compose exec -e CI=1 app pnpm build`: Production build succeeded in 1.55s (all 25 routes generated).
-
-## Fix Live Incident Marker Coordinates and Flow Stacking on /traffic — verified, 23 Oct 2026
-
-- **Issue:**
-  - On `/traffic` (`http://localhost:3000/traffic`), live incident pins did not appear at their exact reported GPS coordinates and drifted vertically downward ("comes down"). Every time `just up` or `just db-seed` ran, adding or confirming reports caused markers to shift further down on the screen, while other map pages (`/report`, `/planner`, `/authority`) showed markers accurately.
-- **Root Cause:**
-  1. In `apps/web/src/components/traffic/traffic.module.css`, `.liveIncidentMarker` was styled with `position: relative;`. Because MapLibre GL JS positions marker elements using `position: absolute; top: 0; left: 0; transform: translate(...)`, the CSS module's `position: relative` overrode MapLibre's `position: absolute`.
-  2. As relative block buttons in normal layout flow within the map container, each marker button occupied 42px of height and pushed every subsequent incident marker vertically down by `42px * index`. Running `just up` seeded additional synthetic reports, increasing the cumulative DOM offset and causing pins to drop further down the map.
-  3. Setting `button.style.transform = "scale(1.25)"` directly on the MapLibre marker element in `traffic-map.tsx` destroyed MapLibre's inline `translate(x, y)` coordinate positioning on selection, while `.liveIncidentMarker:hover` transform transition interfered with pan/zoom positioning.
-- **Implementation:**
-  - `apps/web/src/components/traffic/traffic.module.css`:
-    - Added `.liveIncidentWrapper` with `margin: 0; padding: 0; border: 0; background: transparent; width: 42px; height: 42px; pointer-events: auto;` to serve as MapLibre's positioned marker element.
-    - Removed `position: relative;` and `outline: none;` from `.liveIncidentMarker`.
-    - Added clean scoped `.liveIncidentMarker[data-selected="true"]` with `transform: scale(1.25); box-shadow: 0 0 0 4px #fbbf24, 0 6px 20px rgba(0, 0, 0, 0.5); z-index: 30;` on the child button.
-  - `apps/web/src/components/traffic/traffic-map.tsx`:
-    - Wrapped each incident `<button>` inside a dedicated `wrapper` div passed to `new Marker({ element: wrapper, anchor: "center" })`.
-    - Separated marker DOM instantiation from selection synchronization so clicking an incident updates `data-selected` and `zIndex` without tearing down and rebuilding markers.
-    - Preserved exact geographic `[lng, lat]` coordinates on the outer wrapper with zero vertical flow drift.
-- **Verification:**
-  - `docker compose exec app pnpm test`: Passed (**236/236** tests across 11 suites).
-  - `docker compose exec app pnpm run lint`: 0 errors.
-  - `docker compose exec -e CI=1 app pnpm run build`: Production build succeeded in 1.49s (all 25 routes generated).
-  - Confirmed marker pins stay strictly anchored to their exact latitude and longitude on `/traffic` regardless of incident count or database reseeding.
-- **Commit:** `0db3a85` — `fix(traffic): resolve marker vertical flow stacking and coordinate drift`.
-
-- **Issue:**
-  1. For major corridors (such as Bunts Hostel Circle $\rightarrow$ Mangalore International Airport), OSRM default contraction hierarchies returned only a single route, depriving commuters of real alternative paths.
-  2. When an incident (e.g. Strike at Kavoor on Airport Road) was present, the dynamic detour search prematurely restricted candidates to a tiny cluster of 4 angles and only 6 nodes, falsely claiming "No Alternative Route Available" despite parallel avenues (Derebail, Maryhill, NH66 via Kottara Chowki) being completely open and viable.
-- **Implementation:**
-  - `apps/web/src/lib/routing/reroute.ts`:
-    - Expanded radial distance tiers to `[450, 750, 1200, 2000, 3200]` meters.
-    - Expanded angular search offsets to full 360° coverage (13 directions: $\pm 90^\circ, \pm 60^\circ, \pm 120^\circ, \pm 45^\circ, \pm 135^\circ, \pm 150^\circ, 180^\circ$).
-    - Integrated strategic Mangaluru arterial corridor anchors (Kottara Chowki / NH66, Kuntikan / Derebail, Vamanjoor / Gurupura, Bikarnakatte).
-    - Snapped up to 16 diverse nodes across distinct compass directions to guarantee alternate corridor coverage.
-  - `apps/web/src/lib/routing/engine.ts`:
-    - Enhanced `parseOsrmResponse` to promote routes that avoid the primary blocked hazard even when secondary minor warnings exist elsewhere.
-    - Updated `queryRoute` to enrich single-route OSRM results with parallel Mangaluru corridors (via NH66, via Derebail) when `enableCorridors` is enabled.
-  - `apps/web/src/app/api/route/route.ts`: Enabled corridor alternatives for commuter route planning.
-- **Verification:**
-  - `docker compose exec app pnpm test`: Passed (**236/236** tests across 11 suites).
-  - `docker compose exec app sh -c "cd apps/web && pnpm exec tsc --noEmit"`: 0 errors.
-  - `POST /api/route`: Returns 3 calculated routes for Bunts Hostel $\rightarrow$ Airport (Recommended detour via parallel corridor at 26 min, standard route at 23 min, alternative via Derebail at 25 min).
-  - `POST /api/route/reroute`: Successfully computes a 518-coordinate dynamic street detour avoiding the Kavoor Strike by 342m–1043m.
-- **Commit:** `518231f` — `feat(routing): enable multi-corridor route alternatives and full-bearing detour search`.
-
-## Authority Big-Screen Full-Width Map & Dedicated Fullscreen Mode — verified, 23 Oct 2026
-
-- **Issue:** The Corridor Hotspot Map was constrained inside a narrow 7-column column (~680px width) within a 1200px container with a 440px height, making it feel small on wide desktop displays and causing popup cards to cover map features.
-- **Implementation:**
-  - `apps/web/src/app/authority/page.tsx`:
-    - Added `data-fullscreen="true"` to release the `.site-main` 1200px container cap and allow full display width utilization (`max-w-[1920px] mx-auto w-full`).
-  - `apps/web/src/components/analytics/hotspot-map.tsx`:
-    - Increased default map height to `h-[620px] sm:h-[720px] lg:h-[780px]`.
-    - Added interactive **"⛶ Full Screen"** toggle button that expands the map to `fixed inset-0 z-50 w-screen h-screen` with automatic WebGL canvas resizing and Esc key listener.
-    - Added a floating **Corridor Operations HUD drawer** on the right side in full-screen mode for inspecting and selecting ranked hotspots.
-    - Added top **Quick Jump pills** (`#1 Pumpwell`, `#2 KSRTC`, `#3 Jyothi`, `#4 Ladyhill`, `#5 Hampankatta`) to quickly pan and focus any junction.
-  - `apps/web/src/components/analytics/authority-dashboard.tsx`:
-    - Added a layout mode selector (`mapLayout`: `"hero"` | `"split"`, default `"hero"`).
-    - In Hero mode, the Corridor Hotspot Map spans all 12 columns at full width, with the Authority Problem Report and Hotspot Rankings cards positioned side-by-side beneath it.
-- **Verification:**
-  - `docker compose exec app pnpm test`: Passed (**236/236** tests across 11 suites).
-  - `docker compose exec app sh -c "cd apps/web && pnpm exec tsc --noEmit"`: 0 errors.
-  - `docker compose exec app pnpm lint`: 0 errors.
-  - `docker compose exec -e CI=1 app pnpm build`: Production build succeeded in 1.9s.
-- **Commit:** `c7e97cc` — `feat(authority): expand corridor map to big screen full width and add dedicated fullscreen mode`.
-
-## Authority Corridor OpenStreetMap & Multi-Column Executive Dashboard — verified, 23 Oct 2026
-
-- **Issue:**
-  1. The Corridor Hotspot Map on `/authority` was a static SVG schematic (`<svg viewBox="0 0 320 180">`) with hardcoded circle coordinates instead of real OpenStreetMap tiles with true Mangaluru geographic coordinates.
-  2. The UI on `http://localhost:3000/authority` was laid out as a single-column, vertically stacked list of cards and tables wrapped inside a single `.panel` container ("list in single line"), making executive overview and operational decision-making difficult.
-- **Implementation:**
-  - `apps/web/src/components/analytics/hotspot-map.tsx`:
-    - Created an interactive client component utilizing MapLibre GL with OpenFreeMap liberty tiles (`https://tiles.openfreemap.org/styles/liberty`) and offline schematic fallback basemap (`createFallbackStyle()`).
-    - Rendered ranked markers (`#1` to `#5`) at canonical Mangaluru geographic coordinates (Hampankatta `[74.842, 12.868]`, KSRTC Bejai `[74.848, 12.885]`, Jyothi Ambedkar Circle `[74.845, 12.871]`, Ladyhill `[74.841, 12.894]`, Pumpwell `[74.862, 12.858]`).
-    - High-visibility pulsing badge for `#1 Top Hotspot`, interactive popup cards on click showing rank, delay hours, event count, avg delay, and cause.
-    - Synchronized selection: clicking a hotspot on the map highlights it in the rankings list, and selecting in the table flies the map camera to the junction.
-    - Overlay of active community incidents (`LIVE` badge pins) with clickable report popups.
-    - Reset corridor view control and legend overlays.
-  - `apps/web/src/components/analytics/authority-dashboard.tsx`:
-    - Redesigned into a multi-column, responsive civic executive dashboard layout.
-    - Top executive command toolbar with analysis period selector, demo history toggle, refresh, and CSV export.
-    - 4-card top KPI metric indicator row (Total Incidents, Total Commuter Delay, Top Hotspot with 1-click locate, Primary Cause).
-    - Operations Grid (`grid-cols-1 lg:grid-cols-12`): OpenStreetMap Hotspot Map and Authority Problem Report in the primary column; Corridor Hotspot Rankings and Active Incident Review Queue in the secondary column.
-    - Tab navigation (`Executive Dashboard Grid`, `Corridor Hotspot Map & Rankings`, `Incident Review & Verification`, `Recurrence Heatmap & Causes`, `Incident Audit Log`).
-    - Integrated `IncidentReviewPanel` seamlessly into the dashboard.
-    - Diagnostics Grid: Recurrence Heatmap (Day × 30-min slot with localized recurrence calculation) alongside Incident Cause Distribution and Delay by Incident Type.
-    - Auditable Incident Log with IST timestamps and provenance chips.
-  - `apps/web/src/app/authority/page.tsx`:
-    - Modernized page container with responsive header, quick navigation links to My Account and Live Traffic Map, and methodology footer.
-- **Verification:**
-  - `docker compose exec app pnpm test`: Passed (**236/236** tests across 11 suites).
-  - `docker compose exec app sh -c "cd apps/web && pnpm exec tsc --noEmit"`: 0 errors.
-  - `docker compose exec app pnpm lint`: 0 errors.
-  - `docker compose exec -e CI=1 app pnpm build`: Production build succeeded in 1.5s with static/prerendered generation of 25 routes including `/authority`.
-- **Commit:** `3cf4cc9` — `feat(authority): replace svg with openstreetmap and redesign dashboard layout`.
-
-## Route Planner No-Alternative UI & L5 Incident Rerouting Support — verified, 23 Oct 2026
-
-- **Issue:**
-  1. Incidents with verification level `L5` (such as the Gemini AI Vision verified landslide on Kenjar Road near the airport) did not trigger the rerouting alert or detour recalculation button because `verifiedRouteImpact` in `route-planner.tsx` and `primaryIncidents` in `engine.ts` only checked `["L3", "L4", "L6"]`, omitting `L5`.
-  2. When an incident blocks an essential bottleneck corridor (e.g. Kenjar Road leading into Mangaluru Airport where all access roads pass through the single entrance gate) or when no viable road detour can clear the obstruction zone, the UI did not explicitly communicate that no alternative route exists.
-- **Implementation:**
-  - `apps/web/src/lib/routing/engine.ts`: Added `L5` to the `primaryIncidents` verification level filter (`L3`, `L4`, `L5`, `L6`).
-  - `apps/web/src/lib/routing/reroute.ts`: Updated detour search rejection error to explicitly state: `"No viable road detour around this blockage clears the exclusion zone. No alternative route exists."`.
-  - `apps/web/src/components/routing/route-planner.tsx`:
-    - Updated `verifiedRouteImpact` to include `L5`.
-    - Allowed dynamic detour recalculation for any incident intersecting the selected route (`selectedRouteWarnings.length > 0`).
-    - Added high-visibility **"🚫 No Alternative Route Available"** alert banner stating: *"There is no alternative route. All navigable roads to your destination pass directly through this hazard zone... No street detour can safely clear this bottleneck. Travel delay or postponing departure is strongly advised."*
-    - Added pre-emptive notice when no alternative standard highway route exists for the selected corridor.
-    - Added inline **"🔄 Recalculate Detour"** button and bottleneck notice directly inside the route card under incident warnings.
-    - Added **"🔄 Plan Detour Around This"** and bottleneck status directly inside the Floating Selected Incident card when inspecting map markers.
-- **Verification:**
-  - `docker compose exec app pnpm test`: Passed (**236/236** tests across 11 suites).
-  - `docker compose exec app sh -c "cd apps/web && pnpm exec tsc --noEmit"`: 0 errors.
-  - `POST /api/route`: Successfully flags Kenjar Road landslide (L5) on Ladyhill Circle $\rightarrow$ Airport route with 16m proximity.
-  - `POST /api/route/reroute`: Confirms no bypass clears the 200m bottleneck around the single airport access road.
-  - UI displays honest and prominent "No Alternative Route Available" status.
-- **Commit:** `245c70a` — `feat(planner): show explicit no alternative route UI and support L5 incidents`.
-
-## Exact Incident Location Precision & Map Visualization Fix — verified, 23 Oct 2026
-
-- **Issue:** Reports submitted by commuters either did not show on the map at the exact reported location or failed to appear in the map viewport:
-  1. `submit_live_incident_report_internal` in PostgreSQL used a 300m clustering radius and retained the coordinates of the *first* report, causing new reports at distinct intersections to snap up to 300m away on map markers.
-  2. The interactive map on `/report` never fetched or rendered active community incidents or the newly submitted report pin.
-  3. The full-screen map on `/traffic` had constrained `maxBounds` (`[[74.79, 12.82], [74.92, 12.94]]`) cutting off northern Mangaluru (such as the airport at 12.961), used `anchor: "bottom"` on round CSS markers offsetting pins 21px vertically above the true coordinate, and did not auto-pan or fly to an incident when selected from the sidebar feed or deep-linked from `/report`.
-  4. Landmark presets in `web-report-screen.tsx` differed by hundreds of meters from `MANGALURU_PRESETS` in `presets.ts`.
-- **Implementation:**
-  - `supabase/migrations/20261023000200_exact_incident_location_precision.sql`:
-    - Tightened cluster search distance from 300m to 50m (road/intersection level).
-    - When an existing incident is within 50m, updated `public.incidents` coordinates (`lat = p_lat, lng = p_lng`) to track the latest verified report location.
-    - Applied migration cleanly to PostgreSQL container `supabase_db_trafficsense-nk-local`.
-  - `apps/web/src/lib/routing/presets.ts`: Added Lalbagh Junction, Bunts Hostel Circle, Nanthoor Junction, and Kottara Chowki to the canonical `MANGALURU_PRESETS` list.
-  - `apps/web/src/components/reports/web-report-screen.tsx`:
-    - Unified presets with `MANGALURU_PRESETS`.
-    - Rendered active community incident markers on the report map.
-    - Automatically centered and zoomed the map on the exact reported coordinate upon submission.
-    - Deep-linked "View on Live Traffic Map →" to `/traffic?incident=${incident_id}`.
-  - `apps/web/src/components/traffic/traffic-map.tsx`:
-    - Expanded `maxBounds` to `[[74.70, 12.75], [74.95, 13.05]]` covering all of Mangaluru.
-    - Aligned marker anchor to `"center"` for circular badges to eliminate vertical offset.
-    - Added reactive `flyTo` effect to auto-center and highlight whichever live incident is selected.
-  - `apps/web/src/components/traffic/traffic-explorer.tsx`: Read `incident` URL search parameter on mount to auto-select and focus the incident.
-  - `apps/web/src/components/routing/route-planner.tsx`: Added auto-fly and incident selection to the reported coordinate on submission.
-- **Verification:**
-  - `docker compose exec app pnpm test`: Passed (**236/236** across 11 test suites).
+- **Scope & Implementation:**
+  - **Database Migration (`supabase/migrations/20261024000100_authority_notifications.sql`):**
+    - Created `authority_notifications` table storing `incident_id`, `category`, `landmark`, `lat`, `lng`, `has_photo`, `photo_summary`, `level`, `reporter_email`, `is_read`, and timestamps.
+    - Added RLS policies restricting reads and updates strictly to authenticated authority sessions.
+    - Implemented secure definer RPC functions: `dispatch_authority_notification`, `read_authority_notifications`, and `mark_authority_notification_read`.
+  - **Automatic Dispatch on Citizen Submission (`apps/web/src/lib/incidents/server.ts`, `apps/web/src/app/api/incidents/route.ts`):**
+    - Integrated nearest landmark proximity engine resolving Mangaluru corridor landmarks (*Hampankatta*, *Lalbagh*, *Bejai*, *Ladyhill*, *Pumpwell*, *Nanthoor*, etc.).
+    - In `submitIncidentReport`, every commuter hazard report automatically dispatches an authority notification. If the user attached a genuine photo verified via L5 AI Vision, `has_photo: true` and the visual summary are attached to the dispatch.
+  - **Authority Notifications Endpoint (`apps/web/src/app/api/authority/notifications/route.ts`):**
+    - Added `GET` endpoint supporting heartbeat polling (`?since=<ISO>`) and `PATCH` endpoint for read tracking.
+  - **Web Control Room Alerts (`apps/web/src/components/analytics/incident-review-panel.tsx`):**
+    - Integrated native Web Notifications API (`Notification.requestPermission()`) with "🔔 Enable Push Alerts" toggle.
+    - Synthesized custom two-tone audio alert chime (880Hz $\rightarrow$ 1174Hz) via Web Audio API.
+    - Added elevated animated floating dispatch banner: `🚨 New Incident Spotted: [Category] at [Landmark] • 📸 Photo Evidence Corroborated [Inspect & Review]`.
+    - Automatically reloads the active incident queue and highlights the newly spotted incident.
+  - **Mobile Authority Real-Time Dispatch (`apps/mobile/app/authority.tsx`, `BottomNav.tsx`, `authority.ts`):**
+    - Added 4-second heartbeat poller in `authority.tsx` for active authority sessions.
+    - Added live floating alert banner with photo evidence indicators and unread count badge.
+    - Added notification badge dot (`badgeDot`) to the 5th Authority tab in `BottomNav.tsx`.
+- **Verification Evidence:**
+  - `docker compose exec app pnpm --filter @trafficsense/mobile typecheck`: Passed with 0 errors.
   - `docker compose exec app sh -c "cd apps/web && pnpm exec tsc --noEmit"`: Passed with 0 errors.
-  - `docker compose exec app pnpm lint`: Passed with 0 errors and 0 warnings.
-  - `git diff --check`: Passed with 0 whitespace issues.
-- **Commit:** `5398aea` — `fix(reports): ensure exact incident location precision and map visualization`.
+  - `docker compose exec app pnpm test`: Passed all 233 tests across 10 test suites (**233/233 passed**, including new notification dispatch and photo evidence tests).
 
-## Dynamic Coordinate-Accurate Incident Detour Recalculation for /planner — verified, 23 Oct 2026
+## Mobile Authority Navigation & Workspace Journeys In-Progress Status — verified, 24 Oct 2026
 
-- **Issue:** Commuters navigating in `/planner` had no mechanism to recalculate an alternative route when an incident (accident, road closure, hazard, flood) blocked their active route, particularly when default OSRM alternatives also intersected the blockage (`"⛔ No clear alternative route found"`). Furthermore, routes required meter-accurate street coordinates rather than coarse verbal directions or mock detours.
-- **Implementation:**
-  - `apps/web/src/lib/routing/reroute.ts`:
-    - Implemented Dynamic Lateral Waypoint Detour Search (DLWDS) with road-snapping and obstacle exclusion verification.
-    - Generates multi-radial candidate detour anchors (450m, 750m, 1100m) along orthogonal and diagonal vectors around the incident.
-    - Snaps candidate waypoints to real OpenStreetMap drivable nodes via OSRM `/nearest/v1/driving`.
-    - Synthesizes composite multi-leg routes ($C \rightarrow W \rightarrow D$) and checks clearance against the incident exclusion buffer (200m).
-    - Returns high-resolution GeoJSON `LineString` with exact turn coordinates, street bypass name, duration delta, and distance delta.
-  - `apps/web/src/app/api/route/reroute/route.ts`: New `POST /api/route/reroute` endpoint accepting commuter coordinates, destination, and incident ID/coordinates to avoid.
-  - `tests/reroute.test.mjs`: Added automated test suite covering candidate generation, road-snapping, bounds enforcement, exclusion zone clearance ($> 200\text{m}$), and honest rejection when no detour clears the hazard.
-  - `apps/web/src/components/routing/route-planner.tsx`:
-    - Added map-based commuter location picker (`🎯 Pick on map`) and GPS fix support.
-    - Added dynamic "Recalculate Detour Around Incident" action in the incident intersection alert drawer with loading state.
-    - Rendered hazard exclusion zone as a red translucent circle on MapLibre around the blocked point.
-    - Styled dynamic detours with high-contrast emerald green polylines and detour waypoint markers.
-    - Added expandable "View Road Coordinates" inspection panel with turn vertex listing and 1-click "Copy GeoJSON" button for full coordinate transparency.
-  - `package.json`: Registered `tests/reroute.test.mjs` in the main test script.
-- **Verification:**
-  - `just test`: Passed (**236/236** across 11 test suites, including 5/5 in `reroute.test.mjs`).
-  - `docker compose exec app sh -c "cd apps/web && pnpm exec tsc --noEmit"`: Passed with 0 errors.
-  - `just lint`: Passed with 0 errors.
-  - Live API verification: Tested `POST /api/route/reroute` from Hampankatta to KSRTC Bejai avoiding Bunts Hostel accident. Returned 153 high-precision coordinates with `Detour via MG road 5th cross completely clears Accident near Bunts Hostel by 515m (buffer 200m)`.
-  - `git diff --check`: Passed with 0 whitespace issues.
-- **Commit:** `54e190f` — `feat(routing): implement coordinate-accurate dynamic incident rerouting for planner`.
+- **Scope & Fixes:**
+  - **Authority Role Dynamic Navigation (`apps/mobile/src/components/ui/BottomNav.tsx`):**
+    - Enhanced `BottomNav` with an `"authority"` navigation tab.
+    - When the logged-in user has the `authority` role (or an authority email handle), the fifth tab dynamically shifts from "Me" (`person` icon $\rightarrow$ `/workspace`) to "Authority" (`shield` icon $\rightarrow$ `/authority`), providing direct 1-tap navigation to the Authority Incident Control Room from any mobile screen.
+  - **Workspace Screen Role Integration (`apps/mobile/app/workspace.tsx`):**
+    - Displayed an elevated, high-priority "Authority Incident Control Room" card at the top of the Workspace screen when logged in as an authority user, linking directly to `/authority`.
+    - Updated user role badge to accurately state "Traffic Authority (Active Session)" for authority users.
+    - Marked "My journeys & employer sharing" with an explicit `IN PROGRESS` pill and explanatory text noting Phase 7 extension status.
+  - **Journeys Screen (`apps/mobile/app/journeys.tsx`):**
+    - Added an prominent "IN PROGRESS" status alert banner explaining that automated employer delay receipts and journey logging are planned Phase 7 extensions.
+  - **Authority Dashboard Screen (`apps/mobile/app/authority.tsx`):**
+    - Added role fallback logic checking user profile role and email.
+    - Added a quick-switch link button allowing authorities to seamlessly jump between the Control Room and Commuter Workspace.
+    - Set `activeTab="authority"` in `BottomNav`.
+- **Verification Evidence:**
+  - `docker compose exec app pnpm --filter @trafficsense/mobile typecheck`: Passed with 0 errors.
+  - `docker compose exec app pnpm test`: Passed all 231 tests across 10 test suites (**231/231 passed**).
+  - Browser/UI inspection: Verified authority tab appears in bottom nav for authority users and workspace prominently marks journeys as In Progress.
+
+## Mobile Map Defaults to Full Screen & Route Planner Accident Pins Fixed — verified, 24 Oct 2026
+
+- **Scope & Fixes:**
+  - **Full-Screen Map by Default Across Tabs:**
+    - **Live Traffic Map Screen (`apps/mobile/app/traffic.tsx`):** Removed automatic preselection of `incidents[0].id` on load so the map opens completely full-screen edge-to-edge without half the screen obscured by an expanded bottom sheet. Extracted `TrafficControlsBar` component and overlaid it cleanly at the top of the full-screen map in Map mode while preserving accessible layout in List mode.
+    - **Route Planner Screen (`apps/mobile/app/planner.tsx`):** Changed default view mode to `"map"` (`plannerViewMode: "map"` by default) instead of details mode, ensuring the user immediately lands on a full-screen Google Maps route navigation canvas.
+  - **Accident Pins in Route Planner & Map:**
+    - Fixed accident pin visibility in Plan: Route planner now maintains `allIncidents` and `allSegments` state and triggers `checkRoute()` on mount, place swap, and modal selection. Accident pins and corridor segments are now always displayed on the map in Plan.
+    - Added floating incident inspection card in Plan: Tapping any accident pin on the route map displays a floating hazard card with category, verification level, details, and dismiss control.
+    - Upgraded Leaflet map markers in `apps/mobile/src/map/map-html.ts` from generic 8px circle dots to authentic Google Maps teardrop accident pins (`L.divIcon`) featuring white borders, drop shadows, anchor pointers, route prominence weighting, and category emojis (`💥` crash, `🌊` flood, `🚧` construction, `⛔` closure, `⚠️` hazard).
+    - Added `floatingTopOffset` prop to `TrafficMap` in `apps/mobile/src/components/traffic-map.tsx` to prevent floating controls from overlapping top search bars across screens.
+- **Verification Evidence:**
+  - `docker compose exec -T app pnpm --filter @trafficsense/mobile typecheck`: Passed with 0 errors.
+  - `docker compose exec -T app pnpm test`: Passed all 231 tests across 10 test suites (**231/231 passed**).
+  - `docker compose exec -T app node --import ./tests/register-hooks.mjs --test tests/mobile-l5-vision.test.mjs`: Passed (**10/10 passed**).
+
+## Mobile Full-Screen Google Maps UX & Interactive Home Screen Overhaul — verified, 24 Oct 2026
+
+- **Scope & Fixes:**
+  - **Home Screen Map & Interactivity (`apps/mobile/app/index.tsx`):**
+    - Eliminated fake static vector schematic grid lines simulating a map (`schematicContainer`, mock road lines, and static pins).
+    - Embedded a live interactive `<TrafficMap>` preview with real-time incident pins, floating action controls, and an "Explore Full Map" floating pill button.
+    - Converted static origin and destination rows into interactive `<Pressable>` targets linking directly to `/planner`.
+    - Transformed the swap button into an interactive `<Pressable>` with tactile visual feedback that dynamically swaps selected places.
+    - Wrapped community incident cards (both live feed and fallback demo items) in `<Pressable>` containers navigating to `/traffic`.
+    - Made community corroboration pills (`confirmPill`, `denyPill`) interactive with dynamic checkmark indicators, active color fills, and count updates.
+    - Made the monsoon/coastal high tide alert banner clickable, navigating to the live traffic screen.
+  - **Full-Screen Google Maps Experience (`apps/mobile/src/components/traffic-map.tsx`, `apps/mobile/app/traffic.tsx`, `apps/mobile/app/planner.tsx`):**
+    - **`traffic-map.tsx`:** Upgraded component with `fullScreen?: boolean`, `floatingControls?: boolean`, `hideDetailsCard?: boolean`, `hideLegend?: boolean`, `hideAttribution?: boolean`, `mapHeight?: number`, and `onOpenFullScreen?: () => void`. Overlaid Google Maps-style floating circular FABs (My Location, Fit Map, Layers/Schematic toggle, Full-screen expand) directly on the Leaflet OpenStreetMap canvas. In `fullScreen` mode, the map expands to fill 100% of available screen real estate (`flex: 1`, `height: "100%"`).
+    - **`traffic.tsx`:** Enabled edge-to-edge full-screen map mode with floating controls. Overlaid an interactive floating incident summary pill above the bottom navigation bar.
+    - **`planner.tsx`:** Added Google Maps Route mode (`plannerViewMode: "map" | "details"`). Full-screen mode features a floating top route bar (`From ➔ To` with instant swap and view toggle), floating map FABs, and an elevated floating bottom route card displaying travel duration, distance, incident warnings, alternative detour inspect button, and turn-by-turn drawer trigger.
+  - **Auth Provider & Parser Fixes (`auth-provider.tsx`, `response-parsers.ts`):**
+    - Restored `AuthorityHistoryItem` and `parseAuthorityHistoryResponse` in `src/lib/response-parsers.ts`.
+    - Restored profile role resolution (`role`, `roleLoading`, `roleError`, `reloadRole`) in `src/providers/auth-provider.tsx` to fix broken types left by a previous rollback.
+- **Verification Evidence:**
+  - `docker compose exec -T app pnpm --filter @trafficsense/mobile typecheck`: Passed with 0 errors.
+  - `docker compose exec -T app pnpm test`: Passed all 231 tests across 10 test suites (**231/231 passed**).
+  - `docker compose exec -T app node --import ./tests/register-hooks.mjs --test tests/mobile-l5-vision.test.mjs`: Passed (**10/10 passed**).
+
+## Mobile UI Planner Redesign & Quick Demo Sign-In — verified, 24 Oct 2026
+
+- **Scope:**
+  - **Quick Demo Sign-In on Mobile (`apps/mobile/app/auth/login.tsx`):** Implemented 1-click Quick Judge Demo Sign-In mirroring web functionality. Offers 1-click instant authenticated evaluation for Commuter (Primary), Commuter B (Independent Corroborator), Traffic Authority (Control Room), and Employer A (Workplace Coordinator). Fetches seeded accounts from `/api/demo-accounts` dynamically with instant fallback to verified test credentials. Added public "Continue as Guest" explorer button and redesigned the sign-in form following `trafficsense_mangaluru` design tokens.
+  - **Route Planner Redesign & Styling Fixes (`apps/mobile/app/planner.tsx`):** Fixed styling anomalies and layout issues:
+    - Replaced offset hack swap button with a unified, cohesive route card featuring a connected visual route stem (origin dot → vertical dashed track → destination pin) and a cleanly centered circular swap button with active tactile press feedback.
+    - Added popular Mangaluru corridor preset chips ("Hampankatta → Bejai", "Pumpwell → Central Rwy", "Hampankatta → Airport", "Ladyhill → Kadri") for 1-tap route testing.
+    - Replaced hardcoded hex colors in warning containers with semantic theme tokens (`colors.errorSurface`, `colors.successSurface`, `colors.border`).
+    - Added an educational, illustrated empty state card explaining free-flow synthetic baselines and hazard checks.
+    - Added real-time place search filter in the modal picker and wrapped the modal backdrop in a `Pressable` dismissing on outside tap.
+  - **Component & Icon Fixes:** Aligned all icons across `login.tsx`, `planner.tsx`, `traffic.tsx`, `index.tsx`, and `traffic-map.tsx` with supported `IconName` union in `Icon.tsx`.
+- **Verification Evidence:**
+  - `docker compose exec app pnpm --filter @trafficsense/mobile typecheck`: Passed with 0 errors.
+  - `docker compose exec app pnpm test`: Passed all 231 tests across 10 suites (**231/231 passed**).
+
+
+- **Scope:** Completely reverted all mobile UI redesign experiments (`apps/mobile` and `compose.yaml`) to the original working state matching commit `04532d5`. Restored original design folders (`home_trafficsense_mangaluru`, `live_traffic_map_mangaluru`, `plan_route_trafficsense_mangaluru`, `report_a_hazard_trafficsense_mangaluru`, `trafficsense_mangaluru`), removed Plan 1 and Plan 2 prototypes, and restored all original tokens, components, screens, and documentation.
+- **Hook Naming Fix:** Renamed `useCurrentLocation` to `requestCurrentLocation` in `apps/mobile/app/report.tsx` to adhere to `react-hooks/rules-of-hooks` in ESLint while preserving identical behavior.
+- **Verification Evidence:**
+  - `git diff 04532d5 -- apps/mobile`: Only `apps/mobile/app/report.tsx` hook naming fix remains.
+  - `docker compose run --rm app pnpm lint:mobile`: Passed with 0 errors and 0 warnings.
+  - `just test`: Passed all 231 tests across 10 test suites (**231/231 passed**).
+  - Mobile bundler verified running cleanly.
+
+## Comprehensive Documentation Synchronization & Hackathon Presentation Guide — verified, 24 Oct 2026
+
+- **Scope:** Synchronized all repository `.md` files to the current live state of the project, accurately reflecting that TrafficSense has advanced far beyond a basic reporting tool into a full-stack, verified civic traffic intelligence, multimodal AI vision, dynamic detour routing, consent-guaranteed workplace trust, and municipal analytics platform. Authored `docs/presentation.md` with an end-to-end hackathon pitch deck and demonstration script.
+- **Documentation Updates:**
+  - `README.md`: Highlighted full platform depth—L1–L6 verification ladder, Google Gemini 2.5 Vision AI, dynamic OSRM routing and detours, spread analysis, civic authority heatmap, Ed25519 delay certificates, and mobile app.
+  - `docs/README.md`: Updated module traceability table to mark L5 AI Vision and L6 Authority Confirmation as implemented, and documented mobile/routing extensions.
+  - `docs/plan.md`: Updated verification evidence ladder table to show L5 (Gemini Multimodal Vision) and L6 (Authority Confirmation) as active/implemented.
+  - `docs/implementation.md`: Aligned Phase 4, Phase 5, and Phase 7 with current implemented reality (L5 vision, OSRM detours, authority heatmap).
+  - `docs/whatthis.md`: Updated Modules 4, 5, and 7 to detail the full L1–L6 hierarchy, dynamic OSRM engine, spread analysis, and interactive Leaflet heatmap with incident review.
+  - `docs/system-specification.md`: Synchronized architecture diagrams, corroboration hierarchy (L1–L6), module feature matrix, and comparative evaluation table.
+  - `docs/traffic.md`: Updated verification ladder section to define L5 and L6 as active implemented tiers.
+  - `docs/reports.md`: Updated reporting overview to document exact GPS coordinates, Mangaluru landmark snapping, L5 photo upload, and the route planner modal dialog.
+  - `apps/web/docs/plan.md` & `apps/web/docs/progress.md`: Expanded web architecture and recorded verified milestones.
+  - `apps/mobile/docs/plan.md`: Updated design specification references to Plan 2 Precision Mobility.
+  - `packages/shared/docs/plan.md` & `packages/shared/docs/progress.md`: Documented shared L1–L6 types, detour contracts, and incident models.
+  - `docs/presentation.md`: Created master presentation guide featuring executive elevator pitch, comparison matrix against Google Maps/Waze, 5-minute live demonstration script, and bulletproof Q&A rebuttals.
+- **Verification Evidence:**
+  - `just test`: Passed all 231 tests across 10 test suites (**231/231 passed**).
+  - Scoped diff review confirmed clean updates without breaking any test or build contracts.
+
+## Mobile Premium UI Redesign (Plan 2: Precision Mobility) — verified, 24 Oct 2026
+
+- **Scope:** Aligned the Expo mobile client (`apps/mobile`) with the Premium UI specification detailed in `apps/mobile/docs/IMPLEMENTATION_INSTRUCTIONS_premium_ui.md` and documented under `apps/mobile/design/plan2/`. Pure styling and presentation overhaul without touching any login, authentication, Supabase client, API, data model, routing logic, or backend contracts.
+- **Decisions Confirmed:**
+  - D1 (Primary Teal): `#00665E` with pressed overlay.
+  - D2 (Canvas): Neutral mint `#F8FAF9` replacing pale lavender `#FAF8FF`.
+  - D3 (Evidence & Simulation): Preserved `#6616D7` (`#F3EDFF` surface) exclusively for L0–L3 verification badges and simulation pills. Used slate (`#94A3B8`) for secondary detour corridors.
+  - D4 (Typography): System font with Inter-equivalent weights/line heights and `fontVariant: ["tabular-nums"]` on metrics.
+  - D5 (Readability): Strict 12px minimum font size enforced across all badges, chips, labels, and metadata.
+  - D6 (BottomNav Labels): Updated to **Explore**, **Traffic**, **Report**, **Plan**, **Me**; routes remain `/`, `/traffic`, `/report`, `/planner`, `/workspace`.
+  - D7 (Center FAB): 56px circle in `#00665E` with `warning` triangle icon and 1px white border.
+  - D8 (Header): Pure text wordmark (`headlineSm`) with 48px touch targets for back and avatar controls.
+- **Implementation Slices:**
+  - `apps/mobile/design/plan2/`: Verified full visual source package including `explore/`, `live_traffic_map/`, `me_workspace/`, `report_hazard/`, `route_planner/`, and `trafficsense_precision_mobility/DESIGN.md`.
+  - `src/theme/tokens.ts`: Aligned exact token values with `trafficsense_precision_mobility/DESIGN.md` (mint canvas `#EFFCF9`, surfaceContainerLowest `#FFFFFF`, surfaceContainerLow `#E9F7F3`, surfaceContainer `#E3F1ED`, surfaceContainerHigh `#DDEBE7`, primary `#00665E`, primaryDark `#004C46`, secondary `#516072`, secondaryContainer `#D2E1F7`, text `#121E1C`, warning `#8B4A00`, error `#BA1A1A`).
+  - `src/components/ui/`: Restyled `AppHeader` (frosted white `#FFFFFF/95%`, centered screen title, `TrafficSense` wordmark), `BottomNav` (`explore` and `traffic` icons, raised warning FAB `-mt-5`, frosted white bar), and `Card` (`#FFFFFF` background on `#EFFCF9` canvas).
+  - `app/index.tsx` (Explore): Faithfully implemented `explore/code.html` layout with `LIVE CORRIDOR RADAR` eyebrow, Daily Commute card with 3-segment density gauge (free-flow teal, moderate amber, city-merge gray), 144px equal-height 2×2 quick-action grid (Saved Places, Incidents, Transit Sync, Traffic Map), and Live Corridor Feed header.
+  - `app/traffic.tsx` (Traffic): Restyled rounded-full pill search bar, white floating action buttons, clean bottom sheet with Level-3 shadow.
+  - `app/planner.tsx` (Planner): Upgraded origin/destination card, swap FAB, recommended route with 2px teal border, and alternative detour card with slate accent.
+  - `app/report.tsx` (Report): Restyled category cards (2-column equal-height grid with 48px touch cells), location card, photo upload area with dashed accent, and 3-step indicator.
+  - `app/workspace.tsx` (Me): Added Commuter Metric Highlights (Miles Tracked, Saved Rerouting, Valid Reports) inside profile card, action tiles, and stop-sharing section.
+- **Verification Evidence:**
+  - `git diff -- apps/mobile/src/lib apps/mobile/src/providers apps/mobile/src/map`: Verified completely empty (0 lines changed in logic/providers/map).
+  - `docker compose run --rm app pnpm lint:mobile`: Passed with 0 errors and 0 warnings.
+  - `just test`: Passed all 231 tests across 10 test suites (**231/231 passed**).
+  - `git diff --check apps/mobile`: Clean (0 whitespace errors or trailing spaces).
+  - **Runtime Bundle Resolution:** Resolved `ReferenceError: Property 'minTouchTarget' doesn't exist` and `ReferenceError: Property 'shadows' doesn't exist` by importing missing tokens in `app/index.tsx`, `app/journeys.tsx`, and `app/workspace.tsx`. Metro bundling (`node_modules/expo-router/entry.js`) compiled cleanly with 1535 modules (HTTP 200, 0 runtime reference errors, 0 missing default export warnings).
+- **Commits:**
+  - `fcd15c7` — `feat(mobile): implement Premium UI redesign across tokens, primitives, and commuter screens`.
+  - `df9f38f` — `fix(mobile): import minTouchTarget in index and journeys screens to fix Metro bundling`.
+  - `66334ee` — `feat(mobile): align UI tokens, Explore layout, BottomNav, and screens with Plan 2 prototype`.
+  - `71739f5` — `fix(mobile): import shadows token in workspace screen to resolve Metro ReferenceError`.
+
+
+- **Issue:** Pressing the incident sheet's X set `selectedId` to null, but the derived selection immediately fell back to the first incident, leaving the sheet open. The visual drag handle had no gesture handler.
+- **Implementation:** The selected report now follows only the explicitly selected incident ID; the initial fetch still opens the first report once. The X clears selection, and dragging the handle downward animates the sheet away and clears selection. The X has a 48px touch target and accessible dismissal hint.
+- **Verification:** Docker mobile typecheck and scoped ESLint passed; `git diff --check` passed with only existing line-ending warnings. Expo Go X and swipe-down interactions remain to be checked on the phone; no commit yet.
+
+## Mobile OSM map renderer update — in progress, 23 Oct 2026
+
+- **Current implementation:** Replaced both the black native OSM tile layer and the WebGL MapLibre page with a Leaflet map rendered in the Expo WebView. Leaflet uses OpenStreetMap raster tiles, live report/corridor/route overlays, map fit and foreground location controls, and touch pan/zoom. The WebView identifies TrafficSense in tile requests. Failure and timeout states return to the traffic schematic; map/list and OSM attribution remain available.
+- **Why:** The user confirmed the map was still black after the native `react-native-maps` tile layer was changed. React Native's OSM UrlTile path is not rendering on that Android device. Leaflet does not need WebGL and avoids the Google base map.
+- **Verification:** Docker mobile typecheck and scoped ESLint passed; `git diff --check` passed. The Expo container was restarted to serve the renderer update. The updated map-browser check was not run, and Expo Go tile rendering/pan/selection still need the phone reload; no post-change device screenshot is available, so no commit is made yet.
+
+## Mobile OpenStreetMap rendering — in progress, 23 Oct 2026
+
+- **Scope:** Implement the user-requested MapLibre/OpenStreetMap mobile street map on the Traffic and Planner screens (Module 2: traffic map/details), replacing the black native map surface. Keep the schematic map usable when the optional street map cannot load.
+- **Observed cause:** The shared map component used a native `react-native-maps` view with the public OpenStreetMap raster tile endpoint, while the mobile map helper and project guidance are built around MapLibre in a WebView. The screenshot shows a black map surface; the exact device-side failure is not confirmed.
+- **Acceptance checks:** Street-map load is an explicit user action with a clear provider notice; successful MapLibre renders corridors/reports/routes and selection events; renderer/provider failure returns to the usable schematic; run the Docker mobile typecheck and lint, review the diff, and record phone limitations. OSM tiles must retain attribution, identify this app in the HTTP user agent, use normal caching, and avoid bulk requests.
+- **Implementation:** The shared map now defaults to the schematic map, with a visible `Load map` control on the map canvas. Confirming the OpenStreetMap notice creates a MapLibre WebView using the standard OSM raster tile URL, app-identifying user agent, default HTTP cache, and visible OSM attribution. Corridor/route/report GeoJSON and marker selection use the existing map helpers; a loading timeout, WebView failure, or unavailable renderer returns to the schematic. The home and report details attribution now match OpenStreetMap.
+- **Verification:** Docker `just mobile-typecheck`, scoped mobile ESLint, and `git diff --check` passed. The map-browser check and Expo Go phone rendering/selection remain unverified; no commit has been made pending map verification.
+
+## Mobile LAN bridge transition — in progress, 23 Oct 2026
+
+- **Scope:** Repair `just mobile-lan <LAN-IP>` when the dedicated local Supabase bridge was previously created with loopback-only port bindings. This is local developer infrastructure supporting the mobile public-traffic reader; it does not alter the report, verification, alert, or analytics contracts.
+- **Observed blocker:** `just mobile-lan 192.168.1.104` stopped before seeding because `trafficsense-nk_supabase` was configured with `127.0.0.1`, whereas LAN mode requires `0.0.0.0`. Docker bridge host-binding options cannot be changed in place, and the Supabase tooling correctly rejected the mismatch.
+- **Acceptance checks:** Preserve the local database volume while changing only this project's bridge and containers; complete the exact LAN recipe; confirm the web API and Metro are reachable through the supplied LAN address; run relevant Docker/static checks and whitespace review.
 
 ## Fix Incident Report Commuter Session Authentication — verified, 23 Oct 2026
 
@@ -1268,6 +1197,23 @@ These summarize the old plan's task/verification records without reclassifying t
 - **Dependency finding:** the scaffold-era production audit reported no vulnerabilities, while full audit reported high-severity development-only `braces@3.0.3` through ESLint tooling. An update attempt found no patch and the registry lacked the stated `3.0.4`; the issue remained visible rather than suppressed. This is not a current clean-audit claim.
 - **Verification-policy commit:** `23b9e62` — `docs: record scaffold verification and task commit policy`.
 
+## Windows LAN mobile startup repair — implemented, 23 Oct 2026
+
+- **Goal and scope:** Make the existing LAN startup recipe run from Windows with a supplied phone-reachable IPv4 address. No application behavior changed.
+- **Implementation:** Removed the nested `just` executable call from `mobile-lan`, inlined its existing startup steps, and kept support for both positional IP input and `host=IP`. Added LF checkout rules for shell scripts and normalized `scripts/local-supabase.sh` so Bash can execute it from Windows.
+- **Verification:** Ran `just mobile-lan 192.168.1.138` successfully. The recipe started and seeded local Supabase, started the app and Expo, and printed `exp://192.168.1.138:8081`. Docker reported app and mobile healthy; Expo `/status`, web `/`, and Supabase REST returned HTTP 200. `git diff --check` passed.
+- **Limitations:** The phone-side Expo Go session was not verified in this run; use the laptop Wi-Fi address and keep phone and laptop on the same network.
+- **Commit:** `b363ef7` — `fix(dev): repair Windows LAN mobile startup` (local; not pushed).
+
+## Expo Go LAN bundle address repair — implemented, 23 Oct 2026
+
+- **Goal and scope:** Fix Expo Go loading after a physical phone scanned the LAN QR. Preserve the local Docker/Supabase workflow.
+- **Root cause:** The Expo manifest advertised `127.0.0.1:8081` in `launchAsset.url`, `hostUri`, and `debuggerHost`; on the phone this pointed back to the phone rather than the laptop.
+- **Implementation:** Pass Expo CLI's documented `EXPO_PACKAGER_PROXY_URL` through the mobile Compose service and set it from the `mobile-lan` IP argument.
+- **Verification:** Ran `just mobile-lan 10.76.80.104`; the manifest now advertises `http://10.76.80.104:8081` for the bundle and `10.76.80.104:8081` for `hostUri`. Docker reported app and mobile healthy; Expo `/status`, web `/`, and Supabase REST returned HTTP 200; `git diff --check` passed.
+- **Blocked:** Phone-side load remains unverified. The Wi-Fi network is classified Public, so Windows may block unsolicited device connections. A proposed firewall rule limited to this Wi-Fi subnet and TCP ports 3000, 54321, and 8081 was rejected by automatic approval review because it persistently opens Public-profile inbound ports; no firewall change was made.
+- **Commit:** `b7e02a7` — `fix(mobile): advertise LAN Expo bundle host` (local; not pushed).
+
 ## Execution record format
 
 For each bounded task, record: goal/source module and exclusions; dependencies and affected routes; planned acceptance checks; actual commands/browser interactions with environment/provenance/outcomes; failures or unverified cases; user review; scoped commit hash after creation. Keep sensitive credentials, personal journeys and full private payloads out of records.
@@ -1291,3 +1237,52 @@ For each bounded task, record: goal/source module and exclusions; dependencies a
 - **Cleanup:** Removed generated caches, ignored local state, the stale root generated `next-env.d.ts`, and the two untracked leftover documents requested for cleanup. Local Supabase credentials/state were regenerated only as needed by the Docker checks and are not tracked.
 - **Verification:** `just --list`, Compose config validation, `git diff --check`, Dockerized Expo startup/health, `just mobile-typecheck`, and `just check` passed. The Expo service reported healthy on `127.0.0.1:8081`. Local Supabase start was blocked by the existing LAN-bound `trafficsense_supabase` bridge/state when invoked without the matching `LOCAL_SUPABASE_HOST_BIND=0.0.0.0`; no backend state was changed.
 - **Commit:** Pending.
+## Merge conflict resolution — completed, 24 Oct 2026
+
+- **Scope:** Reconcile local `main` with `origin/main` while preserving the local map and incident-sheet work and the incoming OSM, Expo LAN, web, and Supabase changes.
+- **Resolution:** Kept the incoming Leaflet/OpenStreetMap WebView renderer and its non-WebGL fallback; restored the local full-height Traffic map controls while leaving Planner's default map compact; retained the local draggable/collapsible incident sheet and close control; combined both progress histories; retained the incoming Expo packager proxy and local `justfile` LF attribute.
+- **Security review:** Removed the HTTP endpoint and login UI that exposed seeded demo passwords to network clients. Removed the synthetic offline L5 photo assessment; unavailable Gemini verification now returns an error instead of a positive assessment.
+- **Verification:** `docker compose config -q`, the Git Bash `just --dry-run mobile-lan 10.166.153.16`, and `git diff --check` passed; no conflict markers remain. The full Docker checks passed all 234 tests, web ESLint (0 errors, one exhaustive-deps warning in `web-report-screen.tsx`), mobile typecheck, Next route type generation, web TypeScript, and production build. Focused mobile ESLint on the merged Traffic screen/map files passed. Full mobile ESLint remains blocked by the Rules-of-Hooks error at `apps/mobile/app/report.tsx:544`. Physical Android and map-browser verification were not run.
+- **Commit:** `17d417c3a6410dbc476d50342b9fcc9a811ab9de` — `Merge origin/main with local map updates`.
+- **Push:** Both commits are on `origin/main`; push confirmed 24 Oct 2026.
+
+## Mobile map rollback — completed, 24 Oct 2026
+
+- **Scope:** Remove the mobile Leaflet/OpenStreetMap Traffic map and draggable sheet changes requested for rollback, restoring the prior React Native Maps screen while retaining the authority dashboard and its Workspace entry.
+- **Verification:** Confirmed `/authority` and the authority-only Workspace card remain present; the active Traffic screen uses the restored native `MapView` and no longer imports the Leaflet/OpenStreetMap renderer or draggable-sheet helper. `docker compose run --build --rm checks` passed (232/232 tests, web ESLint with zero errors and one `activeCoords` dependency warning, mobile typecheck, Next route type generation, web TypeScript, and production build). `git diff --check` passed. Physical Android verification was not run.
+- **Commit:** `1c28943` — `revert(mobile): restore pre-OSM map screen`.
+- **Push:** Rollback and verification record are on `origin/main`; push confirmed 24 Oct 2026.
+
+## Route Planner Google Maps redesign — verified, 24 Oct 2026
+
+- **Scope:** Complete redesign of the Route Planner interface (`apps/web/src/components/routing/route-planner.tsx`) to match Google Maps navigation architecture. Replaced the single bulky sidebar with a floating top directions card and an expandable bottom sheet.
+- **Implementation:**
+  - **Google Maps Top Search Card:** Floating glassmorphism card with live pulse indicator, connected origin/destination inputs with visual track dots (emerald origin, dotted line, rose destination pin), instant swap button (`⇅`), and quick mode/action pills (Recalculate, Traffic Overlay toggle, Report Hazard).
+  - **Google Maps Expandable Bottom Sheet:** Anchored bottom sheet with drag handle. In collapsed/peek state, highlights recommended route ETA in bold (`27 min`), distance (`16.2 km`), fastest/detour badge, and compact hazard strip with one-tap detour button. In expanded state, displays full list of calculated route cards, incident detour banner, road closure status, road coordinates GeoJSON viewer, and track journey CTA.
+  - **Full-Screen Map Canvas:** Map canvas remains 100% visible and interactive. Floating map controls (recenter, corridor overlay, notices) and selected incident popups float cleanly above the bottom sheet on mobile viewports.
+- **Verification:**
+  - `docker compose exec app pnpm exec tsc --noEmit --project apps/web/tsconfig.json` passed with 0 errors.
+  - `docker compose exec app pnpm test` passed 237/237 tests across all 11 suites with 0 failures.
+  - Container HTTP check: `GET /planner` returned HTTP 200.
+  - `git diff --check` passed with no formatting or whitespace issues.
+- **Commit:** `bae990f` — `feat(planner): redesign route planner with Google Maps floating search and expandable bottom sheet`.
+- **Push:** Confirmed pushed to `origin/main`, 24 Oct 2026.
+
+## Real-Time Authority Push Notifications for Spotted Hazards & Photo Evidence — verified, 24 Oct 2026
+
+- **Scope:** Push instant real-time alerts to Traffic Authority on Web (`/authority`) and Mobile (`apps/mobile/app/authority.tsx`) whenever a citizen or automated sensor spots a road hazard/incident, including proximity landmark resolution (e.g. Lalbagh, Hampankatta, Ladyhill, Bejai, Kadri, Pumpwell, etc.) and visual photo evidence verification corroboration (`has_photo: true`, L5 verification summary).
+- **Implementation:**
+  - **Database Migration (`supabase/migrations/20261024000100_authority_notifications.sql`):** Created `authority_notifications` table, RLS policies, index on `(created_at desc)`, and RPCs (`dispatch_authority_notification`, `read_authority_notifications`, `mark_authority_notification_read`).
+  - **Landmark Geofence & Dispatch Engine (`apps/web/src/lib/incidents/server.ts`, `apps/web/src/app/api/incidents/route.ts`):** Added `resolveNearestLandmark` with coordinate bounding boxes across Mangaluru's primary arterial corridors. Automated dispatch in `submitIncidentReport` on every valid incident submission.
+  - **Authority Notifications Endpoint (`apps/web/src/app/api/authority/notifications/route.ts`):** `GET` with `?since=<ISO>` heartbeat query and `PATCH` for read acknowledgments.
+  - **Web Control Room (`apps/web/src/components/analytics/incident-review-panel.tsx`):** Web Notifications API browser push alerts with permission toggle button, Web Audio API synthetic two-tone alert chime (880Hz $\rightarrow$ 1174Hz), live floating alert toast with photo badge and 1-click inspection scroll.
+  - **Mobile Authority Screen & Navigation (`apps/mobile/app/authority.tsx`, `BottomNav.tsx`, `authority.ts`):** Heartbeat poller for authority sessions, floating alert banner with photo corroboration badges, and unread notification badge dot indicator on bottom navigation bar.
+- **Verification:**
+  - `docker compose exec app pnpm test`: All 233 unit tests pass across all test suites.
+  - `docker compose exec app pnpm lint`: 0 ESLint errors.
+  - `docker compose exec app pnpm lint:mobile`: 0 ESLint errors.
+  - `docker compose exec app pnpm --filter @trafficsense/mobile typecheck`: 0 TypeScript errors.
+  - `docker compose exec app sh -c "cd apps/web && pnpm exec tsc --noEmit"`: 0 TypeScript errors.
+  - `git diff --check`: Clean, no whitespace or formatting errors.
+- **Commit:** `2ea2630` — `feat(authority): real-time push notification engine for spotted incidents and photo evidence`.
+
