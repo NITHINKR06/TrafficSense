@@ -58,7 +58,7 @@ The template is a visual reference, not functional or verified behavior. Replace
 | Application | One Next.js App Router application, TypeScript and Tailwind; no extra backend framework |
 | Runtime/package manager | Docker-only development, package commands and checks; pinned pnpm and sole `pnpm-lock.yaml` |
 | Auth/data | Supabase Auth/Postgres, migrations, RLS and server authorization; local Docker for development |
-| Map | Pinned MapLibre with opt-in OpenFreeMap Liberty background tiles; first-party renderer/worker, permanent OpenMapTiles/OpenStreetMap attribution, no keys or offline downloads; list remains usable without WebGL or provider access |
+| Map | Non-WebGL Leaflet renderer in the Expo WebView with OpenStreetMap raster tiles; identify the app in tile requests, preserve attribution, avoid bulk/offline downloads, and keep list/schematic fallbacks |
 | Routes/data | Deterministic corridor, segment/direction matching, synthetic scenarios and one precomputed alternative |
 | State | Shared server-derived evidence/lifecycle/consent/history rules; explicit refresh allowed; no stale private data after account changes |
 | Receipts | Proposed server-side Ed25519 canonical payload/version and protected keys; implement only with full validity/access checks |
@@ -95,14 +95,14 @@ Acceptance includes actual guest/account authorization, anonymous exclusion from
 
 These thresholds are proposed demo assumptions, not calibrated field findings. Define exact eligibility and time boundaries in tests before implementation.
 
-| Indicator | Planned rule | Limit |
+| Indicator | Implemented / Planned rule | Limit |
 | --- | --- | --- |
 | L1 Reported | Valid report tied to a server-issued guest or account source identity | Does not establish congestion/cause |
 | L2 Location supported | Position overlaps selected segment with acceptable accuracy and explicit provenance | Location support only; simulated provenance stays visible |
 | L3 Multiple sources | At least three eligible distinct reporting identities on the same segment/direction in the rolling interval `(read_at − 15 minutes, read_at]`; one contribution per source across the entire window | Distinct identities are not proven independent people; this does not establish location, congestion or cause |
 | L4 Slowdown supported | At least three eligible synthetic sources below 40% of baseline speed for five minutes | Demonstrates a computable rule, not real-world truth |
-| L5 Photo/video | Not collected | Deferred |
-| L6 Authority confirmed | Unavailable unless separately implemented as an authorized, labelled simulated action | Never inferred from other indicators |
+| L5 Photo verified | Implemented via Google Gemini 2.5 Multimodal Vision API; analyzes scene authenticity and road hazards | Visual confirmation only; does not replace traffic telemetry |
+| L6 Authority confirmed | Implemented in `/authority` dashboard; authorized municipal/police role action with immutable audit log | Never inferred from other indicators |
 
 ### Bounded report-group assessment
 
