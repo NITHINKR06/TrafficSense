@@ -52,6 +52,7 @@ Most traffic apps stop at user-submitted pins on a map. TrafficSense is an **end
 ### Prerequisites
 - Docker & Docker Compose (v2+)
 - `just` command runner (recommended)
+- Android emulator
 
 ### Run Locally
 
