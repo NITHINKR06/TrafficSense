@@ -1,5 +1,5 @@
 export type TrafficEvidenceLevel = "L1" | "L2" | "L3" | "L4" | "L5" | "L6";
-export type IncidentStatus = "open" | "resolved" | "expired";
+export type IncidentStatus = "open" | "cleared" | "resolved" | "expired";
 export type IncidentProvenance = "reported" | "verified" | "authority";
 
 export type LiveIncident = {
@@ -12,8 +12,13 @@ export type LiveIncident = {
   level_reason: string;
   first_reported_at: string;
   last_confirmed_at: string;
+  cleared_at?: string | null;
+  clear_count?: number;
+  confirm_count?: number;
   provenance: IncidentProvenance;
   report_count: number;
+  photo_data_url?: string | null;
+  photo_confidence?: string | null;
 };
 
 export type ActiveIncidentsResponse =

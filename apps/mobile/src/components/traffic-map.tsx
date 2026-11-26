@@ -36,6 +36,7 @@ const MAP_HTML = buildMapHtml();
 type CanvasProps = {
   payload: MapPayload & { dark: boolean };
   fitKey: number;
+  layerMode: "street" | "clean";
   style: StyleProp<ViewStyle>;
   onReady: () => void;
   onFailure: (reason: string) => void;
@@ -55,6 +56,7 @@ const TypedWebView = WebView as unknown as React.ComponentType<
 function MapCanvas({
   payload,
   fitKey,
+  layerMode,
   style,
   onReady,
   onFailure,
@@ -74,6 +76,11 @@ function MapCanvas({
     if (shouldFit) lastFitKey.current = fitKey;
     webViewRef.current?.injectJavaScript(`window.trafficMap?.setData(${JSON.stringify(next)}); true;`);
   }, [payload, fitKey, ready]);
+
+  useEffect(() => {
+    if (!ready) return;
+    webViewRef.current?.injectJavaScript(`window.trafficMap?.setLayerMode(${JSON.stringify(layerMode)}); true;`);
+  }, [layerMode, ready]);
 
   useEffect(() => {
     const coordinates = payload.you?.coordinates;
@@ -125,6 +132,7 @@ function MapCanvas({
 export function TrafficMap(props: Props) {
   const { colors, isDark, shadows } = useTheme();
   const [mode, setMode] = useState<ViewMode>("street");
+  const [layerMode, setLayerMode] = useState<"street" | "clean">("street");
   const [you, setYou] = useState<[number, number] | null>(null);
   const [fitRequest, setFitRequest] = useState(0);
   const [mapLoading, setMapLoading] = useState(true);
@@ -189,6 +197,7 @@ export function TrafficMap(props: Props) {
         <MapCanvas
           payload={payload}
           fitKey={props.fitKey + fitRequest}
+          layerMode={layerMode}
           style={StyleSheet.absoluteFill}
           onReady={() => setMapLoading(false)}
           onFailure={() => {
@@ -229,10 +238,10 @@ export function TrafficMap(props: Props) {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Map layers"
-                onPress={() => setMode((m) => (m === "street" ? "schematic" : "street"))}
+                onPress={() => setLayerMode((m) => (m === "street" ? "clean" : "street"))}
                 style={styles.controlBtn}
               >
-                <Icon name="layers" size={20} color={colors.text} />
+                <Icon name="layers" size={20} color={layerMode === "clean" ? colors.accent : colors.text} />
               </Pressable>
               <View style={[styles.controlDivider, { backgroundColor: colors.border }]} />
             </>

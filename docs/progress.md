@@ -1478,5 +1478,12 @@ For each bounded task, record: goal/source module and exclusions; dependencies a
   - End-to-end simulation: Commuter started journey, shared with Junction employer, verified active share with resolved employer name, verified employer read access via `read_employer_shared_journeys`, stopped sharing, and ended journey. Commuter C confirmed 0 orgs and empty state.
   - `git diff --check`: 0 whitespace issues.
 
+## Mobile Map, Planner Rerouting, Photo Evidence & Cleared-Dot Lifecycle — verified, 26 Nov 2026
+
+- **Implementation:**
+  - **Database & Backend (`supabase/migrations/20261126000100_commuter_cleared_feedback_and_photo_attach.sql`, `apps/web/src/lib/incidents/server.ts`, `apps/web/src/app/api/incidents/[id]/feedback/route.ts`, `apps/web/src/app/api/incidents/route.ts`, `apps/web/src/app/api/route/route.ts`, `apps/web/src/app/api/route/reroute/route.ts`):** Added `submit_incident_feedback` (`confirm` / `clear`, transitioning incidents to `'cleared'` at 3+ clears while keeping them visible for 6h unless re-reported), `attach_incident_photo` fallback, 1.2MB photo cap, and filtered `'cleared'` incidents out of active routing blockers; updated `/api/route/reroute` to accept `[lng, lat]` `blockedIncident` payloads directly. Removed all 4 `TEST DATA` seeded incidents from local Postgres.
+  - **Mobile & Shared (`packages/shared/src/index.ts`, `apps/mobile/src/lib/api.ts`, `apps/mobile/src/map/map-html.ts`, `apps/mobile/src/map/map-data.ts`, `apps/mobile/src/components/traffic-map.tsx`, `apps/mobile/app/traffic.tsx`, `apps/mobile/app/planner.tsx`, `apps/mobile/app/report.tsx`):** Removed green corridor segments from Map & Planner, fixed the Layers button glitch (in-place tile layer switch), fixed the 5 filter chips, rendered user-attached photos on incident cards, rendered cleared incidents as small dots with `"Happened X ago · Cleared"` text, and wired automatic + tap-to-reroute `/api/route/reroute` detours in Planner.
+- **Verification (2 full passes):** `pnpm --filter @trafficsense/mobile typecheck` (0 errors), mobile `eslint` (0 errors), `pnpm test` (240/240 passed), Android Metro export (`3495 modules`, 0 errors), live `GET /api/incidents`, `POST /api/route`, `POST /api/route/reroute`, and Postgres cleared-dot + photo persistence check.
+
 
 

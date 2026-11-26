@@ -7,7 +7,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { LiveIncident, RouteOption, TrafficSegment } from "@trafficsense/shared";
+import type { LiveIncident, RouteOption } from "@trafficsense/shared";
 import { PlacePickerModal } from "../src/components/PlacePickerModal";
 import { TrafficMap } from "../src/components/traffic-map";
 import {
@@ -20,7 +20,7 @@ import {
   StateCard,
   Toast,
 } from "../src/components/ui";
-import { fetchActiveIncidents, fetchRoute, fetchTrafficSegments } from "../src/lib/api";
+import { fetchActiveIncidents, fetchDetourRoute, fetchRoute } from "../src/lib/api";
 import { formatClock } from "../src/lib/evidence";
 import { categoryLabel, formatDistance, formatEstimatedDuration } from "../src/lib/format";
 import { startJourney } from "../src/lib/journeys";
@@ -45,7 +45,6 @@ export default function PlannerScreen() {
   const [saved, setSaved] = useState(false);
   const [routes, setRoutes] = useState<RouteOption[]>([]);
   const [incidents, setIncidents] = useState<LiveIncident[]>([]);
-  const [segments, setSegments] = useState<TrafficSegment[]>([]);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [pickerMode, setPickerMode] = useState<"origin" | "dest" | null>(null);
@@ -64,15 +63,37 @@ export default function PlannerScreen() {
       setLoading(true);
       setError(false);
       try {
-        const [routeRes, incRes, segRes] = await Promise.all([
+        const [routeRes, incRes] = await Promise.all([
           fetchRoute(fromCoords, toCoords),
           fetchActiveIncidents().catch(() => [] as LiveIncident[]),
-          fetchTrafficSegments().catch(() => ({ segments: [] as TrafficSegment[] })),
         ]);
-        setRoutes(routeRes);
+        let combinedRoutes = routeRes;
+        const primary = routeRes[0];
+        if (
+          primary &&
+          primary.incidents_on_route.length > 0 &&
+          !routeRes.some((r) => r.avoids_incident)
+        ) {
+          const hit = primary.incidents_on_route[0];
+          const hitInc = incRes.find((i) => i.id === hit.id);
+          const detourRes = await fetchDetourRoute({
+            currentLocation: fromCoords,
+            destination: toCoords,
+            blockedIncidentId: hit.id,
+            ...(hitInc ? { blockedIncident: [hitInc.lng, hitInc.lat] as [number, number] } : {}),
+            exclusionRadiusM: 250,
+          }).catch(() => [] as RouteOption[]);
+          if (detourRes.length > 0) {
+            const seen = new Set(combinedRoutes.map((r) => r.id));
+            combinedRoutes = [...combinedRoutes, ...detourRes.filter((r) => !seen.has(r.id))];
+          }
+        }
+        setRoutes(combinedRoutes);
         setIncidents(incRes);
-        setSegments(segRes.segments);
-        const rec = routeRes.find((r) => r.is_recommended) ?? routeRes[0];
+        const rec =
+          combinedRoutes.find((r) => r.avoids_incident) ??
+          combinedRoutes.find((r) => r.is_recommended) ??
+          combinedRoutes[0];
         setSelectedRouteId(rec?.id ?? null);
         setFitKey((v) => v + 1);
       } catch {
@@ -141,7 +162,7 @@ export default function PlannerScreen() {
       <TrafficMap
         fullScreen
         incidents={incidents}
-        segments={segments}
+        segments={[]}
         routes={routes}
         alternativeId={altRoute?.id ?? null}
         selectedRouteId={activeRoute?.id ?? null}
@@ -368,9 +389,33 @@ export default function PlannerScreen() {
             {routeHazard ? (
               <Pressable
                 accessibilityRole="button"
-                onPress={() =>
-                  router.push({ pathname: "/traffic", params: { selected: routeHazard.id } })
-                }
+                onPress={() => {
+                  const fromC = customOrigin?.coords ?? mangaluruPlaces[startIndex].coords;
+                  const toC = customDest?.coords ?? mangaluruPlaces[destIndex].coords;
+                  void fetchDetourRoute({
+                    currentLocation: fromC,
+                    destination: toC,
+                    blockedIncidentId: routeHazard.id,
+                    blockedIncident: [routeHazard.lng, routeHazard.lat],
+                    exclusionRadiusM: 250,
+                  })
+                    .then((detours) => {
+                      if (detours.length > 0) {
+                        setRoutes((prev) => {
+                          const seen = new Set(prev.map((r) => r.id));
+                          return [...prev, ...detours.filter((r) => !seen.has(r.id))];
+                        });
+                        setSelectedRouteId(detours[0].id);
+                        setFitKey((v) => v + 1);
+                        setToastMsg("Detour route loaded around hazard");
+                      } else {
+                        router.push({ pathname: "/traffic", params: { selected: routeHazard.id } });
+                      }
+                    })
+                    .catch(() => {
+                      router.push({ pathname: "/traffic", params: { selected: routeHazard.id } });
+                    });
+                }}
                 style={({ pressed }) => [
                   styles.warningRow,
                   {
@@ -385,7 +430,7 @@ export default function PlannerScreen() {
                   color={colors.warning}
                 />
                 <Text style={[styles.warningTitle, { color: colors.warning }]} numberOfLines={1}>
-                  {categoryLabel(routeHazard.category)} on route
+                  {categoryLabel(routeHazard.category)} on route · Tap to reroute
                 </Text>
                 <Text style={[styles.warningLevel, { color: colors.warning }]}>
                   {routeHazard.level}

@@ -100,7 +100,7 @@ export async function POST(req: NextRequest) {
       l5_photo_data_url:
         typeof l5_photo_data_url === "string" &&
         l5_photo_data_url.startsWith("data:image/") &&
-        l5_photo_data_url.length <= 250000
+        l5_photo_data_url.length <= 1_200_000
           ? l5_photo_data_url
           : null,
       l5_confidence_tier:

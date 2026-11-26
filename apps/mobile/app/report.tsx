@@ -115,7 +115,7 @@ export default function ReportScreen() {
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
-      quality: 0.7,
+      quality: 0.3,
       base64: true,
       exif: false,
     });
@@ -172,7 +172,12 @@ export default function ReportScreen() {
       }
 
       let verifiedResult: L5VerifyResult | undefined;
+      let photoDataUrl: string | null = null;
       if (capturedImage) {
+        const candidateUrl = `data:${capturedImage.mimeType};base64,${capturedImage.base64}`;
+        if (candidateUrl.length <= 1_200_000) {
+          photoDataUrl = candidateUrl;
+        }
         const verifyRes = await verifyEvidence(
           {
             imageBase64: capturedImage.base64,
@@ -183,17 +188,9 @@ export default function ReportScreen() {
           },
           session.access_token,
         );
-        if (!verifyRes.ok) {
-          setErrorMsg(verifyRes.error || "Attached photo could not be verified.");
-          setSubmitting(false);
-          return;
-        }
-        verifiedResult = verifyRes.result;
-        setL5Result(verifiedResult);
-        if (!verifiedResult.upgradeEligible) {
-          setErrorMsg(verifiedResult.summary || "Attached photo could not be verified.");
-          setSubmitting(false);
-          return;
+        if (verifyRes.ok) {
+          verifiedResult = verifyRes.result;
+          setL5Result(verifiedResult);
         }
       }
 
@@ -203,6 +200,10 @@ export default function ReportScreen() {
           category: selectedCategory,
           ...locInput,
           note: note.trim() || null,
+          l5Verified: Boolean(verifiedResult?.upgradeEligible),
+          l5Summary: verifiedResult?.summary ?? null,
+          l5PhotoDataUrl: photoDataUrl,
+          l5ConfidenceTier: verifiedResult?.confidenceTier ?? null,
         },
         session.access_token,
       );

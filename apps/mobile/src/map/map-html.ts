@@ -146,6 +146,16 @@ export function buildMapHtml(options: { baseUrl?: string } = {}): string {
       L.geoJSON(featureCollection(data.incidents && data.incidents.features), {
         pointToLayer: function (feature, latlng) {
           var selected = !!feature.properties.selected;
+          var cleared = !!feature.properties.cleared;
+          if (cleared) {
+            return L.circleMarker(latlng, {
+              radius: selected ? 7 : 5,
+              color: casingColor,
+              weight: 2,
+              fillColor: isDark ? "#8A969C" : "#6B747C",
+              fillOpacity: 0.9,
+            });
+          }
           var onRoute = !!feature.properties.onRoute;
           var category = feature.properties.category || "";
           var fill = pinColor(category, isDark);
@@ -182,9 +192,19 @@ export function buildMapHtml(options: { baseUrl?: string } = {}): string {
     function centerOn(coordinates) {
       if (coordinates && coordinates.length === 2) map.setView([coordinates[1], coordinates[0]], Math.max(map.getZoom(), 14), { animate: true });
     }
+    var layerMode = "street";
+    function setLayerMode(mode) {
+      layerMode = mode === "clean" ? "clean" : "street";
+      tileLayer.setUrl(
+        layerMode === "clean"
+          ? "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png"
+          : tileUrl
+      );
+    }
     window.trafficMap = {
       setData: setData,
       setTheme: setTheme,
+      setLayerMode: setLayerMode,
       centerOn: centerOn,
       fit: function () { if (lastData) fitData(lastData); }
     };

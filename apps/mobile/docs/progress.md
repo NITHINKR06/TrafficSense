@@ -4,6 +4,17 @@ Record only mobile implementation updates, device verification evidence, blocker
 
 Cross-app changes also belong in [shared progress](../../../packages/shared/docs/progress.md).
 
+## Mobile Map, Planner Rerouting, Photo Evidence & Cleared-Dot Flow — verified, 26 Nov 2026
+
+- **Implementation:**
+  - Removed the green corridor overlay segments from `traffic.tsx` and `planner.tsx` (`segments={[]}`).
+  - Fixed the Map Layers control in `src/components/traffic-map.tsx` and `src/map/map-html.ts` to toggle tile styles in-place via `window.trafficMap.setLayerMode(...)` without unmounting the `WebView`.
+  - Fixed all 5 filter chips (`All`, `Flooding`, `Traffic`, `Closures`, `Road works`) in `traffic.tsx` and derived `effectiveSelectedId` cleanly when filtered.
+  - Wired `submitIncident` (`src/lib/api.ts`) and `app/report.tsx` to forward `l5_verified`, `l5_summary`, `l5_photo_data_url`, and `l5_confidence_tier`, and rendered attached photos (`photo_data_url`) inside the map incident card in `traffic.tsx`.
+  - Wired **Still there** and **Cleared** buttons in `traffic.tsx` to `POST /api/incidents/[id]/feedback`; incidents with `clear_count >= 3` render as a small dot on the map and show `"Happened X ago · Cleared"` in the card until re-reported.
+  - Updated `planner.tsx` and `fetchDetourRoute` (`src/lib/api.ts`) to automatically fetch and switch to `/api/route/reroute` detours around active incidents on the route and allow tap-to-reroute from the hazard row.
+- **Verification (2 full passes):** `pnpm --filter @trafficsense/mobile typecheck` (0 errors), `eslint` on changed mobile files (0 errors), `pnpm test` (240/240 passed), Android Metro bundle export (`npx expo export --platform android`, 3495 modules, 0 errors), and live Docker checks (`GET /api/incidents`, `POST /api/route`, `POST /api/route/reroute`, and Postgres cleared-dot + photo persistence check).
+
 ## Mobile Redesign (`design/BUILD_SPEC.md`) — verified in automated checks & Metro bundle, 26 Nov 2026
 
 - **Implementation:** Rebuilt the mobile theme (`src/theme/tokens.ts`, `theme-provider.tsx`), UI primitives (`src/components/ui/`), floating `BottomNav` capsule + Report FAB, `LogoAnimation`, `PlacePickerModal`, Light/Dark Leaflet map pins (`src/map/map-html.ts`, `src/components/traffic-map.tsx`), and all 14 screens (`_layout.tsx`, `welcome.tsx`, `index.tsx`, `traffic.tsx`, `planner.tsx`, `report.tsx`, `auth/login.tsx`, `auth/forgot-password.tsx`, `auth/register.tsx`, `workspace.tsx`, `journeys.tsx`, `authority.tsx`, `legal.tsx`) to match `design/BUILD_SPEC.md`.

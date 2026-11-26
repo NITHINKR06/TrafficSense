@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Animated,
   FlatList,
+  Image,
   PanResponder,
   Pressable,
   ScrollView,
@@ -12,7 +13,7 @@ import {
   View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import type { LiveIncident, TrafficSegment } from "@trafficsense/shared";
+import type { LiveIncident } from "@trafficsense/shared";
 import { TrafficMap } from "../src/components/traffic-map";
 import {
   Banner,
@@ -32,11 +33,11 @@ import {
   TierBadge,
   Toast,
 } from "../src/components/ui";
-import { fetchActiveIncidents, fetchTrafficSegments } from "../src/lib/api";
+import { fetchActiveIncidents, submitIncidentFeedback } from "../src/lib/api";
 import { formatClock, LIVE_REFRESH_MS } from "../src/lib/evidence";
 import { categoryLabel } from "../src/lib/format";
 import { describeFreshness } from "../src/lib/freshness";
-import { areIncidentListsEqual, areSegmentListsEqual } from "../src/lib/traffic-equality";
+import { areIncidentListsEqual } from "../src/lib/traffic-equality";
 import { useTabBackHandler } from "../src/lib/use-tab-back-handler";
 import { useAuth } from "../src/providers/auth-provider";
 import { useTheme } from "../src/theme/theme-provider";
@@ -56,7 +57,6 @@ export default function TrafficScreen() {
   const [filter, setFilter] = useState<FilterKey>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [incidents, setIncidents] = useState<LiveIncident[]>([]);
-  const [segments, setSegments] = useState<TrafficSegment[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(initialSelected ?? null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
@@ -108,12 +108,8 @@ export default function TrafficScreen() {
 
   const loadTraffic = useCallback(async () => {
     try {
-      const [incData, segData] = await Promise.all([
-        fetchActiveIncidents(),
-        fetchTrafficSegments(),
-      ]);
+      const incData = await fetchActiveIncidents();
       setIncidents((prev) => (areIncidentListsEqual(prev, incData) ? prev : incData));
-      setSegments((prev) => (areSegmentListsEqual(prev, segData.segments) ? prev : segData.segments));
       setLastUpdated(formatClock(new Date()));
       setError(false);
     } catch {
@@ -135,10 +131,44 @@ export default function TrafficScreen() {
     const q = searchQuery.trim().toLowerCase();
     return incidents.filter((inc) => {
       const cat = inc.category.toLowerCase();
-      if (filter === "flood" && !cat.includes("flood") && !cat.includes("water")) return false;
-      if (filter === "traffic" && !cat.includes("traffic")) return false;
-      if (filter === "closed" && !cat.includes("closed") && !cat.includes("closure")) return false;
-      if (filter === "works" && !cat.includes("repair") && !cat.includes("work")) return false;
+      if (
+        filter === "flood" &&
+        !cat.includes("flood") &&
+        !cat.includes("water") &&
+        !cat.includes("rain") &&
+        !cat.includes("landslide")
+      ) {
+        return false;
+      }
+      if (
+        filter === "traffic" &&
+        !cat.includes("traffic") &&
+        !cat.includes("accident") &&
+        !cat.includes("breakdown") &&
+        !cat.includes("signal") &&
+        !cat.includes("vip") &&
+        !cat.includes("festival") &&
+        !cat.includes("strike")
+      ) {
+        return false;
+      }
+      if (
+        filter === "closed" &&
+        !cat.includes("closed") &&
+        !cat.includes("closure") &&
+        !cat.includes("police") &&
+        !cat.includes("fallen_tree")
+      ) {
+        return false;
+      }
+      if (
+        filter === "works" &&
+        !cat.includes("repair") &&
+        !cat.includes("work") &&
+        !cat.includes("bridge")
+      ) {
+        return false;
+      }
       if (q) {
         const text = `${categoryLabel(inc.category)} ${inc.level_reason ?? ""}`.toLowerCase();
         if (!text.includes(q)) return false;
@@ -146,6 +176,48 @@ export default function TrafficScreen() {
       return true;
     });
   }, [incidents, filter, searchQuery]);
+
+  const effectiveSelectedId = useMemo(() => {
+    if (selectedId && filteredIncidents.some((i) => i.id === selectedId)) return selectedId;
+    return filteredIncidents[0]?.id ?? null;
+  }, [filteredIncidents, selectedId]);
+
+  const handleFeedback = async (incidentId: string, vote: "confirm" | "clear") => {
+    if (!session?.access_token) {
+      setToastMsg("Sign in to confirm or clear incidents");
+      return;
+    }
+    try {
+      const res = await submitIncidentFeedback(incidentId, vote, session.access_token);
+      setIncidents((prev) =>
+        prev.map((inc) =>
+          inc.id === incidentId
+            ? {
+                ...inc,
+                status: (res.status as LiveIncident["status"]) ?? inc.status,
+                clear_count: res.clear_count ?? inc.clear_count,
+                confirm_count: res.confirm_count ?? inc.confirm_count,
+                cleared_at: res.cleared_at ?? inc.cleared_at,
+              }
+            : inc,
+        ),
+      );
+      if (vote === "confirm") {
+        setConfirmCounts((prev) => ({
+          ...prev,
+          [incidentId]: (prev[incidentId] ?? 0) + 1,
+        }));
+        setToastMsg("Thanks · confirmation recorded");
+      } else if (res.status === "cleared") {
+        setToastMsg("Incident marked cleared by commuters");
+      } else {
+        setToastMsg(`Marked as cleared (${res.clear_count ?? 1}/3)`);
+      }
+      void loadTraffic();
+    } catch (err) {
+      setToastMsg(err instanceof Error ? err.message : "Could not record feedback");
+    }
+  };
 
   useEffect(() => {
     if (initialSelected && filteredIncidents.length > 0) {
@@ -186,8 +258,8 @@ export default function TrafficScreen() {
       <TrafficMap
         fullScreen
         incidents={filteredIncidents}
-        segments={segments}
-        selectedIncidentId={selectedId}
+        segments={[]}
+        selectedIncidentId={effectiveSelectedId}
         onSelectIncident={handleSelectPin}
         fitKey={fitKey}
         hideControls={sheetSnap === "full"}
@@ -364,7 +436,10 @@ export default function TrafficScreen() {
                 const tone = categoryTone(item.category, colors);
                 const iconName = categoryIconName(item.category);
                 const fresh = describeFreshness(item.last_confirmed_at);
-                const confirms = confirmCounts[item.id] ?? item.report_count;
+                const happenedFresh = describeFreshness(item.first_reported_at);
+                const isCleared = item.status === "cleared" || (item.clear_count ?? 0) >= 3;
+                const confirms =
+                  confirmCounts[item.id] ?? (item.confirm_count ?? 0) + item.report_count;
 
                 return (
                   <View
@@ -374,31 +449,40 @@ export default function TrafficScreen() {
                     ]}
                   >
                     <View style={styles.cardTopRow}>
-                      <View style={[styles.cardIconTile, { backgroundColor: tone.bg }]}>
-                        <Icon name={iconName} size={20} color={tone.fg} />
+                      <View style={[styles.cardIconTile, { backgroundColor: isCleared ? colors.surface2 : tone.bg }]}>
+                        <Icon name={iconName} size={20} color={isCleared ? colors.text3 : tone.fg} />
                       </View>
                       <View style={styles.cardTitleCol}>
                         <Text style={[styles.cardTitle, { color: colors.text }]} numberOfLines={1}>
                           {categoryLabel(item.category)}
                         </Text>
                         <Text style={[styles.cardMeta, { color: colors.text3 }]} numberOfLines={1}>
-                          {fresh.label} · {item.report_count} {item.report_count === 1 ? "report" : "reports"}
+                          {isCleared
+                            ? `Happened ${happenedFresh.label} · Cleared`
+                            : `${fresh.label} · ${item.report_count} ${item.report_count === 1 ? "report" : "reports"}`}
                         </Text>
                       </View>
                       <TierBadge level={item.level} />
                     </View>
 
+                    {item.photo_data_url ? (
+                      <Image
+                        source={{ uri: item.photo_data_url }}
+                        style={styles.cardPhoto}
+                        resizeMode="cover"
+                      />
+                    ) : null}
+
                     <Text style={[styles.cardDesc, { color: colors.text2 }]} numberOfLines={2}>
-                      {item.level_reason || "Reported road hazard along the corridor."}
+                      {isCleared
+                        ? `Earlier ${categoryLabel(item.category).toLowerCase()} was cleared by ${item.clear_count ?? 3} commuters.`
+                        : item.level_reason || "Reported road hazard along the corridor."}
                     </Text>
 
                     <View style={styles.cardActions}>
                       <Pressable
                         accessibilityRole="button"
-                        onPress={() => {
-                          setConfirmCounts((prev) => ({ ...prev, [item.id]: confirms + 1 }));
-                          setToastMsg("Thanks · confirmation recorded");
-                        }}
+                        onPress={() => void handleFeedback(item.id, "confirm")}
                         style={({ pressed }) => [
                           styles.stillThereBtn,
                           {
@@ -411,19 +495,23 @@ export default function TrafficScreen() {
                         </Text>
                       </Pressable>
 
-                      <Pressable
-                        accessibilityRole="button"
-                        onPress={() => setToastMsg("Marked as cleared")}
-                        style={({ pressed }) => [
-                          styles.clearedBtn,
-                          {
-                            borderColor: colors.border,
-                            backgroundColor: pressed ? colors.surface2 : "transparent",
-                          },
-                        ]}
-                      >
-                        <Text style={[styles.clearedText, { color: colors.text }]}>Cleared</Text>
-                      </Pressable>
+                      {!isCleared ? (
+                        <Pressable
+                          accessibilityRole="button"
+                          onPress={() => void handleFeedback(item.id, "clear")}
+                          style={({ pressed }) => [
+                            styles.clearedBtn,
+                            {
+                              borderColor: colors.border,
+                              backgroundColor: pressed ? colors.surface2 : "transparent",
+                            },
+                          ]}
+                        >
+                          <Text style={[styles.clearedText, { color: colors.text }]}>
+                            Cleared{item.clear_count ? ` (${item.clear_count}/3)` : ""}
+                          </Text>
+                        </Pressable>
+                      ) : null}
 
                       <IconButton
                         variant="accent"
@@ -627,6 +715,11 @@ const styles = StyleSheet.create({
   cardMeta: {
     ...typography.caption,
     fontVariant: ["tabular-nums"],
+  },
+  cardPhoto: {
+    width: "100%",
+    height: 112,
+    borderRadius: 12,
   },
   cardDesc: {
     ...typography.secondary,
