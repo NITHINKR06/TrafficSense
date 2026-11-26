@@ -24,8 +24,8 @@ export function FilterChip({ label, selected = false, onPress, style }: FilterCh
           backgroundColor: selected ? colors.text : colors.surface,
           borderColor: selected ? colors.text : colors.border,
           borderWidth: 1,
-          transform: pressed ? [{ scale: 0.96 }] : undefined,
         },
+        pressed && { transform: [{ scale: 0.96 }] },
         !selected && shadows.sm,
         style,
       ]}

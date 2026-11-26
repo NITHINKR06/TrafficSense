@@ -135,9 +135,9 @@ export function Button({
           paddingHorizontal: padX,
           borderRadius,
           backgroundColor: getBg(pressed && isInteractive),
-          transform: pressed && isInteractive ? [{ scale: 0.97 }] : undefined,
           minWidth: loading && lockedWidth ? lockedWidth : undefined,
         },
+        pressed && isInteractive && { transform: [{ scale: 0.97 }] },
         borderStyle,
         style,
       ]}

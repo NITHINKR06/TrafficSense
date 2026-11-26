@@ -31,7 +31,9 @@ import {
   loadJourneyWorkspace,
   shareJourney,
   sharePreviewLines,
+  startJourney,
   stopJourneyShare,
+  type JourneyRow,
   type JourneyWorkspace,
 } from "../src/lib/journeys";
 import { supabase } from "../src/lib/supabase";
@@ -39,11 +41,23 @@ import { useAuth } from "../src/providers/auth-provider";
 import { useTheme } from "../src/theme/theme-provider";
 import { radius, size as sizes, space, typography } from "../src/theme/tokens";
 
-const WEEK_HISTORY = [
-  { day: "24", mon: "OCT", title: "Central corridor", delay: "+6 min · flooding at Jyothi", dur: "38 min", late: true },
-  { day: "23", mon: "OCT", title: "Kankanady bypass", delay: "On time", dur: "24 min", late: false },
-  { day: "22", mon: "OCT", title: "Ladyhill → Bejai", delay: "On time", dur: "16 min", late: false },
-];
+function formatHistoryDate(iso: string): { day: string; mon: string } {
+  const d = new Date(iso);
+  if (!Number.isFinite(d.getTime())) return { day: "--", mon: "---" };
+  return {
+    day: String(d.getDate()).padStart(2, "0"),
+    mon: new Intl.DateTimeFormat("en-US", { month: "short" }).format(d).toUpperCase(),
+  };
+}
+
+function formatJourneyDuration(startedAt: string, endedAt: string | null): string {
+  if (!endedAt) return "Ended";
+  const mins = Math.max(
+    1,
+    Math.round((new Date(endedAt).getTime() - new Date(startedAt).getTime()) / 60_000),
+  );
+  return `${mins} min`;
+}
 
 export default function JourneysScreen() {
   const insets = useSafeAreaInsets();
@@ -109,9 +123,30 @@ export default function JourneysScreen() {
   }
 
   const activeJourney = data?.journeys.find((j) => j.status === "active") ?? null;
+  const previousJourneys: JourneyRow[] =
+    data?.journeys.filter((j) => j.status === "ended") ?? [];
   const org = data?.organisations[0] ?? null;
   const activeShare = activeJourney?.shares?.find((s) => s.status === "active") ?? null;
   const isSharing = Boolean(activeShare);
+
+  const avgMin =
+    previousJourneys.length > 0
+      ? Math.round(
+          previousJourneys.reduce((sum, j) => {
+            if (!j.ended_at) return sum;
+            return (
+              sum +
+              Math.max(
+                1,
+                Math.round(
+                  (new Date(j.ended_at).getTime() - new Date(j.started_at).getTime()) /
+                    60_000,
+                ),
+              )
+            );
+          }, 0) / previousJourneys.length,
+        )
+      : null;
 
   async function handleEndJourney(id: string) {
     Alert.alert("End this journey?", "Your active corridor status will stop updating.", [
@@ -246,7 +281,7 @@ export default function JourneysScreen() {
                   <View style={[styles.pulseCore, { backgroundColor: colors.heroAccent }]} />
                 </View>
                 <Text style={[styles.onRoadText, { color: colors.heroAccent }]}>
-                  On the road · 12 min
+                  On the road
                 </Text>
               </View>
               <Text style={[styles.startedText, { color: colors.heroText3 }]}>
@@ -256,10 +291,10 @@ export default function JourneysScreen() {
 
             <View>
               <Text style={[styles.routeTitle, { color: colors.heroText }]}>
-                Pumpwell → Hampankatta
+                {activeJourney.corridor_name}
               </Text>
               <Text style={[styles.corridorSub, { color: colors.heroText2 }]}>
-                Central corridor
+                Simulated corridor status
               </Text>
             </View>
 
@@ -284,20 +319,27 @@ export default function JourneysScreen() {
                 />
               </View>
               <View style={styles.progressLabels}>
-                <Text style={[styles.progressLabel, { color: colors.heroText3 }]}>Pumpwell</Text>
-                <Text style={[styles.progressLabel, { color: colors.heroText3 }]}>Hampankatta</Text>
+                <Text style={[styles.progressLabel, { color: colors.heroText3 }]}>Start</Text>
+                <Text style={[styles.progressLabel, { color: colors.heroText3 }]}>Destination</Text>
               </View>
             </View>
 
-            {/* Arrive / Delay Tiles */}
+            {/* Status Tiles */}
             <View style={styles.tilesRow}>
               <View style={[styles.heroTile, { backgroundColor: colors.heroTile }]}>
-                <Text style={[styles.heroTileLabel, { color: colors.heroText3 }]}>Arrive</Text>
-                <Text style={[styles.heroTileVal, { color: colors.heroText }]}>10:32</Text>
+                <Text style={[styles.heroTileLabel, { color: colors.heroText3 }]}>Started</Text>
+                <Text style={[styles.heroTileVal, { color: colors.heroText }]}>{startedClock}</Text>
               </View>
               <View style={[styles.heroTile, { backgroundColor: colors.heroTile }]}>
-                <Text style={[styles.heroTileLabel, { color: colors.heroText3 }]}>Delay</Text>
-                <Text style={[styles.heroTileVal, { color: colors.heroWarn }]}>+2 min</Text>
+                <Text style={[styles.heroTileLabel, { color: colors.heroText3 }]}>Sharing</Text>
+                <Text
+                  style={[
+                    styles.heroTileVal,
+                    { color: isSharing ? colors.heroAccent : colors.heroText2 },
+                  ]}
+                >
+                  {isSharing ? "Active" : "Off"}
+                </Text>
               </View>
             </View>
 
@@ -322,12 +364,29 @@ export default function JourneysScreen() {
             <Text style={[styles.emptySub, { color: colors.text2 }]}>
               Pick a corridor in Plan to track arrival and corridor delays.
             </Text>
-            <Button
-              title="Start from Plan"
-              size="M"
-              variant="secondary"
-              onPress={() => router.replace("/planner")}
-            />
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <Button
+                title="Start journey"
+                size="M"
+                variant="primary"
+                loading={busy}
+                onPress={() => {
+                  setBusy(true);
+                  void startJourney(supabase)
+                    .then(() => loadData())
+                    .catch((err) =>
+                      setError(err instanceof Error ? err.message : "Could not start journey."),
+                    )
+                    .finally(() => setBusy(false));
+                }}
+              />
+              <Button
+                title="Start from Plan"
+                size="M"
+                variant="secondary"
+                onPress={() => router.replace("/planner")}
+              />
+            </View>
           </Card>
         )}
 
@@ -363,38 +422,42 @@ export default function JourneysScreen() {
           </Text>
         )}
 
-        {/* This Week History */}
-        <ListGroup title="This week" rightLabel="Avg 26 min">
-          {WEEK_HISTORY.map((item, idx) => (
-            <View
-              key={`${item.day}-${item.title}`}
-              style={[
-                styles.historyRow,
-                idx > 0 && { borderTopWidth: 1, borderTopColor: colors.border },
-              ]}
-            >
-              <View style={styles.dateCol}>
-                <Text style={[styles.dateDay, { color: colors.text }]}>{item.day}</Text>
-                <Text style={[styles.dateMon, { color: colors.text3 }]}>{item.mon}</Text>
-              </View>
-              <View style={styles.historyTextCol}>
-                <Text style={[styles.historyTitle, { color: colors.text }]} numberOfLines={1}>
-                  {item.title}
-                </Text>
-                <Text
+        {/* History */}
+        {previousJourneys.length > 0 ? (
+          <ListGroup
+            title="This week"
+            rightLabel={avgMin ? `Avg ${avgMin} min` : undefined}
+          >
+            {previousJourneys.slice(0, 10).map((item, idx) => {
+              const dt = formatHistoryDate(item.started_at);
+              return (
+                <View
+                  key={item.id}
                   style={[
-                    styles.historyDelay,
-                    { color: item.late ? colors.warning : colors.text3 },
+                    styles.historyRow,
+                    idx > 0 && { borderTopWidth: 1, borderTopColor: colors.border },
                   ]}
-                  numberOfLines={1}
                 >
-                  {item.delay}
-                </Text>
-              </View>
-              <Text style={[styles.historyDur, { color: colors.text }]}>{item.dur}</Text>
-            </View>
-          ))}
-        </ListGroup>
+                  <View style={styles.dateCol}>
+                    <Text style={[styles.dateDay, { color: colors.text }]}>{dt.day}</Text>
+                    <Text style={[styles.dateMon, { color: colors.text3 }]}>{dt.mon}</Text>
+                  </View>
+                  <View style={styles.historyTextCol}>
+                    <Text style={[styles.historyTitle, { color: colors.text }]} numberOfLines={1}>
+                      {item.corridor_name}
+                    </Text>
+                    <Text style={[styles.historyDelay, { color: colors.text3 }]} numberOfLines={1}>
+                      Ended · {formatClock(new Date(item.ended_at ?? item.started_at))}
+                    </Text>
+                  </View>
+                  <Text style={[styles.historyDur, { color: colors.text }]}>
+                    {formatJourneyDuration(item.started_at, item.ended_at)}
+                  </Text>
+                </View>
+              );
+            })}
+          </ListGroup>
+        ) : null}
       </ScrollView>
 
       {/* First-time Employer Sharing Consent ModalSheet */}

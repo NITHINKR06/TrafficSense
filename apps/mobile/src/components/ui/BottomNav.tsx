@@ -183,10 +183,8 @@ export function BottomNav({ activeTab, badgeCount, compact = false }: BottomNavP
                 onPress={() => handleNavigate(tab.id)}
                 style={({ pressed }) => [
                   styles.tabButton,
-                  {
-                    width: tabWidth,
-                    transform: pressed ? [{ scale: 0.9 }] : undefined,
-                  },
+                  { width: tabWidth },
+                  pressed && { transform: [{ scale: 0.9 }] },
                 ]}
               >
                 <View style={styles.iconWrap}>
@@ -228,8 +226,8 @@ export function BottomNav({ activeTab, badgeCount, compact = false }: BottomNavP
           styles.fab,
           {
             backgroundColor: pressed ? colors.accentPressed : colors.accent,
-            transform: pressed ? [{ scale: 0.9 }] : undefined,
           },
+          pressed && { transform: [{ scale: 0.9 }] },
           shadows.fab,
         ]}
       >

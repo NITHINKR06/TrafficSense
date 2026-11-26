@@ -346,6 +346,12 @@ export default function TrafficScreen() {
               showsHorizontalScrollIndicator={false}
               snapToInterval={310}
               decelerationRate="fast"
+              getItemLayout={(_data, index) => ({
+                length: 310,
+                offset: 310 * index,
+                index,
+              })}
+              onScrollToIndexFailed={() => {}}
               contentContainerStyle={styles.carouselContent}
               onMomentumScrollEnd={(e) => {
                 const idx = Math.round(e.nativeEvent.contentOffset.x / 310);

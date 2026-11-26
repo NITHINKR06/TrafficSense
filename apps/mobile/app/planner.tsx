@@ -23,7 +23,9 @@ import {
 import { fetchActiveIncidents, fetchRoute, fetchTrafficSegments } from "../src/lib/api";
 import { formatClock } from "../src/lib/evidence";
 import { categoryLabel, formatDistance, formatEstimatedDuration } from "../src/lib/format";
+import { startJourney } from "../src/lib/journeys";
 import { mangaluruPlaces } from "../src/lib/places";
+import { supabase } from "../src/lib/supabase";
 import { useTabBackHandler } from "../src/lib/use-tab-back-handler";
 import { useAuth } from "../src/providers/auth-provider";
 import { useTheme } from "../src/theme/theme-provider";
@@ -36,6 +38,9 @@ export default function PlannerScreen() {
 
   const [startIndex, setStartIndex] = useState(0);
   const [destIndex, setDestIndex] = useState(1);
+  const [customOrigin, setCustomOrigin] = useState<{ name: string; coords: [number, number] } | null>(null);
+  const [customDest, setCustomDest] = useState<{ name: string; coords: [number, number] } | null>(null);
+  const [startingJourney, setStartingJourney] = useState(false);
   const [preferBus, setPreferBus] = useState(false);
   const [saved, setSaved] = useState(false);
   const [routes, setRoutes] = useState<RouteOption[]>([]);
@@ -51,45 +56,57 @@ export default function PlannerScreen() {
 
   useTabBackHandler(pickerMode === null);
 
-  const loadRoutes = useCallback(async (from = startIndex, to = destIndex) => {
-    setLoading(true);
-    setError(false);
-    try {
-      const [routeRes, incRes, segRes] = await Promise.all([
-        fetchRoute(mangaluruPlaces[from].coords, mangaluruPlaces[to].coords),
-        fetchActiveIncidents().catch(() => [] as LiveIncident[]),
-        fetchTrafficSegments().catch(() => ({ segments: [] as TrafficSegment[] })),
-      ]);
-      setRoutes(routeRes);
-      setIncidents(incRes);
-      setSegments(segRes.segments);
-      const rec = routeRes.find((r) => r.is_recommended) ?? routeRes[0];
-      setSelectedRouteId(rec?.id ?? null);
-      setFitKey((v) => v + 1);
-    } catch {
-      setError(true);
-    } finally {
-      setLoading(false);
-    }
-  }, [startIndex, destIndex]);
+  const loadRoutes = useCallback(
+    async (
+      fromCoords = customOrigin?.coords ?? mangaluruPlaces[startIndex].coords,
+      toCoords = customDest?.coords ?? mangaluruPlaces[destIndex].coords,
+    ) => {
+      setLoading(true);
+      setError(false);
+      try {
+        const [routeRes, incRes, segRes] = await Promise.all([
+          fetchRoute(fromCoords, toCoords),
+          fetchActiveIncidents().catch(() => [] as LiveIncident[]),
+          fetchTrafficSegments().catch(() => ({ segments: [] as TrafficSegment[] })),
+        ]);
+        setRoutes(routeRes);
+        setIncidents(incRes);
+        setSegments(segRes.segments);
+        const rec = routeRes.find((r) => r.is_recommended) ?? routeRes[0];
+        setSelectedRouteId(rec?.id ?? null);
+        setFitKey((v) => v + 1);
+      } catch {
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [customOrigin, customDest, startIndex, destIndex],
+  );
 
   const [checkedAtMs, setCheckedAtMs] = useState<number>(0);
 
   useEffect(() => {
     const t = setTimeout(() => {
       setCheckedAtMs(Date.now());
-      void loadRoutes(0, 1);
+      void loadRoutes(mangaluruPlaces[0].coords, mangaluruPlaces[1].coords);
     }, 0);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const swapPlaces = () => {
+    const prevOrigin = customOrigin;
+    const prevDest = customDest;
     const nextStart = destIndex;
     const nextDest = startIndex;
     setStartIndex(nextStart);
     setDestIndex(nextDest);
-    void loadRoutes(nextStart, nextDest);
+    setCustomOrigin(prevDest);
+    setCustomDest(prevOrigin);
+    const fromC = prevDest?.coords ?? mangaluruPlaces[nextStart].coords;
+    const toC = prevOrigin?.coords ?? mangaluruPlaces[nextDest].coords;
+    void loadRoutes(fromC, toC);
   };
 
   const activeRoute = useMemo(
@@ -107,8 +124,8 @@ export default function PlannerScreen() {
     return incidents.find((i) => i.id === first.id) ?? null;
   }, [activeRoute, incidents]);
 
-  const originPlace = mangaluruPlaces[startIndex];
-  const destPlace = mangaluruPlaces[destIndex];
+  const originPlace = customOrigin ?? mangaluruPlaces[startIndex];
+  const destPlace = customDest ?? mangaluruPlaces[destIndex];
   const sheetHeightEstimate = 385 + insets.bottom;
 
   const arrivalTime =
@@ -383,9 +400,18 @@ export default function PlannerScreen() {
                 title="Start journey"
                 size="L"
                 variant="primary"
-                onPress={() =>
-                  router.push(session ? "/journeys" : "/auth/login?next=/journeys")
-                }
+                loading={startingJourney}
+                onPress={() => {
+                  if (!session) {
+                    router.push("/auth/login?next=/journeys");
+                    return;
+                  }
+                  setStartingJourney(true);
+                  void startJourney(supabase, `${originPlace.name} → ${destPlace.name}`)
+                    .then(() => router.push("/journeys"))
+                    .catch(() => setToastMsg("Could not start journey. Try again."))
+                    .finally(() => setStartingJourney(false));
+                }}
                 style={{ flex: 1 }}
               />
               <Pressable
@@ -426,11 +452,22 @@ export default function PlannerScreen() {
         }
         onSelectPreset={(idx) => {
           if (pickerMode === "origin") {
+            setCustomOrigin(null);
             setStartIndex(idx);
-            void loadRoutes(idx, destIndex);
+            void loadRoutes(mangaluruPlaces[idx].coords, destPlace.coords);
           } else {
+            setCustomDest(null);
             setDestIndex(idx);
-            void loadRoutes(startIndex, idx);
+            void loadRoutes(originPlace.coords, mangaluruPlaces[idx].coords);
+          }
+        }}
+        onSelectDeviceLocation={(coords, label) => {
+          if (pickerMode === "origin") {
+            setCustomOrigin({ name: label, coords });
+            void loadRoutes(coords, destPlace.coords);
+          } else {
+            setCustomDest({ name: label, coords });
+            void loadRoutes(originPlace.coords, coords);
           }
         }}
         onClose={() => setPickerMode(null)}

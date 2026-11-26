@@ -30,7 +30,9 @@ import { fetchActiveIncidents, fetchRoute } from "../src/lib/api";
 import { formatClock } from "../src/lib/evidence";
 import { categoryLabel } from "../src/lib/format";
 import { describeFreshness } from "../src/lib/freshness";
+import { startJourney } from "../src/lib/journeys";
 import { mangaluruPlaces } from "../src/lib/places";
+import { supabase } from "../src/lib/supabase";
 import { areIncidentListsEqual } from "../src/lib/traffic-equality";
 import { useAuth } from "../src/providers/auth-provider";
 import { useTheme } from "../src/theme/theme-provider";
@@ -106,8 +108,9 @@ export default function HomeScreen() {
     [routes],
   );
   const durationMin = primaryRoute ? Math.round(primaryRoute.duration_s / 60) : 18;
-  const onRouteCount = primaryRoute?.incidents_on_route?.length ?? (incidents.length > 0 ? 1 : 0);
-  const routeCountLabel = `${Math.max(routes.length, 2)} routes`;
+  const onRouteCount = primaryRoute?.incidents_on_route?.length ?? 0;
+  const routeCountLabel =
+    routes.length <= 1 ? "Plan route" : `${routes.length} routes`;
 
   const topIncidents = useMemo(() => incidents.slice(0, 3), [incidents]);
   const promptIncident = !confirmDismissed && topIncidents.length > 0 ? topIncidents[0] : null;
@@ -307,14 +310,22 @@ export default function HomeScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Start journey"
-                onPress={() => router.push(session ? "/journeys" : "/planner")}
+                onPress={() => {
+                  if (!session) {
+                    router.push("/planner");
+                    return;
+                  }
+                  void startJourney(supabase, "Ladyhill → Pumpwell Circle")
+                    .then(() => router.push("/journeys"))
+                    .catch(() => router.push("/journeys"));
+                }}
                 style={({ pressed }) => [
                   styles.heroPrimaryBtn,
                   {
                     backgroundColor: colors.heroAccent,
                     opacity: pressed ? 0.9 : 1,
-                    transform: pressed ? [{ scale: 0.97 }] : undefined,
                   },
+                  pressed && { transform: [{ scale: 0.97 }] },
                 ]}
               >
                 <Text style={[styles.heroPrimaryBtnText, { color: colors.onAccent }]}>
@@ -331,8 +342,8 @@ export default function HomeScreen() {
                   {
                     borderColor: colors.heroBorder2,
                     opacity: pressed ? 0.85 : 1,
-                    transform: pressed ? [{ scale: 0.97 }] : undefined,
                   },
+                  pressed && { transform: [{ scale: 0.97 }] },
                 ]}
               >
                 <Text style={[styles.heroSecondaryBtnText, { color: colors.heroText }]}>
