@@ -133,10 +133,6 @@ export function BottomNav({ activeTab, badgeCount, compact = false }: BottomNavP
     inputRange: [0, 1],
     outputRange: [sizes.navHeight, 52],
   });
-  const indicatorHeight = compactAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [sizes.navTabHeight, 42],
-  });
 
   return (
     <View pointerEvents="box-none" style={[styles.container, { bottom: bottomOffset }]}>
@@ -167,7 +163,7 @@ export function BottomNav({ activeTab, badgeCount, compact = false }: BottomNavP
               styles.indicator,
               {
                 width: tabWidth,
-                height: indicatorHeight,
+                height: compact ? 42 : sizes.navTabHeight,
                 backgroundColor: colors.navIndicator,
                 transform: [{ translateX: indicatorX }],
               },

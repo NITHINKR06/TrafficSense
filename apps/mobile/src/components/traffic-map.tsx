@@ -1,7 +1,7 @@
 import * as Location from "expo-location";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from "react-native";
-import { WebView, type WebViewMessageEvent } from "react-native-webview";
+import { WebView, type WebViewMessageEvent, type WebViewProps } from "react-native-webview";
 import type { LiveIncident, RouteOption, TrafficSegment } from "@trafficsense/shared";
 import { buildMapPayload, type MapPayload } from "../map/map-data";
 import { buildMapHtml } from "../map/map-html";
@@ -44,6 +44,14 @@ type CanvasProps = {
   onSelectRoute?: (id: string) => void;
 };
 
+type WebViewHandle = {
+  injectJavaScript: (script: string) => void;
+};
+
+const TypedWebView = WebView as unknown as React.ComponentType<
+  WebViewProps & { ref?: React.Ref<WebViewHandle> }
+>;
+
 function MapCanvas({
   payload,
   fitKey,
@@ -54,7 +62,7 @@ function MapCanvas({
   onSelectIncident,
   onSelectRoute,
 }: CanvasProps) {
-  const webViewRef = useRef<WebView>(null);
+  const webViewRef = useRef<WebViewHandle>(null);
   const lastFitKey = useRef<number | null>(null);
   const lastYou = useRef<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -97,7 +105,7 @@ function MapCanvas({
   }
 
   return (
-    <WebView
+    <TypedWebView
       ref={webViewRef}
       style={style}
       source={{ html: MAP_HTML }}
