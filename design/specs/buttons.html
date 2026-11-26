@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TrafficSense · Buttons spec</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0} table{border-collapse:collapse} button{font-family:inherit}
+.bt{transition:transform 100ms cubic-bezier(.2,0,0,1),background-color 100ms ease;cursor:pointer}
+.bt:active{transform:scale(.97)}
+.bt-p:active{background:#08574D !important}
+.bt-s:active{background:#EEF0F2 !important}
+.bt-t:active{background:#CFE6E1 !important}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spin{animation:spin 800ms linear infinite;transform-origin:50% 50%}
+</style>
+<style>html,body{margin:0;background:#E8EBEE}#app{display:inline-block;min-width:100%}</style>
+</head>
+<body>
+<div id="app"></div>
+<template id="tpl-ButtonSpec">
+<div style="width:1440px;height:1320px;box-sizing:border-box;padding:56px;background:#F5F6F7;font-family:Inter,system-ui,sans-serif;color:#121619;display:flex;flex-direction:column;gap:32px">
+
+<div>
+<div style="font-size:13px;font-weight:600;color:#0B6B5F;letter-spacing:.04em;text-transform:uppercase">Component</div>
+<h1 style="margin:6px 0 0;font-size:40px;line-height:46px;font-weight:650;letter-spacing:-.025em">Buttons</h1>
+<p style="margin:8px 0 0;font-size:16px;color:#4B555E">One primary action per screen. Labels are verbs, in sentence case, no more than three words.</p>
+</div>
+
+<div style="display:flex;gap:32px">
+<div style="width:700px;height:300px;border-radius:28px;background:#FFFFFF;box-shadow:0 0 0 1px #E2E5E8;position:relative">
+<span style="position:absolute;top:24px;left:28px;font-size:13px;font-weight:600;color:#4B555E">Anatomy · 2×</span>
+<div style="position:absolute;left:150px;top:104px;width:400px;height:104px;border-radius:32px;background:#0B6B5F;display:flex;align-items:center;justify-content:center;gap:16px;color:#FFFFFF;font-size:32px;font-weight:600">
+<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12 20 4l-4 16-4-6-8-2z"/></svg>Send report</div>
+<span style="position:absolute;left:150px;top:220px;width:40px;height:1px;background:#C8372B"></span>
+<span style="position:absolute;left:150px;top:228px;font-size:12px;font-weight:600;color:#C8372B">20 pad</span>
+<span style="position:absolute;left:234px;top:84px;width:40px;height:1px;background:#C8372B"></span>
+<span style="position:absolute;left:228px;top:62px;font-size:12px;font-weight:600;color:#C8372B">20 icon</span>
+<span style="position:absolute;left:274px;top:220px;width:16px;height:1px;background:#C8372B"></span>
+<span style="position:absolute;left:279px;top:228px;font-size:12px;font-weight:600;color:#C8372B">8</span>
+<span style="position:absolute;left:570px;top:104px;width:1px;height:104px;background:#C8372B"></span>
+<span style="position:absolute;left:580px;top:148px;font-size:12px;font-weight:600;color:#C8372B">52 h</span>
+<span style="position:absolute;left:110px;top:104px;width:32px;height:32px;border-top:1px solid #C8372B;border-left:1px solid #C8372B;border-radius:32px 0 0 0"></span>
+<span style="position:absolute;left:78px;top:92px;font-size:12px;font-weight:600;color:#C8372B">r 16</span>
+<span style="position:absolute;left:330px;top:62px;font-size:12px;font-weight:600;color:#0B6B5F">16 / 600 label</span>
+</div>
+
+<div style="flex:1;border-radius:28px;background:#FFFFFF;box-shadow:0 0 0 1px #E2E5E8;padding:24px 28px;display:flex;flex-direction:column;gap:16px">
+<span style="font-size:13px;font-weight:600;color:#4B555E">Sizes</span>
+<sc-for list="{{sizes}}" as="z" hint-placeholder-count="3">
+<div style="display:flex;align-items:center;gap:20px">
+<button class="bt bt-p" style="height:{{z.h}}px;padding:0 {{z.pad}}px;border-radius:{{z.r}}px;border:0;background:#0B6B5F;color:#FFFFFF;font-size:{{z.fs}}px;font-weight:600;flex-shrink:0;width:{{z.w}}px">Send</button>
+<span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;font-weight:600">{{z.name}}</span><span style="font-size:13px;color:#4B555E;font-variant-numeric:tabular-nums">{{z.spec}}</span></span>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div style="border-radius:28px;background:{{t.bg}};box-shadow:0 0 0 1px {{t.frame}};padding:24px 28px">
+<div style="display:grid;grid-template-columns:92px repeat(5,minmax(0,1fr));gap:12px 10px;align-items:center">
+<span style="font-size:13px;font-weight:600;color:{{t.tx2}}">{{t.name}}</span>
+<sc-for list="{{t.cols}}" as="c" hint-placeholder-count="5"><span style="font-size:12px;font-weight:600;color:{{c.fg}}">{{c.name}}</span></sc-for>
+<sc-for list="{{t.rows}}" as="r" hint-placeholder-count="5">
+<span style="font-size:13px;font-weight:500;color:{{r.lab}}">{{r.name}}</span>
+<sc-for list="{{r.cells}}" as="x" hint-placeholder-count="5">
+<span style="height:44px;border-radius:14px;background:{{x.bg}};border:{{x.bd}};color:{{x.fg}};outline:{{x.ring}};outline-offset:2px;transform:{{x.tf}};font-size:14px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:6px;box-sizing:border-box">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke-width="2.5" stroke-linecap="round" aria-hidden="true" style="display:{{x.spin}};stroke:{{x.fg}}"><path d="M12 3a9 9 0 1 1-9 9" /></svg>{{x.label}}</span>
+</sc-for>
+</sc-for>
+</div>
+</div>
+</sc-for>
+</div>
+
+<div style="display:flex;gap:32px">
+<div style="flex:1;border-radius:28px;background:#FFFFFF;box-shadow:0 0 0 1px #E2E5E8;padding:24px 28px">
+<div style="font-size:13px;font-weight:600;color:#4B555E;margin-bottom:8px">Behaviour</div>
+<div style="display:flex;flex-direction:column;width:100%;font-size:14px">
+<sc-for list="{{rules}}" as="m" hint-placeholder-count="6">
+<div style="display:flex;align-items:center;border-top:1px solid #EEF0F2"><div style="flex:none;padding:10px 12px 10px 0;font-weight:600;width:22%">{{m.k}}</div><div style="flex:1;min-width:0;padding:10px 12px 10px 0;color:#4B555E">{{m.what}}</div><div style="flex:none;padding:10px 0;font-size:13px;color:#0B6B5F;font-weight:600;white-space:nowrap">{{m.t}}</div></div>
+</sc-for>
+</div>
+</div>
+<div style="width:420px;border-radius:28px;background:#FFFFFF;box-shadow:0 0 0 1px #E2E5E8;padding:24px 28px;display:flex;flex-direction:column;gap:14px">
+<span style="font-size:13px;font-weight:600;color:#4B555E">Try it · press and hold</span>
+<button class="bt bt-p" onClick="{{toggle}}" style="height:52px;border-radius:16px;border:0;background:#0B6B5F;color:#FFFFFF;font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
+<sc-if value="{{loading}}" hint-placeholder-val="{{ false }}"><svg class="spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M12 3a9 9 0 1 1-9 9"/></svg></sc-if>{{label}}</button>
+<button class="bt bt-s" style="height:52px;border-radius:16px;border:1px solid #D5DADE;background:#FFFFFF;color:#121619;font-size:16px;font-weight:600">Update status</button>
+<button class="bt bt-t" style="height:52px;border-radius:16px;border:0;background:#E2F0ED;color:#0B6B5F;font-size:16px;font-weight:600">Pick a junction</button>
+<span style="font-size:12px;color:#5F6A73">Tap the first button to see the loading state.</span>
+</div>
+</div>
+
+</div>
+</template>
+<script src="../runtime/ts-runtime.js"></script>
+<script>
+TS.define('ButtonSpec', function (DCLogic) {
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { loading: false }; }
+  renderVals() {
+    const L = {name:'Light',bg:'#FFFFFF',frame:'#E2E5E8',tx:'#121619',tx2:'#4B555E',tx3:'#68737D',sf2:'#EEF0F2',ring:'#0B6B5F',
+      v:{
+        Primary:{bg:'#0B6B5F',fg:'#FFFFFF',pr:'#08574D',bd:'0'},
+        Secondary:{bg:'#FFFFFF',fg:'#121619',pr:'#EEF0F2',bd:'1px solid #D5DADE'},
+        Tonal:{bg:'#E2F0ED',fg:'#0B6B5F',pr:'#CFE6E1',bd:'0'},
+        Text:{bg:'transparent',fg:'#0B6B5F',pr:'#E2F0ED',bd:'0'},
+        Danger:{bg:'#FCEBE9',fg:'#B42318',pr:'#F8D9D5',bd:'0'}
+      }};
+    const D = {name:'Dark',bg:'#0B0F10',frame:'#252D30',tx:'#EEF2F3',tx2:'#A9B4B8',tx3:'#8A969B',sf2:'#1B2124',ring:'#56C7B3',
+      v:{
+        Primary:{bg:'#56C7B3',fg:'#03211C',pr:'#46B09D',bd:'0'},
+        Secondary:{bg:'#13181A',fg:'#EEF2F3',pr:'#1B2124',bd:'1px solid #2E373B'},
+        Tonal:{bg:'#0F2C28',fg:'#56C7B3',pr:'#143A34',bd:'0'},
+        Text:{bg:'transparent',fg:'#56C7B3',pr:'#0F2C28',bd:'0'},
+        Danger:{bg:'#331A19',fg:'#F7897D',pr:'#42201E',bd:'0'}
+      }};
+    const colNames = ['Default','Pressed','Focus','Disabled','Loading'];
+    const themes = [L, D].map(t => ({
+      name: t.name, bg: t.bg, frame: t.frame, tx2: t.tx2,
+      cols: colNames.map(n => ({name:n, fg:t.tx2})),
+      rows: Object.keys(t.v).map(name => {
+        const v = t.v[name];
+        return { name, lab: t.tx, cells: colNames.map(col => {
+          const base = {label:'Send', bg:v.bg, fg:v.fg, bd:v.bd, ring:'none', tf:'none', spin:'none'};
+          if (col === 'Pressed') return {...base, bg:v.pr, tf:'scale(.97)'};
+          if (col === 'Focus') return {...base, ring:'2px solid ' + t.ring};
+          if (col === 'Disabled') return {...base, bg: name === 'Text' ? 'transparent' : t.sf2, fg:t.tx3, bd:'0'};
+          if (col === 'Loading') return {...base, label:'', spin:'block'};
+          return base;
+        })};
+      })
+    }));
+    return {
+      themes,
+      loading: this.state.loading,
+      label: this.state.loading ? 'Sending' : 'Send report',
+      toggle: () => this.setState({ loading: !this.state.loading }),
+      sizes: [
+        {name:'Large · 52',spec:'Main action · pad 20 · radius 16 · 16 / 600',h:52,pad:20,r:16,fs:16,w:120},
+        {name:'Medium · 44',spec:'Cards & sheets · pad 16 · radius 14 · 14 / 600',h:44,pad:16,r:14,fs:14,w:104},
+        {name:'Small · 36',spec:'Chips & inline · pad 12 · radius 18 · 13 / 600',h:36,pad:12,r:18,fs:13,w:88}
+      ],
+      rules: [
+        {k:'Press',what:'Scale to 0.97 and darken one step',t:'100 ms · (.2,0,0,1)'},
+        {k:'Release',what:'Return to rest, then run the action',t:'200 ms · spring'},
+        {k:'Focus',what:'2 px accent ring, 2 px gap, never removed',t:'instant'},
+        {k:'Loading',what:'Spinner replaces the icon, width stays fixed',t:'fade 120 ms'},
+        {k:'Disabled',what:'Neutral fill, muted text, no shadow',t:'—'},
+        {k:'Hit area',what:'At least 48 × 48, even for Small',t:'pad with slop'}
+      ]
+    };
+  }
+}
+return Component;
+}, 'tpl-ButtonSpec');
+TS.mount('ButtonSpec', document.getElementById('app'));
+</script>
+</body>
+</html>

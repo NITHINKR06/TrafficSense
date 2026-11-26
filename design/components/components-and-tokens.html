@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TrafficSense · Components & tokens</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>body{margin:0} button,input{font-family:inherit} button{cursor:pointer}</style>
+<style>html,body{margin:0;background:#E8EBEE}#app{display:inline-block;min-width:100%}</style>
+</head>
+<body>
+<div id="app"></div>
+<template id="tpl-Components">
+<div style="width:1440px;height:1880px;box-sizing:border-box;padding:32px;display:flex;gap:48px;background:#E8EBEE;font-family:Inter,system-ui,sans-serif">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div style="flex:1;min-width:0;border-radius:28px;background:{{t.bg}};box-shadow:0 0 0 1px {{t.frame}};padding:32px;box-sizing:border-box;display:flex;flex-direction:column;gap:28px">
+<div style="display:flex;align-items:baseline;justify-content:space-between"><h2 style="margin:0;font-size:22px;font-weight:650;color:{{t.tx}};letter-spacing:-.01em">{{t.name}} theme</h2><span style="font-size:13px;color:{{t.tx3}}">Inter · 4 px grid · radius 12/16/20/24</span></div>
+
+<div style="display:flex;flex-direction:column;gap:12px">
+<span style="font-size:12px;font-weight:600;color:{{t.tx3}};letter-spacing:.06em;text-transform:uppercase">Color</span>
+<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:10px">
+<sc-for list="{{t.swatches}}" as="s" hint-placeholder-count="7">
+<div style="display:flex;flex-direction:column;gap:6px">
+<span style="height:48px;border-radius:12px;background:{{s.v}};box-shadow:inset 0 0 0 1px {{s.t.bd}}"></span>
+<span style="font-size:12px;font-weight:600;color:{{s.t.tx}}">{{s.n}}</span>
+<span style="font-size:11px;color:{{s.t.tx3}};font-variant-numeric:tabular-nums">{{s.v}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:10px">
+<span style="font-size:12px;font-weight:600;color:{{t.tx3}};letter-spacing:.06em;text-transform:uppercase">Type</span>
+<div style="display:flex;align-items:baseline;gap:24px;flex-wrap:wrap;color:{{t.tx}}">
+<span style="font-size:28px;font-weight:650;letter-spacing:-.02em">Title 28</span>
+<span style="font-size:18px;font-weight:600">Heading 18</span>
+<span style="font-size:15px">Body 15</span>
+<span style="font-size:13px;color:{{t.tx3}}">Caption 13</span>
+<span style="font-size:11px;font-weight:600">Label 11</span>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:12px">
+<span style="font-size:12px;font-weight:600;color:{{t.tx3}};letter-spacing:.06em;text-transform:uppercase">Buttons</span>
+<div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+<button style="height:52px;padding:0 22px;border-radius:16px;border:0;background:{{t.ac}};color:{{t.onac}};font-size:16px;font-weight:600">Primary</button>
+<button style="height:52px;padding:0 22px;border-radius:16px;border:1px solid {{t.bd}};background:transparent;color:{{t.tx}};font-size:16px;font-weight:600">Secondary</button>
+<button style="height:52px;padding:0 22px;border-radius:16px;border:0;background:{{t.sf2}};color:{{t.tx}};font-size:16px;font-weight:600">Tonal</button>
+<button style="height:52px;padding:0 14px;border-radius:16px;border:0;background:transparent;color:{{t.ac}};font-size:16px;font-weight:600">Text</button>
+<button style="height:52px;padding:0 14px;border-radius:16px;border:0;background:transparent;color:{{t.dg}};font-size:16px;font-weight:600">Sign out</button>
+<button disabled style="height:52px;padding:0 22px;border-radius:16px;border:0;background:{{t.sf2}};color:{{t.tx3}};font-size:16px;font-weight:600;cursor:default">Disabled</button>
+<button aria-label="Swap" style="width:44px;height:44px;border-radius:50%;border:1px solid {{t.bd}};background:{{t.sf}};display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{t.tx}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M4 7l3-3 3 3M17 20V4M14 17l3 3 3-3"/></svg></button>
+<button style="height:40px;padding:0 16px;border-radius:999px;border:0;background:{{t.sf2}};color:{{t.tx}};font-size:13px;font-weight:600">Yes · 7</button>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:12px">
+<span style="font-size:12px;font-weight:600;color:{{t.tx3}};letter-spacing:.06em;text-transform:uppercase">Inputs</span>
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px">
+<label style="display:flex;flex-direction:column;gap:6px"><span style="font-size:13px;font-weight:600;color:{{t.tx}}">Default</span><input placeholder="you@example.com" style="height:52px;border-radius:14px;border:1px solid {{t.bd}};background:{{t.sf}};padding:0 14px;font-size:15px;color:{{t.tx}};outline:0"/></label>
+<label style="display:flex;flex-direction:column;gap:6px"><span style="font-size:13px;font-weight:600;color:{{t.tx}}">Focused</span><input value="commuter@demo" style="height:52px;border-radius:14px;border:2px solid {{t.ac}};background:{{t.sf}};padding:0 13px;font-size:15px;color:{{t.tx}};outline:0"/></label>
+<label style="display:flex;flex-direction:column;gap:6px"><span style="font-size:13px;font-weight:600;color:{{t.tx}}">Error</span><input value="commuter@" style="height:52px;border-radius:14px;border:2px solid {{t.dg}};background:{{t.sf}};padding:0 13px;font-size:15px;color:{{t.tx}};outline:0"/><span style="font-size:12px;color:{{t.dg}}">Enter a valid email</span></label>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:12px">
+<span style="font-size:12px;font-weight:600;color:{{t.tx3}};letter-spacing:.06em;text-transform:uppercase">Tabs, chips &amp; status</span>
+<div style="display:flex;gap:12px;flex-wrap:wrap;align-items:center">
+<div role="tablist" style="height:40px;padding:3px;box-sizing:border-box;border-radius:999px;background:{{t.sf2}};display:flex;gap:2px">
+<button role="tab" aria-selected="true" style="height:34px;padding:0 16px;border-radius:999px;border:0;background:{{t.sf}};color:{{t.tx}};font-size:13px;font-weight:600">Map</button>
+<button role="tab" aria-selected="false" style="height:34px;padding:0 16px;border-radius:999px;border:0;background:transparent;color:{{t.tx2}};font-size:13px;font-weight:600">List</button>
+</div>
+<button style="height:36px;padding:0 14px;border-radius:999px;border:0;background:{{t.tx}};color:{{t.bg}};font-size:13px;font-weight:600">Selected</button>
+<button style="height:36px;padding:0 14px;border-radius:999px;border:1px solid {{t.bd}};background:{{t.sf}};color:{{t.tx}};font-size:13px;font-weight:600">Filter</button>
+<span style="height:26px;padding:0 10px;border-radius:999px;background:{{t.acs}};color:{{t.ac}};font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px"><span style="width:6px;height:6px;border-radius:50%;background:{{t.ac}}"></span>Live</span>
+<span style="height:24px;padding:0 9px;border-radius:999px;border:1px dashed {{t.tx3}};font-size:11px;font-weight:600;color:{{t.tx2}};display:flex;align-items:center">Simulated</span>
+<span style="height:26px;padding:0 10px;border-radius:999px;background:{{t.wns}};color:{{t.wn}};font-size:12px;font-weight:600;display:flex;align-items:center">28 min ago</span>
+</div>
+<div style="display:flex;gap:10px;align-items:center">
+<sc-for list="{{t.tiers}}" as="r" hint-placeholder-count="4">
+<span style="height:26px;padding:0 9px;border-radius:999px;background:{{r.t.sf2}};display:flex;align-items:center;gap:6px">
+<span style="display:flex;align-items:flex-end;gap:2px;height:12px">
+<sc-for list="{{r.bars}}" as="b" hint-placeholder-count="6"><span style="width:3px;height:{{b.h}}px;border-radius:1px;background:{{b.c}}"></span></sc-for>
+</span>
+<span style="font-size:12px;font-weight:600;color:{{r.t.tx2}}">{{r.label}}</span>
+</span>
+</sc-for>
+<span style="font-size:12px;color:{{t.tx3}}">Evidence tier: bars fill as reports are confirmed</span>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:20px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<span style="font-size:12px;font-weight:600;color:{{t.tx3}};letter-spacing:.06em;text-transform:uppercase">Controls</span>
+<div style="display:flex;align-items:center;gap:20px">
+<span role="switch" aria-checked="true" aria-label="On" style="width:48px;height:28px;border-radius:999px;background:{{t.ac}};position:relative;display:block"><span style="position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:{{t.onac}}"></span></span>
+<span role="switch" aria-checked="false" aria-label="Off" style="width:48px;height:28px;border-radius:999px;background:{{t.bd}};position:relative;display:block"><span style="position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:{{t.sf}}"></span></span>
+<span style="width:20px;height:20px;border-radius:50%;border:6px solid {{t.ac}};box-sizing:border-box;background:{{t.sf}}"></span>
+<span style="width:20px;height:20px;border-radius:50%;border:2px solid {{t.tx3}};box-sizing:border-box"></span>
+<span style="width:20px;height:20px;border-radius:6px;background:{{t.ac}};display:flex;align-items:center;justify-content:center"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="{{t.onac}}" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg></span>
+<span style="width:20px;height:20px;border-radius:6px;border:2px solid {{t.tx3}};box-sizing:border-box"></span>
+</div>
+<span style="font-size:12px;font-weight:600;color:{{t.tx3}};letter-spacing:.06em;text-transform:uppercase;margin-top:12px">Menu</span>
+<div role="menu" style="width:240px;border-radius:16px;background:{{t.sf}};border:1px solid {{t.bd}};box-shadow:{{t.sh}};padding:6px">
+<sc-for list="{{t.menu}}" as="m" hint-placeholder-count="4">
+<button role="menuitem" style="width:100%;height:44px;border:0;border-radius:10px;background:{{m.bg}};display:flex;align-items:center;gap:12px;padding:0 12px;text-align:left;color:{{m.fg}};font-size:14px;font-weight:500">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{m.fg}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{m.d}}"/></svg>{{m.label}}</button>
+</sc-for>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:12px">
+<span style="font-size:12px;font-weight:600;color:{{t.tx3}};letter-spacing:.06em;text-transform:uppercase">Banner &amp; list row</span>
+<div style="border-radius:16px;background:{{t.wns}};padding:14px 16px;display:flex;flex-direction:column;gap:8px">
+<span style="font-size:14px;font-weight:600;color:{{t.wn}}">Sign in to send reports</span>
+<span style="font-size:13px;line-height:18px;color:{{t.wn}}">Browsing stays open to everyone.</span>
+<button style="align-self:flex-start;height:40px;padding:0 14px;border-radius:12px;border:0;background:{{t.wn}};color:{{t.bg}};font-size:13px;font-weight:600">Sign in</button>
+</div>
+<div style="border-radius:16px;background:{{t.sf}};border:1px solid {{t.bd}};height:60px;display:flex;align-items:center;gap:14px;padding:0 14px">
+<span style="width:36px;height:36px;border-radius:10px;background:{{t.sf2}};display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{t.tx}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/></svg></span>
+<span style="flex:1;font-size:15px;font-weight:500;color:{{t.tx}}">Appearance</span><span style="font-size:13px;color:{{t.tx3}}">System</span>
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{t.tx3}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>
+</div>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:12px">
+<span style="font-size:12px;font-weight:600;color:{{t.tx3}};letter-spacing:.06em;text-transform:uppercase">States</span>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px">
+<sc-for list="{{t.states}}" as="s" hint-placeholder-count="3">
+<div style="border-radius:20px;background:{{s.bg}};border:1px solid {{s.bd}};padding:18px;display:flex;flex-direction:column;align-items:flex-start;gap:10px">
+<span style="width:40px;height:40px;border-radius:12px;background:{{s.ibg}};display:flex;align-items:center;justify-content:center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{s.fg}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{s.d}}"/></svg></span>
+<span style="font-size:15px;font-weight:600;color:{{s.t.tx}}">{{s.title}}</span>
+<span style="font-size:13px;line-height:18px;color:{{s.t.tx2}}">{{s.body}}</span>
+<button style="height:40px;padding:0 14px;border-radius:12px;border:1px solid {{s.t.bd}};background:{{s.t.sf}};color:{{s.t.tx}};font-size:13px;font-weight:600">{{s.cta}}</button>
+</div>
+</sc-for>
+<div style="border-radius:20px;background:{{t.sf}};border:1px solid {{t.bd}};padding:18px;display:flex;flex-direction:column;gap:12px" aria-label="Loading">
+<span style="display:flex;gap:12px;align-items:center"><span style="width:40px;height:40px;border-radius:12px;background:{{t.sf2}}"></span><span style="flex:1;display:flex;flex-direction:column;gap:8px"><span style="height:12px;width:70%;border-radius:6px;background:{{t.sf2}}"></span><span style="height:10px;width:45%;border-radius:5px;background:{{t.sf2}}"></span></span></span>
+<span style="height:10px;border-radius:5px;background:{{t.sf2}}"></span>
+<span style="height:10px;width:80%;border-radius:5px;background:{{t.sf2}}"></span>
+<span style="font-size:13px;color:{{t.tx3}}">Loading</span>
+</div>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:12px">
+<span style="font-size:12px;font-weight:600;color:{{t.tx3}};letter-spacing:.06em;text-transform:uppercase">Icons · 24 px, 2 px stroke</span>
+<div style="display:grid;grid-template-columns:repeat(10,minmax(0,1fr));gap:8px">
+<sc-for list="{{t.icons}}" as="i" hint-placeholder-count="20">
+<span title="{{i.n}}" style="height:48px;border-radius:12px;background:{{i.t.sf}};border:1px solid {{i.t.bd}};display:flex;align-items:center;justify-content:center">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{i.t.tx}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="{{i.n}}"><path d="{{i.d}}"/></svg>
+</span>
+</sc-for>
+</div>
+</div>
+
+</div>
+</sc-for>
+</div>
+</template>
+<script src="../runtime/ts-runtime.js"></script>
+<script>
+TS.define('Components', function (DCLogic) {
+class Component extends DCLogic {
+  renderVals() {
+    const T = {
+      light:{dark:false,name:'Light',bg:'#F5F6F7',sf:'#FFFFFF',sf2:'#EEF0F2',bd:'#E2E5E8',tx:'#121619',tx2:'#4B555E',tx3:'#68737D',ac:'#0B6B5F',acs:'#E2F0ED',onac:'#FFFFFF',wn:'#9A5700',wns:'#FCF0DF',dg:'#B42318',dgs:'#FCEBE9',frame:'#D9DDE1',sh:'0 1px 2px rgba(16,24,32,.08), 0 6px 20px rgba(16,24,32,.10)'},
+      dark:{dark:true,name:'Dark',bg:'#0B0F10',sf:'#13181A',sf2:'#1B2124',bd:'#252D30',tx:'#EEF2F3',tx2:'#A9B4B8',tx3:'#8A969B',ac:'#56C7B3',acs:'#0F2C28',onac:'#03211C',wn:'#F2AA55',wns:'#2A2013',dg:'#F7897D',dgs:'#331A19',frame:'#252D30',sh:'0 1px 0 rgba(255,255,255,.04) inset, 0 8px 24px rgba(0,0,0,.5)'}
+    };
+    const D = {
+      home:'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z',
+      map:'M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14',
+      route:'M4 19a2 2 0 1 0 4 0a2 2 0 1 0-4 0M16 5a2 2 0 1 0 4 0a2 2 0 1 0-4 0M8 19h8.5a3.5 3.5 0 0 0 0-7h-9a3.5 3.5 0 0 1 0-7H16',
+      user:'M8 8a4 4 0 1 0 8 0a4 4 0 1 0-8 0M4 21a8 8 0 0 1 16 0',
+      plus:'M12 5v14M5 12h14',
+      search:'M4 11a7 7 0 1 0 14 0a7 7 0 1 0-14 0M20 20l-3.5-3.5',
+      filter:'M4 7h9M17 7h3M4 17h3M11 17h9M13 7a2 2 0 1 0 4 0a2 2 0 1 0-4 0M7 17a2 2 0 1 0 4 0a2 2 0 1 0-4 0',
+      locate:'M3 11 21 3l-8 18-2-8z',
+      layers:'m12 3 9 5-9 5-9-5 9-5zM3 13l9 5 9-5',
+      swap:'M7 4v16M4 7l3-3 3 3M17 20V4M14 17l3 3 3-3',
+      accident:'M8 3h8l5 5v8l-5 5H8l-5-5V8zM12 8v5M12 16h.01',
+      closed:'M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M7 12h10',
+      traffic:'M5 16h14v-4l-2-5H7l-2 5v4zM5 12h14M7 16v2M17 16v2',
+      flood:'M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z',
+      works:'M10 4h4l5 16H5L10 4zM8 11h8M6.5 16h11M3 20h18',
+      alert:'M12 3 2 20h20L12 3zM12 10v4M12 17h.01',
+      shield:'M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6zM9 12l2 2 4-4',
+      lock:'M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4',
+      camera:'M4 8h3l2-3h6l2 3h3v11H4zM8.5 13a3.5 3.5 0 1 0 7 0a3.5 3.5 0 1 0-7 0',
+      refresh:'M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7'
+    };
+    const themes = [T.light, T.dark].map(t => ({
+      ...t,
+      swatches: [['Background',t.bg],['Surface',t.sf],['Border',t.bd],['Text',t.tx],['Accent',t.ac],['Warning',t.wn],['Danger',t.dg]].map(([n,v]) => ({n, v, t})),
+      tiers: [['L1',1],['L3',3],['L5',5],['L6',6]].map(([label,n]) => ({label, t, bars:[4,6,8,10,12,14].map((h,k) => ({h, c: k < n ? t.ac : t.bd}))})),
+      menu: [
+        {label:'Update status',d:D.refresh,fg:t.tx,bg:t.sf2},
+        {label:'Avoid this area',d:D.route,fg:t.tx,bg:'transparent'},
+        {label:'Show on map',d:D.map,fg:t.tx,bg:'transparent'},
+        {label:'Flag as wrong',d:D.alert,fg:t.dg,bg:'transparent'}
+      ],
+      states: [
+        {title:'No reports here',body:'Nothing reported in this area in the last 3 hours.',cta:'Clear filters',d:D.map,fg:t.tx2,ibg:t.sf2,bg:t.sf,bd:t.bd,t},
+        {title:'Couldn’t update',body:'The traffic service didn’t respond. Showing the last data.',cta:'Try again',d:D.refresh,fg:t.dg,ibg:t.dgs,bg:t.sf,bd:t.bd,t},
+        {title:'Location is off',body:'Pick a nearby junction instead. No GPS needed.',cta:'Pick a junction',d:D.locate,fg:t.wn,ibg:t.wns,bg:t.sf,bd:t.bd,t}
+      ],
+      icons: Object.keys(D).map(n => ({n, d: D[n], t}))
+    }));
+    return { themes };
+  }
+}
+return Component;
+}, 'tpl-Components');
+TS.mount('Components', document.getElementById('app'));
+</script>
+</body>
+</html>

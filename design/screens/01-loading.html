@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TrafficSense · Loading</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0} button{font-family:inherit;cursor:pointer}
+@keyframes ts-icon{0%{opacity:0;transform:scale(.6)}60%{opacity:1;transform:scale(1.04)}100%{opacity:1;transform:scale(1)}}
+@keyframes ts-rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+@keyframes ts-road{from{background-position:0 0}to{background-position:-28px 0}}
+.ts-icon{animation:ts-icon 700ms cubic-bezier(.32,.72,0,1) both}
+.ts-word{animation:ts-rise 420ms cubic-bezier(0,0,0,1) 1150ms both}
+.ts-tag{animation:ts-rise 420ms cubic-bezier(0,0,0,1) 1270ms both}
+.ts-load{animation:ts-rise 420ms cubic-bezier(0,0,0,1) 1400ms both}
+.ts-dash{animation:ts-road 700ms linear infinite}
+.lg-wrap{perspective:640px}
+.lg{transform-origin:50% 60%;animation:lgTile 900ms cubic-bezier(.34,1.4,.64,1) both}
+@keyframes lgTile{0%{opacity:0;transform:translateY(26px) rotateX(42deg) rotateZ(-8deg) scale(.55)}45%{opacity:1}100%{opacity:1;transform:none}}
+.lg-hl{animation:lgL 700ms cubic-bezier(.22,1,.36,1) 220ms both,lgSwayL 4s ease-in-out 1.8s infinite}
+.lg-hr{animation:lgR 700ms cubic-bezier(.22,1,.36,1) 280ms both,lgSwayR 4s ease-in-out 1.8s infinite}
+@keyframes lgL{from{opacity:0;transform:translateX(-22px)}to{opacity:1;transform:none}}
+@keyframes lgR{from{opacity:0;transform:translateX(22px)}to{opacity:1;transform:none}}
+@keyframes lgSwayL{0%,100%{transform:none}50%{transform:translateX(-1.6px)}}
+@keyframes lgSwayR{0%,100%{transform:none}50%{transform:translateX(1.6px)}}
+.lg-edge{stroke-dasharray:100 100;animation:lgDraw 700ms cubic-bezier(.65,0,.35,1) 340ms both}
+.lg-road{stroke-dasharray:100 100;animation:lgDraw 700ms cubic-bezier(.65,0,.35,1) 430ms both}
+@keyframes lgDraw{from{stroke-dashoffset:100}to{stroke-dashoffset:0}}
+.lg-lane{stroke-dasharray:5 6;animation:lgIn 260ms ease 1050ms both,lgLane 800ms linear 1050ms infinite}
+@keyframes lgIn{from{opacity:0}to{opacity:1}}
+@keyframes lgLane{from{stroke-dashoffset:0}to{stroke-dashoffset:11}}
+.lg-pin{transform-box:fill-box;transform-origin:50% 100%;animation:lgFall 720ms linear 900ms both,lgHop 1800ms cubic-bezier(.45,0,.55,1) 2500ms infinite}
+@keyframes lgFall{0%{opacity:0;transform:translateY(-74px) scale(.88,1.16);animation-timing-function:cubic-bezier(.55,0,1,.45)}12%{opacity:1}45%{transform:translateY(0) scale(.9,1.12);animation-timing-function:ease-out}56%{transform:translateY(0) scale(1.22,.76)}70%{transform:translateY(-11px) scale(.94,1.07);animation-timing-function:ease-in}82%{transform:translateY(0) scale(1.08,.9)}92%{transform:translateY(0) scale(.98,1.02)}100%{opacity:1;transform:none}}
+@keyframes lgHop{0%{transform:none}10%{transform:translateY(0) scale(1.14,.84)}25%{transform:translateY(-16px) scale(.9,1.1)}40%{transform:translateY(-21px) scale(-1,1)}55%{transform:translateY(-16px) scale(1,1)}70%{transform:translateY(0) scale(1,1)}78%{transform:translateY(0) scale(1.16,.82)}88%{transform:translateY(0) scale(.97,1.04)}100%{transform:none}}
+.lg-sh{transform-box:fill-box;transform-origin:center;animation:lgShFall 720ms linear 900ms both,lgShHop 1800ms cubic-bezier(.45,0,.55,1) 2500ms infinite}
+@keyframes lgShFall{0%{opacity:0;transform:scale(.3)}45%{opacity:.32;transform:scale(1.25)}100%{opacity:.28;transform:none}}
+@keyframes lgShHop{0%,10%{opacity:.28;transform:none}25%,55%{opacity:.1;transform:scale(.45)}70%{opacity:.32;transform:scale(1.2)}100%{opacity:.28;transform:none}}
+.lg-rip,.lg-rip2{transform-box:fill-box;transform-origin:center;opacity:0}
+.lg-rip{animation:lgRip1 900ms cubic-bezier(0,0,.2,1) 1224ms forwards,lgRip 1800ms linear 2500ms infinite}
+.lg-rip2{animation:lgRip1 900ms cubic-bezier(0,0,.2,1) 1404ms forwards,lgRip 1800ms linear 2680ms infinite}
+@keyframes lgRip1{0%{opacity:.8;transform:scale(.3)}100%{opacity:0;transform:scale(2.8)}}
+@keyframes lgRip{0%,69%{opacity:0;transform:scale(.3)}70%{opacity:.8;transform:scale(.3)}100%{opacity:0;transform:scale(2.8)}}
+.lw{display:inline-block;animation:lwRise 560ms cubic-bezier(.22,1,.36,1) both}
+@keyframes lwRise{from{opacity:0;transform:translateY(18px) rotate(6deg)}to{opacity:1;transform:none}}
+.lt{animation:ltTrack 900ms cubic-bezier(.22,1,.36,1) 1750ms both}
+@keyframes ltTrack{from{opacity:0;letter-spacing:.42em}to{opacity:1;letter-spacing:.16em}}
+@media (prefers-reduced-motion:reduce){.lg,.lg *,.lw,.lt{animation:none!important;opacity:1!important}}
+</style>
+<style>html,body{margin:0;background:#E8EBEE}#app{display:inline-block;min-width:100%}</style>
+</head>
+<body>
+<div id="app"></div>
+<template id="tpl-Splash">
+<div style="width:900px;height:952px;box-sizing:border-box;padding:32px;display:flex;gap:56px;background:#E8EBEE;font-family:Inter,system-ui,sans-serif">
+<sc-if value="{{show}}" hint-placeholder-val="{{ true }}">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div style="display:flex;flex-direction:column;gap:16px;width:390px">
+<div style="height:28px;display:flex;align-items:center;justify-content:space-between;font-size:13px;font-weight:600;color:#4B555E">{{t.name}}
+<button onClick="{{t.replay}}" style="height:28px;padding:0 12px;border-radius:14px;border:0;background:#FFFFFF;color:#0B6B5F;font-size:12px;font-weight:600">Replay</button></div>
+<div style="width:390px;height:844px;border-radius:40px;overflow:hidden;position:relative;background:{{t.bg}};box-shadow:0 0 0 1px {{t.frame}};display:flex;flex-direction:column;align-items:center;justify-content:center">
+<div class="lg-wrap"><svg class="lg" width="136" height="136" viewBox="0 0 120 120" role="img" aria-label="TrafficSense" style="display:block;border-radius:32px;box-shadow:{{t.iconSh}}">
+<defs>
+<clipPath id="lgClip"><rect width="120" height="120" rx="28"/></clipPath>
+<linearGradient id="lgSky" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#36AEF6"/><stop offset="1" stop-color="#0A63D6"/></linearGradient>
+<linearGradient id="lgGrass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3FD46F"/><stop offset="1" stop-color="#0C9C86"/></linearGradient>
+<linearGradient id="lgPin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF6B3D"/><stop offset="1" stop-color="#E5173F"/></linearGradient>
+</defs>
+<g clip-path="url(#lgClip)">
+<rect width="120" height="120" fill="url(#lgSky)"/>
+<path class="lg-hr" d="M120 26C96 34 80 56 88 84C92 100 104 112 120 118Z" fill="#9AD8FB"/>
+<path class="lg-hl" d="M0 30C24 38 38 62 28 90C24 104 26 114 30 124H0Z" fill="url(#lgGrass)"/>
+<path class="lg-edge" d="M62 126C58 98 30 90 34 66C38 46 62 40 78 14" pathLength="100" stroke="#FFFFFF" stroke-width="27" fill="none"/>
+<path class="lg-road" d="M62 126C58 98 30 90 34 66C38 46 62 40 78 14" pathLength="100" stroke="#141C2B" stroke-width="20" fill="none"/>
+<path class="lg-lane" d="M62 126C58 98 30 90 34 66C38 46 62 40 78 14" pathLength="100" stroke="#FFFFFF" stroke-width="2.4" stroke-linecap="round" fill="none"/>
+<g opacity="0">
+<rect x="-4" y="-2.2" width="8" height="4.4" rx="2.2" fill="#FFF1B8"/>
+<animateMotion dur="1.6s" begin="1.3s" repeatCount="indefinite" rotate="auto" path="M62 126C58 98 30 90 34 66C38 46 62 40 78 14"/>
+<animate attributeName="opacity" values="0;1;1;0" keyTimes="0;.15;.75;1" dur="1.6s" begin="1.3s" repeatCount="indefinite"/>
+</g>
+<ellipse class="lg-rip" cx="91" cy="63" rx="7" ry="2.4" fill="none" stroke="#FFFFFF" stroke-width="1.6"/>
+<ellipse class="lg-rip2" cx="91" cy="63" rx="7" ry="2.4" fill="none" stroke="#FFFFFF" stroke-width="1.2"/>
+<ellipse class="lg-sh" cx="91" cy="63" rx="6" ry="1.8" fill="#000000"/>
+<g class="lg-pin">
+<path d="M91 63C88 58 78 51 78 42A13 13 0 1 1 104 42C104 51 94 58 91 63Z" fill="url(#lgPin)" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="91" cy="42" r="5.2" fill="#FFFFFF"/>
+</g>
+</g>
+</svg></div>
+<div style="margin-top:32px;font-size:30px;font-weight:650;letter-spacing:-.025em;color:{{t.tx}}"><sc-for list="{{t.letters}}" as="l" hint-placeholder-count="12"><span class="lw" style="animation-delay:{{l.d}};color:{{l.c}}">{{l.ch}}</span></sc-for></div>
+<div class="lt" style="margin-top:8px;font-size:12px;font-weight:600;letter-spacing:.16em;text-transform:uppercase;color:{{t.tx3}}">Safer roads · Smarter commutes</div>
+<div class="ts-load" style="position:absolute;bottom:56px;font-size:12px;color:{{t.tx3}}">Mangaluru</div>
+</div>
+</div>
+</sc-for>
+</sc-if>
+</div>
+</template>
+<script src="../runtime/ts-runtime.js"></script>
+<script>
+TS.define('Splash', function (DCLogic) {
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { show: true }; }
+  componentWillUnmount() { clearTimeout(this.tm); }
+  renderVals() {
+    const replay = () => { this.setState({ show: false }); clearTimeout(this.tm); this.tm = setTimeout(() => this.setState({ show: true }), 40); };
+    const T = [
+      {name:'Light',bg:'#F5F6F7',tx:'#121619',brand:'#1683E8',tx3:'#68737D',frame:'#D9DDE1',track:'#E2E5E8',dash:'#121619',iconSh:'0 1px 2px rgba(16,24,32,.08), 0 12px 32px rgba(16,24,32,.14)'},
+      {name:'Dark',bg:'#0B0F10',tx:'#EEF2F3',brand:'#4BA6FF',tx3:'#8A969B',frame:'#252D30',track:'#1B2124',dash:'#EEF2F3',iconSh:'0 12px 32px rgba(0,0,0,.6)'}
+    ];
+    return { show: this.state.show, themes: T.map(t => ({ ...t, replay, letters: 'TrafficSense'.split('').map((ch, i) => ({ ch, d: (1250 + i * 30) + 'ms', c: i > 6 ? t.brand : t.tx })) })) };
+  }
+}
+return Component;
+}, 'tpl-Splash');
+TS.mount('Splash', document.getElementById('app'));
+</script>
+</body>
+</html>

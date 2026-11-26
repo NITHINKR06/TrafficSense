@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TrafficSense · Journeys</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+body{margin:0} button{font-family:inherit;cursor:pointer}
+@keyframes jnPulse{0%{transform:scale(1);opacity:.5}100%{transform:scale(2.4);opacity:0}}
+.jn-pulse{animation:jnPulse 1.6s cubic-bezier(0,0,.2,1) infinite}
+</style>
+
+<style>
+body{margin:0}
+.ts-tab{transition:transform 120ms cubic-bezier(.2,0,0,1);-webkit-tap-highlight-color:transparent}
+.ts-tab:active{transform:scale(.9)}
+.ts-tab svg,.ts-tab span{transition:color 200ms ease,stroke 200ms ease,font-weight 200ms ease}
+.ts-fab{transition:transform 140ms cubic-bezier(.2,0,0,1)}
+.ts-fab:active{transform:scale(.9)}
+.ts-ind{transition:transform 420ms cubic-bezier(.32,.72,0,1)}
+</style>
+<style>html,body{margin:0;background:#E8EBEE}#app{display:inline-block;min-width:100%}</style>
+</head>
+<body>
+<div id="app"></div>
+<template id="tpl-Journeys">
+<div style="width:900px;height:1008px;box-sizing:border-box;padding:32px;display:flex;gap:56px;background:#E8EBEE;font-family:Inter,system-ui,sans-serif">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div style="display:flex;flex-direction:column;gap:16px;width:390px">
+<div style="height:28px;display:flex;align-items:center;font-size:13px;font-weight:600;color:#4B555E">{{t.name}}</div>
+<div style="width:390px;height:900px;border-radius:40px;overflow:hidden;position:relative;background:{{t.bg}};box-shadow:0 0 0 1px {{t.frame}}">
+<div style="position:absolute;inset:0;padding:16px 20px 0;box-sizing:border-box;display:flex;flex-direction:column;gap:20px">
+
+<div style="display:flex;align-items:center;justify-content:space-between">
+<a href="11-me.html" aria-label="Back" style="width:44px;height:44px;border-radius:50%;background:{{t.sf2}};display:flex;align-items:center;justify-content:center;margin-left:-4px">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{t.tx}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+</a>
+<span style="height:24px;padding:0 9px;border-radius:12px;border:1px dashed {{t.tx3}};font-size:11px;font-weight:600;color:{{t.tx2}};display:flex;align-items:center">Simulated</span>
+</div>
+
+<h1 style="margin:-4px 0 0;font-size:28px;line-height:34px;font-weight:650;letter-spacing:-.025em;color:{{t.tx}}">Journeys</h1>
+
+<div style="border-radius:28px;background:{{t.hero}};border:1px solid {{t.heroBd}};padding:20px;display:flex;flex-direction:column;gap:18px">
+<div style="display:flex;align-items:center;justify-content:space-between">
+<span style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:{{t.heroAc}}">
+<span style="position:relative;width:8px;height:8px"><span class="jn-pulse" style="position:absolute;inset:0;border-radius:50%;background:{{t.heroAc}}"></span><span style="position:absolute;inset:0;border-radius:50%;background:{{t.heroAc}}"></span></span>On the road · 12 min</span>
+<span style="font-size:13px;color:{{t.heroTx3}}">Started 10:14</span>
+</div>
+<div>
+<div style="font-size:20px;line-height:26px;font-weight:650;letter-spacing:-.015em;color:{{t.heroTx}}">Pumpwell → Hampankatta</div>
+<div style="font-size:13px;color:{{t.heroTx2}};margin-top:2px">Central corridor</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="position:relative;height:6px;border-radius:3px;background:{{t.heroTrack}}">
+<span style="position:absolute;left:0;top:0;bottom:0;width:62%;border-radius:3px;background:{{t.heroAc}}"></span>
+<span style="position:absolute;left:62%;top:50%;width:16px;height:16px;margin:-8px 0 0 -8px;border-radius:50%;background:{{t.heroTx}};border:3px solid {{t.heroAc}};box-sizing:border-box"></span>
+</div>
+<div style="display:flex;justify-content:space-between;font-size:12px;color:{{t.heroTx3}}"><span>Pumpwell</span><span>Hampankatta</span></div>
+</div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+<div style="border-radius:16px;background:{{t.heroTile}};padding:12px 14px"><div style="font-size:12px;color:{{t.heroTx3}}">Arrive</div><div style="font-size:20px;font-weight:650;color:{{t.heroTx}};font-variant-numeric:tabular-nums;margin-top:2px">10:32</div></div>
+<div style="border-radius:16px;background:{{t.heroTile}};padding:12px 14px"><div style="font-size:12px;color:{{t.heroTx3}}">Delay</div><div style="font-size:20px;font-weight:650;color:{{t.heroWarn}};font-variant-numeric:tabular-nums;margin-top:2px">+2 min</div></div>
+</div>
+<button style="height:52px;border-radius:16px;border:1px solid {{t.heroBd2}};background:transparent;color:{{t.heroTx}};font-size:16px;font-weight:600">End journey</button>
+</div>
+
+<div style="border-radius:20px;background:{{t.sf}};border:1px solid {{t.bd}};padding:14px 14px 14px 16px;display:flex;align-items:center;gap:12px">
+<span style="width:36px;height:36px;border-radius:10px;background:{{t.acs}};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{t.ac}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h16v12H4zM9 8V5h6v3"/></svg>
+</span>
+<span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+<span style="font-size:15px;font-weight:600;color:{{t.tx}}">Share with your employer</span>
+<span style="font-size:12px;line-height:16px;color:{{t.tx3}}">Corridor status only · never GPS</span>
+</span>
+<span role="switch" aria-checked="true" aria-label="Share with your employer" style="width:52px;height:32px;border-radius:16px;background:{{t.ac}};position:relative;display:block;flex-shrink:0"><span style="position:absolute;top:3px;right:3px;width:26px;height:26px;border-radius:13px;background:{{t.onac}}"></span></span>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;align-items:baseline;justify-content:space-between;padding:0 4px">
+<span style="font-size:12px;font-weight:600;color:{{t.tx3}};letter-spacing:.06em;text-transform:uppercase">This week</span>
+<span style="font-size:12px;color:{{t.tx3}}">Avg 26 min</span>
+</div>
+<div style="border-radius:20px;background:{{t.sf}};border:1px solid {{t.bd}};overflow:hidden">
+<sc-for list="{{t.recent}}" as="r" hint-placeholder-count="3">
+<div style="height:68px;border-top:{{r.sep}};display:flex;align-items:center;gap:14px;padding:0 16px">
+<span style="width:40px;flex-shrink:0;display:flex;flex-direction:column;align-items:center"><span style="font-size:16px;font-weight:650;line-height:18px;color:{{r.t.tx}}">{{r.day}}</span><span style="font-size:10px;font-weight:600;letter-spacing:.06em;color:{{r.t.tx3}}">{{r.mon}}</span></span>
+<span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+<span style="font-size:15px;font-weight:500;color:{{r.t.tx}}">{{r.title}}</span>
+<span style="font-size:12px;color:{{r.dcol}}">{{r.delay}}</span>
+</span>
+<span style="font-size:15px;font-weight:600;color:{{r.t.tx}};font-variant-numeric:tabular-nums">{{r.dur}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:96px">
+<dc-import name="NavBar" dark="{{t.dark}}" active="me" hint-size="390px,96px"></dc-import>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+</template>
+<template id="tpl-NavBar">
+<div style="position:relative;width:390px;height:96px;font-family:Inter,system-ui,sans-serif">
+<nav aria-label="Main" style="position:absolute;left:16px;bottom:16px;width:284px;height:64px;box-sizing:border-box;padding:5px;border-radius:32px;background:{{c.glass}};-webkit-backdrop-filter:blur(20px) saturate(160%);backdrop-filter:blur(20px) saturate(160%);border:1px solid {{c.edge}};box-shadow:{{c.sh}};display:flex">
+<span class="ts-ind" aria-hidden="true" style="position:absolute;top:5px;left:5px;width:68px;height:52px;border-radius:26px;background:{{c.ind}};transform:{{indX}}"></span>
+<sc-for list="{{items}}" as="it" hint-placeholder-count="4">
+<button class="ts-tab" aria-current="{{it.current}}" onClick="{{it.pick}}" style="position:relative;width:68px;height:52px;border:0;background:transparent;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;font-family:inherit">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="{{it.sw}}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="stroke:{{it.fg}}"><path d="{{it.d}}"/></svg>
+<span style="font-size:11px;line-height:13px;font-weight:{{it.fw}};color:{{it.fg}};letter-spacing:.01em">{{it.label}}</span>
+</button>
+</sc-for>
+</nav>
+<button class="ts-fab" aria-label="Report a hazard" style="position:absolute;right:16px;bottom:16px;width:64px;height:64px;border-radius:32px;border:0;background:{{c.ac}};box-shadow:{{c.fabSh}};display:flex;align-items:center;justify-content:center;cursor:pointer">
+<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="{{c.onac}}" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+</div>
+</template>
+<script src="../runtime/ts-runtime.js"></script>
+<script>
+TS.define('Journeys', function (DCLogic) {
+class Component extends DCLogic {
+  renderVals() {
+    const T = {
+      light:{dark:false,name:'Light',bg:'#F5F6F7',sf:'#FFFFFF',sf2:'#EEF0F2',bd:'#E2E5E8',tx:'#121619',tx2:'#4B555E',tx3:'#68737D',ac:'#0B6B5F',acs:'#E2F0ED',onac:'#FFFFFF',wn:'#9A5700',frame:'#D9DDE1',
+        hero:'#0E1A19',heroBd:'#0E1A19',heroBd2:'rgba(255,255,255,.18)',heroTx:'#FFFFFF',heroTx2:'#B9C6C3',heroTx3:'#93A29F',heroAc:'#5CCFBB',heroWarn:'#F2B163',heroTrack:'rgba(255,255,255,.14)',heroTile:'rgba(255,255,255,.06)'},
+      dark:{dark:true,name:'Dark',bg:'#0B0F10',sf:'#13181A',sf2:'#1B2124',bd:'#252D30',tx:'#EEF2F3',tx2:'#A9B4B8',tx3:'#8A969B',ac:'#56C7B3',acs:'#0F2C28',onac:'#03211C',wn:'#F2AA55',frame:'#252D30',
+        hero:'#13201E',heroBd:'#1F3330',heroBd2:'rgba(255,255,255,.14)',heroTx:'#EEF2F3',heroTx2:'#A9B9B5',heroTx3:'#86978F',heroAc:'#56C7B3',heroWarn:'#F2AA55',heroTrack:'rgba(255,255,255,.12)',heroTile:'rgba(255,255,255,.05)'}
+    };
+    const R = [
+      {day:'24',mon:'OCT',title:'Central corridor',delay:'+6 min · flooding at Jyothi',dur:'38 min',late:true},
+      {day:'23',mon:'OCT',title:'Kankanady bypass',delay:'On time',dur:'24 min'},
+      {day:'22',mon:'OCT',title:'Ladyhill → Bejai',delay:'On time',dur:'16 min'}
+    ];
+    const themes = [T.light, T.dark].map(t => ({
+      ...t,
+      recent: R.map((r,k) => ({...r, t, sep: k ? '1px solid ' + t.bd : '0', dcol: r.late ? t.wn : t.tx3}))
+    }));
+    return { themes };
+  }
+}
+return Component;
+}, 'tpl-Journeys');
+TS.define('NavBar', function (DCLogic) {
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { cur: null }; }
+  renderVals() {
+    const dark = !!this.props.dark;
+    const c = dark
+      ? { glass:'rgba(27,33,36,.86)', edge:'rgba(255,255,255,.07)', sh:'0 1px 0 rgba(255,255,255,.04) inset, 0 10px 30px rgba(0,0,0,.55)', ind:'#173B35', tx:'#EEF2F3', tx3:'#8A969B', ac:'#56C7B3', onac:'#03211C', fabSh:'0 10px 24px rgba(0,0,0,.5)' }
+      : { glass:'rgba(255,255,255,.9)', edge:'rgba(16,24,32,.06)', sh:'0 1px 2px rgba(16,24,32,.06), 0 10px 30px rgba(16,24,32,.12)', ind:'#E2F0ED', tx:'#0B6B5F', tx3:'#5F6A73', ac:'#0B6B5F', onac:'#FFFFFF', fabSh:'0 1px 2px rgba(16,24,32,.12), 0 10px 24px rgba(16,24,32,.18)' };
+    const auth = (this.props.role ?? 'commuter') === 'authority';
+    const cur = this.state.cur ?? this.props.active ?? 'home';
+    const D = {
+      home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z',
+      map: 'M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14',
+      plan: 'M4 19a2 2 0 1 0 4 0a2 2 0 1 0-4 0M16 5a2 2 0 1 0 4 0a2 2 0 1 0-4 0M8 19h8.5a3.5 3.5 0 0 0 0-7h-9a3.5 3.5 0 0 1 0-7H16',
+      me: auth ? 'M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6zM9 12l2 2 4-4' : 'M8 8a4 4 0 1 0 8 0a4 4 0 1 0-8 0M4 21a8 8 0 0 1 16 0'
+    };
+    const ids = ['home', 'map', 'plan', 'me'];
+    const labels = { home: 'Home', map: 'Map', plan: 'Plan', me: auth ? 'Ops' : 'Me' };
+    const idx = Math.max(0, ids.indexOf(cur));
+    const items = ids.map(id => ({
+      id, label: labels[id], d: D[id],
+      fg: id === cur ? c.tx : c.tx3,
+      fw: id === cur ? 600 : 500,
+      sw: id === cur ? 2.1 : 1.8,
+      current: id === cur ? 'page' : 'false',
+      pick: () => this.setState({ cur: id })
+    }));
+    return { c, items, indX: 'translateX(' + (idx * 68) + 'px)' };
+  }
+}
+return Component;
+}, 'tpl-NavBar');
+TS.mount('Journeys', document.getElementById('app'));
+</script>
+</body>
+</html>

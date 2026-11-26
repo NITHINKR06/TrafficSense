@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TrafficSense · Map</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>body{margin:0}</style>
+<style>html,body{margin:0;background:#E8EBEE}#app{display:inline-block;min-width:100%}</style>
+</head>
+<body>
+<div id="app"></div>
+<template id="tpl-MapDemo">
+<div style="padding:48px;display:grid;grid-template-columns:repeat(3,390px);gap:40px;background:#E8EBEE;font-family:Inter,system-ui,sans-serif">
+<sc-for list="{{cells}}" as="c">
+<div style="display:flex;flex-direction:column;gap:12px"><span style="font-size:13px;font-weight:600;color:#4B555E">{{c.label}}</span>
+<div style="width:390px;height:844px;border-radius:40px;overflow:hidden;box-shadow:0 0 0 1px #D9DDE1"><dc-import name="MapBase" dark="{{c.dark}}" scene="{{c.scene}}"></dc-import></div></div>
+</sc-for></div>
+</template>
+<template id="tpl-MapBase">
+<div style="width:100%;height:100%;overflow:hidden;background:{{c.land}};font-family:Inter,system-ui,sans-serif">
+<svg width="100%" height="100%" viewBox="0 {{vy}} 390 844" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Map of central Mangaluru">
+<rect y="-300" width="390" height="1444" fill="{{c.land}}"/>
+<ellipse cx="300" cy="250" rx="42" ry="28" fill="{{c.park}}"/>
+<ellipse cx="128" cy="575" rx="32" ry="20" fill="{{c.park}}"/>
+<ellipse cx="345" cy="520" rx="26" ry="36" fill="{{c.park}}"/>
+<path d="M0 -300H80C66 -100 60 0 72 0C60 120 84 220 66 330C52 430 80 520 60 640C48 720 72 790 58 844C50 950 66 1050 60 1144H0Z" fill="{{c.water}}"/>
+<path d="M66 170C140 150 200 190 260 160S360 120 390 140" stroke="{{c.water}}" stroke-width="16" fill="none"/>
+<path d="M60 700C140 676 200 728 280 706S360 656 390 676" stroke="{{c.water}}" stroke-width="34" fill="none"/>
+<g stroke="{{c.road}}" stroke-width="3" fill="none" stroke-linecap="round">
+<path d="M90 262H360M100 384H380M110 522H370M84 610H360M150 110V660M210 130V680M330 200V640M90 444C180 432 260 472 380 452M96 330C160 340 220 320 300 336M120 40H380M100 800H380"/>
+</g>
+<g fill="none" stroke-linecap="round">
+<path d="M250 -300C250 -100 248 -60 250 0C240 140 300 260 290 400S330 600 300 844S310 1000 300 1144" stroke="{{c.casing}}" stroke-width="10"/>
+<path d="M80 600C160 560 220 480 250 420S300 300 390 300" stroke="{{c.casing}}" stroke-width="10"/>
+<path d="M250 -300C250 -100 248 -60 250 0C240 140 300 260 290 400S330 600 300 844S310 1000 300 1144" stroke="{{c.major}}" stroke-width="6"/>
+<path d="M80 600C160 560 220 480 250 420S300 300 390 300" stroke="{{c.major}}" stroke-width="6"/>
+</g>
+<g opacity="{{trafficOp}}" fill="none" stroke-linecap="round">
+<path d="M80 600C160 560 220 480 250 420S300 300 390 300" pathLength="100" stroke="{{c.warn}}" stroke-width="5" stroke-dasharray="0 22 20 100"/>
+<path d="M250 0C240 140 300 260 290 400S330 600 300 844" pathLength="100" stroke="{{c.danger}}" stroke-width="5" stroke-dasharray="0 38 10 100"/>
+<path d="M250 0C240 140 300 260 290 400S330 600 300 844" pathLength="100" stroke="{{c.warn}}" stroke-width="5" stroke-dasharray="0 48 12 100"/>
+</g>
+<g font-size="11" font-weight="500" fill="{{c.label}}" letter-spacing=".01em">
+<text x="168" y="232">Urwa</text>
+<text x="98" y="300">Ladyhill</text>
+<text x="300" y="282">Bejai</text>
+<text x="232" y="356">Kadri</text>
+<text x="96" y="500">Hampankatta</text>
+<text x="226" y="560">Kankanady</text>
+<text x="300" y="636">Pumpwell</text>
+<text x="118" y="752">Bolar</text>
+<text x="146" y="418" font-size="14" font-weight="600">Mangaluru</text>
+</g>
+
+<g opacity="{{routeOp}}" fill="none" stroke-linecap="round">
+<path d="M140 478C140 420 180 360 230 330S270 300 282 300" stroke="{{c.casingRoute}}" stroke-width="9"/>
+<path d="M140 478C140 420 180 360 230 330S270 300 282 300" stroke="{{c.alt}}" stroke-width="5"/>
+<path d="M140 478C170 470 190 440 215 420S250 330 282 300" stroke="{{c.casingRoute}}" stroke-width="12"/>
+<path d="M140 478C170 470 190 440 215 420S250 330 282 300" stroke="{{c.route}}" stroke-width="7"/>
+<circle cx="140" cy="478" r="8" fill="{{c.casingRoute}}" stroke="{{c.route}}" stroke-width="4"/>
+<g transform="translate(282 300)">
+<path d="M0 0C-3-5-11-11-11-19A11 11 0 1 1 11-19C11-11 3-5 0 0Z" fill="{{c.ink}}" stroke="{{c.casingRoute}}" stroke-width="2"/>
+<circle cy="-19" r="4" fill="{{c.casingRoute}}"/>
+</g>
+</g>
+<g opacity="{{bubbleOp}}" font-size="12" font-weight="600">
+<rect x="226" y="400" width="62" height="26" rx="13" fill="{{c.route}}" stroke="{{c.casingRoute}}" stroke-width="2"/>
+<text x="257" y="417.5" text-anchor="middle" fill="{{c.onRoute}}">18 min</text>
+<rect x="104" y="340" width="62" height="26" rx="13" fill="{{c.bubble}}" stroke="{{c.bubbleBd}}" stroke-width="1"/>
+<text x="135" y="357.5" text-anchor="middle" fill="{{c.ink}}">21 min</text>
+<g transform="translate(206 432)">
+<circle r="10" fill="{{c.warn}}" stroke="{{c.casingRoute}}" stroke-width="2.5"/>
+<path d="M0-5v5M0 3.5v.5" stroke="{{c.casingRoute}}" stroke-width="2.2" stroke-linecap="round"/>
+</g>
+</g>
+
+<g opacity="{{pinOp}}">
+<g transform="translate(262 380)">
+<path d="M0 0C-3-5-12-11-12-20A12 12 0 1 1 12-20C12-11 3-5 0 0Z" fill="{{c.danger}}" stroke="{{c.casingRoute}}" stroke-width="2"/>
+<path d="M-4.5-20h9" stroke="{{c.casingRoute}}" stroke-width="2.2" stroke-linecap="round"/>
+</g>
+<g transform="translate(176 604)">
+<path d="M0 0C-3-5-12-11-12-20A12 12 0 1 1 12-20C12-11 3-5 0 0Z" fill="{{c.neutral}}" stroke="{{c.casingRoute}}" stroke-width="2"/>
+<path d="M-2-25h4l3 9h-10z" fill="none" stroke="{{c.casingRoute}}" stroke-width="1.8" stroke-linejoin="round"/>
+</g>
+<g transform="translate(212 505) scale(1.3)">
+<ellipse cy="1" rx="6" ry="2" fill="{{c.ink}}" opacity=".18"/>
+<path d="M0 0C-3-5-12-11-12-20A12 12 0 1 1 12-20C12-11 3-5 0 0Z" fill="{{c.warn}}" stroke="{{c.casingRoute}}" stroke-width="2"/>
+<path d="M0-27s4.5 4.5 4.5 7.5a4.5 4.5 0 0 1-9 0c0-3 4.5-7.5 4.5-7.5z" fill="{{c.casingRoute}}"/>
+</g>
+</g>
+<g opacity="{{youOp}}">
+<path d="M150 528 168 520 186 528 176 494H160Z" fill="{{c.route}}" opacity=".16" transform="rotate(200 168 520)"/>
+<circle cx="168" cy="520" r="9" fill="{{c.route}}" stroke="{{c.casingRoute}}" stroke-width="3.5"/>
+</g>
+</svg>
+</div>
+</template>
+<script src="../runtime/ts-runtime.js"></script>
+<script>
+TS.define('MapDemo', function (DCLogic) {
+class Component extends DCLogic { renderVals() { const cells = []; [false, true].forEach(d => ['traffic','route','preview'].forEach(s => cells.push({ dark: d, scene: s, label: (d ? 'Dark' : 'Light') + ' · ' + s }))); return { cells }; } }
+return Component;
+}, 'tpl-MapDemo');
+TS.define('MapBase', function (DCLogic) {
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark;
+    const scene = this.props.scene ?? 'traffic';
+    const c = dark
+      ? { land:'#121618', park:'#142019', water:'#0C1B22', road:'#1F2528', casing:'#121618', major:'#343C41', label:'#7C878E', route:'#56C7B3', onRoute:'#03211C', casingRoute:'#0B0F10', alt:'#4E595F', warn:'#F2AA55', danger:'#F7897D', neutral:'#A9B4B8', ink:'#EEF2F3', bubble:'#1B2124', bubbleBd:'#2E373B' }
+      : { land:'#F2F3F0', park:'#E1EADB', water:'#CFE0E9', road:'#FFFFFF', casing:'#DDE0DA', major:'#FFFFFF', label:'#6B757E', route:'#0B6B5F', onRoute:'#FFFFFF', casingRoute:'#FFFFFF', alt:'#A3ACB3', warn:'#D27A12', danger:'#CC3B2E', neutral:'#4B555E', ink:'#121619', bubble:'#FFFFFF', bubbleBd:'#D5D9DD' };
+    return {
+      c,
+      vy: this.props.offset ?? 0,
+      routeOp: scene === 'route' || scene === 'preview' ? 1 : 0,
+      bubbleOp: scene === 'route' ? 1 : 0,
+      pinOp: scene === 'traffic' ? 1 : 0,
+      trafficOp: scene === 'traffic' || scene === 'route' ? 1 : 0,
+      youOp: scene === 'traffic' ? 1 : 0
+    };
+  }
+}
+return Component;
+}, 'tpl-MapBase');
+TS.mount('MapDemo', document.getElementById('app'));
+</script>
+</body>
+</html>
