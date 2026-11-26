@@ -4,6 +4,11 @@ Record only mobile implementation updates, device verification evidence, blocker
 
 Cross-app changes also belong in [shared progress](../../../packages/shared/docs/progress.md).
 
+## Mobile Redesign (`design/BUILD_SPEC.md`) — verified in automated checks & Metro bundle, 26 Nov 2026
+
+- **Implementation:** Rebuilt the mobile theme (`src/theme/tokens.ts`, `theme-provider.tsx`), UI primitives (`src/components/ui/`), floating `BottomNav` capsule + Report FAB, `LogoAnimation`, `PlacePickerModal`, Light/Dark Leaflet map pins (`src/map/map-html.ts`, `src/components/traffic-map.tsx`), and all 14 screens (`_layout.tsx`, `welcome.tsx`, `index.tsx`, `traffic.tsx`, `planner.tsx`, `report.tsx`, `auth/login.tsx`, `auth/forgot-password.tsx`, `auth/register.tsx`, `workspace.tsx`, `journeys.tsx`, `authority.tsx`, `legal.tsx`) to match `design/BUILD_SPEC.md`.
+- **Verification:** `typecheck` (0 errors), `eslint .` (0 errors, 0 warnings), `pnpm test` (240/240 passed), Android Metro bundle (HTTP 200), and `git diff --check apps/mobile` (clean). Physical Expo Go device inspection remains to be verified on-device.
+
 ## Auth startup lifecycle cleanup — verified in automated checks, 22 Oct 2026
 
 - **Implementation:** Corrected the mobile auth provider's initial-session subscription lifecycle. The subscription now belongs to the effect cleanup instead of an ignored callback return, and all initial session state updates remain guarded after unmount.

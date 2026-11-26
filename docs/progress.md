@@ -1,5 +1,25 @@
 # Project Progress
 
+## Mobile App Redesign (design/BUILD_SPEC.md) — verified in automated checks & Metro bundle, 26 Nov 2026
+
+- **Scope & Design Source:**
+  - Imported the complete redesign package from `/home/nithinkr06/Downloads/animation3D/trafficsense-design (2)` into `design/` (commit `776b5ea`) without modifying or deleting any source files.
+  - Rebuilt the React Native / Expo mobile app (`apps/mobile`) to match `design/BUILD_SPEC.md`, `design/tokens/tokens.json`, and all 14 screen references in `design/screens/`.
+- **Implementation:**
+  - **Packages (`apps/mobile/package.json`, `pnpm-lock.yaml`):** Installed `react-native-svg@15.15.4`, `expo-blur@~57.0.3`, `expo-haptics@~57.0.3`, and `lucide-react-native` inside Docker via `pnpm`.
+  - **Theme & Tokens (`apps/mobile/src/theme/tokens.ts`, `theme-provider.tsx`):** Implemented Light and Dark color palettes, spacing scale, radii, typography with tabular figures, elevation/dark hairline rules, motion curves, `System | Light | Dark` persistence via `expo-secure-store`, and `ReduceMotion` awareness.
+  - **UI Primitives & Floating NavBar (`apps/mobile/src/components/ui/`):** Built `Icon` (Lucide), `Button` (L/L-sheet/M/S, primary/secondary/tonal/text/danger/signout, width-locked loading), `IconButton`, `TextField`, `PasswordField`, `SearchField`, `DetailField`, `FilterChip`, `SegmentedControl`, `SimulatedTag`, `TierBadge` (6-bar ladder), `LiveDot`, `FreshnessChip`, `SwitchControl`, `Radio`, `Checkbox`, `Card`, `HeroCard`, `StatTile`, `ListGroup`, `ListRow`, `IncidentRow`, `Banner`, `StateCard`, `SkeletonBlock`, `Toast`, `ModalSheet`, and the floating `BottomNav` capsule + separate 64pt Report FAB with `expo-blur`, `expo-haptics`, sliding active indicator, and scroll-compact mode.
+  - **Logo Animation, Loading & Welcome (`LogoAnimation.tsx`, `app/_layout.tsx`, `app/welcome.tsx`):** Implemented animated SVG logo splash (1.8s min display, zoom-through-pin exit, skips Welcome for returning users) and first-launch Welcome screen.
+  - **Screens:** Rebuilt Home (`app/index.tsx`), Live Map (`app/traffic.tsx` with draggable `MapSheet` & `IncidentCard` carousel), Plan Route (`app/planner.tsx`), Place Picker (`src/components/PlacePickerModal.tsx`), Report Hazard (`app/report.tsx` with guest gate, 3×2 category grid, L5 photo verification, on-send GPS permission request, and animated Sent state with 10s Undo), Sign in (`app/auth/login.tsx` with non-production Demo accounts sheet), Forgot password (`app/auth/forgot-password.tsx`), Create account (`app/auth/register.tsx` with 4-segment strength meter), Me (`app/workspace.tsx` with Appearance picker), Journeys (`app/journeys.tsx` with employer consent modal), Authority Ops (`app/authority.tsx`), and Privacy & Legal (`app/legal.tsx`).
+  - **Map Layer (`src/map/map-html.ts`, `src/components/traffic-map.tsx`):** Upgraded Leaflet OpenStreetMap rendering with Light/Dark theme support, SVG teardrop category pins (no emojis), route casings, and glass map controls pill.
+- **Verification Evidence:**
+  - `docker compose exec -T mobile pnpm --filter @trafficsense/mobile typecheck`: Passed with 0 errors.
+  - `docker compose exec -T mobile pnpm --filter @trafficsense/mobile exec eslint .`: Passed with 0 errors and 0 warnings.
+  - `docker compose exec -T -w /app mobile pnpm test`: Passed all 240 tests across 11 suites (**240/240 passed**).
+  - Android Metro bundle (`entry.bundle?platform=android`): Compiled cleanly with **HTTP 200** (`13,105,482` bytes).
+  - `git diff --check apps/mobile`: Clean (0 whitespace issues).
+  - *Remaining device check:* Interactive visual inspection and touch/gesture testing in Expo Go on a physical Android device was not run in this container session.
+
 ## Mobile Expo Bundler Dependency Mismatch & Route Export Fix — verified, 24 Oct 2026
 
 - **Root Cause & Diagnosis:**

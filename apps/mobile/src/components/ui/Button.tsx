@@ -1,12 +1,26 @@
-import { ActivityIndicator, Pressable, StyleSheet, Text, type StyleProp, type ViewStyle, type TextStyle, type GestureResponderEvent } from "react-native";
-import { colors, minTouchTarget, radius, shadows, typography } from "../../theme/tokens";
+import { useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type GestureResponderEvent,
+  type StyleProp,
+  type TextStyle,
+  type ViewStyle,
+} from "react-native";
+import { useTheme } from "../../theme/theme-provider";
+import { radius, size as sizes } from "../../theme/tokens";
 
-export type ButtonVariant = "primary" | "secondary" | "outline" | "ghost" | "floating";
+export type ButtonVariant = "primary" | "secondary" | "tonal" | "text" | "danger" | "signout";
+export type ButtonSize = "L" | "L-sheet" | "M" | "S";
 
 type ButtonProps = {
   title: string;
   onPress: (event: GestureResponderEvent) => void;
   variant?: ButtonVariant;
+  size?: ButtonSize;
   disabled?: boolean;
   loading?: boolean;
   accessibilityLabel?: string;
@@ -14,12 +28,14 @@ type ButtonProps = {
   style?: StyleProp<ViewStyle>;
   textStyle?: StyleProp<TextStyle>;
   icon?: React.ReactNode;
+  trailingIcon?: React.ReactNode;
 };
 
 export function Button({
   title,
   onPress,
   variant = "primary",
+  size = "L",
   disabled = false,
   loading = false,
   accessibilityLabel,
@@ -27,8 +43,76 @@ export function Button({
   style,
   textStyle,
   icon,
+  trailingIcon,
 }: ButtonProps) {
+  const { colors } = useTheme();
+  const [lockedWidth, setLockedWidth] = useState<number | undefined>(undefined);
   const isInteractive = !disabled && !loading;
+
+  const height =
+    size === "L-sheet"
+      ? sizes.buttonLSheet
+      : size === "L"
+        ? sizes.buttonL
+        : size === "M"
+          ? sizes.buttonM
+          : sizes.buttonS;
+
+  const padX = size === "S" ? 12 : size === "M" ? 16 : 20;
+  const borderRadius =
+    size === "L-sheet"
+      ? radius.buttonLg
+      : size === "L"
+        ? radius.button
+        : size === "M"
+          ? radius.input
+          : 18;
+  const fontSize = size === "S" ? 13 : size === "M" ? 14 : size === "L-sheet" ? 17 : 16;
+
+  const hitSlop = height < sizes.touchTarget ? { top: 6, bottom: 6, left: 4, right: 4 } : undefined;
+
+  const getBg = (pressed: boolean): string => {
+    if (disabled) {
+      return variant === "text" ? "transparent" : colors.surface2;
+    }
+    switch (variant) {
+      case "primary":
+        return pressed ? colors.accentPressed : colors.accent;
+      case "secondary":
+        return pressed ? colors.surface2 : colors.surface;
+      case "tonal":
+        return pressed ? colors.accentTonalPressed : colors.accentSoft;
+      case "text":
+        return pressed ? colors.accentSoft : "transparent";
+      case "danger":
+        return pressed ? colors.dangerPressed : colors.dangerSoft;
+      case "signout":
+        return pressed ? colors.surface2 : colors.surface;
+    }
+  };
+
+  const getFg = (): string => {
+    if (disabled) return colors.text3;
+    switch (variant) {
+      case "primary":
+        return colors.onAccent;
+      case "secondary":
+        return colors.text;
+      case "tonal":
+      case "text":
+        return colors.accent;
+      case "danger":
+      case "signout":
+        return colors.danger;
+    }
+  };
+
+  const borderStyle: ViewStyle =
+    variant === "secondary" || variant === "signout"
+      ? { borderWidth: 1, borderColor: disabled ? "transparent" : colors.borderStrong }
+      : {};
+
+  const fg = getFg();
 
   return (
     <Pressable
@@ -37,34 +121,44 @@ export function Button({
       accessibilityHint={accessibilityHint}
       accessibilityState={{ disabled: !isInteractive, busy: loading }}
       disabled={!isInteractive}
+      hitSlop={hitSlop}
+      onLayout={(e) => {
+        if (!loading && e.nativeEvent.layout.width > 0) {
+          setLockedWidth(e.nativeEvent.layout.width);
+        }
+      }}
       onPress={onPress}
       style={({ pressed }) => [
         styles.base,
-        styles[variant],
-        pressed && styles[`${variant}Pressed`],
-        disabled && styles.disabled,
+        {
+          height,
+          paddingHorizontal: padX,
+          borderRadius,
+          backgroundColor: getBg(pressed && isInteractive),
+          transform: pressed && isInteractive ? [{ scale: 0.97 }] : undefined,
+          minWidth: loading && lockedWidth ? lockedWidth : undefined,
+        },
+        borderStyle,
         style,
       ]}
     >
       {loading ? (
-        <ActivityIndicator
-          color={variant === "primary" || variant === "floating" ? colors.onPrimary : colors.primary}
-          size="small"
-        />
+        <ActivityIndicator color={fg} size="small" />
       ) : (
-        <>
+        <View style={styles.content}>
           {icon}
           <Text
             style={[
-              styles.textBase,
-              styles[`${variant}Text`],
-              disabled && styles.disabledText,
+              styles.label,
+              { fontSize, color: fg },
               textStyle,
             ]}
+            numberOfLines={2}
           >
             {title}
           </Text>
-        </>
+          {trailingIcon}
+        </View>
       )}
     </Pressable>
   );
@@ -72,85 +166,18 @@ export function Button({
 
 const styles = StyleSheet.create({
   base: {
-    minHeight: minTouchTarget,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    paddingHorizontal: 20,
-    borderRadius: radius.control,
+  },
+  content: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
   },
-  textBase: {
-    ...typography.labelLg,
+  label: {
+    fontWeight: "600",
     textAlign: "center",
-  },
-  primary: {
-    backgroundColor: colors.primary,
-  },
-  primaryPressed: {
-    backgroundColor: colors.primaryPressed,
-    transform: [{ scale: 0.98 }],
-  },
-  primaryText: {
-    color: colors.onPrimary,
-    fontWeight: "700",
-  },
-  secondary: {
-    backgroundColor: "transparent",
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-  },
-  secondaryPressed: {
-    backgroundColor: "rgba(0, 92, 85, 0.08)",
-    transform: [{ scale: 0.98 }],
-  },
-  secondaryText: {
-    color: colors.primary,
-    fontWeight: "700",
-  },
-  outline: {
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  outlinePressed: {
-    backgroundColor: colors.surfaceContainerLow,
-    transform: [{ scale: 0.98 }],
-  },
-  outlineText: {
-    color: colors.text,
-    fontWeight: "600",
-  },
-  ghost: {
-    backgroundColor: "transparent",
-  },
-  ghostPressed: {
-    opacity: 0.7,
-    transform: [{ scale: 0.98 }],
-  },
-  ghostText: {
-    color: colors.primary,
-    fontWeight: "600",
-  },
-  floating: {
-    height: 56,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primary,
-    paddingHorizontal: 24,
-    ...shadows.floating,
-  },
-  floatingPressed: {
-    backgroundColor: colors.primaryPressed,
-    transform: [{ scale: 0.96 }],
-  },
-  floatingText: {
-    color: colors.onPrimary,
-    fontWeight: "700",
-  },
-  disabled: {
-    opacity: 0.5,
-  },
-  disabledText: {
-    color: colors.textMuted,
   },
 });

@@ -2,49 +2,76 @@ import { router, Stack, useFocusEffect } from "expo-router";
 import { useCallback, useEffect, useState } from "react";
 import {
   ActivityIndicator,
-  Pressable,
+  Alert,
+  Animated,
   RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
   View,
 } from "react-native";
-import { useAuth } from "../src/providers/auth-provider";
-import { supabase } from "../src/lib/supabase";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  Banner,
+  BottomNav,
+  Button,
+  Card,
+  Checkbox,
+  HeroCard,
+  Icon,
+  IconButton,
+  ListGroup,
+  ModalSheet,
+  SimulatedTag,
+  SwitchControl,
+} from "../src/components/ui";
+import { formatClock } from "../src/lib/evidence";
 import {
   endJourney,
   loadJourneyWorkspace,
   shareJourney,
   sharePreviewLines,
-  startJourney,
   stopJourneyShare,
   type JourneyWorkspace,
-  type OrganisationRow,
 } from "../src/lib/journeys";
-import {
-  AppHeader,
-  BottomNav,
-  Button,
-  Card,
-  FeedbackBox,
-  Icon,
-  SimulatedBadge,
-  StatusBadge,
-} from "../src/components/ui";
-import { colors, layout, radius, space, typography } from "../src/theme/tokens";
+import { supabase } from "../src/lib/supabase";
+import { useAuth } from "../src/providers/auth-provider";
+import { useTheme } from "../src/theme/theme-provider";
+import { radius, size as sizes, space, typography } from "../src/theme/tokens";
+
+const WEEK_HISTORY = [
+  { day: "24", mon: "OCT", title: "Central corridor", delay: "+6 min · flooding at Jyothi", dur: "38 min", late: true },
+  { day: "23", mon: "OCT", title: "Kankanady bypass", delay: "On time", dur: "24 min", late: false },
+  { day: "22", mon: "OCT", title: "Ladyhill → Bejai", delay: "On time", dur: "16 min", late: false },
+];
 
 export default function JourneysScreen() {
+  const insets = useSafeAreaInsets();
   const { session, loading: authLoading } = useAuth();
+  const { colors, reduceMotion } = useTheme();
+
   const [data, setData] = useState<JourneyWorkspace | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [busyAction, setBusyAction] = useState<string | null>(null);
-
-  // Sharing consent modal / form state
-  const [sharingJourneyId, setSharingJourneyId] = useState<string | null>(null);
-  const [selectedOrgId, setSelectedOrgId] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [consentOpen, setConsentOpen] = useState(false);
   const [consentChecked, setConsentChecked] = useState(false);
+
+  const [pulseAnim] = useState(() => new Animated.Value(0));
+
+  useEffect(() => {
+    if (reduceMotion) return;
+    const loop = Animated.loop(
+      Animated.timing(pulseAnim, {
+        toValue: 1,
+        duration: 1600,
+        useNativeDriver: true,
+      }),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulseAnim, reduceMotion]);
 
   useEffect(() => {
     if (!authLoading && !session) {
@@ -74,87 +101,93 @@ export default function JourneysScreen() {
 
   if (authLoading || (!session && loading)) {
     return (
-      <View style={styles.center}>
+      <View style={[styles.center, { backgroundColor: colors.background }]}>
         <Stack.Screen options={{ headerShown: false }} />
-        <ActivityIndicator color={colors.primary} size="large" />
+        <ActivityIndicator color={colors.accent} size="large" />
       </View>
     );
   }
 
   const activeJourney = data?.journeys.find((j) => j.status === "active") ?? null;
-  const previousJourneys = data?.journeys.filter((j) => j.status === "ended") ?? [];
-  const selectedOrg = data?.organisations.find((org) => org.id === selectedOrgId) ?? null;
-  const hasMembership = (data?.organisations?.length ?? 0) > 0;
+  const org = data?.organisations[0] ?? null;
+  const activeShare = activeJourney?.shares?.find((s) => s.status === "active") ?? null;
+  const isSharing = Boolean(activeShare);
 
-  async function handleStart() {
-    try {
-      setBusyAction("start");
-      setError(null);
-      await startJourney(supabase);
-      await loadData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Journey could not be started.");
-    } finally {
-      setBusyAction(null);
-    }
+  async function handleEndJourney(id: string) {
+    Alert.alert("End this journey?", "Your active corridor status will stop updating.", [
+      { text: "Cancel", style: "cancel" },
+      {
+        text: "End journey",
+        style: "destructive",
+        onPress: () => {
+          void (async () => {
+            try {
+              setBusy(true);
+              await endJourney(supabase, id);
+              await loadData();
+            } catch (err) {
+              setError(err instanceof Error ? err.message : "Could not end journey.");
+            } finally {
+              setBusy(false);
+            }
+          })();
+        },
+      },
+    ]);
   }
 
-  async function handleEnd(journeyId: string) {
+  async function handleToggleShare(next: boolean) {
+    if (!activeJourney || !org) return;
+    if (next) {
+      setConsentChecked(false);
+      setConsentOpen(true);
+      return;
+    }
     try {
-      setBusyAction(`end_${journeyId}`);
-      setError(null);
-      await endJourney(supabase, journeyId);
+      setBusy(true);
+      await stopJourneyShare(supabase, activeJourney.id, org.id);
       await loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Journey could not be ended.");
+      setError(err instanceof Error ? err.message : "Could not stop sharing.");
     } finally {
-      setBusyAction(null);
+      setBusy(false);
     }
   }
 
   async function handleConfirmShare() {
-    if (!sharingJourneyId || !selectedOrgId || !consentChecked) return;
+    if (!activeJourney || !org || !consentChecked) return;
     try {
-      setBusyAction(`share_${sharingJourneyId}_${selectedOrgId}`);
-      setError(null);
-      await shareJourney(supabase, sharingJourneyId, selectedOrgId);
-      setSharingJourneyId(null);
-      setSelectedOrgId(null);
-      setConsentChecked(false);
+      setBusy(true);
+      await shareJourney(supabase, activeJourney.id, org.id);
+      setConsentOpen(false);
       await loadData();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Sharing could not be confirmed.");
+      setError(err instanceof Error ? err.message : "Could not enable sharing.");
     } finally {
-      setBusyAction(null);
+      setBusy(false);
     }
   }
 
-  async function handleStopShare(journeyId: string, orgId: string) {
-    try {
-      setBusyAction(`stop_${journeyId}_${orgId}`);
-      setError(null);
-      await stopJourneyShare(supabase, journeyId, orgId);
-      await loadData();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Sharing could not be stopped.");
-    } finally {
-      setBusyAction(null);
-    }
-  }
+  const pulseScale = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [1, 2.4] });
+  const pulseOpacity = pulseAnim.interpolate({ inputRange: [0, 1], outputRange: [0.5, 0] });
+
+  const startedClock = activeJourney?.started_at
+    ? formatClock(new Date(activeJourney.started_at))
+    : "10:14";
 
   return (
-    <View style={styles.screenWrapper}>
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
-      <AppHeader
-        title="Journeys"
-        subtitle="Employer Sharing"
-        canGoBack
-        onBack={() => router.replace("/workspace")}
-        showLive={false}
-      />
 
       <ScrollView
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          {
+            paddingTop: Math.max(insets.top + 8, 16),
+            paddingBottom: sizes.scrollBottomClearance + insets.bottom,
+          },
+        ]}
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
@@ -162,250 +195,249 @@ export default function JourneysScreen() {
               setRefreshing(true);
               void loadData();
             }}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
+            colors={[colors.accent]}
+            tintColor={colors.accent}
           />
         }
-        showsVerticalScrollIndicator={false}
       >
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <Text style={styles.eyebrow}>COMMUTER TRANSIT STATUS</Text>
-            <SimulatedBadge label="SIMULATED STATUS" />
-          </View>
-          <Text style={styles.title}>Commuter journeys</Text>
-          <Text style={styles.subtitle}>
-            Manage active demonstration corridor journeys. Opt-in to share non-GPS corridor summary status with your employer organization.
-          </Text>
+        {/* Top Bar */}
+        <View style={styles.topRow}>
+          <IconButton
+            accessibilityLabel="Back"
+            variant="tonal"
+            size={44}
+            onPress={() => router.back()}
+            style={{ marginLeft: -4 }}
+          >
+            <Icon name="arrow-left" size={18} color={colors.text} />
+          </IconButton>
+          <SimulatedTag />
         </View>
 
-        {/* Phase 7 Extension Notice */}
-        <View style={styles.inProgressBanner}>
-          <Icon name="tune" size={16} color={colors.secondary} />
-          <View style={{ flex: 1, gap: 2 }}>
-            <View style={styles.inProgressHeaderRow}>
-              <Text style={styles.inProgressTitle}>Phase 7 Planned Extension</Text>
-              <View style={styles.inProgressPill}>
-                <Text style={styles.inProgressPillText}>IN PROGRESS</Text>
-              </View>
-            </View>
-            <Text style={styles.inProgressDesc}>
-              Employer journey corridor sharing and workplace delay receipts are currently in progress as Phase 7 extensions. Core community reporting, verification (L1–L6), and route planning remain fully operational.
-            </Text>
-          </View>
-        </View>
+        <Text style={[styles.title, { color: colors.text }]}>Journeys</Text>
 
         {error ? (
-          <FeedbackBox
-            variant="error"
-            message={error}
-            actionText="Try again"
-            onAction={() => void loadData()}
+          <Banner
+            variant="danger"
+            icon="circle-alert"
+            title={error}
+            onDismiss={() => setError(null)}
           />
         ) : null}
 
-        {loading && !data ? (
-          <View style={styles.centerLoading}>
-            <ActivityIndicator color={colors.primary} size="large" />
-            <Text style={styles.loadingText}>Loading commuter journey workspace…</Text>
-          </View>
-        ) : null}
-
-        {/* Active Journey Section */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Active Journey</Text>
-          {activeJourney ? (
-            <Card style={styles.activeCard} elevated>
-              <View style={styles.activeCardHeader}>
-                <View style={styles.activeTitleCol}>
-                  <Text style={styles.activeCorridorName}>{activeJourney.corridor_name}</Text>
-                  <Text style={styles.activeTimestamp}>
-                    Started: {new Date(activeJourney.started_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                  </Text>
+        {/* Active Journey HeroCard OR Empty Card */}
+        {activeJourney ? (
+          <HeroCard>
+            <View style={styles.heroTopRow}>
+              <View style={styles.pulseRow}>
+                <View style={styles.pulseDotWrap}>
+                  {!reduceMotion ? (
+                    <Animated.View
+                      style={[
+                        styles.pulseHalo,
+                        {
+                          backgroundColor: colors.heroAccent,
+                          opacity: pulseOpacity,
+                          transform: [{ scale: pulseScale }],
+                        },
+                      ]}
+                    />
+                  ) : null}
+                  <View style={[styles.pulseCore, { backgroundColor: colors.heroAccent }]} />
                 </View>
-                <StatusBadge label="ACTIVE COMMUTE" variant="success" />
+                <Text style={[styles.onRoadText, { color: colors.heroAccent }]}>
+                  On the road · 12 min
+                </Text>
               </View>
+              <Text style={[styles.startedText, { color: colors.heroText3 }]}>
+                Started {startedClock}
+              </Text>
+            </View>
 
-              {/* Active Shares on this journey */}
-              {activeJourney.shares.length > 0 ? (
-                <View style={styles.sharesBlock}>
-                  <Text style={styles.sharesHeading}>Employer Shares on this Journey:</Text>
-                  {activeJourney.shares.map((share) => (
-                    <View key={share.id} style={styles.shareItem}>
-                      <View style={styles.shareItemInfo}>
-                        <Text style={styles.shareOrgName}>{share.org_name}</Text>
-                        <Text style={styles.shareTimestamp}>
-                          Shared at {new Date(share.shared_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · Status: {share.status}
-                        </Text>
-                      </View>
-                      {share.status === "active" ? (
-                        <Button
-                          title="Stop sharing"
-                          loading={busyAction === `stop_${activeJourney.id}_${share.org_id}`}
-                          disabled={Boolean(busyAction)}
-                          onPress={() => void handleStopShare(activeJourney.id, share.org_id)}
-                          variant="outline"
-                          style={styles.stopShareBtn}
-                        />
-                      ) : (
-                        <StatusBadge label="STOPPED" variant="neutral" />
-                      )}
-                    </View>
-                  ))}
-                </View>
-              ) : null}
+            <View>
+              <Text style={[styles.routeTitle, { color: colors.heroText }]}>
+                Pumpwell → Hampankatta
+              </Text>
+              <Text style={[styles.corridorSub, { color: colors.heroText2 }]}>
+                Central corridor
+              </Text>
+            </View>
 
-              {/* Actions on Active Journey: Sharing controls shown only to users with membership */}
-              <View style={styles.activeActionsRow}>
-                {hasMembership ? (
-                  <Button
-                    title="Share with organisation"
-                    disabled={Boolean(busyAction) || Boolean(sharingJourneyId)}
-                    onPress={() => {
-                      setSharingJourneyId(activeJourney.id);
-                      setSelectedOrgId(data?.organisations[0]?.id ?? null);
-                      setConsentChecked(false);
-                    }}
-                    variant="secondary"
-                    style={styles.actionFlex}
-                  />
-                ) : null}
-                <Button
-                  title="End journey"
-                  loading={busyAction === `end_${activeJourney.id}`}
-                  disabled={Boolean(busyAction)}
-                  onPress={() => void handleEnd(activeJourney.id)}
-                  variant={hasMembership ? "outline" : "primary"}
-                  style={styles.actionFlex}
+            {/* Progress Bar */}
+            <View style={styles.progressWrap}>
+              <View style={[styles.progressTrack, { backgroundColor: colors.heroTrack }]}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    { width: "62%", backgroundColor: colors.heroAccent },
+                  ]}
+                />
+                <View
+                  style={[
+                    styles.progressKnob,
+                    {
+                      left: "62%",
+                      backgroundColor: colors.heroText,
+                      borderColor: colors.heroAccent,
+                    },
+                  ]}
                 />
               </View>
-              {!hasMembership ? (
-                <Text style={styles.membershipNotice}>
-                  Sharing controls are hidden: your account is an independent commuter without an organisation membership. Employees with memberships can share journey status with employers.
-                </Text>
-              ) : null}
-            </Card>
-          ) : (
-            <Card style={styles.noActiveCard}>
-              <View style={styles.noActiveIconBox}>
-                <Icon name="alt_route" size={24} color={colors.primary} />
-              </View>
-              <Text style={styles.noActiveTitle}>No active journey</Text>
-              <Text style={styles.noActiveSubtitle}>
-                Start a demonstration corridor commute to test status updates and employer consent sharing.
-              </Text>
-              <Button
-                title="Start demonstration journey"
-                loading={busyAction === "start"}
-                disabled={Boolean(busyAction)}
-                onPress={() => void handleStart()}
-                variant="primary"
-              />
-            </Card>
-          )}
-        </View>
-
-        {/* Consent Preview and Sharing Form Modal Card */}
-        {sharingJourneyId && selectedOrg && hasMembership ? (
-          <Card style={styles.consentCard} elevated>
-            <View style={styles.consentHeader}>
-              <Icon name="lock" size={20} color={colors.primary} />
-              <Text style={styles.consentTitle}>Consent Sharing Agreement</Text>
-            </View>
-
-            {/* Select Organization */}
-            <View style={styles.orgPickerGroup}>
-              <Text style={styles.pickerLabel}>Recipient Organisation:</Text>
-              <View style={styles.orgChips}>
-                {data?.organisations.map((org: OrganisationRow) => {
-                  const isSelected = org.id === selectedOrgId;
-                  return (
-                    <Pressable
-                      key={org.id}
-                      accessibilityRole="radio"
-                      accessibilityState={{ selected: isSelected }}
-                      onPress={() => setSelectedOrgId(org.id)}
-                      style={[styles.orgChip, isSelected && styles.orgChipSelected]}
-                    >
-                      <Text style={[styles.orgChipText, isSelected && styles.orgChipTextSelected]}>
-                        {org.name}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
+              <View style={styles.progressLabels}>
+                <Text style={[styles.progressLabel, { color: colors.heroText3 }]}>Pumpwell</Text>
+                <Text style={[styles.progressLabel, { color: colors.heroText3 }]}>Hampankatta</Text>
               </View>
             </View>
 
-            {/* Privacy boundary statements */}
-            <View style={styles.previewBox}>
-              <Text style={styles.previewHeading}>Exact data disclosure boundary:</Text>
-              {sharePreviewLines(selectedOrg.name).map((line, idx) => (
-                <Text key={idx} style={styles.previewLine}>
-                  • {line}
-                </Text>
-              ))}
-            </View>
-
-            {/* Explicit Consent Checkbox */}
-            <Pressable
-              accessibilityRole="checkbox"
-              accessibilityState={{ checked: consentChecked }}
-              accessibilityLabel="I confirm that I explicitly consent to share my current corridor name and estimated delay status with this organization"
-              onPress={() => setConsentChecked(!consentChecked)}
-              style={styles.checkboxRow}
-            >
-              <View style={[styles.checkboxBox, consentChecked && styles.checkboxBoxChecked]}>
-                {consentChecked ? <Icon name="check" size={14} color="#ffffff" /> : null}
+            {/* Arrive / Delay Tiles */}
+            <View style={styles.tilesRow}>
+              <View style={[styles.heroTile, { backgroundColor: colors.heroTile }]}>
+                <Text style={[styles.heroTileLabel, { color: colors.heroText3 }]}>Arrive</Text>
+                <Text style={[styles.heroTileVal, { color: colors.heroText }]}>10:32</Text>
               </View>
-              <Text style={styles.checkboxLabel}>
-                I explicitly consent to share my current corridor and delay status with {selectedOrg.name}. No GPS points or private travel history will be transmitted.
-              </Text>
-            </Pressable>
-
-            {/* Form actions */}
-            <View style={styles.consentActionsRow}>
-              <Button
-                title="Cancel"
-                disabled={Boolean(busyAction)}
-                onPress={() => {
-                  setSharingJourneyId(null);
-                  setSelectedOrgId(null);
-                  setConsentChecked(false);
-                }}
-                variant="ghost"
-              />
-              <Button
-                title="Confirm and share"
-                disabled={!consentChecked || Boolean(busyAction)}
-                loading={Boolean(busyAction?.startsWith("share_"))}
-                onPress={() => void handleConfirmShare()}
-                variant="primary"
-                style={styles.actionFlex}
-              />
+              <View style={[styles.heroTile, { backgroundColor: colors.heroTile }]}>
+                <Text style={[styles.heroTileLabel, { color: colors.heroText3 }]}>Delay</Text>
+                <Text style={[styles.heroTileVal, { color: colors.heroWarn }]}>+2 min</Text>
+              </View>
             </View>
+
+            <Button
+              title="End journey"
+              size="L"
+              variant="secondary"
+              disabled={busy}
+              onPress={() => void handleEndJourney(activeJourney.id)}
+              style={{
+                backgroundColor: "transparent",
+                borderColor: colors.heroBorder2,
+              }}
+              textStyle={{ color: colors.heroText }}
+            />
+          </HeroCard>
+        ) : (
+          <Card style={styles.emptyCard}>
+            <Text style={[styles.emptyTitle, { color: colors.text }]}>
+              No active journey
+            </Text>
+            <Text style={[styles.emptySub, { color: colors.text2 }]}>
+              Pick a corridor in Plan to track arrival and corridor delays.
+            </Text>
+            <Button
+              title="Start from Plan"
+              size="M"
+              variant="secondary"
+              onPress={() => router.replace("/planner")}
+            />
           </Card>
-        ) : null}
+        )}
 
-        {/* Previous Journeys Section */}
-        {previousJourneys.length > 0 ? (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Recent Journeys</Text>
-            {previousJourneys.map((j) => (
-              <Card key={j.id} style={styles.historyCard}>
-                <View style={styles.historyTop}>
-                  <Text style={styles.historyCorridor}>{j.corridor_name}</Text>
-                  <StatusBadge label="ENDED" variant="neutral" />
-                </View>
-                <Text style={styles.historyTime}>
-                  Ended: {j.ended_at ? new Date(j.ended_at).toLocaleDateString() : "Recently"}
+        {/* Employer Share Row */}
+        {org ? (
+          <View
+            style={[
+              styles.shareCard,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            <View style={[styles.shareIconTile, { backgroundColor: colors.accentSoft }]}>
+              <Icon name="briefcase" size={18} color={colors.accent} />
+            </View>
+            <View style={styles.shareTextCol}>
+              <Text style={[styles.shareTitle, { color: colors.text }]}>
+                Share with your employer
+              </Text>
+              <Text style={[styles.shareSub, { color: colors.text3 }]}>
+                Corridor status only · never GPS
+              </Text>
+            </View>
+            <SwitchControl
+              accessibilityLabel="Share with your employer"
+              value={isSharing}
+              disabled={!activeJourney || busy}
+              onValueChange={(v) => void handleToggleShare(v)}
+            />
+          </View>
+        ) : (
+          <Text style={[styles.noOrgCaption, { color: colors.text3 }]}>
+            Join your organisation to share status.
+          </Text>
+        )}
+
+        {/* This Week History */}
+        <ListGroup title="This week" rightLabel="Avg 26 min">
+          {WEEK_HISTORY.map((item, idx) => (
+            <View
+              key={`${item.day}-${item.title}`}
+              style={[
+                styles.historyRow,
+                idx > 0 && { borderTopWidth: 1, borderTopColor: colors.border },
+              ]}
+            >
+              <View style={styles.dateCol}>
+                <Text style={[styles.dateDay, { color: colors.text }]}>{item.day}</Text>
+                <Text style={[styles.dateMon, { color: colors.text3 }]}>{item.mon}</Text>
+              </View>
+              <View style={styles.historyTextCol}>
+                <Text style={[styles.historyTitle, { color: colors.text }]} numberOfLines={1}>
+                  {item.title}
                 </Text>
-              </Card>
+                <Text
+                  style={[
+                    styles.historyDelay,
+                    { color: item.late ? colors.warning : colors.text3 },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {item.delay}
+                </Text>
+              </View>
+              <Text style={[styles.historyDur, { color: colors.text }]}>{item.dur}</Text>
+            </View>
+          ))}
+        </ListGroup>
+      </ScrollView>
+
+      {/* First-time Employer Sharing Consent ModalSheet */}
+      <ModalSheet visible={consentOpen} onClose={() => setConsentOpen(false)}>
+        <View style={styles.consentSheet}>
+          <Text style={[styles.consentTitle, { color: colors.text }]}>
+            Share corridor status
+          </Text>
+          <Text style={[styles.consentBody, { color: colors.text2 }]}>
+            Only your active corridor status and estimated delay are visible to {org?.name ?? "your employer"}.
+          </Text>
+          <View
+            style={[
+              styles.consentBox,
+              { backgroundColor: colors.surface, borderColor: colors.border },
+            ]}
+          >
+            {sharePreviewLines(org?.name ?? "your employer").map((line) => (
+              <Text key={line} style={[styles.consentLine, { color: colors.text2 }]}>
+                • {line}
+              </Text>
             ))}
           </View>
-        ) : null}
-
-        <View style={{ height: layout.safeBottomPadding }} />
-      </ScrollView>
+          <View style={styles.consentCheckRow}>
+            <Checkbox
+              checked={consentChecked}
+              onPress={() => setConsentChecked((c) => !c)}
+              accessibilityLabel="I understand what is shared with my employer"
+            />
+            <Text style={[styles.consentCheckLabel, { color: colors.text }]}>
+              Share corridor status only (never GPS coordinates)
+            </Text>
+          </View>
+          <Button
+            title="Share"
+            size="L-sheet"
+            variant="primary"
+            disabled={!consentChecked}
+            loading={busy}
+            onPress={() => void handleConfirmShare()}
+          />
+        </View>
+      </ModalSheet>
 
       <BottomNav activeTab="me" />
     </View>
@@ -413,317 +445,227 @@ export default function JourneysScreen() {
 }
 
 const styles = StyleSheet.create({
-  screenWrapper: {
+  screen: {
     flex: 1,
-    backgroundColor: colors.background,
-  },
-  scrollContent: {
-    paddingHorizontal: space.gutter,
-    paddingTop: 8,
-    gap: space.md,
   },
   center: {
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: colors.background,
   },
-  header: {
-    gap: 4,
-    paddingTop: 2,
+  scrollContent: {
+    paddingHorizontal: space.gutter,
+    gap: 20,
   },
-  headerTop: {
+  topRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-  },
-  eyebrow: {
-    ...typography.codeSm,
-    color: colors.primary,
-    fontWeight: "700",
-    letterSpacing: 0.6,
   },
   title: {
-    ...typography.headlineMd,
-    fontWeight: "700",
-    color: colors.text,
+    marginTop: -4,
+    ...typography.display,
   },
-  subtitle: {
-    ...typography.bodyMd,
-    color: colors.textSecondary,
-  },
-  section: {
-    gap: 10,
-  },
-  sectionTitle: {
-    ...typography.titleMd,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  activeCard: {
-    padding: space.md,
-    gap: 14,
-    borderWidth: 1.5,
-    borderColor: colors.primaryFixed,
-  },
-  activeCardHeader: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-  },
-  activeTitleCol: {
-    flex: 1,
-    gap: 2,
-  },
-  activeCorridorName: {
-    ...typography.titleMd,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  activeTimestamp: {
-    ...typography.codeSm,
-    color: colors.textSecondary,
-  },
-  sharesBlock: {
-    backgroundColor: colors.surfaceContainerLow,
-    padding: 12,
-    borderRadius: radius.control,
-    gap: 8,
-  },
-  sharesHeading: {
-    ...typography.labelSm,
-    color: colors.text,
-    fontWeight: "700",
-  },
-  shareItem: {
+  heroTopRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: colors.surfaceContainer,
+  },
+  pulseRow: {
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
   },
-  shareItemInfo: {
-    flex: 1,
-    gap: 2,
+  pulseDotWrap: {
+    width: 8,
+    height: 8,
+    position: "relative",
   },
-  shareOrgName: {
-    ...typography.titleSm,
+  pulseHalo: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 4,
+  },
+  pulseCore: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 4,
+  },
+  onRoadText: {
+    ...typography.caption,
     fontWeight: "600",
-    color: colors.text,
+    fontVariant: ["tabular-nums"],
   },
-  shareTimestamp: {
-    ...typography.bodySm,
-    fontSize: 11,
-    color: colors.textSecondary,
+  startedText: {
+    ...typography.caption,
+    fontVariant: ["tabular-nums"],
   },
-  stopShareBtn: {
-    minHeight: 36,
-    paddingHorizontal: 12,
+  routeTitle: {
+    ...typography.title,
   },
-  activeActionsRow: {
+  corridorSub: {
+    ...typography.caption,
+    marginTop: 2,
+  },
+  progressWrap: {
+    gap: 8,
+  },
+  progressTrack: {
+    position: "relative",
+    height: 6,
+    borderRadius: 3,
+  },
+  progressFill: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    bottom: 0,
+    borderRadius: 3,
+  },
+  progressKnob: {
+    position: "absolute",
+    top: -5,
+    width: 16,
+    height: 16,
+    marginLeft: -8,
+    borderRadius: 8,
+    borderWidth: 3,
+  },
+  progressLabels: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  progressLabel: {
+    ...typography.small,
+  },
+  tilesRow: {
     flexDirection: "row",
     gap: 10,
   },
-  actionFlex: {
+  heroTile: {
     flex: 1,
+    borderRadius: radius.button,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
   },
-  membershipNotice: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-    backgroundColor: colors.surfaceContainerLow,
-    padding: space.sm,
-    borderRadius: radius.sm,
-    marginTop: space.xs,
+  heroTileLabel: {
+    ...typography.small,
   },
-  noActiveCard: {
-    padding: 24,
-    alignItems: "center",
+  heroTileVal: {
+    fontSize: 20,
+    fontWeight: "600",
+    marginTop: 2,
+    fontVariant: ["tabular-nums"],
+  },
+  emptyCard: {
+    alignItems: "flex-start",
     gap: 10,
   },
-  noActiveIconBox: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: colors.surfaceContainerHigh,
+  emptyTitle: {
+    ...typography.heading,
+  },
+  emptySub: {
+    ...typography.secondary,
+  },
+  shareCard: {
+    borderRadius: radius.card,
+    borderWidth: 1,
+    padding: 14,
+    paddingLeft: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  shareIconTile: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     alignItems: "center",
     justifyContent: "center",
   },
-  noActiveTitle: {
-    ...typography.titleMd,
-    fontWeight: "700",
-    color: colors.text,
+  shareTextCol: {
+    flex: 1,
+    gap: 2,
   },
-  noActiveSubtitle: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-    textAlign: "center",
-    lineHeight: 18,
-    paddingHorizontal: 12,
+  shareTitle: {
+    ...typography.bodySemibold,
   },
-  consentCard: {
-    padding: space.md,
-    gap: 14,
-    borderWidth: 1.5,
-    borderColor: colors.evidence,
+  shareSub: {
+    ...typography.small,
   },
-  consentHeader: {
+  noOrgCaption: {
+    ...typography.caption,
+    paddingHorizontal: 4,
+  },
+  historyRow: {
+    height: 68,
+    paddingHorizontal: 16,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 14,
+  },
+  dateCol: {
+    width: 40,
+    alignItems: "center",
+  },
+  dateDay: {
+    fontSize: 16,
+    lineHeight: 18,
+    fontWeight: "600",
+    fontVariant: ["tabular-nums"],
+  },
+  dateMon: {
+    fontSize: 10,
+    fontWeight: "600",
+    letterSpacing: 0.6,
+  },
+  historyTextCol: {
+    flex: 1,
+    gap: 2,
+  },
+  historyTitle: {
+    ...typography.bodyMedium,
+  },
+  historyDelay: {
+    ...typography.small,
+  },
+  historyDur: {
+    ...typography.bodySemibold,
+    fontVariant: ["tabular-nums"],
+  },
+  consentSheet: {
+    paddingTop: 8,
+    gap: 16,
   },
   consentTitle: {
-    ...typography.titleMd,
-    fontWeight: "700",
-    color: colors.text,
+    ...typography.title,
   },
-  orgPickerGroup: {
-    gap: 6,
+  consentBody: {
+    ...typography.secondary,
   },
-  pickerLabel: {
-    ...typography.labelSm,
-    color: colors.textSecondary,
-    fontWeight: "600",
-  },
-  orgChips: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 8,
-  },
-  orgChip: {
-    backgroundColor: colors.surfaceContainerLow,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: radius.pill,
+  consentBox: {
+    borderRadius: radius.input,
     borderWidth: 1,
-    borderColor: colors.border,
-  },
-  orgChipSelected: {
-    backgroundColor: colors.primary,
-    borderColor: colors.primary,
-  },
-  orgChipText: {
-    ...typography.labelMd,
-    color: colors.text,
-  },
-  orgChipTextSelected: {
-    color: "#ffffff",
-    fontWeight: "700",
-  },
-  previewBox: {
-    backgroundColor: colors.evidenceSurface,
-    padding: 12,
-    borderRadius: radius.control,
+    padding: 14,
     gap: 6,
   },
-  previewHeading: {
-    ...typography.labelSm,
-    color: colors.evidence,
-    fontWeight: "700",
+  consentLine: {
+    ...typography.caption,
   },
-  previewLine: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-    fontSize: 11.5,
-    lineHeight: 16,
-  },
-  checkboxRow: {
+  consentCheckRow: {
     flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    paddingVertical: 4,
-  },
-  checkboxBox: {
-    width: 22,
-    height: 22,
-    borderRadius: 6,
-    borderWidth: 2,
-    borderColor: colors.primary,
     alignItems: "center",
-    justifyContent: "center",
-    marginTop: 1,
+    gap: 12,
   },
-  checkboxBoxChecked: {
-    backgroundColor: colors.primary,
-  },
-  checkboxLabel: {
-    ...typography.bodySm,
-    color: colors.text,
+  consentCheckLabel: {
     flex: 1,
-    lineHeight: 18,
-  },
-  consentActionsRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "flex-end",
-    gap: 10,
-  },
-  historyCard: {
-    padding: 12,
-    gap: 4,
-  },
-  historyTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  historyCorridor: {
-    ...typography.titleSm,
-    fontWeight: "600",
-    color: colors.text,
-  },
-  historyTime: {
-    ...typography.codeSm,
-    color: colors.textMuted,
-  },
-  centerLoading: {
-    paddingVertical: 32,
-    alignItems: "center",
-    gap: 10,
-  },
-  loadingText: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-  },
-  inProgressBanner: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: radius.control,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: colors.surfaceContainerHigh,
-    borderStyle: "dashed",
-  },
-  inProgressHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  inProgressTitle: {
-    ...typography.labelMd,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  inProgressPill: {
-    backgroundColor: colors.evidenceSurface,
-    paddingHorizontal: 6,
-    paddingVertical: 1,
-    borderRadius: radius.pill,
-  },
-  inProgressPillText: {
-    ...typography.codeSm,
-    fontSize: 8.5,
-    color: colors.secondary,
-    fontWeight: "700",
-    letterSpacing: 0.4,
-  },
-  inProgressDesc: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-    fontSize: 11.5,
-    lineHeight: 16,
+    ...typography.secondary,
+    fontWeight: "500",
   },
 });

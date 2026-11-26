@@ -17,18 +17,21 @@ export function buildMapHtml(options: { baseUrl?: string } = {}): string {
 <title>TrafficSense OpenStreetMap</title>
 <link rel="stylesheet" href="${baseUrl}/leaflet.css" />
 <style>
-  html, body, #map { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #f1efe9; }
-  .leaflet-container { font: 12px system-ui, sans-serif; background: #f1efe9; }
-  .leaflet-control-attribution { font-size: 10px !important; }
-  .leaflet-control-zoom a { width: 40px !important; height: 40px !important; line-height: 40px !important; }
+  html, body, #map { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #F2F3F0; }
+  .leaflet-container { font: 12px Inter, system-ui, sans-serif; background: #F2F3F0; }
+  body.dark, body.dark #map, body.dark .leaflet-container { background: #121618; }
+  body.dark .leaflet-tile-pane { filter: invert(92%) hue-rotate(180deg) brightness(95%) contrast(90%) saturate(75%); }
+  .leaflet-control-attribution { display: none !important; }
+  .leaflet-control-zoom { display: none !important; }
   .leaflet-accident-pin { background: transparent !important; border: none !important; }
-  #status { position: absolute; z-index: 1000; top: 10px; left: 10px; padding: 7px 10px; border-radius: 8px;
-    background: rgba(255,255,255,.95); color: #3e4947; font: 600 12px system-ui, sans-serif; }
+  #status { position: absolute; z-index: 1000; top: 12px; left: 12px; padding: 6px 10px; border-radius: 10px;
+    background: rgba(255,255,255,.94); color: #4B555E; font: 600 12px Inter, system-ui, sans-serif; }
+  body.dark #status { background: rgba(19,24,26,.94); color: #A9B4B8; }
 </style>
 </head>
 <body>
 <div id="map" role="region" aria-label="Interactive OpenStreetMap traffic map"></div>
-<div id="status" role="status" aria-live="polite">Loading street map…</div>
+<div id="status" role="status" aria-live="polite">Loading map…</div>
 <script src="${baseUrl}/leaflet.js"></script>
 <script>
   (function () {
@@ -41,7 +44,7 @@ export function buildMapHtml(options: { baseUrl?: string } = {}): string {
     var status = document.getElementById("status");
     if (!window.L) { post("failed", { reason: "leaflet-library" }); return; }
 
-    var map = L.map("map", { zoomControl: true, attributionControl: true, preferCanvas: true }).setView([12.87, 74.84], 12);
+    var map = L.map("map", { zoomControl: false, attributionControl: false, preferCanvas: true }).setView([12.87, 74.84], 13);
     var segments = L.layerGroup().addTo(map);
     var routes = L.layerGroup().addTo(map);
     var incidents = L.layerGroup().addTo(map);
@@ -49,6 +52,8 @@ export function buildMapHtml(options: { baseUrl?: string } = {}): string {
     var lastData = null;
     var loadedTile = false;
     var tileErrors = 0;
+    var isDark = false;
+
     var tileLayer = L.tileLayer(tileUrl, { maxZoom: 19, attribution: attribution }).addTo(map);
     tileLayer.on("tileload", function () { loadedTile = true; status.style.display = "none"; });
     tileLayer.on("tileerror", function () {
@@ -68,7 +73,7 @@ export function buildMapHtml(options: { baseUrl?: string } = {}): string {
         var point = feature.geometry.coordinates; coordinates.push([point[1], point[0]]);
       });
       if (data.you && data.you.coordinates) coordinates.push([data.you.coordinates[1], data.you.coordinates[0]]);
-      if (coordinates.length) map.fitBounds(coordinates, { padding: [28, 28], maxZoom: 15, animate: false });
+      if (coordinates.length) map.fitBounds(coordinates, { padding: [36, 36], maxZoom: 15, animate: false });
     }
     function onFeature(layer, feature, eventName) {
       layer.on("click", function (event) {
@@ -76,63 +81,115 @@ export function buildMapHtml(options: { baseUrl?: string } = {}): string {
         if (feature.properties && feature.properties.id) post(eventName, { id: feature.properties.id });
       });
     }
+
+    function pinColor(category, dark) {
+      var cat = (category || "").toLowerCase();
+      if (cat.indexOf("accident") !== -1 || cat.indexOf("closed") !== -1 || cat.indexOf("closure") !== -1) {
+        return dark ? "#F7897D" : "#CC3B2E";
+      }
+      if (cat.indexOf("flood") !== -1 || cat.indexOf("water") !== -1 || cat.indexOf("traffic") !== -1) {
+        return dark ? "#F2AA55" : "#D27A12";
+      }
+      return dark ? "#A9B4B8" : "#4B555E";
+    }
+
+    function pinGlyph(category, strokeColor) {
+      var cat = (category || "").toLowerCase();
+      if (cat.indexOf("flood") !== -1 || cat.indexOf("water") !== -1) {
+        return '<path d="M0-27s4.5 4.5 4.5 7.5a4.5 4.5 0 0 1-9 0c0-3 4.5-7.5 4.5-7.5z" fill="' + strokeColor + '"/>';
+      }
+      if (cat.indexOf("closed") !== -1 || cat.indexOf("closure") !== -1) {
+        return '<path d="M-4.5-20h9" stroke="' + strokeColor + '" stroke-width="2.2" stroke-linecap="round"/>';
+      }
+      if (cat.indexOf("repair") !== -1 || cat.indexOf("work") !== -1) {
+        return '<path d="M-2-25h4l3 9h-10z" fill="none" stroke="' + strokeColor + '" stroke-width="1.8" stroke-linejoin="round"/>';
+      }
+      if (cat.indexOf("traffic") !== -1) {
+        return '<rect x="-5" y="-23" width="10" height="6" rx="1.5" fill="none" stroke="' + strokeColor + '" stroke-width="1.8"/>';
+      }
+      return '<path d="M0-24v5M0-16.5v.5" stroke="' + strokeColor + '" stroke-width="2.2" stroke-linecap="round"/>';
+    }
+
+    function setTheme(dark) {
+      isDark = !!dark;
+      if (isDark) document.body.classList.add("dark");
+      else document.body.classList.remove("dark");
+    }
+
     function setData(data) {
       lastData = data;
+      if (typeof data.dark === "boolean") setTheme(data.dark);
       segments.clearLayers(); routes.clearLayers(); incidents.clearLayers(); you.clearLayers();
+      var casingColor = isDark ? "#0B0F10" : "#FFFFFF";
+      var accentColor = isDark ? "#56C7B3" : "#0B6B5F";
+      var altColor = isDark ? "#4E595F" : "#A3ACB3";
+
       L.geoJSON(featureCollection(data.segments && data.segments.features), {
-        style: function (feature) { return { color: feature.properties.colour || "#d97706", weight: 5, opacity: .9 }; }
+        style: function (feature) { return { color: feature.properties.colour || (isDark ? "#F2AA55" : "#D27A12"), weight: 5, opacity: 0.92 }; }
       }).addTo(segments);
+
       L.geoJSON(featureCollection(data.routes && data.routes.features), {
-        style: function (feature) { return { color: feature.properties.colour || "#005c55", weight: feature.properties.selected ? 7 : 5, opacity: .92 }; },
+        style: function (feature) {
+          var sel = feature.properties.selected;
+          return { color: casingColor, weight: sel ? 12 : 9, opacity: 0.95 };
+        }
+      }).addTo(routes);
+
+      L.geoJSON(featureCollection(data.routes && data.routes.features), {
+        style: function (feature) {
+          var sel = feature.properties.selected;
+          return { color: sel ? accentColor : altColor, weight: sel ? 7 : 5, opacity: 0.96 };
+        },
         onEachFeature: function (feature, layer) { onFeature(layer, feature, "select-route"); }
       }).addTo(routes);
+
       L.geoJSON(featureCollection(data.incidents && data.incidents.features), {
         pointToLayer: function (feature, latlng) {
-          var selected = feature.properties.selected;
-          var onRoute = feature.properties.onRoute;
-          var category = (feature.properties.category || "").toLowerCase();
-          var emoji = "⚠️";
-          if (category.indexOf("accident") !== -1 || category.indexOf("crash") !== -1) emoji = "💥";
-          else if (category.indexOf("flood") !== -1 || category.indexOf("water") !== -1) emoji = "🌊";
-          else if (category.indexOf("closure") !== -1 || category.indexOf("block") !== -1) emoji = "⛔";
-          else if (category.indexOf("construction") !== -1 || category.indexOf("work") !== -1) emoji = "🚧";
-          else if (category.indexOf("hazard") !== -1) emoji = "⚠️";
-
-          var pinSize = selected ? 34 : 26;
-          var bg = feature.properties.colour || "#dc2626";
-          var pinHtml = '<div style="position:relative;width:' + pinSize + 'px;height:' + (pinSize + 7) + 'px;display:flex;flex-direction:column;align-items:center;cursor:pointer;">'
-            + '<div style="width:' + pinSize + 'px;height:' + pinSize + 'px;border-radius:' + (pinSize / 2) + 'px;background:' + bg + ';border:2px solid #ffffff;box-shadow:0 3px 6px rgba(0,0,0,0.4);display:flex;align-items:center;justify-content:center;font-size:' + (selected ? 16 : 13) + 'px;' + (selected ? 'outline:3px solid rgba(220,38,38,0.55);' : '') + '">'
-            + '<span style="line-height:1;">' + emoji + '</span>'
-            + '</div>'
-            + '<div style="width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:6px solid ' + bg + ';margin-top:-1px;"></div>'
-            + '</div>';
+          var selected = !!feature.properties.selected;
+          var onRoute = !!feature.properties.onRoute;
+          var category = feature.properties.category || "";
+          var fill = pinColor(category, isDark);
+          var scale = selected ? 1.3 : 1;
+          var w = Math.round(28 * scale);
+          var h = Math.round(38 * scale);
+          var svg = '<svg width="' + w + '" height="' + h + '" viewBox="-14 -36 28 38" style="overflow:visible">'
+            + (selected ? '<ellipse cy="1" rx="6" ry="2" fill="#000000" opacity="0.22"/>' : '')
+            + '<path d="M0 0C-3-5-12-11-12-20A12 12 0 1 1 12-20C12-11 3-5 0 0Z" fill="' + fill + '" stroke="' + casingColor + '" stroke-width="2"/>'
+            + pinGlyph(category, casingColor)
+            + '</svg>';
 
           var icon = L.divIcon({
             className: "leaflet-accident-pin",
-            html: pinHtml,
-            iconSize: [pinSize, pinSize + 7],
-            iconAnchor: [pinSize / 2, pinSize + 7]
+            html: svg,
+            iconSize: [w, h],
+            iconAnchor: [w / 2, h - 2]
           });
           return L.marker(latlng, { icon: icon, zIndexOffset: selected ? 1000 : (onRoute ? 800 : 500) });
         },
         onEachFeature: function (feature, layer) { onFeature(layer, feature, "select-incident"); }
       }).addTo(incidents);
-      if (data.you) L.geoJSON({ type: "Feature", properties: {}, geometry: data.you }, {
-        pointToLayer: function (feature, latlng) { return L.circleMarker(latlng, { radius: 7, color: "#ffffff", weight: 2, fillColor: "#2563eb", fillOpacity: 1 }); }
-      }).addTo(you);
+
+      if (data.you) {
+        L.geoJSON({ type: "Feature", properties: {}, geometry: data.you }, {
+          pointToLayer: function (_f, latlng) {
+            return L.circleMarker(latlng, { radius: 9, color: casingColor, weight: 3.5, fillColor: accentColor, fillOpacity: 1 });
+          }
+        }).addTo(you);
+      }
       if (data.fit) fitData(data);
     }
 
+    function centerOn(coordinates) {
+      if (coordinates && coordinates.length === 2) map.setView([coordinates[1], coordinates[0]], Math.max(map.getZoom(), 14), { animate: true });
+    }
     window.trafficMap = {
       setData: setData,
-      centerOn: function (point) { if (Array.isArray(point) && point.length === 2) map.setView([point[1], point[0]], 14); },
-      refit: function () { if (lastData) fitData(lastData); }
+      setTheme: setTheme,
+      centerOn: centerOn,
+      fit: function () { if (lastData) fitData(lastData); }
     };
-    setTimeout(function () {
-      if (!loadedTile) post("map-error", { detail: "OpenStreetMap tiles have not loaded yet." });
-    }, 12000);
-    post("ready", { fallback: false });
-  }());
+    post("ready");
+  })();
 </script>
 </body>
 </html>`;
