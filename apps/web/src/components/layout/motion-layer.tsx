@@ -18,6 +18,8 @@ declare global {
   }
 }
 
+const animatedSvgs = new WeakSet<SVGSVGElement>();
+
 function initTrafficSenseMotion() {
   const gsap = window.gsap;
   if (!gsap) return false;
@@ -28,13 +30,13 @@ function initTrafficSenseMotion() {
 
   const SEL = "path,line,circle,rect,polyline";
   document.querySelectorAll<SVGSVGElement>('svg[fill="none"][viewBox="0 0 24 24"]').forEach((svg) => {
-    if (svg.dataset.tsAnimated === "1") return;
+    if (animatedSvgs.has(svg)) return;
     const w = parseFloat(svg.getAttribute("width") || "0");
     if (!w || w > 64) return;
     const parts = svg.querySelectorAll(SEL);
     if (!parts.length) return;
 
-    svg.dataset.tsAnimated = "1";
+    animatedSvgs.add(svg);
     const disc = svg.parentElement;
     const isLogo =
       disc?.tagName === "SPAN" &&
@@ -83,13 +85,14 @@ export function MotionLayer() {
 
     const tryRun = () => {
       const done = initTrafficSenseMotion();
-      if (!done && attempts < 10) {
+      if (!done && attempts < 12) {
         attempts += 1;
         timer = setTimeout(tryRun, 150);
       }
     };
 
-    tryRun();
+    // Defer slightly so streamed Suspense boundaries finish hydrating before GSAP mutates SVG stroke styles
+    timer = setTimeout(tryRun, 120);
     return () => {
       if (timer) clearTimeout(timer);
     };

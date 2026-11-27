@@ -15,7 +15,7 @@ async function HeroLiveWidgets() {
   let latestMeta = "SIMULATED · DEMO";
 
   try {
-    const supabase = await createAuthClient(true);
+    const supabase = await createAuthClient(false);
     const incidents = await getActiveLiveIncidents(supabase);
       if (incidents.length > 0) {
         incidentCount = incidents.length;
