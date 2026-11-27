@@ -718,40 +718,38 @@ export function RoutePlanner() {
       {/* Fullscreen Map Canvas */}
       <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
 
-      {/* Floating Search & Direction Card (Top, below floating TopBar) */}
-      <div className="absolute top-[86px] sm:top-[104px] inset-x-3 sm:left-7 sm:right-auto sm:w-[420px] z-30 pointer-events-auto">
-        <div className="bg-[#F3EFE6]/90 backdrop-blur-2xl rounded-[32px] border border-white/80 shadow-[0_24px_60px_rgba(17,20,26,0.20)] p-4 space-y-3">
+      {/* Unified Left Frosted-Glass Planner Panel (matched to PlannerWeb.html — never overlaps TopBar or itself) */}
+      <aside
+        aria-label="Route planner controls and options"
+        className="absolute top-[84px] sm:top-[104px] bottom-[96px] sm:bottom-[104px] inset-x-3 sm:left-7 sm:right-auto sm:w-[460px] z-20 flex flex-col gap-3.5 rounded-[34px] sm:rounded-[40px] bg-white/88 backdrop-blur-2xl border border-white/80 shadow-[0_22px_56px_rgba(17,20,26,0.22)] p-4 sm:p-6 pointer-events-auto overflow-hidden"
+      >
+        {/* Fixed Top: Title, Tall Pill Inputs & Action Pills */}
+        <div className="shrink-0 space-y-3">
           {/* Header Row: Title & Live Telemetry */}
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-sm sm:text-base font-bold text-[#11141A] flex items-center gap-2 m-0">
-              <MapIcon size={17} className="text-[#FF5B2E]" />
-              <span>Plan Route</span>
-            </h2>
-            <div className="flex items-center gap-1.5">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF5B2E] opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FF5B2E]" />
-              </span>
-              <span className="font-mono text-[10px] font-semibold text-[#4A505C]">
+          <div className="flex items-center justify-between gap-2">
+            <h1 className="font-display font-bold text-3xl sm:text-[40px] leading-[0.95] tracking-[-0.04em] text-[#11141A] m-0">
+              Plan a route<span className="text-[#FF5B2E]">.</span>
+            </h1>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <span className="h-7 px-2.5 rounded-full bg-[#F3EFE6] text-[#11141A] inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold">
+                <span className="w-2 h-2 rounded-full bg-[#FF5B2E]" />
                 {liveIncidents.length} HAZARD{liveIncidents.length === 1 ? "" : "S"}
-              </span>
-              <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#11141A] text-[#D5F75A]">
-                FREE-FLOW
               </span>
             </div>
           </div>
 
-          {/* Google Maps Connected Origin & Destination Inputs */}
-          <div className="flex items-center gap-2 bg-slate-50/90 rounded-xl p-2 border border-slate-200/80">
+          {/* Origin & Destination Pill Inputs — matched to PlannerWeb.html */}
+          <div className="flex items-center gap-2.5">
             {/* Visual Route Connector Track */}
-            <div className="flex flex-col items-center justify-between py-1 self-stretch shrink-0">
-              <div className="w-2.5 h-2.5 rounded-full bg-emerald-600 ring-2 ring-emerald-200" />
-              <div className="w-0.5 flex-1 my-1 border-l-2 border-dotted border-slate-300" />
-              <div className="w-2.5 h-2.5 rounded-full bg-rose-600 ring-2 ring-rose-200" />
+            <div className="flex flex-col items-center justify-center gap-1 shrink-0">
+              <span className="w-3 h-3 rounded-full bg-[#11141A]" />
+              <i className="w-0.5 h-2 bg-[#BDB5A2] block" />
+              <i className="w-0.5 h-2 bg-[#BDB5A2] block" />
+              <span className="w-3 h-3 rounded-full bg-[#FF5B2E]" />
             </div>
 
             {/* Inputs Column */}
-            <div className="flex-1 space-y-1.5 min-w-0">
+            <div className="flex-1 space-y-2 min-w-0">
               {/* Origin Row */}
               <div className="flex items-center gap-1.5 min-w-0">
                 {isPickingLocation ? (
@@ -810,7 +808,7 @@ export function RoutePlanner() {
                   <select
                     id="start-select"
                     aria-label="Origin starting location"
-                    className="flex-1 text-xs font-semibold rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-slate-800 shadow-2xs focus:ring-1 focus:ring-primary outline-none transition truncate"
+                    className="flex-1 h-12 text-sm sm:text-[15px] font-semibold rounded-full border-0 bg-[#F3EFE6] px-4 text-[#11141A] focus:ring-2 focus:ring-[#11141A] outline-none transition truncate cursor-pointer"
                     value={startIndex}
                     onChange={(e) => {
                       const newIdx = Number(e.target.value);
@@ -839,10 +837,10 @@ export function RoutePlanner() {
                       setIsPickingLocation(false);
                       handleRequestGps("start");
                     }}
-                    className="text-[11px] p-2 rounded-lg bg-white hover:bg-slate-100 text-primary font-bold border border-slate-200 transition shadow-2xs flex items-center justify-center"
+                    className="w-10 h-10 rounded-full bg-[#F3EFE6] hover:bg-[#E8E2D3] text-[#11141A] transition flex items-center justify-center cursor-pointer"
                     title="Use GPS current position"
                   >
-                    <MapPinIcon size={13} />
+                    <MapPinIcon size={15} />
                   </button>
                   <button
                     type="button"
@@ -850,14 +848,14 @@ export function RoutePlanner() {
                       setUseGpsStart(false);
                       setIsPickingLocation(!isPickingLocation);
                     }}
-                    className={`text-[11px] p-2 rounded-lg font-bold border transition shadow-2xs flex items-center justify-center ${
+                    className={`w-10 h-10 rounded-full transition flex items-center justify-center cursor-pointer ${
                       isPickingLocation
-                        ? "bg-amber-100 text-amber-900 border-amber-300 font-bold"
-                        : "bg-white hover:bg-slate-100 text-primary border-slate-200"
+                        ? "bg-[#FF5B2E] text-[#11141A]"
+                        : "bg-[#F3EFE6] hover:bg-[#E8E2D3] text-[#11141A]"
                     }`}
                     title="Pick origin point on map"
                   >
-                    {isPickingLocation ? <XIcon size={13} /> : <CrosshairIcon size={13} />}
+                    {isPickingLocation ? <XIcon size={15} /> : <CrosshairIcon size={15} />}
                   </button>
                 </div>
               </div>
@@ -867,7 +865,7 @@ export function RoutePlanner() {
                 <select
                   id="dest-select"
                   aria-label="Destination location"
-                  className="w-full text-xs font-semibold rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-slate-800 shadow-2xs focus:ring-1 focus:ring-primary outline-none transition truncate"
+                  className="w-full h-12 text-sm sm:text-[15px] font-semibold rounded-full border-0 bg-[#F3EFE6] px-4 text-[#11141A] focus:ring-2 focus:ring-[#11141A] outline-none transition truncate cursor-pointer"
                   value={destIndex}
                   onChange={(e) => {
                     const newIdx = Number(e.target.value);
@@ -886,11 +884,11 @@ export function RoutePlanner() {
               </div>
             </div>
 
-            {/* Invert / Swap Button */}
+            {/* Swap Button */}
             <button
               type="button"
               onClick={handleSwap}
-              className="w-8 h-8 rounded-full border border-slate-200 bg-white hover:bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-800 shadow-2xs transition shrink-0"
+              className="w-11 h-11 rounded-full bg-[#11141A] hover:bg-[#2A303C] flex items-center justify-center text-sm font-bold text-[#F3EFE6] transition shrink-0 cursor-pointer"
               title="Swap origin and destination"
               aria-label="Swap origin and destination"
             >
@@ -898,8 +896,8 @@ export function RoutePlanner() {
             </button>
           </div>
 
-          {/* Quick Filter / Action Pills Bar */}
-          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar text-xs">
+          {/* Action Pills Bar */}
+          <div className="flex items-center gap-2 overflow-x-auto pb-0.5 no-scrollbar text-xs">
             <button
               type="button"
               disabled={isPending || isRecalculating}
@@ -908,95 +906,80 @@ export function RoutePlanner() {
                 setRecalculateError(null);
                 fetchRoutes(activeStart, activeDest);
               }}
-              className="px-2.5 py-1 rounded-full bg-primary text-white hover:bg-primary-hover font-bold transition whitespace-nowrap text-[11px] flex items-center gap-1 shadow-2xs"
+              className="h-9 px-4 rounded-full bg-[#11141A] text-[#F3EFE6] hover:bg-[#2A303C] font-semibold transition whitespace-nowrap text-xs flex items-center gap-1.5 cursor-pointer"
             >
-              {isPending && <SpinnerIcon size={11} />}
+              {isPending && <SpinnerIcon size={12} />}
               <span>{isPending ? "Calculating…" : "Find Best Route"}</span>
             </button>
 
             <button
               type="button"
               onClick={() => setShowTrafficOverlay((prev) => !prev)}
-              className={`px-2.5 py-1 rounded-full border transition whitespace-nowrap text-[11px] font-semibold flex items-center gap-1 ${
+              className={`h-9 px-3.5 rounded-full transition whitespace-nowrap text-xs font-semibold flex items-center gap-1.5 cursor-pointer ${
                 showTrafficOverlay
-                  ? "bg-emerald-600 text-white border-emerald-600 shadow-2xs"
-                  : "bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 shadow-2xs"
+                  ? "bg-[#D5F75A] text-[#11141A]"
+                  : "bg-[#F3EFE6] hover:bg-[#E8E2D3] text-[#11141A]"
               }`}
             >
-              <TrafficLightIcon size={12} />
+              <TrafficLightIcon size={13} />
               <span>Traffic {showTrafficOverlay ? "On" : "Off"}</span>
             </button>
 
             <button
               type="button"
               onClick={() => setShowReportForm(true)}
-              className="px-2.5 py-1 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 transition whitespace-nowrap text-[11px] font-semibold flex items-center gap-1 shadow-2xs"
+              className="h-9 px-3.5 rounded-full bg-[#FF5B2E] hover:brightness-95 text-[#11141A] transition whitespace-nowrap text-xs font-bold flex items-center gap-1.5 cursor-pointer"
             >
-              <MegaphoneIcon size={12} />
+              <MegaphoneIcon size={13} />
               <span>Report Hazard</span>
             </button>
           </div>
         </div>
-      </div>
 
-      {/* Expandable Route Summary Sheet (above bottom Dock) */}
-      <aside
-        className={`absolute bottom-[92px] inset-x-3 sm:left-7 sm:bottom-[108px] sm:inset-x-auto sm:w-[420px] z-20 flex flex-col bg-[#F3EFE6]/92 backdrop-blur-2xl rounded-[32px] border border-white/80 shadow-[0_24px_60px_rgba(17,20,26,0.20)] overflow-hidden pointer-events-auto transition-all duration-300 ease-in-out ${
-          isDrawerExpanded
-            ? "max-h-[55vh] sm:max-h-[calc(100dvh-340px)]"
-            : "max-h-[145px]"
-        }`}
-      >
-        {/* Drag Handle & Summary Row (Always Visible) */}
+        {/* Selected Route Hero Card (matched to PlannerWeb.html dark #11141A card) */}
         <div
           onClick={() => setIsDrawerExpanded((prev) => !prev)}
-          className="p-3 pb-2.5 border-b border-slate-200/80 cursor-pointer select-none bg-slate-50/80 hover:bg-slate-100/80 transition"
+          className="shrink-0 rounded-[28px] bg-[#11141A] text-[#F3EFE6] p-4 sm:p-5 shadow-[0_14px_30px_rgba(17,20,26,0.24)] cursor-pointer select-none transition hover:bg-[#171B23]"
         >
-          {/* Visual Drag Handle Bar */}
-          <div className="w-10 h-1.5 rounded-full bg-slate-300 mx-auto mb-2" />
-
-          {/* Quick Route Peek View */}
           <div className="flex items-center justify-between gap-3">
-            <div className="min-w-0 flex-1">
-              <div className="flex items-baseline gap-2 flex-wrap">
-                <span className="text-2xl font-black text-emerald-700 tracking-tight">
-                  {activeRoute ? formatRouteDuration(activeRoute.duration_s) : "..."}
-                </span>
-                <span className="text-xs font-semibold text-slate-600">
-                  {activeRoute ? formatRouteDistance(activeRoute.distance_m) : ""}
-                </span>
-                {activeRoute?.is_recommended && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300 inline-flex items-center gap-1">
-                    <StarIcon size={10} />
-                    Recommended
-                  </span>
-                )}
-                {activeRoute?.avoids_incident && (
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-800 border border-emerald-300">
-                    Detour Active
-                  </span>
-                )}
+            <div className="flex items-center gap-3.5 min-w-0">
+              <i
+                className={`block w-8 h-2 rounded-full shrink-0 ${
+                  activeRoute?.avoids_incident ? "bg-[#D5F75A]" : "bg-[#2B4BFF]"
+                }`}
+              />
+              <div className="min-w-0">
+                <div className="font-display font-bold text-3xl sm:text-[38px] leading-none tracking-[-0.035em]">
+                  {activeRoute ? formatRouteDuration(activeRoute.duration_s) : "…"}
+                </div>
+                <div className="mt-1.5 font-mono text-[10px] font-semibold tracking-[0.06em] text-[#B9BDC6] uppercase truncate">
+                  {activeRoute ? formatRouteDistance(activeRoute.distance_m) : "CALCULATING"} ·{" "}
+                  {activeRoute?.avoids_incident ? "DETOUR ACTIVE" : "FREE-FLOW"}
+                </div>
               </div>
-              <p className="text-xs font-medium text-slate-600 truncate m-0 mt-0.5">
-                {activeRoute?.name ?? "Calculating best route..."} · free-flow
-              </p>
             </div>
 
-            {/* Expand / Collapse Control Button */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <span className="text-xs font-bold text-emerald-800 flex items-center gap-1 px-2.5 py-1.5 rounded-xl bg-emerald-50 border border-emerald-200">
-                <span>{routes.length} options</span>
-                <span>{isDrawerExpanded ? "▼" : "▲"}</span>
-              </span>
-            </div>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setIsDrawerExpanded((prev) => !prev);
+              }}
+              className="h-9 px-3.5 rounded-full bg-[#2A303C] text-[#F3EFE6] text-xs font-semibold flex items-center gap-1.5 shrink-0 cursor-pointer hover:bg-[#363E4D]"
+            >
+              <span>{routes.length} options</span>
+              <span>{isDrawerExpanded ? "▲" : "▼"}</span>
+            </button>
           </div>
 
-          {/* Compact Hazard Alert Strip in Peek State if route intersects hazard */}
+          {/* Compact Hazard Alert Strip if route intersects hazard */}
           {selectedRouteWarnings.length > 0 && !activeRoute?.avoids_incident && !isDrawerExpanded && (
-            <div className="mt-2 flex items-center justify-between gap-2 px-2.5 py-1.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-950 text-xs">
-              <div className="flex items-center gap-1.5 truncate">
-                <AlertTriangleIcon size={13} className="text-rose-600 shrink-0" />
-                <span className="truncate font-medium">Passes near {selectedRouteWarnings[0].label} ({selectedRouteWarnings[0].distance_to_route_m}m)</span>
+            <div className="mt-3 pt-3 border-t border-[#2A303C] flex items-center justify-between gap-2 text-xs">
+              <div className="flex items-center gap-1.5 truncate text-[#FFB020]">
+                <AlertTriangleIcon size={13} className="shrink-0" />
+                <span className="truncate font-medium">
+                  Passes near {selectedRouteWarnings[0].label} ({selectedRouteWarnings[0].distance_to_route_m}m)
+                </span>
               </div>
               <button
                 type="button"
@@ -1005,7 +988,7 @@ export function RoutePlanner() {
                   e.stopPropagation();
                   handleDynamicReroute(selectedRouteWarnings[0].id);
                 }}
-                className="shrink-0 text-[10px] font-bold px-2 py-0.5 rounded bg-rose-700 text-white hover:bg-rose-800 transition"
+                className="shrink-0 h-7 px-3 rounded-full bg-[#FF5B2E] text-[#11141A] text-[11px] font-bold hover:brightness-95 transition cursor-pointer"
               >
                 {isRecalculating ? "Detouring…" : "Detour"}
               </button>
@@ -1014,7 +997,7 @@ export function RoutePlanner() {
         </div>
 
         {/* Scrollable Drawer Body */}
-        <div className="overflow-y-auto p-3.5 space-y-3 flex-1">
+        <div className={`overflow-y-auto space-y-3 flex-1 min-h-0 pr-1 ${isDrawerExpanded ? "block" : "hidden"}`}>
           {reportFeedback && (
             <div
               className={`p-3 rounded-xl border text-xs flex items-center justify-between gap-2 shadow-xs ${

@@ -3,41 +3,56 @@ import { SimulatedBanner } from "@/components/simulated-banner";
 
 export default function GuestDemoPage() {
   return (
-    <div className="space-y-6">
+    <div className="max-w-[1360px] mx-auto space-y-6 pt-2">
       <SimulatedBanner />
 
-      <section className="rounded-[40px] bg-[#11141A] text-[#F3EFE6] p-8 lg:p-12 shadow-[0_24px_60px_rgba(17,20,26,0.18)]">
-        <span className="h-[30px] px-3 rounded-full bg-[#1B2029] text-[#D5F75A] inline-flex items-center gap-2 font-mono text-[11px] font-semibold tracking-[0.08em]">
-          <span className="w-2 h-2 rounded-full bg-[#FF5B2E]" />
-          PUBLIC PREVIEW · NO SIGN-IN REQUIRED
-        </span>
+      <section className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <div className="lg:col-span-7 space-y-5">
+          <span className="h-[34px] px-3.5 rounded-full bg-[#11141A] text-[#D5F75A] inline-flex items-center gap-2 font-mono text-[11px] font-semibold tracking-[0.08em]">
+            <span className="w-2 h-2 rounded-full bg-[#D5F75A]" />
+            GUEST · NO SIGN-IN
+          </span>
 
-        <h1 className="font-display font-bold text-4xl lg:text-[64px] leading-[0.95] tracking-[-0.04em] mt-5 mb-0">
-          Explore TrafficSense
-          <br />
-          as a guest<span className="text-[#FF5B2E]">.</span>
-        </h1>
-        <p className="text-base lg:text-lg text-[#B9BDC6] mt-4 max-w-2xl mb-0">
-          Browse freely without an account. TrafficSense never requests background geolocation, runs tracking cookies,
-          or accesses private data.
-        </p>
+          <h1 className="font-display font-bold text-5xl sm:text-6xl lg:text-[88px] leading-[0.88] tracking-[-0.055em] text-[#11141A] m-0">
+            Look
+            <br />
+            around<span className="text-[#FF5B2E]">.</span>
+          </h1>
 
-        <div className="mt-8 flex flex-wrap gap-3">
-          <Link className="ts-btn-primary" href="/traffic">
-            Browse live map →
-          </Link>
-          <Link
-            className="h-[52px] px-6 rounded-full bg-[#1B2029] text-[#F3EFE6] border border-[#2A303C] inline-flex items-center font-semibold text-sm no-underline hover:bg-[#2A303C]"
-            href="/reports/new"
-          >
-            Submit a traffic report
-          </Link>
-          <Link
-            className="h-[52px] px-6 rounded-full bg-transparent text-[#D5F75A] border border-[#2A303C] inline-flex items-center font-semibold text-sm no-underline hover:bg-[#1B2029]"
-            href="/about"
-          >
-            How it works
-          </Link>
+          <p className="text-base text-[#4A505C] max-w-xl m-0 leading-relaxed">
+            Browse freely without an account. TrafficSense never requests background geolocation, runs tracking cookies,
+            or accesses private data.
+          </p>
+
+          <div className="flex flex-wrap gap-3 pt-1">
+            <Link className="ts-btn-primary" href="/traffic">
+              Browse live map →
+            </Link>
+            <Link className="ts-btn-ink" href="/report">
+              Submit a traffic report
+            </Link>
+            <Link className="ts-btn-ghost" href="/about">
+              How it works
+            </Link>
+          </div>
+        </div>
+
+        <div className="lg:col-span-5 flex flex-col gap-3">
+          {[
+            "No background GPS",
+            "No tracking cookies",
+            "24-hour guest report visibility",
+          ].map((item) => (
+            <div
+              key={item}
+              className="h-[72px] rounded-full bg-white border border-[#EEE9DC] px-4 flex items-center gap-4 shadow-[0_8px_20px_rgba(17,20,26,0.04)]"
+            >
+              <span className="w-11 h-11 rounded-full bg-[#F3EFE6] flex items-center justify-center text-[#11141A] font-bold shrink-0">
+                ✓
+              </span>
+              <span className="text-base font-semibold text-[#11141A]">{item}</span>
+            </div>
+          ))}
         </div>
       </section>
 

@@ -10,8 +10,8 @@ export default function AccessDeniedPage() {
           </span>
           <span className="simulated-pill">SERVER ENFORCED</span>
         </div>
-        <h1 className="font-display font-bold text-3xl lg:text-5xl leading-[0.98] tracking-[-0.04em] m-0 text-[#11141A]">
-          This page is not available to your account<span className="text-[#FF5B2E]">.</span>
+        <h1 className="font-display font-bold text-4xl lg:text-[56px] leading-[0.92] tracking-[-0.045em] m-0 text-[#11141A]">
+          Not for this account<span className="text-[#FF5B2E]">.</span>
         </h1>
         <p className="text-sm lg:text-base text-[#4A505C] m-0">
           Access is determined by the role assigned on the server. Return to your account to see the views available to
