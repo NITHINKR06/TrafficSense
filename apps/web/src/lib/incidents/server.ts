@@ -16,6 +16,7 @@ export type LiveIncident = {
   confirm_count?: number;
   provenance: "reported" | "verified" | "authority";
   report_count: number;
+  has_photo?: boolean;
   photo_data_url?: string | null;
   photo_confidence?: string | null;
 };

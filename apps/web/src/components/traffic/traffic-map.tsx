@@ -54,12 +54,31 @@ function MapAttempt({
   const [liveIncidents, setLiveIncidents] = useState<LiveIncident[]>([]);
   const [liveIncidentState, setLiveIncidentState] = useState<"loading" | "ready" | "unavailable">("loading");
   const [internalSelectedLiveIncidentId, setInternalSelectedLiveIncidentId] = useState<string | null>(null);
+  const [loadedPhoto, setLoadedPhoto] = useState<{ id: string; url: string; confidence: string | null } | null>(null);
 
   const effectiveSelectedIncidentId = activeLiveIncidentId !== undefined ? activeLiveIncidentId : internalSelectedLiveIncidentId;
   const setIncidentSelection = useCallback((id: string | null) => {
     setInternalSelectedLiveIncidentId(id);
     onSelectLiveIncident?.(id);
   }, [onSelectLiveIncident]);
+
+  useEffect(() => {
+    if (!effectiveSelectedIncidentId) return;
+    const target = liveIncidents.find((i) => i.id === effectiveSelectedIncidentId);
+    if (!target || !target.has_photo || target.photo_data_url || loadedPhoto?.id === target.id) return;
+    let cancelled = false;
+    fetch(`/api/incidents/${encodeURIComponent(target.id)}/photo`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && data?.ok && data.photo_data_url) {
+          setLoadedPhoto({ id: target.id, url: data.photo_data_url, confidence: data.photo_confidence ?? null });
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveSelectedIncidentId, liveIncidents, loadedPhoto?.id]);
 
   useEffect(() => {
     let disposed = false;
@@ -95,57 +114,155 @@ function MapAttempt({
     const map = mapRef.current;
     if (!map || state !== "ready") return;
     let disposed = false;
+
+    const geojsonData = {
+      type: "FeatureCollection" as const,
+      features: liveIncidents.map((incident) => ({
+        type: "Feature" as const,
+        properties: {
+          id: incident.id,
+          category: incident.category,
+          level: incident.level,
+          status: incident.status,
+          cleared: incident.status === "cleared",
+          verified: ["L3", "L5", "L6"].includes(incident.level),
+        },
+        geometry: {
+          type: "Point" as const,
+          coordinates: [incident.lng, incident.lat] as [number, number],
+        },
+      })),
+    };
+
+    const existingSource = map.getSource("live-incidents-geojson") as
+      | { setData?: (data: typeof geojsonData) => void }
+      | undefined;
+
+    if (existingSource && typeof existingSource.setData === "function") {
+      existingSource.setData(geojsonData);
+    } else if (map.isStyleLoaded()) {
+      map.addSource("live-incidents-geojson", {
+        type: "geojson",
+        data: geojsonData,
+        cluster: true,
+        clusterMaxZoom: 14,
+        clusterRadius: 44,
+      });
+
+      map.addLayer({
+        id: "live-incidents-clusters",
+        type: "circle",
+        source: "live-incidents-geojson",
+        filter: ["has", "point_count"],
+        paint: {
+          "circle-color": "#11141A",
+          "circle-radius": ["step", ["get", "point_count"], 18, 10, 23, 30, 28],
+          "circle-stroke-width": 2.5,
+          "circle-stroke-color": "#D5F75A",
+        },
+      });
+
+      map.addLayer({
+        id: "live-incidents-cluster-count",
+        type: "symbol",
+        source: "live-incidents-geojson",
+        filter: ["has", "point_count"],
+        layout: {
+          "text-field": "{point_count_abbreviated}",
+          "text-size": 12,
+          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+        },
+        paint: {
+          "text-color": "#F3EFE6",
+        },
+      });
+
+      map.addLayer({
+        id: "live-incidents-points",
+        type: "circle",
+        source: "live-incidents-geojson",
+        filter: ["!", ["has", "point_count"]],
+        paint: {
+          "circle-radius": [
+            "case",
+            ["==", ["get", "cleared"], true],
+            5.5,
+            ["==", ["get", "verified"], true],
+            9,
+            7.5,
+          ],
+          "circle-color": [
+            "case",
+            ["==", ["get", "cleared"], true],
+            "#6B747C",
+            ["==", ["get", "level"], "L6"],
+            "#D5F75A",
+            "#FF5B2E",
+          ],
+          "circle-stroke-width": 2,
+          "circle-stroke-color": "#11141A",
+        },
+      });
+
+      map.on("click", "live-incidents-clusters", (e) => {
+        const features = map.queryRenderedFeatures(e.point, { layers: ["live-incidents-clusters"] });
+        const clusterId = features[0]?.properties?.cluster_id;
+        const coords = (features[0]?.geometry as { coordinates?: [number, number] })?.coordinates;
+        const src = map.getSource("live-incidents-geojson") as {
+          getClusterExpansionZoom?: (id: number) => Promise<number>;
+        } | undefined;
+        if (clusterId != null && coords && src?.getClusterExpansionZoom) {
+          void src.getClusterExpansionZoom(Number(clusterId)).then((zoom) => {
+            map.flyTo({ center: coords, zoom, duration: 500 });
+          });
+        }
+      });
+
+      map.on("click", "live-incidents-points", (e) => {
+        const feat = e.features?.[0];
+        const id = feat?.properties?.id as string | undefined;
+        const coords = (feat?.geometry as { coordinates?: [number, number] })?.coordinates;
+        if (id) {
+          setIncidentSelection(id);
+          if (coords) map.flyTo({ center: coords, zoom: Math.max(map.getZoom(), 15), duration: 500 });
+        }
+      });
+
+      map.on("mouseenter", "live-incidents-clusters", () => { map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", "live-incidents-clusters", () => { map.getCanvas().style.cursor = ""; });
+      map.on("mouseenter", "live-incidents-points", () => { map.getCanvas().style.cursor = "pointer"; });
+      map.on("mouseleave", "live-incidents-points", () => { map.getCanvas().style.cursor = ""; });
+    }
+
+    // Keep only 1 HTML Marker for the currently selected incident
     for (const marker of liveMarkers.current) marker.remove();
     liveMarkers.current = [];
-
-    void import("maplibre-gl").then(({ Marker }) => {
-      if (disposed || !mapRef.current) return;
-      for (const incident of liveIncidents) {
+    const selected = liveIncidents.find((i) => i.id === effectiveSelectedIncidentId);
+    if (selected) {
+      void import("maplibre-gl").then(({ Marker }) => {
+        if (disposed || !mapRef.current) return;
         const wrapper = document.createElement("div");
         wrapper.className = styles.liveIncidentWrapper;
-
+        wrapper.style.zIndex = "30";
         const button = document.createElement("button");
         button.type = "button";
         button.className = styles.liveIncidentMarker;
-        button.dataset.liveIncidentMarker = incident.id;
-        button.innerHTML = getIncidentSvgString(incident.category, 16);
-        const category = reportCategories[incident.category] ?? incident.category;
-        const label = `${category}. ${liveIncidentLevelLabel(incident)}. Reported ${formatLiveIncidentTime(incident.first_reported_at)}.`;
-        button.setAttribute("aria-label", `Show report details: ${label}`);
-        button.title = label;
-        button.addEventListener("click", (e) => {
-          e.stopPropagation();
-          setIncidentSelection(incident.id);
-          map?.flyTo({ center: [incident.lng, incident.lat], zoom: 15.5, duration: 600 });
-        });
-
+        button.dataset.selected = "true";
+        button.innerHTML = getIncidentSvgString(selected.category, 16);
         wrapper.appendChild(button);
-
         const marker = new Marker({ element: wrapper, anchor: "center" })
-          .setLngLat([incident.lng, incident.lat])
+          .setLngLat([selected.lng, selected.lat])
           .addTo(map);
         liveMarkers.current.push(marker);
-      }
-    });
+      });
+    }
 
     return () => {
       disposed = true;
       for (const marker of liveMarkers.current) marker.remove();
       liveMarkers.current = [];
     };
-  }, [liveIncidents, state, setIncidentSelection]);
-
-  useEffect(() => {
-    for (const marker of liveMarkers.current) {
-      const wrapper = marker.getElement();
-      const button = wrapper.querySelector<HTMLButtonElement>("button");
-      if (button) {
-        const isSelected = button.dataset.liveIncidentMarker === effectiveSelectedIncidentId;
-        button.dataset.selected = isSelected ? "true" : "false";
-        wrapper.style.zIndex = isSelected ? "30" : "";
-      }
-    }
-  }, [effectiveSelectedIncidentId, liveIncidents]);
+  }, [liveIncidents, state, effectiveSelectedIncidentId, setIncidentSelection]);
 
   useEffect(() => {
     let disposed = false;
@@ -285,11 +402,11 @@ function MapAttempt({
             )}
           </div>
 
-          {selectedLiveIncident.photo_data_url && (
+          {(selectedLiveIncident.photo_data_url || (loadedPhoto?.id === selectedLiveIncident.id && loadedPhoto.url)) && (
             <div className="my-2 rounded-lg overflow-hidden border border-surface-container bg-surface-container-low">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={selectedLiveIncident.photo_data_url}
+                src={selectedLiveIncident.photo_data_url ?? loadedPhoto?.url ?? ""}
                 alt="Verified road incident evidence"
                 className="w-full h-32 object-cover block"
               />
@@ -297,7 +414,7 @@ function MapAttempt({
                 <span className="inline-flex items-center gap-1 font-semibold">
                   <CameraIcon size={12} className="text-primary" /> BEST VERIFIED PHOTO
                 </span>
-                <span>{(selectedLiveIncident.photo_confidence ?? "moderate").toUpperCase()} CONFIDENCE</span>
+                <span>{((selectedLiveIncident.photo_confidence ?? loadedPhoto?.confidence) ?? "moderate").toUpperCase()} CONFIDENCE</span>
               </div>
             </div>
           )}

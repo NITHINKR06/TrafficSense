@@ -84,7 +84,7 @@ export function IncidentReviewPanel() {
   const [spreadError, setSpreadError] = useState<string | null>(null);
 
   const fetchIncidents = useCallback(async (): Promise<LiveIncident[]> => {
-    const response = await fetch("/api/incidents", { cache: "no-store" });
+    const response = await fetch("/api/incidents?include_photos=1", { cache: "no-store" });
     const data = await response.json();
     if (!response.ok || !data.ok || !Array.isArray(data.incidents)) {
       throw new Error("Unable to load active incidents.");

@@ -28,7 +28,8 @@ async function getSupabase(req: NextRequest) {
 export async function GET(req: NextRequest) {
   try {
     const supabase = await getSupabase(req);
-    if (new URL(req.url).searchParams.get("scope") === "authority-history") {
+    const url = new URL(req.url);
+    if (url.searchParams.get("scope") === "authority-history") {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user || user.is_anonymous) {
         return NextResponse.json({ ok: false, error: "Authority sign-in is required." }, { status: 401 });
@@ -36,7 +37,15 @@ export async function GET(req: NextRequest) {
       const history = await getAuthorityIncidentHistory(supabase);
       return NextResponse.json({ ok: true, history });
     }
-    const incidents = await getActiveLiveIncidents(supabase);
+    const includePhotos = url.searchParams.get("include_photos") === "1";
+    const rawIncidents = await getActiveLiveIncidents(supabase);
+    const incidents = includePhotos
+      ? rawIncidents.map((inc) => ({ ...inc, has_photo: Boolean(inc.photo_data_url) }))
+      : rawIncidents.map((inc) => ({
+          ...inc,
+          has_photo: Boolean(inc.photo_data_url),
+          photo_data_url: null,
+        }));
     return NextResponse.json({ ok: true, incidents });
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : "Failed to fetch incidents";

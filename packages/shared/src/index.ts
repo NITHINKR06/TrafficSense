@@ -17,6 +17,7 @@ export type LiveIncident = {
   confirm_count?: number;
   provenance: IncidentProvenance;
   report_count: number;
+  has_photo?: boolean;
   photo_data_url?: string | null;
   photo_confidence?: string | null;
 };
@@ -152,4 +153,46 @@ export function resolveNearestLandmark(lat: number, lng: number): string {
   }
   const km = (minDistanceM / 1000).toFixed(1);
   return `${closest.name} area (~${km} km)`;
+}
+
+export function haversineDistanceM(coord1: RouteCoordinate, coord2: RouteCoordinate): number {
+  const [lon1, lat1] = coord1;
+  const [lon2, lat2] = coord2;
+  const R = 6371000;
+  const phi1 = (lat1 * Math.PI) / 180;
+  const phi2 = (lat2 * Math.PI) / 180;
+  const deltaPhi = ((lat2 - lat1) * Math.PI) / 180;
+  const deltaLambda = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(deltaPhi / 2) * Math.sin(deltaPhi / 2) +
+    Math.cos(phi1) * Math.cos(phi2) * Math.sin(deltaLambda / 2) * Math.sin(deltaLambda / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+export function minDistanceToRoute(point: RouteCoordinate, routeCoords: RouteCoordinate[]): number {
+  if (routeCoords.length === 0) return Infinity;
+  if (routeCoords.length === 1) return haversineDistanceM(point, routeCoords[0]);
+
+  const R = 6371000;
+  const rad = Math.PI / 180;
+  const cosLat0 = Math.cos(point[1] * rad);
+  const toXY = ([lng, lat]: RouteCoordinate): [number, number] => [
+    (lng - point[0]) * rad * R * cosLat0,
+    (lat - point[1]) * rad * R,
+  ];
+
+  let minDistance = Infinity;
+  for (let i = 1; i < routeCoords.length; i++) {
+    const [ax, ay] = toXY(routeCoords[i - 1]);
+    const [bx, by] = toXY(routeCoords[i]);
+    const dx = bx - ax;
+    const dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / lenSq));
+    const dist = Math.hypot(ax + t * dx, ay + t * dy);
+    if (dist < minDistance) {
+      minDistance = dist;
+    }
+  }
+  return minDistance;
 }
