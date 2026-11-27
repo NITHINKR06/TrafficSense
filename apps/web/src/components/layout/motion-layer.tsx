@@ -20,17 +20,28 @@ declare global {
 
 const animatedSvgs = new WeakSet<SVGSVGElement>();
 
-function initTrafficSenseMotion() {
+function isReactHydrated(el: Element): boolean {
+  return Object.keys(el).some((k) => k.startsWith("__reactFiber$") || k.startsWith("__reactProps$"));
+}
+
+function initTrafficSenseMotion(): { ready: boolean; pendingHydration: boolean } {
   const gsap = window.gsap;
-  if (!gsap) return false;
+  if (!gsap) return { ready: false, pendingHydration: false };
   if (window.DrawSVGPlugin) {
     gsap.registerPlugin(window.DrawSVGPlugin);
   }
-  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return true;
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    return { ready: true, pendingHydration: false };
+  }
 
+  let pendingHydration = false;
   const SEL = "path,line,circle,rect,polyline";
   document.querySelectorAll<SVGSVGElement>('svg[fill="none"][viewBox="0 0 24 24"]').forEach((svg) => {
     if (animatedSvgs.has(svg)) return;
+    if (!isReactHydrated(svg)) {
+      pendingHydration = true;
+      return;
+    }
     const w = parseFloat(svg.getAttribute("width") || "0");
     if (!w || w > 64) return;
     const parts = svg.querySelectorAll(SEL);
@@ -44,6 +55,11 @@ function initTrafficSenseMotion() {
       Boolean(svg.querySelector('path[d^="M3 12h4"]'));
 
     if (isLogo && disc) {
+      if (!isReactHydrated(disc)) {
+        animatedSvgs.delete(svg);
+        pendingHydration = true;
+        return;
+      }
       gsap
         .timeline({ repeat: -1 })
         .fromTo(parts, { drawSVG: "0% 0%" }, { drawSVG: "0% 100%", duration: 0.9, ease: "power2.inOut" })
@@ -73,27 +89,36 @@ function initTrafficSenseMotion() {
     host.addEventListener("focus", over);
     host.addEventListener("blur", out);
   });
-  return true;
+  return { ready: true, pendingHydration };
 }
 
 export function MotionLayer() {
   const pathname = usePathname();
 
   useEffect(() => {
+    let cancelled = false;
     let attempts = 0;
     let timer: ReturnType<typeof setTimeout> | null = null;
 
     const tryRun = () => {
-      const done = initTrafficSenseMotion();
-      if (!done && attempts < 12) {
+      if (cancelled) return;
+      if (document.readyState !== "complete") {
+        if (attempts < 30) {
+          attempts += 1;
+          timer = setTimeout(tryRun, 150);
+        }
+        return;
+      }
+      const { ready, pendingHydration } = initTrafficSenseMotion();
+      if ((!ready || pendingHydration) && attempts < 30) {
         attempts += 1;
         timer = setTimeout(tryRun, 150);
       }
     };
 
-    // Defer slightly so streamed Suspense boundaries finish hydrating before GSAP mutates SVG stroke styles
-    timer = setTimeout(tryRun, 120);
+    timer = setTimeout(tryRun, 150);
     return () => {
+      cancelled = true;
       if (timer) clearTimeout(timer);
     };
   }, [pathname]);
