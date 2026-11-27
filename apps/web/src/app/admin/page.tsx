@@ -22,8 +22,8 @@ export default async function AdminPage() {
           </span>
         </div>
 
-        <h1 className="font-display font-bold text-4xl lg:text-[52px] leading-[0.95] tracking-[-0.04em] mt-4 mb-0">
-          System administration<span className="text-[#FF5B2E]">.</span>
+        <h1 className="font-display font-bold text-4xl lg:text-[56px] leading-[0.95] tracking-[-0.04em] mt-4 mb-0">
+          Oversight<span className="text-[#FF5B2E]">.</span>
         </h1>
         <p className="text-sm lg:text-base text-[#B9BDC6] mt-3 max-w-2xl mb-0">
           Platform-level oversight of community reports, system roles, and civic verification queues.

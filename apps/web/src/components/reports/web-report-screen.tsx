@@ -414,7 +414,7 @@ export function WebReportScreen({ viewer }: { viewer?: { email?: string; role: s
                 </div>
                 <Link
                   href="/login"
-                  className="button secondary text-xs py-1 px-3 self-start sm:self-auto font-semibold whitespace-nowrap"
+                  className="h-9 px-4 rounded-full bg-[#11141A] text-[#F3EFE6] inline-flex items-center text-xs self-start sm:self-auto font-semibold whitespace-nowrap no-underline hover:bg-[#2A303C] transition"
                 >
                   Sign In (1-Click Demo) →
                 </Link>

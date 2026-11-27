@@ -351,7 +351,7 @@ export function AuthorityDashboard() {
       <button
         type="button"
         onClick={() => setActiveTab("review")}
-        className="button secondary text-xs w-full py-1.5 mt-1"
+        className="h-11 px-5 rounded-full bg-[#11141A] text-[#F3EFE6] text-xs font-semibold w-full mt-1 hover:bg-[#2A303C] transition inline-flex items-center justify-center cursor-pointer"
       >
         Open Incident Review Console →
       </button>
@@ -361,16 +361,16 @@ export function AuthorityDashboard() {
   return (
     <div className="space-y-6">
       {/* Executive Command Toolbar */}
-      <div className="p-4 rounded-xl border border-surface-container bg-surface-container-lowest shadow-sm space-y-3">
+      <div className="p-5 rounded-[28px] border border-[#EEE9DC] bg-white shadow-[0_10px_28px_rgba(17,20,26,0.05)] space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Analysis Filters */}
           <div className="flex flex-wrap items-center gap-2.5">
-            <label className="text-xs font-semibold text-surface-on-variant" htmlFor="month-select">
+            <label className="font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-[#4A505C]" htmlFor="month-select">
               Analysis Window:
             </label>
             <select
               id="month-select"
-              className="text-xs rounded-lg border border-surface-container bg-surface-container-low px-3 py-1.5 text-surface-on font-medium focus:ring-2 focus:ring-primary"
+              className="h-10 text-xs rounded-full border border-[#EEE9DC] bg-[#F3EFE6] px-4 text-[#11141A] font-semibold focus:outline-none focus:ring-2 focus:ring-[#11141A]"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
             >
@@ -381,7 +381,7 @@ export function AuthorityDashboard() {
               <option value="2026-10">October 2026</option>
             </select>
 
-            <span className="text-[10px] font-mono px-2 py-1 rounded bg-surface-container-high text-surface-on-variant font-bold">
+            <span className="h-8 px-3 rounded-full bg-[#11141A] text-[#D5F75A] inline-flex items-center font-mono text-[10px] font-semibold tracking-[0.08em]">
               {showDemoHistory ? "SIMULATED + LIVE DATA" : `LIVE ONLY (${liveIncidents.length} stored)`}
             </span>
           </div>
@@ -390,7 +390,7 @@ export function AuthorityDashboard() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="button secondary text-xs px-3.5 py-1.5 flex items-center gap-1.5"
+              className="h-10 px-4 rounded-full bg-[#F3EFE6] text-[#11141A] border border-[#EEE9DC] text-xs font-semibold flex items-center gap-1.5 hover:bg-[#E8E2D3] transition cursor-pointer"
               onClick={() => void refreshLiveIncidents()}
               title="Refresh live incident records"
             >
@@ -399,7 +399,7 @@ export function AuthorityDashboard() {
             </button>
             <button
               type="button"
-              className="button text-xs px-3.5 py-1.5 flex items-center gap-1.5"
+              className="h-10 px-4 rounded-full bg-[#FF5B2E] text-[#11141A] text-xs font-bold flex items-center gap-1.5 hover:brightness-95 transition cursor-pointer"
               onClick={exportCsv}
               title="Download filtered incident data as CSV"
               aria-label="Export CSV"
@@ -438,16 +438,16 @@ export function AuthorityDashboard() {
       )}
 
       {/* Navigation View Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto border-b border-surface-container pb-2" role="tablist">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1" role="tablist">
         <button
           type="button"
           role="tab"
           aria-selected={activeTab === "all"}
           onClick={() => setActiveTab("all")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition flex items-center gap-1.5 ${
+          className={`h-10 px-4 rounded-full text-xs font-semibold whitespace-nowrap transition flex items-center gap-2 cursor-pointer ${
             activeTab === "all"
-              ? "bg-primary text-white shadow-sm"
-              : "text-surface-on-variant hover:text-surface-on hover:bg-surface-container"
+              ? "bg-[#11141A] text-[#F3EFE6] shadow-[0_8px_18px_rgba(17,20,26,0.16)]"
+              : "bg-white text-[#4A505C] border border-[#EEE9DC] hover:text-[#11141A] hover:bg-[#FAF7F0]"
           }`}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
@@ -458,10 +458,10 @@ export function AuthorityDashboard() {
           role="tab"
           aria-selected={activeTab === "map"}
           onClick={() => setActiveTab("map")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition flex items-center gap-1.5 ${
+          className={`h-10 px-4 rounded-full text-xs font-semibold whitespace-nowrap transition flex items-center gap-2 cursor-pointer ${
             activeTab === "map"
-              ? "bg-primary text-white shadow-sm"
-              : "text-surface-on-variant hover:text-surface-on hover:bg-surface-container"
+              ? "bg-[#11141A] text-[#F3EFE6] shadow-[0_8px_18px_rgba(17,20,26,0.16)]"
+              : "bg-white text-[#4A505C] border border-[#EEE9DC] hover:text-[#11141A] hover:bg-[#FAF7F0]"
           }`}
         >
           <MapIcon size={14} className="shrink-0" />
@@ -472,10 +472,10 @@ export function AuthorityDashboard() {
           role="tab"
           aria-selected={activeTab === "review"}
           onClick={() => setActiveTab("review")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition flex items-center gap-1.5 ${
+          className={`h-10 px-4 rounded-full text-xs font-semibold whitespace-nowrap transition flex items-center gap-2 cursor-pointer ${
             activeTab === "review"
-              ? "bg-primary text-white shadow-sm"
-              : "text-surface-on-variant hover:text-surface-on hover:bg-surface-container"
+              ? "bg-[#11141A] text-[#F3EFE6] shadow-[0_8px_18px_rgba(17,20,26,0.16)]"
+              : "bg-white text-[#4A505C] border border-[#EEE9DC] hover:text-[#11141A] hover:bg-[#FAF7F0]"
           }`}
         >
           <AlertTriangleIcon size={14} className="shrink-0" />
@@ -486,10 +486,10 @@ export function AuthorityDashboard() {
           role="tab"
           aria-selected={activeTab === "diagnostics"}
           onClick={() => setActiveTab("diagnostics")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition flex items-center gap-1.5 ${
+          className={`h-10 px-4 rounded-full text-xs font-semibold whitespace-nowrap transition flex items-center gap-2 cursor-pointer ${
             activeTab === "diagnostics"
-              ? "bg-primary text-white shadow-sm"
-              : "text-surface-on-variant hover:text-surface-on hover:bg-surface-container"
+              ? "bg-[#11141A] text-[#F3EFE6] shadow-[0_8px_18px_rgba(17,20,26,0.16)]"
+              : "bg-white text-[#4A505C] border border-[#EEE9DC] hover:text-[#11141A] hover:bg-[#FAF7F0]"
           }`}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -500,10 +500,10 @@ export function AuthorityDashboard() {
           role="tab"
           aria-selected={activeTab === "history"}
           onClick={() => setActiveTab("history")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition flex items-center gap-1.5 ${
+          className={`h-10 px-4 rounded-full text-xs font-semibold whitespace-nowrap transition flex items-center gap-2 cursor-pointer ${
             activeTab === "history"
-              ? "bg-primary text-white shadow-sm"
-              : "text-surface-on-variant hover:text-surface-on hover:bg-surface-container"
+              ? "bg-[#11141A] text-[#F3EFE6] shadow-[0_8px_18px_rgba(17,20,26,0.16)]"
+              : "bg-white text-[#4A505C] border border-[#EEE9DC] hover:text-[#11141A] hover:bg-[#FAF7F0]"
           }`}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
@@ -590,26 +590,26 @@ export function AuthorityDashboard() {
           {/* Map Section Header with Big Screen Hero vs Split View Switcher */}
           <div className="flex flex-wrap items-center justify-between gap-3 px-1">
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-surface-on m-0">
+              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-[-0.03em] text-[#11141A] m-0">
                 Corridor Hotspot Map
               </h2>
-              <p className="text-xs text-surface-on-variant m-0">
+              <p className="text-xs text-[#4A505C] m-0">
                 Live OpenStreetMap showing ranked congestion nodes and citizen reports along Mangaluru central corridor.
               </p>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-mono text-primary font-bold hidden sm:inline">
+              <span className="text-[11px] font-mono text-[#11141A] font-bold hidden sm:inline">
                 {data.hotspots.length} JUNCTIONS
               </span>
-              <div className="flex items-center gap-1 bg-surface-container-lowest p-1 rounded-lg border border-surface-container text-xs shadow-sm">
+              <div className="flex items-center gap-1 bg-white p-1 rounded-full border border-[#EEE9DC] text-xs shadow-sm">
                 <button
                   type="button"
                   onClick={() => setMapLayout("hero")}
-                  className={`px-3 py-1 rounded font-semibold transition flex items-center gap-1.5 ${
+                  className={`px-3.5 py-1.5 rounded-full font-semibold transition flex items-center gap-1.5 cursor-pointer ${
                     mapLayout === "hero"
-                      ? "bg-primary text-white shadow-sm"
-                      : "text-surface-on-variant hover:text-surface-on hover:bg-surface-container"
+                      ? "bg-[#11141A] text-[#F3EFE6] shadow-sm"
+                      : "text-[#4A505C] hover:text-[#11141A] hover:bg-[#F3EFE6]"
                   }`}
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
@@ -618,10 +618,10 @@ export function AuthorityDashboard() {
                 <button
                   type="button"
                   onClick={() => setMapLayout("split")}
-                  className={`px-3 py-1 rounded font-semibold transition flex items-center gap-1.5 ${
+                  className={`px-3.5 py-1.5 rounded-full font-semibold transition flex items-center gap-1.5 cursor-pointer ${
                     mapLayout === "split"
-                      ? "bg-primary text-white shadow-sm"
-                      : "text-surface-on-variant hover:text-surface-on hover:bg-surface-container"
+                      ? "bg-[#11141A] text-[#F3EFE6] shadow-sm"
+                      : "text-[#4A505C] hover:text-[#11141A] hover:bg-[#F3EFE6]"
                   }`}
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><rect width="18" height="18" x="3" y="3" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>

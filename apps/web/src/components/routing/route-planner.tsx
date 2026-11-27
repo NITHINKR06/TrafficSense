@@ -1399,10 +1399,10 @@ export function RoutePlanner() {
           <button
             type="button"
             onClick={() => setShowTrafficOverlay((prev) => !prev)}
-            className={`px-3 py-1.5 rounded-xl backdrop-blur border shadow-md text-xs font-semibold flex items-center gap-1.5 transition ${
+            className={`h-10 px-4 rounded-full backdrop-blur border shadow-md text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer ${
               showTrafficOverlay
-                ? "bg-emerald-700 text-white border-emerald-700"
-                : "bg-white/95 border-slate-200 text-slate-800 hover:bg-slate-100"
+                ? "bg-[#11141A] text-[#D5F75A] border-[#11141A]"
+                : "bg-white/95 border-[#EEE9DC] text-[#11141A] hover:bg-[#FAF7F0]"
             }`}
             title="Toggle central traffic corridor overlay"
           >
@@ -1426,7 +1426,7 @@ export function RoutePlanner() {
                 mapRef.current?.flyTo({ center: [74.856, 12.870], zoom: 13, duration: 800 });
               }
             }}
-            className="px-3 py-1.5 rounded-xl bg-white/95 backdrop-blur border border-slate-200 shadow-md text-xs font-semibold text-slate-800 hover:bg-slate-100 flex items-center gap-1.5"
+            className="h-10 px-4 rounded-full bg-white/95 backdrop-blur border border-[#EEE9DC] shadow-md text-xs font-semibold text-[#11141A] hover:bg-[#FAF7F0] flex items-center gap-1.5 cursor-pointer"
             title="Recenter route view"
           >
             <CrosshairIcon size={14} className="text-primary" />
@@ -1645,17 +1645,17 @@ export function RoutePlanner() {
             </div>
 
             {/* Modal Actions */}
-            <div className="pt-3 border-t border-surface-container flex items-center justify-end gap-2.5">
+            <div className="pt-3 border-t border-[#EEE9DC] flex items-center justify-end gap-2.5">
               <button
                 type="button"
-                className="button secondary text-xs px-4 py-2 font-medium"
+                className="h-10 px-5 rounded-full bg-[#F3EFE6] text-[#11141A] border border-[#EEE9DC] text-xs font-semibold hover:bg-[#E8E2D3] transition cursor-pointer"
                 onClick={() => setShowReportForm(false)}
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                className="button text-xs px-5 py-2 font-bold"
+                className="h-10 px-5 rounded-full bg-[#FF5B2E] text-[#11141A] text-xs font-bold hover:brightness-95 transition cursor-pointer disabled:opacity-50"
                 disabled={isSubmittingReport}
               >
                 {isSubmittingReport ? "Submitting Report…" : "Submit Incident Report"}

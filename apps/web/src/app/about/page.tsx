@@ -11,25 +11,30 @@ export const metadata: Metadata = {
 export default function AboutPage() {
   return (
     <div className={styles.aboutContainer}>
-      <header className={styles.header}>
-        <div className="flex items-center gap-2 mb-2">
-          <span className="simulated-pill">SYSTEM PROVENANCE & METHODOLOGY</span>
-          <span className="text-xs text-on-surface-variant font-medium">Radical Transparency & Proof</span>
+      <header className="space-y-4 pb-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="h-[30px] px-3 rounded-full bg-[#11141A] text-[#D5F75A] inline-flex items-center font-mono text-[11px] font-semibold tracking-[0.08em]">
+            SYSTEM PROVENANCE &amp; METHODOLOGY
+          </span>
+          <span className="h-[30px] px-3 rounded-full bg-white border border-[#EEE9DC] text-[#4A505C] inline-flex items-center font-mono text-[11px] font-semibold tracking-[0.06em]">
+            RADICAL TRANSPARENCY &amp; PROOF
+          </span>
         </div>
-        <h1 className={styles.title}>TrafficSense Data Sources, Provenance & System Rules</h1>
-        <p className={styles.lead}>
-          TrafficSense replaces ambiguous crowdsourcing and invasive corporate tracking with an explainable,
-          evidence-based framework. Per our strict honesty rules, this page details exactly what data is real,
-          what is mathematically estimated, what is simulated for demonstration, and where each data source comes from for proof.
+        <h1 className="font-display font-bold text-5xl sm:text-6xl lg:text-[72px] leading-[0.9] tracking-[-0.045em] text-[#11141A] m-0">
+          Trust, in six steps<span className="text-[#FF5B2E]">.</span>
+        </h1>
+        <p className="text-sm sm:text-base text-[#4A505C] max-w-3xl leading-relaxed m-0">
+          TrafficSense Data Sources, Provenance &amp; System Rules — replacing ambiguous crowdsourcing and invasive
+          corporate tracking with an explainable, evidence-based framework.
         </p>
-        <div className="actions mt-3">
-          <Link className="button" href="/planner">
+        <div className="flex flex-wrap items-center gap-2.5 pt-2">
+          <Link className="ts-btn-primary" href="/planner">
             Try Live Route Planner →
           </Link>
-          <Link className="button secondary" href="/traffic">
+          <Link className="ts-btn-ink" href="/traffic">
             Open Traffic Explorer
           </Link>
-          <Link className="button secondary" href="/authority">
+          <Link className="ts-btn-ghost" href="/authority">
             Authority Dashboard
           </Link>
         </div>
@@ -81,8 +86,8 @@ export default function AboutPage() {
           </div>
 
           <div className={styles.provenanceOverviewCard}>
-            <h3>
-              Simulated Demonstration Data
+            <h3 className="flex flex-wrap items-center justify-between gap-2">
+              <span>Simulated Demonstration Data</span>
               <span className={styles.badgeSimulated}>Synthetic Demo</span>
             </h3>
             <p>

@@ -6,42 +6,37 @@ export default async function AuthorityPage() {
   await requireRole("authority");
 
   return (
-    <div data-fullscreen="true" className="w-full flex-1 flex flex-col space-y-6">
-      {/* Control Room Header */}
-      <div className="rounded-[36px] bg-[#11141A] text-[#F3EFE6] p-7 lg:p-9 shadow-[0_24px_60px_rgba(17,20,26,0.18)] flex flex-wrap items-center justify-between gap-4">
+    <div data-fullscreen="true" className="w-full max-w-[1360px] mx-auto flex-1 flex flex-col space-y-6">
+      {/* Control Room Header — matched to Authority.html */}
+      <header className="flex flex-wrap items-end justify-between gap-5 pt-2">
         <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="h-[26px] px-3 rounded-full bg-[#1B2029] text-[#D5F75A] inline-flex items-center font-mono text-[10px] font-semibold tracking-[0.08em] uppercase">
-              Civic Operations &amp; Intelligence
-            </span>
-            <span className="h-[26px] px-3 rounded-full bg-[#FF5B2E] text-[#11141A] inline-flex items-center font-mono text-[10px] font-bold tracking-[0.08em]">
-              CIVIC AUTHORITY
-            </span>
-          </div>
-          <h1 className="font-display font-bold text-3xl sm:text-4xl lg:text-[48px] leading-[0.96] tracking-[-0.04em] m-0">
-            Mangaluru Control Room<span className="text-[#D5F75A]">.</span>
+          <span className="h-[30px] px-3 rounded-full bg-[#11141A] text-[#D5F75A] inline-flex items-center gap-2 font-mono text-[11px] font-semibold tracking-[0.08em]">
+            CIVIC AUTHORITY
+          </span>
+          <h1 className="font-display font-bold text-4xl sm:text-5xl lg:text-[56px] leading-[0.95] tracking-[-0.04em] text-[#11141A] mt-3.5 mb-0">
+            Control room<span className="text-[#FF5B2E]">.</span>
           </h1>
-          <p className="text-xs sm:text-sm text-[#B9BDC6] mt-2 mb-0">
+          <p className="text-xs sm:text-sm text-[#4A505C] mt-2.5 mb-0 max-w-2xl">
             Real-time decision support, arterial corridor congestion rankings, and citizen incident verification console.
           </p>
         </div>
 
-        <div className="flex items-center gap-2.5">
+        <div className="flex flex-wrap items-center gap-2.5">
           <Link
-            className="h-11 px-5 rounded-full bg-[#1B2029] text-[#F3EFE6] border border-[#2A303C] inline-flex items-center text-xs font-semibold no-underline hover:bg-[#2A303C]"
+            className="h-12 px-5 rounded-full bg-white text-[#11141A] border border-[#EEE9DC] shadow-[0_8px_20px_rgba(17,20,26,0.06)] inline-flex items-center text-[15px] font-semibold no-underline hover:bg-[#FAF7F0] transition"
             href="/workspace"
             prefetch={false}
           >
             ← My Account
           </Link>
           <Link
-            className="h-11 px-5 rounded-full bg-[#D5F75A] text-[#11141A] inline-flex items-center text-xs font-bold no-underline hover:opacity-90"
+            className="h-12 px-5 rounded-full bg-[#11141A] text-[#F3EFE6] shadow-[0_8px_20px_rgba(17,20,26,0.16)] inline-flex items-center text-[15px] font-semibold no-underline hover:bg-[#2A303C] transition"
             href="/traffic"
           >
             Live Traffic Map ↗
           </Link>
         </div>
-      </div>
+      </header>
 
       {/* Main Executive Dashboard */}
       <AuthorityDashboard />

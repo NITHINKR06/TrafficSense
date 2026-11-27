@@ -1502,3 +1502,12 @@ For each bounded task, record: goal/source module and exclusions; dependencies a
 
 
 
+## Web UI Spec Alignment (Authority, About, Admin, Planner & Report Pill/Title Pass) — verified, 27 Nov 2026
+
+- **Implementation:**
+  - **Authority Control Room (`apps/web/src/app/authority/page.tsx`, `apps/web/src/components/analytics/authority-dashboard.tsx`, `apps/web/src/components/analytics/incident-review-panel.tsx`):** Matched `Authority.html` header (`CIVIC AUTHORITY` badge, `Control room.` display title, `← My Account` and `Live Traffic Map ↗` pill buttons), pill-styled 5-tab navigation bar, toolbar Refresh/Export CSV/view-toggle pill buttons, and Review queue pill actions (`Confirm (L6)` lime pill, `Resolve incident` bone pill, `Reject report` peach pill). Replaced `Notification.permission` lazy initializer with `useSyncExternalStore` to eliminate SSR/client hydration mismatch.
+  - **About, Admin, SignOut, Planner & Report (`apps/web/src/app/about/page.tsx`, `apps/web/src/app/admin/page.tsx`, `apps/web/src/components/sign-out.tsx`, `apps/web/src/components/routing/route-planner.tsx`, `apps/web/src/components/reports/web-report-screen.tsx`):** Updated About main title (`Trust, in six steps.`), Admin main title (`Oversight.`), and remaining legacy `.button` / `.rounded-lg` action buttons to TrafficSense pill buttons while preserving all backend logic, routing, and data contracts.
+- **Verification:**
+  - `docker compose run --rm -T app sh -c "cd apps/web && pnpm exec tsc --noEmit && pnpm exec eslint . && CI=true pnpm exec next build"`: 0 TypeScript errors, 0 ESLint errors, 26/26 routes built.
+  - `just test`: 240/240 unit tests passed across 11 suites.
+  - Browser verification (`1440×900` and `390×844` on `http://localhost:3000`): `/authority`, `/about`, and `/planner` rendered cleanly with 0 console errors and 0 hydration errors.
