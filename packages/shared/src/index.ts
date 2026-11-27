@@ -196,3 +196,73 @@ export function minDistanceToRoute(point: RouteCoordinate, routeCoords: RouteCoo
   }
   return minDistance;
 }
+
+export type ConfidenceTierLabel = "Unverified" | "Likely" | "Confirmed" | "Authority Confirmed";
+
+export type ConfidenceScoreBreakdown = {
+  score: number; // 0..1
+  tierLabel: ConfidenceTierLabel;
+  explanation: string;
+  factors: {
+    reportWeight: number;
+    gpsBonus: number;
+    photoBonus: number;
+    authorityBonus: number;
+    clearPenalty: number;
+    ageDecay: number;
+  };
+};
+
+/**
+ * Computes a continuous, explainable confidence score (0..1) from an incident's
+ * verification signals, commuter feedback, and age decay while keeping L1..L6 labels.
+ */
+export function computeIncidentConfidence(
+  incident: Pick<
+    LiveIncident,
+    "level" | "report_count" | "confirm_count" | "clear_count" | "has_photo" | "photo_data_url" | "first_reported_at" | "last_confirmed_at"
+  >,
+  nowMs: number = Date.now()
+): ConfidenceScoreBreakdown {
+  const reports = Math.max(1, incident.report_count || 1);
+  const confirms = Math.max(0, incident.confirm_count ?? 0);
+  const clears = Math.max(0, incident.clear_count ?? 0);
+  const hasPhoto = Boolean(incident.has_photo || incident.photo_data_url);
+
+  const reportWeight = Math.min(2.4, 0.55 + (reports - 1) * 0.65 + confirms * 0.25);
+  const gpsBonus = incident.level === "L2" || incident.level === "L3" || incident.level === "L5" || incident.level === "L6" ? 0.35 : 0;
+  const photoBonus = hasPhoto || incident.level === "L5" ? 1.1 : 0;
+  const authorityBonus = incident.level === "L6" ? 3.0 : 0;
+  const clearPenalty = clears * 0.85;
+
+  const lastMs = Date.parse(incident.last_confirmed_at || incident.first_reported_at);
+  const ageMin = Number.isFinite(lastMs) ? Math.max(0, (nowMs - lastMs) / 60_000) : 0;
+  const ageDecay = Math.exp(-ageMin / 120); // ~2-hour half-life
+
+  const logOdds = (reportWeight + gpsBonus + photoBonus + authorityBonus - clearPenalty) * ageDecay - 0.5;
+  const score = Number((1 / (1 + Math.exp(-logOdds))).toFixed(2));
+
+  let tierLabel: ConfidenceTierLabel = "Unverified";
+  if (incident.level === "L6") tierLabel = "Authority Confirmed";
+  else if (score >= 0.72 || incident.level === "L3" || incident.level === "L5") tierLabel = "Confirmed";
+  else if (score >= 0.48 || incident.level === "L2") tierLabel = "Likely";
+
+  const parts: string[] = [`${reports} report${reports === 1 ? "" : "s"}`];
+  if (hasPhoto || incident.level === "L5") parts.push("L5 photo");
+  if (incident.level === "L6") parts.push("authority confirmed");
+  if (clears > 0) parts.push(`${clears} clear vote${clears === 1 ? "" : "s"}`);
+
+  return {
+    score,
+    tierLabel,
+    explanation: parts.join(" · "),
+    factors: {
+      reportWeight: Number(reportWeight.toFixed(2)),
+      gpsBonus,
+      photoBonus,
+      authorityBonus,
+      clearPenalty: Number(clearPenalty.toFixed(2)),
+      ageDecay: Number(ageDecay.toFixed(2)),
+    },
+  };
+}

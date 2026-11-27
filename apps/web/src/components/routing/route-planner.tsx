@@ -363,6 +363,52 @@ export function RoutePlanner() {
     if (map.getSource("hazard-buffer-geojson")) map.removeSource("hazard-buffer-geojson");
     if (map.getLayer("traffic-severity-layer")) map.removeLayer("traffic-severity-layer");
     if (map.getSource("traffic-severity-geojson")) map.removeSource("traffic-severity-geojson");
+    if (map.getLayer("live-traffic-heat-layer")) map.removeLayer("live-traffic-heat-layer");
+    if (map.getSource("live-traffic-heat-geojson")) map.removeSource("live-traffic-heat-geojson");
+
+    // Live report-derived congestion heat layer when Traffic On is toggled
+    const openIncidents = incidentList.filter((inc) => inc.status === "open");
+    if (showAllTraffic && openIncidents.length > 0) {
+      map.addSource("live-traffic-heat-geojson", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: openIncidents.map((inc) => ({
+            type: "Feature" as const,
+            properties: {
+              category: inc.category,
+              level: inc.level,
+              weight: inc.level === "L6" || inc.level === "L5" ? 1.0 : inc.level === "L3" ? 0.8 : 0.55,
+            },
+            geometry: {
+              type: "Point" as const,
+              coordinates: [inc.lng, inc.lat] as [number, number],
+            },
+          })),
+        },
+      });
+      map.addLayer({
+        id: "live-traffic-heat-layer",
+        type: "circle",
+        source: "live-traffic-heat-geojson",
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 11, 14, 15, 34],
+          "circle-color": [
+            "match",
+            ["get", "category"],
+            "road_closed",
+            "#11141A",
+            "flood",
+            "#2B4BFF",
+            "accident",
+            "#FF5B2E",
+            "#FFB020",
+          ],
+          "circle-opacity": 0.24,
+          "circle-blur": 0.65,
+        },
+      });
+    }
 
     // Only render corridor segments when enabled, or show only active slowdowns/reports
     const visibleSeverity = showAllTraffic

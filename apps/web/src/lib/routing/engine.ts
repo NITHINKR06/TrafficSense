@@ -15,6 +15,24 @@ export type VerifiedIncident = {
   label?: string;
 };
 
+export type HazardRoutingPolicy = "hard_exclude" | "soft_avoid" | "map_only";
+
+/**
+ * Policy table mapping verification level + hazard category to routing behavior:
+ * - L6 or confirmed road_closed/landslide -> hard_exclude
+ * - L3/L5/L4 or confirmed flood -> soft_avoid (try detour and show time cost)
+ * - Unverified L1/L2 -> map_only (advisory warning, never forces override)
+ */
+export function classifyHazardPolicy(level: string, category: string): HazardRoutingPolicy {
+  if (level === "L6" && (category === "road_closed" || category === "landslide" || category === "flood")) {
+    return "hard_exclude";
+  }
+  if (level === "L6" || level === "L5" || level === "L3" || level === "L4") {
+    return "soft_avoid";
+  }
+  return "map_only";
+}
+
 /**
  * Turns current multi-source report assessments into route warnings without
  * exposing report identities. These are L3 corroboration indicators, not

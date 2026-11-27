@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
+import { computeIncidentConfidence } from "../../../../../packages/shared/src/index";
 import { reportCategories } from "@/lib/reports/rules";
 import { IncidentIcon } from "@/components/icons/incident-icons";
 import { TrustMeter } from "@/components/ui/trust-meter";
@@ -199,6 +200,7 @@ export function TrafficExplorer({
               const preset = findNearestPreset([inc.lng, inc.lat]);
               const isSelected = inc.id === selectedLiveIncidentId;
               const lvlNum = parseLevelNumber(inc.level);
+              const confidence = computeIncidentConfidence(inc);
               const badgeBg =
                 inc.category === "accident"
                   ? "#FF5B2E"
@@ -235,10 +237,15 @@ export function TrafficExplorer({
                       </span>
                     </div>
                     <p className="text-xs text-[#4A505C] m-0 truncate mt-0.5">
-                      {reportCategories[inc.category]} · {inc.report_count} report{inc.report_count !== 1 ? "s" : ""}
+                      {reportCategories[inc.category]} · {confidence.tierLabel} ({Math.round(confidence.score * 100)}%)
                     </p>
-                    <div className="mt-2 w-28">
-                      <TrustMeter level={lvlNum} height={5} />
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="w-24">
+                        <TrustMeter level={lvlNum} height={5} />
+                      </div>
+                      <span className="font-mono text-[10px] text-[#4A505C] truncate">
+                        {confidence.explanation}
+                      </span>
                     </div>
                   </div>
                 </button>

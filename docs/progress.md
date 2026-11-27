@@ -1511,3 +1511,18 @@ For each bounded task, record: goal/source module and exclusions; dependencies a
   - `docker compose run --rm -T app sh -c "cd apps/web && pnpm exec tsc --noEmit && pnpm exec eslint . && CI=true pnpm exec next build"`: 0 TypeScript errors, 0 ESLint errors, 26/26 routes built.
   - `just test`: 240/240 unit tests passed across 11 suites.
   - Browser verification (`1440×900` and `390×844` on `http://localhost:3000`): `/authority`, `/about`, and `/planner` rendered cleanly with 0 console errors and 0 hydration errors.
+
+## Backend Hardening & Upgrade Stages A, B & C — verified, 27 Nov 2026
+
+- **Stage A (`d70c23a`) — Security, Privacy & Routing Hardening:**
+  - Migration `supabase/migrations/20261127000100_stage_a_security_and_trust_hardening.sql`: Revoked direct `anon`/`authenticated` `EXECUTE` on `apply_incident_photo_verification` (server-only via `service_role`); dropped public `SELECT` RLS policies on `incident_reports` and `incident_feedback`; removed `%authority%` email-pattern bypass on `authority_notifications`; anchored `incidents.lat`/`lng` at first report; widened clustering to `100m`; made `L3` sticky; protected `L6` from commuter `clear` votes and capped `confirm` expiry extensions; made `read_active_live_incidents()` pure read-only.
+  - Updated `apps/web/src/lib/incidents/server.ts` to call L5 promotion via `service_role` when configured, and `apps/web/src/lib/routing/engine.ts` (`minDistanceToRoute`) to use point-to-segment projection instead of vertex-only distance (and fixed `tests/spread.test.mjs` perpendicular 201m offset).
+- **Stage B (`34e3b02`) — Shared Geo Math, Slim `/api/incidents` & MapLibre Clustering:**
+  - Added shared `haversineDistanceM` and `minDistanceToRoute` to `packages/shared/src/index.ts`.
+  - Slimmed default `GET /api/incidents` poll payload by omitting `photo_data_url` unless `?include_photos=1` is passed, and added `GET /api/incidents/[id]/photo` for on-demand photo loading.
+  - Replaced 100+ DOM markers in `TrafficMap` (`apps/web/src/components/traffic/traffic-map.tsx`) with a MapLibre GeoJSON `cluster: true` source + circle/symbol layers.
+- **Stage C — Confidence Score Engine, Routing Policy & Live Congestion Heat Layer:**
+  - Added `computeIncidentConfidence` (`0..1` log-odds score, tier label, and human-readable factor breakdown) in `packages/shared/src/index.ts` and surfaced it in `TrafficExplorer` (`/traffic`).
+  - Added `classifyHazardPolicy` (`hard_exclude` / `soft_avoid` / `map_only`) in `apps/web/src/lib/routing/engine.ts`.
+  - Upgraded `Traffic On/Off` in `RoutePlanner` (`/planner`) to render a live report-derived GeoJSON heat layer (`live-traffic-heat-geojson`) alongside the simulated corridor overlay.
+- **Verification (after Stage C):** `tsc --noEmit` (0 errors), `eslint .` (0 errors), `next build` (27/27 routes built), `just test` (240/240 passed).
