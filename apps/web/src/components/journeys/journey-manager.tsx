@@ -28,8 +28,8 @@ export function JourneyManager({
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl bg-surface-container-low border border-surface-container">
         <div>
-          <h2 className="text-lg font-bold">Commute & Journey Sharing</h2>
-          <p className="text-sm text-surface-on-variant">
+          <h2 className="font-display text-2xl font-bold tracking-[-0.03em] text-[#11141A] m-0">On the road</h2>
+          <p className="text-sm text-[#4A505C] mt-1 mb-0">
             Start and stop a private journey, then explicitly share its corridor and status with an employer. Delay is not measured yet.
           </p>
         </div>
@@ -39,7 +39,7 @@ export function JourneyManager({
           onChange={(e) => setCorridorName(e.target.value)}
           maxLength={120}
           aria-label="Corridor name"
-          className="text-sm px-3 py-2 rounded-lg border border-surface-container-high bg-surface-container w-full sm:w-64"
+          className="h-11 text-sm px-4 rounded-full border border-[#EEE9DC] bg-[#F3EFE6] text-[#11141A] font-medium w-full sm:w-64 focus:outline-none focus:ring-2 focus:ring-[#11141A]"
         />
         <button
           type="button"
@@ -49,16 +49,16 @@ export function JourneyManager({
               await handleStartJourney(corridorName.trim());
             });
           }}
-          className="button whitespace-nowrap bg-primary text-primary-on px-4 py-2 rounded-lg font-medium shadow-sm hover:opacity-90 disabled:opacity-50"
+          className="h-11 px-5 rounded-full whitespace-nowrap bg-[#FF5B2E] text-[#11141A] text-xs font-bold hover:brightness-95 transition cursor-pointer disabled:opacity-50"
         >
           {isPending ? "Starting..." : "+ Start New Journey"}
         </button>
       </div>
 
       <div>
-        <h3 className="text-md font-bold mb-3">Active Journeys ({activeJourneys.length})</h3>
+        <h3 className="font-display text-lg font-bold text-[#11141A] mb-3">Active Journeys ({activeJourneys.length})</h3>
         {activeJourneys.length === 0 ? (
-          <p className="text-sm text-surface-on-variant italic p-4 rounded-lg bg-surface-container-lowest border border-dashed border-surface-container">
+          <p className="text-sm text-[#4A505C] italic p-5 rounded-[24px] bg-[#F8F5EE] border border-dashed border-[#DCD5C4]">
             No active journeys in progress. Click &quot;Start New Journey&quot; to begin.
           </p>
         ) : (
@@ -66,26 +66,26 @@ export function JourneyManager({
             {activeJourneys.map((j) => (
               <div
                 key={j.id}
-                className="p-5 rounded-xl border border-primary/30 bg-surface-container-lowest shadow-sm space-y-4"
+                className="p-6 rounded-[28px] border border-[#EEE9DC] bg-[#F8F5EE] space-y-4"
               >
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-surface-container pb-3">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-[#EEE9DC] pb-3">
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-800">
+                      <span className="h-6 px-2.5 rounded-full inline-flex items-center font-mono text-[10px] font-bold bg-[#D5F75A] text-[#11141A]">
                         ACTIVE JOURNEY
                       </span>
-                      <span className="text-xs font-mono text-surface-on-variant">
+                      <span className="text-xs font-mono text-[#4A505C]">
                         ID: {j.id.slice(0, 8)}...
                       </span>
                     </div>
-                    <p className="font-semibold text-surface-on mt-1">{j.corridor_name}</p>
+                    <p className="font-display font-bold text-base text-[#11141A] mt-1.5 mb-0">{j.corridor_name}</p>
                   </div>
                   <form action={handleEndJourney}>
                     <input type="hidden" name="journeyId" value={j.id} />
                     <button
                       type="submit"
                       disabled={isPending}
-                      className="text-xs px-3 py-1.5 rounded bg-error text-error-on font-semibold hover:opacity-90 disabled:opacity-50"
+                      className="h-9 px-4 rounded-full bg-[#FFE3D8] text-[#8F3209] text-xs font-bold hover:brightness-95 transition cursor-pointer disabled:opacity-50"
                     >
                       End Journey
                     </button>
@@ -142,7 +142,7 @@ export function JourneyManager({
                               <button
                                 type="submit"
                                 disabled={isPending}
-                                className="px-2.5 py-1 rounded bg-surface-container-high hover:bg-error/20 text-error font-semibold transition"
+                                className="h-8 px-3.5 rounded-full bg-[#FFE3D8] text-[#8F3209] text-xs font-semibold hover:brightness-95 transition cursor-pointer"
                               >
                                 Stop Sharing
                               </button>
@@ -162,7 +162,7 @@ export function JourneyManager({
                       <select
                         name="orgId"
                         required
-                        className="text-xs p-2 rounded bg-surface-container border border-surface-container-high text-surface-on flex-1"
+                        className="h-10 text-xs px-4 rounded-full bg-white border border-[#EEE9DC] text-[#11141A] font-medium flex-1"
                       >
                         <option value="">Select organisation to share journey status...</option>
                         {organisations.map((org) => (
@@ -174,15 +174,15 @@ export function JourneyManager({
                       <button
                         type="submit"
                         disabled={isPending}
-                        className="text-xs px-3 py-2 rounded bg-secondary text-secondary-on font-semibold whitespace-nowrap hover:opacity-90 disabled:opacity-50"
+                        className="h-10 px-5 rounded-full bg-[#11141A] text-[#F3EFE6] text-xs font-semibold whitespace-nowrap hover:bg-[#2A303C] transition cursor-pointer disabled:opacity-50"
                       >
-                        Consent & Share
+                        Consent &amp; Share
                       </button>
                     </form>
                   ) : (
-                    <div className="p-3 rounded-lg bg-surface-container border border-surface-container-high text-xs text-surface-on-variant flex items-center justify-between gap-2">
+                    <div className="p-3.5 rounded-[20px] bg-white border border-[#EEE9DC] text-xs text-[#4A505C] flex items-center justify-between gap-2">
                       <span>No affiliated employer found to share with.</span>
-                      <span className="text-[10px] uppercase font-semibold text-surface-on-variant">Unlinked account</span>
+                      <span className="font-mono text-[10px] uppercase font-semibold text-[#4A505C]">Unlinked account</span>
                     </div>
                   )}
                   <p className="text-[11px] text-surface-on-variant">

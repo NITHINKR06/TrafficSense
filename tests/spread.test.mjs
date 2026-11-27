@@ -62,8 +62,9 @@ describe("Spread Check: Which Routes Does a Verified Problem Reach?", () => {
       [74.8500, 12.8650],
       [74.8500, 12.8700],
     ];
-    // Place incident 201m away
-    const incidentPoint = [74.8500, 12.8650 + delta201];
+    // Place incident 201m perpendicular (east) from the north-south route line
+    const deltaLng201 = delta201 / Math.cos((12.8650 * Math.PI) / 180);
+    const incidentPoint = [74.8500 + deltaLng201, 12.8650];
 
     const incident = {
       id: "inc-201",

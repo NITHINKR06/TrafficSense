@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 120 120" role="img" aria-label="TrafficSense">
+<defs>
+<clipPath id="lgClip"><rect width="120" height="120" rx="28"/></clipPath>
+<linearGradient id="lgSky" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#36AEF6"/><stop offset="1" stop-color="#0A63D6"/></linearGradient>
+<linearGradient id="lgGrass" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#3FD46F"/><stop offset="1" stop-color="#0C9C86"/></linearGradient>
+<linearGradient id="lgPin" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF6B3D"/><stop offset="1" stop-color="#E5173F"/></linearGradient>
+</defs>
+<g clip-path="url(#lgClip)">
+<rect width="120" height="120" fill="url(#lgSky)"/>
+<path d="M120 26C96 34 80 56 88 84C92 100 104 112 120 118Z" fill="#9AD8FB"/>
+<path d="M0 30C24 38 38 62 28 90C24 104 26 114 30 124H0Z" fill="url(#lgGrass)"/>
+<path d="M62 126C58 98 30 90 34 66C38 46 62 40 78 14" pathLength="100" stroke="#FFFFFF" stroke-width="27" fill="none"/>
+<path d="M62 126C58 98 30 90 34 66C38 46 62 40 78 14" pathLength="100" stroke="#141C2B" stroke-width="20" fill="none"/>
+<path d="M62 126C58 98 30 90 34 66C38 46 62 40 78 14" pathLength="100" stroke="#FFFFFF" stroke-width="2.4" stroke-dasharray="5 6" stroke-linecap="round" fill="none"/>
+<ellipse cx="91" cy="63" rx="6" ry="1.8" fill="#000000" opacity=".28"/>
+<g>
+<path d="M91 63C88 58 78 51 78 42A13 13 0 1 1 104 42C104 51 94 58 91 63Z" fill="url(#lgPin)" stroke="#FFFFFF" stroke-width="2"/>
+<circle cx="91" cy="42" r="5.2" fill="#FFFFFF"/>
+</g>
+</g>
+</svg>

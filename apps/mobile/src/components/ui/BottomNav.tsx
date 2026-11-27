@@ -1,38 +1,120 @@
+import { BlurView } from "expo-blur";
+import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useState } from "react";
+import {
+  Animated,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useAuth } from "../../providers/auth-provider";
-import { colors, radius, typography } from "../../theme/tokens";
-import { Icon } from "./Icon";
+import { useTheme } from "../../theme/theme-provider";
+import { motion, size as sizes } from "../../theme/tokens";
+import { Icon, type IconName } from "./Icon";
 
 export type NavTab = "home" | "map" | "report" | "plan" | "me" | "authority";
 
 type BottomNavProps = {
   activeTab: NavTab;
   badgeCount?: number;
+  compact?: boolean;
 };
 
-export function BottomNav({ activeTab, badgeCount }: BottomNavProps) {
-  const insets = useSafeAreaInsets();
-  const { session, role } = useAuth();
-  const isAuthority = role === "authority" || Boolean(session?.user?.email?.toLowerCase().includes("authority"));
+type TabDef = {
+  id: "home" | "map" | "plan" | "me";
+  label: string;
+  icon: IconName;
+  a11y: string;
+};
 
-  const handleNavigate = (tab: NavTab) => {
-    switch (tab) {
+export function BottomNav({ activeTab, badgeCount, compact = false }: BottomNavProps) {
+  const insets = useSafeAreaInsets();
+  const { width: screenWidth } = useWindowDimensions();
+  const { session, role } = useAuth();
+  const { colors, isDark, shadows, reduceMotion } = useTheme();
+
+  const isAuthority =
+    role === "authority" ||
+    Boolean(session?.user?.email?.toLowerCase().includes("authority"));
+
+  const activeId: "home" | "map" | "plan" | "me" =
+    activeTab === "authority" ? "me" : activeTab === "report" ? "home" : activeTab;
+
+  const tabs: TabDef[] = [
+    { id: "home", label: "Home", icon: "house", a11y: "Home" },
+    { id: "map", label: "Map", icon: "map", a11y: "Live map" },
+    { id: "plan", label: "Plan", icon: "route", a11y: "Plan route" },
+    {
+      id: "me",
+      label: isAuthority ? "Ops" : "Me",
+      icon: isAuthority ? "shield-check" : "user-round",
+      a11y: isAuthority ? "Control room" : "Me",
+    },
+  ];
+
+  // Keep 284pt on 390pt+ screens; shrink proportionally only on very narrow viewports
+  const availableForCapsule = Math.min(sizes.navWidth, screenWidth - 32 - 10 - sizes.reportAction);
+  const tabWidth = Math.floor((availableForCapsule - 10) / 4);
+  const capsuleWidth = tabWidth * 4 + 10;
+
+  const activeIndex = Math.max(0, tabs.findIndex((t) => t.id === activeId));
+  const [indicatorX] = useState(() => new Animated.Value(activeIndex * tabWidth));
+  const [compactAnim] = useState(() => new Animated.Value(compact ? 1 : 0));
+
+  useEffect(() => {
+    if (reduceMotion) {
+      indicatorX.setValue(activeIndex * tabWidth);
+      return;
+    }
+    Animated.timing(indicatorX, {
+      toValue: activeIndex * tabWidth,
+      duration: motion.duration.sheet,
+      easing: motion.easing.glide,
+      useNativeDriver: true,
+    }).start();
+  }, [activeIndex, tabWidth, indicatorX, reduceMotion]);
+
+  useEffect(() => {
+    if (reduceMotion) {
+      compactAnim.setValue(compact ? 1 : 0);
+      return;
+    }
+    Animated.timing(compactAnim, {
+      toValue: compact ? 1 : 0,
+      duration: compact ? motion.duration.fade : motion.duration.base,
+      easing: motion.easing.standard,
+      useNativeDriver: false,
+    }).start();
+  }, [compact, compactAnim, reduceMotion]);
+
+  const handleNavigate = (tabId: "home" | "map" | "plan" | "me" | "report") => {
+    if (Platform.OS !== "web") {
+      void Haptics.impactAsync(
+        tabId === "report"
+          ? Haptics.ImpactFeedbackStyle.Medium
+          : Haptics.ImpactFeedbackStyle.Light,
+      ).catch(() => {});
+    }
+
+    switch (tabId) {
       case "home":
         if (activeTab !== "home") router.replace("/");
         break;
       case "map":
         if (activeTab !== "map") router.replace("/traffic");
         break;
-      case "report":
-        router.push("/report");
-        break;
       case "plan":
         if (activeTab !== "plan") router.replace("/planner");
         break;
+      case "report":
+        router.push("/report");
+        break;
       case "me":
-      case "authority":
         if (session) {
           if (isAuthority) {
             if (activeTab !== "authority") router.replace("/authority");
@@ -46,204 +128,170 @@ export function BottomNav({ activeTab, badgeCount }: BottomNavProps) {
     }
   };
 
+  const bottomOffset = Math.max(insets.bottom, 12) + 8;
+  const capsuleHeight = compactAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [sizes.navHeight, 52],
+  });
+
   return (
-    <View
-      style={[
-        styles.navBar,
-        {
-          paddingBottom: Math.max(insets.bottom, 8),
-          height: 60 + Math.max(insets.bottom, 8),
-        },
-      ]}
-    >
-      {/* Tab 1: Home */}
-      <Pressable
-        accessibilityRole="tab"
-        accessibilityState={{ selected: activeTab === "home" }}
-        accessibilityLabel="Navigate to Home"
-        onPress={() => handleNavigate("home")}
-        style={styles.tabItem}
+    <View pointerEvents="box-none" style={[styles.container, { bottom: bottomOffset }]}>
+      <Animated.View
+        style={[
+          styles.capsuleShadowWrap,
+          {
+            width: capsuleWidth,
+            height: capsuleHeight,
+          },
+          shadows.nav,
+        ]}
       >
-        <Icon
-          name="home"
-          size={24}
-          color={activeTab === "home" ? colors.primary : colors.textSecondary}
-        />
-        <Text
+        <BlurView
+          intensity={20}
+          tint={isDark ? "dark" : "light"}
           style={[
-            styles.tabLabel,
-            activeTab === "home" && styles.tabLabelActive,
+            styles.capsule,
+            {
+              backgroundColor: colors.navGlass,
+              borderColor: colors.navEdge,
+            },
           ]}
         >
-          Home
-        </Text>
-      </Pressable>
-
-      {/* Tab 2: Map */}
-      <Pressable
-        accessibilityRole="tab"
-        accessibilityState={{ selected: activeTab === "map" }}
-        accessibilityLabel="Navigate to Live Traffic Map"
-        onPress={() => handleNavigate("map")}
-        style={styles.tabItem}
-      >
-        <Icon
-          name="explore"
-          size={24}
-          color={activeTab === "map" ? colors.primary : colors.textSecondary}
-        />
-        <Text
-          style={[
-            styles.tabLabel,
-            activeTab === "map" && styles.tabLabelActive,
-          ]}
-        >
-          Map
-        </Text>
-      </Pressable>
-
-      {/* Tab 3: Center Elevated Report Button */}
-      <View style={styles.centerFabContainer}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Report road hazard"
-          onPress={() => handleNavigate("report")}
-          style={({ pressed }) => [
-            styles.centerFab,
-            pressed && styles.centerFabPressed,
-          ]}
-        >
-          <Icon name="add" size={28} color="#ffffff" />
-        </Pressable>
-        <Text style={styles.centerFabLabel}>Report</Text>
-      </View>
-
-      {/* Tab 4: Plan */}
-      <Pressable
-        accessibilityRole="tab"
-        accessibilityState={{ selected: activeTab === "plan" }}
-        accessibilityLabel="Navigate to Route Planner"
-        onPress={() => handleNavigate("plan")}
-        style={styles.tabItem}
-      >
-        <Icon
-          name="alt_route"
-          size={24}
-          color={activeTab === "plan" ? colors.primary : colors.textSecondary}
-        />
-        <Text
-          style={[
-            styles.tabLabel,
-            activeTab === "plan" && styles.tabLabelActive,
-          ]}
-        >
-          Plan
-        </Text>
-      </Pressable>
-
-      {/* Tab 5: Me / Authority */}
-      <Pressable
-        accessibilityRole="tab"
-        accessibilityState={{ selected: activeTab === "me" || activeTab === "authority" }}
-        accessibilityLabel={isAuthority ? "Navigate to Authority Control Room" : "Navigate to Account and Journeys"}
-        onPress={() => handleNavigate(isAuthority ? "authority" : "me")}
-        style={styles.tabItem}
-      >
-        <View style={{ position: "relative" }}>
-          <Icon
-            name={isAuthority ? "shield" : "account_circle"}
-            size={24}
-            color={(activeTab === "me" || activeTab === "authority") ? colors.primary : colors.textSecondary}
+          <Animated.View
+            pointerEvents="none"
+            style={[
+              styles.indicator,
+              {
+                width: tabWidth,
+                height: compact ? 42 : sizes.navTabHeight,
+                backgroundColor: colors.navIndicator,
+                transform: [{ translateX: indicatorX }],
+              },
+            ]}
           />
-          {isAuthority && badgeCount && badgeCount > 0 ? (
-            <View style={styles.badgeDot} />
-          ) : null}
-        </View>
-        <Text
-          style={[
-            styles.tabLabel,
-            (activeTab === "me" || activeTab === "authority") && styles.tabLabelActive,
-          ]}
-        >
-          {isAuthority ? "Authority" : "Me"}
-        </Text>
+
+          {tabs.map((tab) => {
+            const isSelected = tab.id === activeId && activeTab !== "report";
+            const fg = isSelected ? colors.navText : colors.navTextInactive;
+
+            return (
+              <Pressable
+                key={tab.id}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: isSelected }}
+                accessibilityLabel={tab.a11y}
+                onPress={() => handleNavigate(tab.id)}
+                style={({ pressed }) => [
+                  styles.tabButton,
+                  { width: tabWidth },
+                  pressed && { transform: [{ scale: 0.9 }] },
+                ]}
+              >
+                <View style={styles.iconWrap}>
+                  <Icon
+                    name={tab.icon}
+                    size={22}
+                    color={fg}
+                    strokeWidth={isSelected ? 2.1 : 1.8}
+                  />
+                  {tab.id === "me" && isAuthority && badgeCount && badgeCount > 0 ? (
+                    <View style={[styles.badgeDot, { backgroundColor: colors.danger }]} />
+                  ) : null}
+                </View>
+                {!compact ? (
+                  <Text
+                    style={[
+                      styles.tabLabel,
+                      {
+                        color: fg,
+                        fontWeight: isSelected ? "600" : "500",
+                      },
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {tab.label}
+                  </Text>
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </BlurView>
+      </Animated.View>
+
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Report a hazard"
+        onPress={() => handleNavigate("report")}
+        style={({ pressed }) => [
+          styles.fab,
+          {
+            backgroundColor: pressed ? colors.accentPressed : colors.accent,
+          },
+          pressed && { transform: [{ scale: 0.9 }] },
+          shadows.fab,
+        ]}
+      >
+        <Icon name="plus" size={26} color={colors.onAccent} strokeWidth={2.2} />
       </Pressable>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  navBar: {
+  container: {
     position: "absolute",
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: "rgba(250, 248, 255, 0.96)",
-    borderTopWidth: 1,
-    borderTopColor: colors.border,
+    left: 16,
+    right: 16,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-around",
-    paddingHorizontal: 8,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 10,
-    elevation: 8,
+    justifyContent: "space-between",
     zIndex: 50,
   },
-  tabItem: {
-    minWidth: 56,
-    minHeight: 48,
+  capsuleShadowWrap: {
+    borderRadius: 32,
+  },
+  capsule: {
+    flex: 1,
+    borderRadius: 32,
+    borderWidth: 1,
+    padding: 5,
+    flexDirection: "row",
+    alignItems: "center",
+    overflow: "hidden",
+  },
+  indicator: {
+    position: "absolute",
+    top: 5,
+    left: 5,
+    borderRadius: 26,
+  },
+  tabButton: {
+    height: "100%",
     alignItems: "center",
     justifyContent: "center",
     gap: 3,
   },
+  iconWrap: {
+    position: "relative",
+  },
   tabLabel: {
-    ...typography.labelSm,
-    color: colors.textSecondary,
-    fontWeight: "500",
-  },
-  tabLabelActive: {
-    color: colors.primary,
-    fontWeight: "700",
-  },
-  centerFabContainer: {
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: -22,
-    width: 68,
-  },
-  centerFab: {
-    width: 52,
-    height: 52,
-    borderRadius: radius.pill,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-    shadowColor: colors.primary,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 6,
-  },
-  centerFabPressed: {
-    backgroundColor: colors.primaryPressed,
-    transform: [{ scale: 0.94 }],
-  },
-  centerFabLabel: {
-    ...typography.labelSm,
-    color: colors.primary,
-    fontWeight: "700",
-    marginTop: 3,
+    fontSize: 11,
+    lineHeight: 13,
+    letterSpacing: 0.11,
   },
   badgeDot: {
     position: "absolute",
     top: -1,
-    right: -2,
+    right: -3,
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: colors.error,
+  },
+  fab: {
+    width: sizes.reportAction,
+    height: sizes.reportAction,
+    borderRadius: sizes.reportAction / 2,
+    alignItems: "center",
+    justifyContent: "center",
   },
 });

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import { reportCategories, reportCategoryIcons, type ReportCategory } from "@/lib/reports/rules";
+import { reportCategories, type ReportCategory } from "@/lib/reports/rules";
+import { TrustMeter } from "@/components/ui/trust-meter";
 import type { Map as MapInstance, Marker as MarkerInstance } from "maplibre-gl";
 import { createFallbackStyle } from "@/lib/traffic/mangaluru-basemap";
 import { L5PhotoPanel } from "@/components/reports/l5-photo-panel";
@@ -289,55 +290,108 @@ export function WebReportScreen({ viewer }: { viewer?: { email?: string; role: s
       {/* Form Column */}
       <div className="lg:col-span-5 space-y-4">
         {successResult ? (
-          <div className="p-6 rounded-xl bg-surface-container-lowest border border-success/40 shadow-sm space-y-4" role="alert">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-emerald-100 text-emerald-800 flex items-center justify-center">
-                <CheckCircleIcon size={22} className="text-emerald-700" />
+          <div className="p-8 rounded-[36px] bg-[#11141A] text-[#F3EFE6] shadow-[0_24px_50px_rgba(17,20,26,0.22)] space-y-6" role="alert">
+            <div className="flex items-center gap-4">
+              <div className="w-14 h-14 rounded-full bg-[#D5F75A] text-[#11141A] flex items-center justify-center shrink-0">
+                <CheckCircleIcon size={28} />
               </div>
               <div>
-                <h2 className="text-base font-bold text-surface-on">Report Submitted Successfully</h2>
-                <p className="text-xs text-surface-on-variant">
-                  Initial verification tier: <strong className="font-mono text-primary">{successResult.level}</strong>
-                </p>
+                <span className="font-mono text-[11px] font-semibold tracking-[0.08em] text-[#D5F75A] uppercase">
+                  Report Sent
+                </span>
+                <h2 className="font-display text-2xl lg:text-3xl font-bold text-[#F3EFE6] m-0 mt-0.5">
+                  Queued at {successResult.level}
+                </h2>
               </div>
             </div>
 
-            <div className="p-3.5 rounded-lg bg-surface-container-low border border-surface-container text-xs space-y-1.5">
-              <p className="font-semibold text-surface-on">Dispatched to Authority Dashboard</p>
-              <p className="text-surface-on-variant">
-                Your report has been queued in the <strong>Civic Traffic Authority Dashboard</strong> for review and verification. When authorities confirm it, the report is upgraded to L6.
-              </p>
-              <p className="text-surface-on-variant font-mono text-[11px]">
+            <div className="p-4 rounded-[24px] bg-[#1B2029] border border-[#2A303C] space-y-3">
+              <div className="flex items-center justify-between text-xs">
+                <span className="font-mono text-[#B9BDC6]">TRUST LADDER</span>
+                <span className="font-mono font-bold text-[#D5F75A]">{successResult.level} / L6</span>
+              </div>
+              <TrustMeter
+                level={Number(successResult.level.replace(/[^0-9]/g, "")) || 1}
+                dark
+                height={10}
+              />
+              <p className="text-xs text-[#B9BDC6] m-0 leading-relaxed">
                 {successResult.levelReason}
               </p>
             </div>
 
-            <div className="flex flex-col gap-2 pt-2">
+            <div className="space-y-2 text-xs text-[#B9BDC6]">
+              <p className="font-mono text-[11px] font-semibold tracking-[0.08em] text-[#F3EFE6] m-0">
+                WHAT HAPPENS NEXT
+              </p>
+              <p className="m-0">
+                1. Nearby commuters can corroborate your pin (L2–L3).
+              </p>
+              <p className="m-0">
+                2. Civic Traffic Authority reviews &amp; confirms (L6).
+              </p>
+            </div>
+
+            <div className="flex flex-col gap-2.5 pt-1">
               <Link
                 href={`/traffic?incident=${encodeURIComponent(successResult.incidentId)}`}
-                className="button text-xs py-2 text-center font-semibold"
+                className="h-12 rounded-full bg-[#FF5B2E] text-[#11141A] flex items-center justify-center font-bold text-sm no-underline hover:-translate-y-0.5"
               >
                 View on Live Traffic Map →
               </Link>
-              <Link href="/authority" className="button secondary text-xs py-2 text-center">
+              <Link
+                href="/authority"
+                prefetch={false}
+                className="h-11 rounded-full bg-[#1B2029] text-[#F3EFE6] border border-[#2A303C] flex items-center justify-center font-semibold text-xs no-underline hover:bg-[#2A303C]"
+              >
                 Check Authority Verification Queue →
               </Link>
               <button
                 type="button"
                 onClick={() => setSuccessResult(null)}
-                className="button secondary text-xs py-2"
+                className="h-11 rounded-full bg-transparent text-[#B9BDC6] border border-[#2A303C] font-semibold text-xs cursor-pointer hover:text-white"
               >
                 Submit another report
               </button>
             </div>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="p-5 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm space-y-4">
+          <form onSubmit={handleSubmit} className="p-6 lg:p-7 rounded-[36px] bg-white border border-[#EEE9DC] shadow-[0_12px_28px_rgba(17,20,26,0.05)] space-y-5">
             <div>
-              <h2 className="text-base font-bold text-surface-on">Submit a Road Incident Report</h2>
-              <p className="text-xs text-surface-on-variant">
-                Reports contribute to community verification and alert other commuters on active routes.
+              <h2 className="font-display text-xl font-bold text-[#11141A] m-0">1. What happened?</h2>
+              <p className="text-xs text-[#4A505C] mt-1 mb-0">
+                Pick a category or choose from the full list below.
               </p>
+            </div>
+
+            <div className="grid grid-cols-3 gap-2.5">
+              {(
+                [
+                  { id: "accident", label: "Crash" },
+                  { id: "heavy_traffic", label: "Slowdown" },
+                  { id: "road_closed", label: "Closure" },
+                  { id: "flood", label: "Flood" },
+                  { id: "road_repair", label: "Roadwork" },
+                  { id: "hazard", label: "Hazard" },
+                ] as { id: ReportCategory; label: string }[]
+              ).map((tile) => {
+                const active = category === tile.id;
+                return (
+                  <button
+                    key={tile.id}
+                    type="button"
+                    onClick={() => setCategory(tile.id)}
+                    className={`h-24 rounded-[24px] p-3 flex flex-col items-center justify-center gap-2 border transition cursor-pointer ${
+                      active
+                        ? "bg-[#11141A] text-[#F3EFE6] border-[#11141A]"
+                        : "bg-[#F8F5EE] text-[#11141A] border-[#EEE9DC] hover:bg-[#EFEADD]"
+                    }`}
+                  >
+                    <IncidentIcon category={tile.id} size={24} />
+                    <span className="text-xs font-bold">{tile.label}</span>
+                  </button>
+                );
+              })}
             </div>
 
             {viewer ? (
@@ -360,7 +414,7 @@ export function WebReportScreen({ viewer }: { viewer?: { email?: string; role: s
                 </div>
                 <Link
                   href="/login"
-                  className="button secondary text-xs py-1 px-3 self-start sm:self-auto font-semibold whitespace-nowrap"
+                  className="h-9 px-4 rounded-full bg-[#11141A] text-[#F3EFE6] inline-flex items-center text-xs self-start sm:self-auto font-semibold whitespace-nowrap no-underline hover:bg-[#2A303C] transition"
                 >
                   Sign In (1-Click Demo) →
                 </Link>

@@ -1,987 +1,528 @@
-import { Stack } from "expo-router";
-import { useEffect, useMemo, useState } from "react";
+import { router, Stack } from "expo-router";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator,
-  BackHandler,
-  Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
-  Switch,
   Text,
-  TextInput,
   View,
 } from "react-native";
-import { useTabBackHandler } from "../src/lib/use-tab-back-handler";
-import type { LiveIncident, RouteOption, TrafficSegment } from "@trafficsense/shared";
-import { fetchActiveIncidents, fetchRoute, fetchTrafficSegments } from "../src/lib/api";
-import { mangaluruPlaces } from "../src/lib/places";
-import { categoryLabel, formatDistance, formatEstimatedDuration } from "../src/lib/format";
-import { describeFreshness } from "../src/lib/freshness";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import type { LiveIncident, RouteOption } from "@trafficsense/shared";
+import { PlacePickerModal } from "../src/components/PlacePickerModal";
 import { TrafficMap } from "../src/components/traffic-map";
 import {
-  AppHeader,
   BottomNav,
   Button,
-  Card,
-  FeedbackBox,
+  categoryIconName,
   Icon,
+  SimulatedTag,
+  SkeletonBlock,
+  StateCard,
+  Toast,
 } from "../src/components/ui";
-import { colors, layout, minTouchTarget, radius, shadows, space, typography } from "../src/theme/tokens";
-
-type PlanState =
-  | { kind: "idle" }
-  | { kind: "loading" }
-  | { kind: "error"; message: string }
-  | { kind: "result"; routes: RouteOption[]; incidents: LiveIncident[]; incidentsOk: boolean; checkedAt: Date };
-
-const POPULAR_CORRIDORS = [
-  { label: "Hampankatta → Bejai", from: 0, to: 1, tag: "City Core" },
-  { label: "Pumpwell → Central Rwy", from: 4, to: 5, tag: "South Hub" },
-  { label: "Hampankatta → Airport", from: 0, to: 7, tag: "NH 66 North" },
-  { label: "Ladyhill → Kadri", from: 3, to: 6, tag: "Inner Loop" },
-];
+import { fetchActiveIncidents, fetchDetourRoute, fetchRoute } from "../src/lib/api";
+import { formatClock } from "../src/lib/evidence";
+import { categoryLabel, formatDistance, formatEstimatedDuration } from "../src/lib/format";
+import { startJourney } from "../src/lib/journeys";
+import { mangaluruPlaces } from "../src/lib/places";
+import { supabase } from "../src/lib/supabase";
+import { useTabBackHandler } from "../src/lib/use-tab-back-handler";
+import { useAuth } from "../src/providers/auth-provider";
+import { useTheme } from "../src/theme/theme-provider";
+import { radius, typography } from "../src/theme/tokens";
 
 export default function PlannerScreen() {
+  const insets = useSafeAreaInsets();
+  const { session } = useAuth();
+  const { colors, shadows } = useTheme();
+
   const [startIndex, setStartIndex] = useState(0);
   const [destIndex, setDestIndex] = useState(1);
+  const [customOrigin, setCustomOrigin] = useState<{ name: string; coords: [number, number] } | null>(null);
+  const [customDest, setCustomDest] = useState<{ name: string; coords: [number, number] } | null>(null);
+  const [startingJourney, setStartingJourney] = useState(false);
   const [preferBus, setPreferBus] = useState(false);
-  const [plan, setPlan] = useState<PlanState>({ kind: "idle" });
-  const [allIncidents, setAllIncidents] = useState<LiveIncident[]>([]);
-  const [allSegments, setAllSegments] = useState<TrafficSegment[]>([]);
-  const [showAlternative, setShowAlternative] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [routes, setRoutes] = useState<RouteOption[]>([]);
+  const [incidents, setIncidents] = useState<LiveIncident[]>([]);
   const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
-  const [pickerModal, setPickerModal] = useState<"origin" | "dest" | null>(null);
-  const [searchFilter, setSearchFilter] = useState("");
-  const [fitKey, setFitKey] = useState(0);
-  const [plannerViewMode, setPlannerViewMode] = useState<"map" | "details">("map");
+  const [pickerMode, setPickerMode] = useState<"origin" | "dest" | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+  const [fitKey, setFitKey] = useState(1);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  // Android: hardware back → Home (when no modal open), or closes modal
-  useTabBackHandler(pickerModal === null);
-  useEffect(() => {
-    if (pickerModal === null) return;
-    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
-      setPickerModal(null);
-      return true;
-    });
-    return () => sub.remove();
-  }, [pickerModal]);
+  useTabBackHandler(pickerMode === null);
 
-  const checkRoute = async (start = startIndex, dest = destIndex) => {
-    setShowAlternative(false);
-    setSelectedIncidentId(null);
-    setSelectedRouteId(null);
-    setPlan({ kind: "loading" });
-    try {
-      const [routes, incidentsResult, segmentsResult] = await Promise.all([
-        fetchRoute(mangaluruPlaces[start].coords, mangaluruPlaces[dest].coords),
-        fetchActiveIncidents().catch(() => [] as LiveIncident[]),
-        fetchTrafficSegments().catch(() => ({ segments: [] as TrafficSegment[] })),
-      ]);
-      setAllIncidents(incidentsResult);
-      setAllSegments(segmentsResult.segments);
-      setSelectedRouteId(routes.find((route) => route.is_recommended)?.id ?? routes[0]?.id ?? null);
-      setFitKey((val) => val + 1);
-      setPlan({
-        kind: "result",
-        routes,
-        incidents: incidentsResult,
-        incidentsOk: true,
-        checkedAt: new Date(),
-      });
-    } catch (reason) {
+  const loadRoutes = useCallback(
+    async (
+      fromCoords = customOrigin?.coords ?? mangaluruPlaces[startIndex].coords,
+      toCoords = customDest?.coords ?? mangaluruPlaces[destIndex].coords,
+    ) => {
+      setLoading(true);
+      setError(false);
       try {
-        const fallbackIncs = await fetchActiveIncidents();
-        setAllIncidents(fallbackIncs);
-      } catch {}
-      setPlan({
-        kind: "error",
-        message: reason instanceof Error ? reason.message : "Route service is unavailable.",
-      });
-    }
-  };
+        const [routeRes, incRes] = await Promise.all([
+          fetchRoute(fromCoords, toCoords),
+          fetchActiveIncidents().catch(() => [] as LiveIncident[]),
+        ]);
+        let combinedRoutes = routeRes;
+        const primary = routeRes[0];
+        if (
+          primary &&
+          primary.incidents_on_route.length > 0 &&
+          !routeRes.some((r) => r.avoids_incident)
+        ) {
+          const hit = primary.incidents_on_route[0];
+          const hitInc = incRes.find((i) => i.id === hit.id);
+          const detourRes = await fetchDetourRoute({
+            currentLocation: fromCoords,
+            destination: toCoords,
+            blockedIncidentId: hit.id,
+            ...(hitInc ? { blockedIncident: [hitInc.lng, hitInc.lat] as [number, number] } : {}),
+            exclusionRadiusM: 250,
+          }).catch(() => [] as RouteOption[]);
+          if (detourRes.length > 0) {
+            const seen = new Set(combinedRoutes.map((r) => r.id));
+            combinedRoutes = [...combinedRoutes, ...detourRes.filter((r) => !seen.has(r.id))];
+          }
+        }
+        setRoutes(combinedRoutes);
+        setIncidents(incRes);
+        const rec =
+          combinedRoutes.find((r) => r.avoids_incident) ??
+          combinedRoutes.find((r) => r.is_recommended) ??
+          combinedRoutes[0];
+        setSelectedRouteId(rec?.id ?? null);
+        setFitKey((v) => v + 1);
+      } catch {
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [customOrigin, customDest, startIndex, destIndex],
+  );
+
+  const [checkedAtMs, setCheckedAtMs] = useState<number>(0);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      void checkRoute();
+    const t = setTimeout(() => {
+      setCheckedAtMs(Date.now());
+      void loadRoutes(mangaluruPlaces[0].coords, mangaluruPlaces[1].coords);
     }, 0);
-    return () => clearTimeout(timer);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const swapPlaces = () => {
+    const prevOrigin = customOrigin;
+    const prevDest = customDest;
     const nextStart = destIndex;
     const nextDest = startIndex;
     setStartIndex(nextStart);
     setDestIndex(nextDest);
-    void checkRoute(nextStart, nextDest);
+    setCustomOrigin(prevDest);
+    setCustomDest(prevOrigin);
+    const fromC = prevDest?.coords ?? mangaluruPlaces[nextStart].coords;
+    const toC = prevOrigin?.coords ?? mangaluruPlaces[nextDest].coords;
+    void loadRoutes(fromC, toC);
   };
 
-  const selectPreset = (from: number, to: number) => {
-    setStartIndex(from);
-    setDestIndex(to);
-    void checkRoute(from, to);
-  };
+  const activeRoute = useMemo(
+    () => routes.find((r) => r.id === selectedRouteId) ?? routes[0] ?? null,
+    [routes, selectedRouteId],
+  );
+  const altRoute = useMemo(
+    () => routes.find((r) => r.id !== activeRoute?.id) ?? null,
+    [routes, activeRoute],
+  );
 
-  const recommendedRoute =
-    plan.kind === "result"
-      ? plan.routes.find((r) => r.is_recommended) ?? plan.routes[0]
-      : null;
+  const routeHazard = useMemo(() => {
+    if (!activeRoute?.incidents_on_route?.length) return null;
+    const first = activeRoute.incidents_on_route[0];
+    return incidents.find((i) => i.id === first.id) ?? null;
+  }, [activeRoute, incidents]);
 
-  const primaryRoute =
-    plan.kind === "result"
-      ? plan.routes.find((route) => route.id === selectedRouteId) ?? recommendedRoute
-      : null;
+  const originPlace = customOrigin ?? mangaluruPlaces[startIndex];
+  const destPlace = customDest ?? mangaluruPlaces[destIndex];
+  const sheetHeightEstimate = 385 + insets.bottom;
 
-  const alternativeRoute =
-    plan.kind === "result"
-      ? plan.routes.find((r) => r.id !== primaryRoute?.id && r.avoids_incident) ?? null
-      : null;
-
-  const primaryIncidents =
-    plan.kind === "result" && primaryRoute
-      ? allIncidents.filter((inc) => primaryRoute.incidents_on_route?.some((w) => w.id === inc.id))
-      : [];
-
-  const selectedIncident = useMemo(() => {
-    if (!selectedIncidentId) return null;
-    return allIncidents.find((i) => i.id === selectedIncidentId) ?? null;
-  }, [allIncidents, selectedIncidentId]);
-
-  const originPlace = mangaluruPlaces[startIndex];
-  const destPlace = mangaluruPlaces[destIndex];
-
-  const filteredPlaces = useMemo(() => {
-    if (!searchFilter.trim()) return mangaluruPlaces;
-    const q = searchFilter.toLowerCase();
-    return mangaluruPlaces.filter((p) => p.name.toLowerCase().includes(q));
-  }, [searchFilter]);
+  const arrivalTime =
+    activeRoute && checkedAtMs > 0
+      ? formatClock(new Date(checkedAtMs + Math.round(activeRoute.duration_s / 60) * 60_000))
+      : "--:--";
 
   return (
-    <View style={styles.screenWrapper}>
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
-      <AppHeader subtitle="Mangaluru · Route Planner" showLive />
 
-      {plannerViewMode === "map" ? (
-        <View style={styles.fullScreenMapContainer}>
-          {/* Top Floating Route Bar */}
-          <View style={styles.floatingRouteTopBar}>
-            <View style={styles.topBarPlacesRow}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Origin: ${originPlace.name}. Tap to change.`}
-                onPress={() => {
-                  setSearchFilter("");
-                  setPickerModal("origin");
-                }}
-                style={styles.topBarPlaceTarget}
-              >
-                <View style={styles.topBarDotGreen} />
-                <Text numberOfLines={1} style={styles.topBarPlaceText}>
-                  {originPlace.name}
-                </Text>
-              </Pressable>
-              <Icon name="chevron_right" size={14} color={colors.textSecondary} />
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Destination: ${destPlace.name}. Tap to change.`}
-                onPress={() => {
-                  setSearchFilter("");
-                  setPickerModal("dest");
-                }}
-                style={styles.topBarPlaceTarget}
-              >
-                <View style={styles.topBarDotRed} />
-                <Text numberOfLines={1} style={styles.topBarPlaceText}>
-                  {destPlace.name}
-                </Text>
-              </Pressable>
-            </View>
+      {/* Full-bleed Route Map */}
+      <TrafficMap
+        fullScreen
+        incidents={incidents}
+        segments={[]}
+        routes={routes}
+        alternativeId={altRoute?.id ?? null}
+        selectedRouteId={activeRoute?.id ?? null}
+        selectedIncidentId={selectedIncidentId}
+        onSelectIncident={(id) => setSelectedIncidentId(id)}
+        onSelectRoute={(id) => setSelectedRouteId(id)}
+        fitKey={fitKey}
+        showOnlyLocate
+        controlsBottomOffset={sheetHeightEstimate + 14}
+        attributionBottomOffset={sheetHeightEstimate + 12}
+      />
 
-            <View style={styles.topBarActions}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Swap origin and destination"
-                onPress={swapPlaces}
-                style={styles.topBarIconBtn}
-              >
-                <Icon name="swap_vert" size={18} color={colors.primary} />
-              </Pressable>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Switch to Route Details view"
-                onPress={() => setPlannerViewMode("details")}
-                style={styles.topBarDetailsBtn}
-              >
-                <Icon name="edit_note" size={15} color={colors.primary} />
-                <Text style={styles.topBarDetailsBtnText}>Details</Text>
-              </Pressable>
-            </View>
-          </View>
-
-          {/* Full-Screen TrafficMap with Accident Pins & Corridors */}
-          <TrafficMap
-            segments={allSegments}
-            routes={plan.kind === "result" ? plan.routes : []}
-            selectedRouteId={primaryRoute?.id ?? null}
-            alternativeId={showAlternative ? (alternativeRoute?.id ?? null) : null}
-            incidents={allIncidents}
-            selectedIncidentId={selectedIncidentId}
-            onSelectIncident={(id) => setSelectedIncidentId(id)}
-            fitKey={fitKey}
-            fullScreen
-            floatingControls
-            floatingTopOffset={64}
-            hideDetailsCard
-          />
-
-          {/* Floating Selected Incident Toast */}
-          {selectedIncident ? (
-            <View style={styles.floatingIncidentAlertCard}>
-              <View style={styles.floatingIncidentAlertHeader}>
-                <View style={styles.floatingIncidentIconBadge}>
-                  <Icon name="warning" size={16} color={colors.error} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.floatingIncidentCategoryText}>
-                    {categoryLabel(selectedIncident.category)} · {selectedIncident.level}
-                  </Text>
-                  <Text numberOfLines={1} style={styles.floatingIncidentReasonText}>
-                    {selectedIncident.level_reason || "Reported on corridor"}
-                  </Text>
-                </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Close incident banner"
-                  onPress={() => setSelectedIncidentId(null)}
-                  hitSlop={10}
-                  style={styles.floatingIncidentCloseBtn}
-                >
-                  <Icon name="close" size={16} color={colors.textSecondary} />
-                </Pressable>
-              </View>
-            </View>
-          ) : null}
-
-          {/* Floating Bottom Route Card */}
-          {plan.kind === "loading" ? (
-            <View style={styles.floatingEmptyPromptPill}>
-              <ActivityIndicator color={colors.primary} size="small" />
-              <Text style={styles.floatingEmptyPromptText}>Calculating fastest corridor route…</Text>
-            </View>
-          ) : primaryRoute ? (
-            <Card style={styles.floatingBottomRouteCard}>
-              <View style={styles.floatingCardHeader}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.floatingCardEyebrow}>
-                    {showAlternative && alternativeRoute ? "ALTERNATIVE DETOUR" : "PRIMARY RECOMMENDED ROUTE"}
-                  </Text>
-                  <Text numberOfLines={1} style={styles.floatingCardTitle}>
-                    {showAlternative && alternativeRoute ? alternativeRoute.name : primaryRoute.name}
-                  </Text>
-                </View>
-                <View style={styles.floatingCardDurationBadge}>
-                  <Text style={styles.floatingCardDurationText}>
-                    ~{formatEstimatedDuration(showAlternative && alternativeRoute ? alternativeRoute.duration_s : primaryRoute.duration_s)}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.floatingCardMetaRow}>
-                <View style={styles.floatingCardMetaItem}>
-                  <Icon name="directions_car" size={14} color={colors.textSecondary} />
-                  <Text style={styles.floatingCardMetaText}>
-                    {formatDistance(showAlternative && alternativeRoute ? alternativeRoute.distance_m : primaryRoute.distance_m)}
-                  </Text>
-                </View>
-                <View style={styles.floatingCardMetaItem}>
-                  <Icon
-                    name={primaryIncidents.length ? "warning" : "verified"}
-                    size={14}
-                    color={primaryIncidents.length ? colors.warning : colors.success}
-                  />
-                  <Text
-                    style={[
-                      styles.floatingCardMetaText,
-                      { color: primaryIncidents.length ? colors.warning : colors.success, fontWeight: "600" },
-                    ]}
-                  >
-                    {primaryIncidents.length ? `${primaryIncidents.length} hazard report(s)` : "Free-flow baseline"}
-                  </Text>
-                </View>
-              </View>
-
-              {alternativeRoute ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={showAlternative ? "Show recommended route" : "Inspect incident-avoiding alternative"}
-                  onPress={() => setShowAlternative((prev) => !prev)}
-                  style={[
-                    styles.floatingAltToggleBtn,
-                    showAlternative && styles.floatingAltToggleBtnActive,
-                  ]}
-                >
-                  <Icon
-                    name="alt_route"
-                    size={16}
-                    color={showAlternative ? "#ffffff" : colors.secondary}
-                  />
-                  <Text
-                    style={[
-                      styles.floatingAltToggleText,
-                      showAlternative && styles.floatingAltToggleTextActive,
-                    ]}
-                  >
-                    {showAlternative ? "Viewing Alternative Detour" : "Inspect Alternative Detour"}
-                  </Text>
-                </Pressable>
-              ) : null}
-
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="View full turn-by-turn and corridor details"
-                onPress={() => setPlannerViewMode("details")}
-                style={styles.floatingViewDetailsBtn}
-              >
-                <Text style={styles.floatingViewDetailsText}>View full turn-by-turn & monsoon advisory</Text>
-                <Icon name="chevron_right" size={16} color={colors.primary} />
-              </Pressable>
-            </Card>
-          ) : (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Switch to Route Details"
-              onPress={() => setPlannerViewMode("details")}
-              style={styles.floatingEmptyPromptPill}
-            >
-              <Text style={styles.floatingEmptyPromptText}>Tap to choose places and calculate route</Text>
-              <Icon name="chevron_right" size={16} color={colors.primary} />
-            </Pressable>
-          )}
-        </View>
-      ) : (
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-        {/* Corridor Context & Title Header */}
-        <View style={styles.corridorHeader}>
-          <View style={styles.corridorTitleCol}>
-            <View style={styles.eyebrowRow}>
-              <Text style={styles.corridorEyebrow}>MANGALURU CORRIDOR NAVIGATOR</Text>
-            </View>
-            <Text style={styles.screenTitle}>Plan Commuter Route</Text>
-          </View>
-          <View style={styles.nhLiveBadge}>
-            <Icon name="tune" size={13} color={colors.secondary} />
-            <Text style={styles.nhLiveBadgeText}>NH 66 LIVE</Text>
-          </View>
+      {/* Floating From / To Card */}
+      <View
+        style={[
+          styles.routeInputCard,
+          {
+            top: Math.max(insets.top + 8, 16),
+            backgroundColor: colors.surface,
+            borderColor: colors.navEdge,
+          },
+          shadows.nav,
+        ]}
+      >
+        <View style={styles.trackCol}>
+          <View style={[styles.fromDot, { borderColor: colors.accent }]} />
+          <View style={[styles.dottedLine, { borderColor: colors.text3 }]} />
+          <Icon name="map-pin" size={14} color={colors.text} />
         </View>
 
-        {/* Unified Route Selection Card */}
-        <Card style={styles.routeCard}>
-          <View style={styles.inputGroupContainer}>
-            {/* Visual Route Stem / Indicators */}
-            <View style={styles.routeStemContainer}>
-              <View style={styles.originIndicator}>
-                <View style={styles.originDot} />
-              </View>
-              <View style={styles.stemLineTrack}>
-                <View style={styles.stemDot} />
-                <View style={styles.stemDot} />
-                <View style={styles.stemDot} />
-              </View>
-              <View style={styles.destIndicator}>
-                <Icon name="location_on" size={18} color={colors.secondary} />
-              </View>
-            </View>
-
-            {/* Inputs Column */}
-            <View style={styles.fieldsColumn}>
-              {/* Origin Field */}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Select origin: currently ${originPlace.name}`}
-                onPress={() => {
-                  setSearchFilter("");
-                  setPickerModal("origin");
-                }}
-                style={({ pressed }) => [
-                  styles.fieldBox,
-                  pressed && styles.fieldBoxPressed,
-                ]}
-              >
-                <View style={styles.fieldTextGroup}>
-                  <Text style={styles.fieldSubLabel}>ORIGIN (START POINT)</Text>
-                  <Text style={styles.fieldValue} numberOfLines={1}>
-                    {originPlace.name}
-                  </Text>
-                </View>
-                <Icon name="expand_more" size={18} color={colors.textMuted} />
-              </Pressable>
-
-              <View style={styles.fieldDivider} />
-
-              {/* Destination Field */}
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Select destination: currently ${destPlace.name}`}
-                onPress={() => {
-                  setSearchFilter("");
-                  setPickerModal("dest");
-                }}
-                style={({ pressed }) => [
-                  styles.fieldBox,
-                  pressed && styles.fieldBoxPressed,
-                ]}
-              >
-                <View style={styles.fieldTextGroup}>
-                  <Text style={styles.fieldSubLabel}>DESTINATION (END POINT)</Text>
-                  <Text style={styles.fieldValue} numberOfLines={1}>
-                    {destPlace.name}
-                  </Text>
-                </View>
-                <Icon name="expand_more" size={18} color={colors.textMuted} />
-              </Pressable>
-            </View>
-
-            {/* Vertically Centered Swap Button */}
-            <View style={styles.swapActionWrapper}>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel="Swap origin and destination places"
-                onPress={swapPlaces}
-                style={({ pressed }) => [
-                  styles.swapCircleBtn,
-                  pressed && styles.swapCircleBtnPressed,
-                ]}
-              >
-                <Icon name="swap_vert" size={20} color={colors.primary} />
-              </Pressable>
-            </View>
-          </View>
-
-          {/* Quick Demo Corridors Row */}
-          <View style={styles.presetsContainer}>
-            <Text style={styles.presetsLabel}>POPULAR CORRIDORS:</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              contentContainerStyle={styles.presetsScroll}
-            >
-              {POPULAR_CORRIDORS.map((preset) => {
-                const isSelected = startIndex === preset.from && destIndex === preset.to;
-                return (
-                  <Pressable
-                    key={preset.label}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Choose ${preset.label}`}
-                    onPress={() => selectPreset(preset.from, preset.to)}
-                    style={({ pressed }) => [
-                      styles.presetChip,
-                      isSelected && styles.presetChipSelected,
-                      pressed && styles.presetChipPressed,
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.presetChipText,
-                        isSelected && styles.presetChipTextSelected,
-                      ]}
-                    >
-                      {preset.label}
-                    </Text>
-                    <View
-                      style={[
-                        styles.presetTagBadge,
-                        isSelected && styles.presetTagBadgeSelected,
-                      ]}
-                    >
-                      <Text
-                        style={[
-                          styles.presetTagText,
-                          isSelected && styles.presetTagTextSelected,
-                        ]}
-                      >
-                        {preset.tag}
-                      </Text>
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          </View>
-
-          {/* Public Bus Corridor Toggle */}
-          <View style={styles.preferenceRow}>
-            <View style={styles.switchCol}>
-              <Switch
-                value={preferBus}
-                onValueChange={setPreferBus}
-                trackColor={{ false: colors.surfaceContainerHighest, true: colors.primary }}
-                thumbColor="#ffffff"
-              />
-              <Text style={styles.switchLabel}>Prefer public bus corridor</Text>
-            </View>
-            <View style={styles.busBadge}>
-              <Icon name="directions_bus" size={14} color={colors.primary} />
-              <Text style={styles.busBadgeText}>KSRTC/City</Text>
-            </View>
-          </View>
-
-          {/* Primary Submit CTA */}
-          <Button
-            title={plan.kind === "loading" ? "Checking corridor route…" : "Check corridor route"}
-            loading={plan.kind === "loading"}
-            onPress={() => void checkRoute()}
-            variant="primary"
-            icon={<Icon name="alt_route" size={20} color="#ffffff" />}
-          />
-        </Card>
-
-        {/* Error Feedback Box if needed */}
-        {plan.kind === "error" ? (
-          <FeedbackBox
-            variant="error"
-            title="Route unavailable"
-            message={plan.message}
-            actionText="Try again"
-            onAction={() => void checkRoute()}
-          />
-        ) : null}
-
-        {/* Map Container */}
-        <View style={styles.mapCard}>
-          <TrafficMap
-            segments={allSegments}
-            routes={plan.kind === "result" ? plan.routes : []}
-            selectedRouteId={primaryRoute?.id ?? null}
-            alternativeId={showAlternative ? (alternativeRoute?.id ?? null) : null}
-            incidents={allIncidents}
-            selectedIncidentId={selectedIncidentId}
-            onSelectIncident={(id) => setSelectedIncidentId(id)}
-            fitKey={fitKey}
-            floatingControls
-            mapHeight={280}
-            onOpenFullScreen={() => setPlannerViewMode("map")}
-          />
+        <View style={styles.fieldsCol}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Switch to full-screen map view"
-            onPress={() => setPlannerViewMode("map")}
-            style={styles.fullScreenExpandPrompt}
+            accessibilityLabel={`From ${originPlace.name}. Tap to change.`}
+            onPress={() => setPickerMode("origin")}
+            style={styles.placeBtn}
           >
-            <Icon name="fullscreen" size={16} color={colors.primary} />
-            <Text style={styles.fullScreenExpandPromptText}>Full-Screen Google Map View</Text>
-            <Icon name="chevron_right" size={14} color={colors.primary} />
+            <Text style={[styles.placeCaption, { color: colors.text3 }]}>From</Text>
+            <Text style={[styles.placeValue, { color: colors.text }]} numberOfLines={1}>
+              {originPlace.name}
+            </Text>
+          </Pressable>
+
+          <View style={[styles.fieldDivider, { backgroundColor: colors.border }]} />
+
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`To ${destPlace.name}. Tap to change.`}
+            onPress={() => setPickerMode("dest")}
+            style={styles.placeBtn}
+          >
+            <Text style={[styles.placeCaption, { color: colors.text3 }]}>To</Text>
+            <Text style={[styles.placeValue, { color: colors.text }]} numberOfLines={1}>
+              {destPlace.name}
+            </Text>
           </Pressable>
         </View>
 
-        {/* Idle / Educational Empty State */}
-        {plan.kind === "idle" || plan.kind === "loading" ? (
-          <Card
-            style={styles.emptyCard}
-            accessibilityLiveRegion={plan.kind === "loading" ? "polite" : "none"}
-          >
-            <View style={styles.emptyHeaderRow}>
-              <View style={styles.emptyIconCircle}>
-                <Icon name="alt_route" size={22} color={colors.primary} />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.emptyTitle}>
-                  {plan.kind === "loading"
-                    ? "Evaluating corridor conditions…"
-                    : "Ready to plan your corridor"}
-                </Text>
-                <Text style={styles.emptyBody}>
-                  {plan.kind === "loading"
-                    ? "Calculating free-flow synthetic baselines and matching active community obstacle reports."
-                    : "Select your start and end points above and tap Check corridor route to evaluate travel times and hazards."}
-                </Text>
-              </View>
-            </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Swap start and destination"
+          onPress={swapPlaces}
+          style={({ pressed }) => [
+            styles.swapBtn,
+            {
+              backgroundColor: pressed ? colors.border : colors.surface2,
+            },
+          ]}
+        >
+          <Icon name="arrow-up-down" size={18} color={colors.text} />
+        </Pressable>
+      </View>
 
-            <View style={styles.featurePoints}>
-              <View style={styles.featureItem}>
-                <Icon name="check_circle" size={15} color={colors.primary} />
-                <Text style={styles.featureText}>
-                  Free-flow synthetic baselines (no speculative delay estimates)
-                </Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Icon name="check_circle" size={15} color={colors.primary} />
-                <Text style={styles.featureText}>
-                  Verified community hazard reports along NH 66 corridors
-                </Text>
-              </View>
-              <View style={styles.featureItem}>
-                <Icon name="check_circle" size={15} color={colors.primary} />
-                <Text style={styles.featureText}>
-                  Automatic incident-avoiding detour recommendations
-                </Text>
-              </View>
-            </View>
-          </Card>
-        ) : null}
+      {/* Bottom Routes Sheet */}
+      <View
+        style={[
+          styles.sheet,
+          {
+            backgroundColor: colors.sheet,
+            paddingBottom: 92 + insets.bottom,
+          },
+          shadows.sheet,
+        ]}
+      >
+        <View style={[styles.handle, { backgroundColor: colors.handle }]} />
 
-        {/* Results State */}
-        {plan.kind === "result" && primaryRoute ? (
-          <>
-            <Card style={styles.summaryCard}>
-              <View style={styles.summaryHeader}>
-                <View style={styles.summaryTitleGroup}>
-                  <Icon name="verified" size={18} color={colors.primary} />
-                  <Text style={styles.summaryEyebrow}>PRIMARY CORRIDOR</Text>
-                </View>
-                <View style={styles.baselineBadge}>
-                  <Text style={styles.baselineBadgeText}>BASELINE</Text>
-                </View>
-              </View>
-
-              <Text style={styles.corridorName}>{primaryRoute.name}</Text>
-
-              {/* Telemetry Strip */}
-              <View style={styles.telemetryStrip}>
-                <View style={styles.telemetryItem}>
-                  <Icon name="directions_car" size={18} color={colors.primary} />
-                  <Text style={styles.telemetryNumber}>
-                    {formatDistance(primaryRoute.distance_m)}
-                  </Text>
-                </View>
-                <View style={styles.telemetryDivider} />
-                <View style={styles.telemetryItem}>
-                  <Icon name="radar" size={18} color={colors.primary} />
-                  <Text style={styles.telemetryNumber}>
-                    {`${formatEstimatedDuration(primaryRoute.duration_s)} free-flow`}
-                  </Text>
-                </View>
-              </View>
-
-              <View style={styles.noteStrip}>
-                <Icon name="help_center" size={15} color={colors.textSecondary} />
-                <Text style={styles.noteStripText}>
-                  Note: Delay savings are not shown. Travel times are free-flow synthetic baselines computed without speculative dynamic projections.
-                </Text>
-              </View>
-            </Card>
-
-            {/* Community Reports Affecting Corridor */}
-            <View
+        <View style={styles.sheetHeader}>
+          <Text style={[styles.sheetTitle, { color: colors.text }]}>Routes</Text>
+          <View style={styles.sheetHeaderActions}>
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setToastMsg("Departure: Leave now")}
               style={[
-                styles.warningContainer,
-                primaryIncidents.length === 0 && styles.warningContainerClear,
+                styles.leaveChip,
+                { backgroundColor: colors.surface, borderColor: colors.border },
               ]}
             >
-              <View style={styles.warningHeaderRow}>
-                <View
-                  style={[
-                    styles.warningIconCircle,
-                    primaryIncidents.length === 0 && styles.warningIconCircleClear,
-                  ]}
-                >
-                  <Icon
-                    name={primaryIncidents.length > 0 ? "warning" : "shield"}
-                    size={20}
-                    color="#ffffff"
-                  />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.warningCardTitle}>
-                    {primaryIncidents.length > 0
-                      ? `${primaryIncidents.length} Community report${
-                          primaryIncidents.length > 1 ? "s" : ""
-                        } affect this corridor`
-                      : "No active community reports affect this corridor"}
-                  </Text>
-                  <Text style={styles.warningCardSubtitle}>
-                    {plan.incidentsOk
-                      ? "Based on the current community-report feed"
-                      : "The report feed could not be refreshed for this check"}
-                  </Text>
-                </View>
-              </View>
+              <Text style={[styles.leaveChipText, { color: colors.text }]}>Leave now</Text>
+              <Icon name="chevron-down" size={14} color={colors.text2} strokeWidth={2.4} />
+            </Pressable>
 
-              {primaryIncidents.length > 0 ? (
-                primaryIncidents.map((inc) => {
-                  const warning = primaryRoute?.incidents_on_route?.find((w) => w.id === inc.id);
-                  const distText = warning
-                    ? ` (${(warning.distance_to_route_m / 1000).toFixed(1)} km from route)`
-                    : "";
-                  return (
-                    <View key={inc.id} style={styles.affectingReportItem}>
-                      <View style={styles.affectingReportTop}>
-                        <Text style={styles.affectingReportTitle}>
-                          {categoryLabel(inc.category)}
-                        </Text>
-                        <View style={styles.corroboratedBadge}>
-                          <Text style={styles.corroboratedBadgeText}>
-                            {inc.level} Corroborated
-                          </Text>
-                        </View>
-                      </View>
-                      <Text style={styles.affectingReportDesc}>
-                        {inc.level_reason || categoryLabel(inc.category)}
-                        {distText}
-                      </Text>
-                      <View style={styles.affectingReportMeta}>
-                        <Text style={styles.affectingMetaText}>
-                          Confirmed by {inc.report_count ?? 1} motorists
-                        </Text>
-                        <Text style={styles.affectingMetaText}>
-                          {describeFreshness(inc.last_confirmed_at).label}
-                        </Text>
-                      </View>
-                    </View>
-                  );
-                })
-              ) : (
-                <Text style={styles.noReportsText}>
-                  {plan.incidentsOk
-                    ? "Route corridor is currently clear of reported obstacles."
-                    : "Try refresh when the community-report feed is available."}
-                </Text>
-              )}
+            <Pressable
+              accessibilityRole="button"
+              accessibilityState={{ selected: preferBus }}
+              accessibilityLabel="Prefer bus corridor"
+              onPress={() => {
+                setPreferBus((v) => !v);
+                setToastMsg(!preferBus ? "Bus corridors prioritised" : "All corridors");
+              }}
+              style={[
+                styles.busToggle,
+                {
+                  backgroundColor: preferBus ? colors.accentSoft : colors.surface,
+                  borderColor: preferBus ? colors.accent : colors.border,
+                },
+              ]}
+            >
+              <Icon name="bus" size={16} color={preferBus ? colors.accent : colors.text} />
+            </Pressable>
+          </View>
+        </View>
 
-              {/* Toggle Alternative Route Button */}
-              {alternativeRoute ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Show alternative route on the map"
-                  onPress={() => setShowAlternative(!showAlternative)}
-                  style={({ pressed }) => [
-                    styles.showAltBtn,
-                    pressed && styles.showAltBtnPressed,
-                  ]}
-                >
-                  <Icon name="alt_route" size={18} color="#ffffff" />
-                  <Text style={styles.showAltBtnText}>
-                    {showAlternative ? "Hide alternative route" : "Show alternative route on the map"}
-                  </Text>
-                </Pressable>
-              ) : null}
+        {loading && routes.length === 0 ? (
+          <View style={{ gap: 12 }}>
+            <View style={{ flexDirection: "row", gap: 10 }}>
+              <SkeletonBlock width="48%" height={84} borderRadius={20} />
+              <SkeletonBlock width="48%" height={84} borderRadius={20} />
             </View>
-
-            {/* Detour Recommendation Card (When Alternative active) */}
-            {showAlternative && alternativeRoute ? (
-              <Card style={styles.detourCard}>
-                <View style={styles.detourHeader}>
-                  <View style={styles.detourTitleGroup}>
-                    <View style={[styles.labelDot, { backgroundColor: colors.secondary }]} />
-                    <Text style={styles.detourEyebrow}>DETOUR RECOMMENDATION</Text>
-                  </View>
-                  <View style={styles.clearBadge}>
-                    <View style={[styles.legendBarDot, { backgroundColor: colors.success }]} />
-                    <Text style={styles.clearBadgeText}>
-                      {alternativeRoute.avoids_incident
-                        ? "Avoids reported incident"
-                        : "Alternative"}
-                    </Text>
-                  </View>
-                </View>
-
-                <Text style={styles.detourName}>{alternativeRoute.name}</Text>
-
-                <View style={styles.telemetryStrip}>
-                  <View style={styles.telemetryItem}>
-                    <Text style={styles.telemetryNumber}>
-                      {formatDistance(alternativeRoute.distance_m)}
-                    </Text>
-                  </View>
-                  <View style={styles.telemetryDivider} />
-                  <View style={styles.telemetryItem}>
-                    <Text style={styles.telemetryNumber}>
-                      {formatEstimatedDuration(alternativeRoute.duration_s)}
-                    </Text>
-                  </View>
-                  <View style={styles.telemetryDivider} />
-                  <View style={styles.telemetryItem}>
-                    <Text style={[styles.telemetryNumber, { color: colors.success }]}>
-                      {alternativeRoute.incidents_on_route?.length ?? 0} active reports
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.detourSelectRow}>
-                  <View style={styles.detourL0Badge}>
-                    <Icon name="shield" size={14} color={colors.secondary} />
-                    <Text style={styles.detourL0Text}>
-                      {alternativeRoute.avoids_incident
-                        ? "Marked as avoiding an incident"
-                        : "Alternative returned by the planner"}
-                    </Text>
-                  </View>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => {
-                      setSelectedRouteId(alternativeRoute.id);
-                      setFitKey((value) => value + 1);
-                    }}
-                    style={styles.selectThisBtn}
-                  >
-                    <Text style={styles.selectThisBtnText}>Select this</Text>
-                    <Icon name="chevron_right" size={16} color={colors.primary} />
-                  </Pressable>
-                </View>
-              </Card>
-            ) : null}
-
-            {/* Civic Transparency Notice */}
-            <View style={styles.civicHonestyCard}>
-              <View style={styles.civicHonestyHeader}>
-                <Icon name="shield" size={18} color={colors.primary} />
-                <Text style={styles.civicHonestyTitle}>Community-report coverage</Text>
-              </View>
-              <Text style={styles.civicHonestyBody}>
-                This route uses community reports only, not automated traffic sensors. Report availability and freshness depend on the latest successful feed refresh.
-              </Text>
-              <View style={styles.syncFooterRow}>
-                <Text style={styles.syncFooterText}>
-                  Checked {plan.checkedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </Text>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Refresh corridor state"
-                  onPress={() => void checkRoute()}
-                  style={styles.refreshBtn}
-                >
-                  <Icon name="sync" size={14} color={colors.primary} />
-                  <Text style={styles.refreshBtnText}>REFRESH</Text>
-                </Pressable>
-              </View>
-            </View>
-          </>
-        ) : null}
-
-        <View style={{ height: layout.safeBottomPadding }} />
-      </ScrollView>
-      )}
-
-      {/* Place Picker Modal with Tap-Outside Backdrop & Search Filter */}
-      <Modal
-        visible={pickerModal !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setPickerModal(null)}
-      >
-        <View style={styles.modalBackdrop}>
-          {/* Tapping outside sheet closes modal */}
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setPickerModal(null)}
-            accessibilityLabel="Close picker backdrop"
+            <SkeletonBlock height={52} borderRadius={16} />
+          </View>
+        ) : error ? (
+          <StateCard
+            variant="error"
+            body="The routing service didn't respond."
+            onAction={() => void loadRoutes()}
           />
-
-          <View style={styles.modalContent}>
-            {/* Sheet Handle */}
-            <View style={styles.sheetHandleRow}>
-              <View style={styles.sheetHandle} />
-            </View>
-
-            <View style={styles.modalHeader}>
-              <View>
-                <Text style={styles.modalTitle}>
-                  {pickerModal === "origin" ? "Select Starting Point" : "Select Destination"}
-                </Text>
-                <Text style={styles.modalSubtitle}>Mangaluru demonstration corridor presets</Text>
-              </View>
-              <Pressable
-                accessibilityLabel="Close picker"
-                onPress={() => setPickerModal(null)}
-                style={styles.modalCloseBtn}
-              >
-                <Icon name="close" size={20} color={colors.textSecondary} />
-              </Pressable>
-            </View>
-
-            {/* Place Search Filter */}
-            <View style={styles.searchBox}>
-              <Icon name="search" size={18} color={colors.textMuted} />
-              <TextInput
-                style={styles.searchInput}
-                placeholder="Search landmarks or junctions…"
-                placeholderTextColor={colors.textMuted}
-                value={searchFilter}
-                onChangeText={setSearchFilter}
-                autoCorrect={false}
-                clearButtonMode="while-editing"
-              />
-            </View>
-
-            <ScrollView style={{ maxHeight: 340 }} keyboardShouldPersistTaps="handled">
-              {filteredPlaces.map((place) => {
-                const originalIndex = mangaluruPlaces.findIndex((p) => p.name === place.name);
-                const isSelected =
-                  pickerModal === "origin" ? originalIndex === startIndex : originalIndex === destIndex;
-                const isDisabled =
-                  pickerModal === "origin" ? originalIndex === destIndex : originalIndex === startIndex;
+        ) : (
+          <>
+            {/* Route Radio Tiles */}
+            <View accessibilityRole="radiogroup" style={styles.routeTilesRow}>
+              {routes.slice(0, 2).map((rt, idx) => {
+                const selected = rt.id === activeRoute?.id;
+                const mins = formatEstimatedDuration(rt.duration_s);
+                const dist = formatDistance(rt.distance_m);
+                const subText = rt.avoids_incident
+                  ? `No reports · ${dist}`
+                  : idx === 0
+                    ? `Fastest · ${dist}`
+                    : `Alt · ${dist}`;
 
                 return (
                   <Pressable
-                    key={place.name}
-                    disabled={isDisabled}
-                    onPress={() => {
-                      const nextStart = pickerModal === "origin" ? originalIndex : startIndex;
-                      const nextDest = pickerModal === "dest" ? originalIndex : destIndex;
-                      if (pickerModal === "origin") {
-                        setStartIndex(originalIndex);
-                      } else {
-                        setDestIndex(originalIndex);
-                      }
-                      setPickerModal(null);
-                      void checkRoute(nextStart, nextDest);
-                    }}
-                    style={({ pressed }) => [
-                      styles.modalItem,
-                      isSelected && styles.modalItemSelected,
-                      isDisabled && styles.modalItemDisabled,
-                      pressed && !isDisabled && styles.modalItemPressed,
+                    key={rt.id}
+                    accessibilityRole="radio"
+                    accessibilityState={{ checked: selected }}
+                    onPress={() => setSelectedRouteId(rt.id)}
+                    style={[
+                      styles.routeTile,
+                      {
+                        backgroundColor: selected ? colors.accentSoft : colors.surface,
+                        borderColor: selected ? colors.accent : colors.border,
+                        borderWidth: selected ? 2 : 1,
+                      },
                     ]}
                   >
-                    <View
+                    <Text style={[styles.routeTileMins, { color: colors.text }]}>{mins}</Text>
+                    <Text
                       style={[
-                        styles.modalItemIconCircle,
-                        pickerModal === "origin"
-                          ? { backgroundColor: colors.surfaceContainerHighest }
-                          : { backgroundColor: colors.evidenceSurface },
+                        styles.routeTileSub,
+                        {
+                          color: selected ? colors.accent : colors.text2,
+                          fontWeight: selected ? "600" : "500",
+                        },
                       ]}
+                      numberOfLines={1}
                     >
-                      <Icon
-                        name={pickerModal === "origin" ? "trip_origin" : "location_on"}
-                        size={18}
-                        color={pickerModal === "origin" ? colors.primary : colors.secondary}
-                      />
-                    </View>
-
-                    <View style={styles.modalItemInfo}>
-                      <Text
-                        style={[
-                          styles.modalItemText,
-                          isSelected && styles.modalItemTextSelected,
-                          isDisabled && styles.modalItemTextDisabled,
-                        ]}
-                      >
-                        {place.name}
-                      </Text>
-                      <Text style={styles.modalItemSubtext}>
-                        {isDisabled
-                          ? "Currently selected for opposite field"
-                          : `Coordinates: ${place.coords[1].toFixed(4)}°N, ${place.coords[0].toFixed(4)}°E`}
-                      </Text>
-                    </View>
-
-                    {isSelected ? (
-                      <View style={styles.selectedCheckCircle}>
-                        <Icon name="check" size={14} color="#ffffff" />
-                      </View>
-                    ) : null}
+                      {subText}
+                    </Text>
                   </Pressable>
                 );
               })}
-            </ScrollView>
-          </View>
-        </View>
-      </Modal>
+            </View>
+
+            {/* Traffic-on-route bar */}
+            <View style={styles.corridorSection}>
+              <View style={styles.corridorTopRow}>
+                <Text style={[styles.arriveText, { color: colors.text }]}>
+                  Arrive {arrivalTime}{" "}
+                  <Text style={{ fontWeight: "400", color: colors.text3 }}>
+                    · {activeRoute?.is_recommended ? "Fastest corridor" : "Alternative corridor"}
+                  </Text>
+                </Text>
+                <SimulatedTag label="Corridor model" compact />
+              </View>
+
+              <View style={styles.corridorBar}>
+                <View style={[styles.corridorSeg, { flex: 38, backgroundColor: colors.accent }]} />
+                <View
+                  style={[
+                    styles.corridorSeg,
+                    {
+                      flex: 14,
+                      backgroundColor: routeHazard ? colors.warningDot : colors.accent,
+                    },
+                  ]}
+                />
+                <View style={[styles.corridorSeg, { flex: 48, backgroundColor: colors.accent }]} />
+              </View>
+
+              <View style={styles.corridorLabels}>
+                <Text style={[styles.corridorLabel, { color: colors.text3 }]} numberOfLines={1}>
+                  {originPlace.name.split(" ")[0]}
+                </Text>
+                <Text style={[styles.corridorLabel, { color: colors.text3 }]} numberOfLines={1}>
+                  {routeHazard ? `${categoryLabel(routeHazard.category)} · slow` : "Clear"}
+                </Text>
+                <Text style={[styles.corridorLabel, { color: colors.text3 }]} numberOfLines={1}>
+                  {destPlace.name.split(" ")[0]}
+                </Text>
+              </View>
+            </View>
+
+            {/* Warning Row */}
+            {routeHazard ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => {
+                  const fromC = customOrigin?.coords ?? mangaluruPlaces[startIndex].coords;
+                  const toC = customDest?.coords ?? mangaluruPlaces[destIndex].coords;
+                  void fetchDetourRoute({
+                    currentLocation: fromC,
+                    destination: toC,
+                    blockedIncidentId: routeHazard.id,
+                    blockedIncident: [routeHazard.lng, routeHazard.lat],
+                    exclusionRadiusM: 250,
+                  })
+                    .then((detours) => {
+                      if (detours.length > 0) {
+                        setRoutes((prev) => {
+                          const seen = new Set(prev.map((r) => r.id));
+                          return [...prev, ...detours.filter((r) => !seen.has(r.id))];
+                        });
+                        setSelectedRouteId(detours[0].id);
+                        setFitKey((v) => v + 1);
+                        setToastMsg("Detour route loaded around hazard");
+                      } else {
+                        router.push({ pathname: "/traffic", params: { selected: routeHazard.id } });
+                      }
+                    })
+                    .catch(() => {
+                      router.push({ pathname: "/traffic", params: { selected: routeHazard.id } });
+                    });
+                }}
+                style={({ pressed }) => [
+                  styles.warningRow,
+                  {
+                    backgroundColor: colors.warningSoft,
+                    opacity: pressed ? 0.85 : 1,
+                  },
+                ]}
+              >
+                <Icon
+                  name={categoryIconName(routeHazard.category)}
+                  size={18}
+                  color={colors.warning}
+                />
+                <Text style={[styles.warningTitle, { color: colors.warning }]} numberOfLines={1}>
+                  {categoryLabel(routeHazard.category)} on route · Tap to reroute
+                </Text>
+                <Text style={[styles.warningLevel, { color: colors.warning }]}>
+                  {routeHazard.level}
+                </Text>
+                <Icon name="chevron-right" size={16} color={colors.warning} />
+              </Pressable>
+            ) : null}
+
+            {/* Primary Action + Save */}
+            <View style={styles.actionRow}>
+              <Button
+                title="Start journey"
+                size="L"
+                variant="primary"
+                loading={startingJourney}
+                onPress={() => {
+                  if (!session) {
+                    router.push("/auth/login?next=/journeys");
+                    return;
+                  }
+                  setStartingJourney(true);
+                  void startJourney(supabase, `${originPlace.name} → ${destPlace.name}`)
+                    .then(() => router.push("/journeys"))
+                    .catch(() => setToastMsg("Could not start journey. Try again."))
+                    .finally(() => setStartingJourney(false));
+                }}
+                style={{ flex: 1 }}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={saved ? "Route saved" : "Save route"}
+                onPress={() => {
+                  setSaved((v) => !v);
+                  setToastMsg(!saved ? "Route saved" : "Removed from saved routes");
+                }}
+                style={({ pressed }) => [
+                  styles.saveBtn,
+                  {
+                    backgroundColor: saved ? colors.accentSoft : colors.surface,
+                    borderColor: saved ? colors.accent : colors.border,
+                    opacity: pressed ? 0.85 : 1,
+                  },
+                ]}
+              >
+                <Icon
+                  name="bookmark"
+                  size={20}
+                  color={saved ? colors.accent : colors.text}
+                  filled={saved}
+                />
+              </Pressable>
+            </View>
+          </>
+        )}
+      </View>
+
+      <PlacePickerModal
+        visible={pickerMode !== null}
+        title={pickerMode === "origin" ? "Choose start" : "Choose destination"}
+        selectedIndex={pickerMode === "origin" ? startIndex : destIndex}
+        disabledIndex={pickerMode === "origin" ? destIndex : startIndex}
+        disabledReason={
+          pickerMode === "origin" ? "Already set as destination" : "Already set as start"
+        }
+        onSelectPreset={(idx) => {
+          if (pickerMode === "origin") {
+            setCustomOrigin(null);
+            setStartIndex(idx);
+            void loadRoutes(mangaluruPlaces[idx].coords, destPlace.coords);
+          } else {
+            setCustomDest(null);
+            setDestIndex(idx);
+            void loadRoutes(originPlace.coords, mangaluruPlaces[idx].coords);
+          }
+        }}
+        onSelectDeviceLocation={(coords, label) => {
+          if (pickerMode === "origin") {
+            setCustomOrigin({ name: label, coords });
+            void loadRoutes(coords, destPlace.coords);
+          } else {
+            setCustomDest({ name: label, coords });
+            void loadRoutes(originPlace.coords, coords);
+          }
+        }}
+        onClose={() => setPickerMode(null)}
+      />
+
+      <Toast
+        visible={Boolean(toastMsg)}
+        message={toastMsg ?? ""}
+        onDismiss={() => setToastMsg(null)}
+      />
 
       <BottomNav activeTab="plan" />
     </View>
@@ -989,1005 +530,194 @@ export default function PlannerScreen() {
 }
 
 const styles = StyleSheet.create({
-  screenWrapper: {
-    flex: 1,
-    backgroundColor: colors.background,
-  },
-  scrollContent: {
-    paddingHorizontal: space.gutter,
-    paddingTop: 8,
-    gap: 14,
-  },
-  corridorHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 4,
-  },
-  corridorTitleCol: {
+  screen: {
     flex: 1,
   },
-  eyebrowRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  corridorEyebrow: {
-    ...typography.codeSm,
-    fontSize: 10.5,
-    color: colors.primary,
-    fontWeight: "700",
-    letterSpacing: 0.6,
-  },
-  screenTitle: {
-    ...typography.headlineMd,
-    fontWeight: "700",
-    color: colors.text,
-    marginTop: 2,
-  },
-  nhLiveBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: colors.evidenceSurface,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: radius.pill,
-  },
-  nhLiveBadgeText: {
-    ...typography.codeSm,
-    fontSize: 10,
-    color: colors.secondary,
-    fontWeight: "700",
-  },
-  routeCard: {
-    padding: space.md,
-    gap: 12,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    ...shadows.card,
-  },
-  inputGroupContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: radius.control,
-    padding: 10,
+  routeInputCard: {
+    position: "absolute",
+    left: 16,
+    right: 16,
+    borderRadius: radius.cardLg,
     borderWidth: 1,
-    borderColor: colors.surfaceContainerHigh,
-    gap: 10,
-  },
-  routeStemContainer: {
-    alignItems: "center",
-    justifyContent: "space-between",
     paddingVertical: 4,
-    width: 22,
-  },
-  originIndicator: {
-    width: 20,
-    height: 20,
-    borderRadius: 10,
-    backgroundColor: colors.surfaceContainerHighest,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  originDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
-  },
-  stemLineTrack: {
-    height: 38,
-    justifyContent: "space-evenly",
-    alignItems: "center",
-  },
-  stemDot: {
-    width: 3,
-    height: 3,
-    borderRadius: 1.5,
-    backgroundColor: colors.outlineVariant,
-  },
-  destIndicator: {
-    width: 20,
-    height: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  fieldsColumn: {
-    flex: 1,
-    gap: 2,
-  },
-  fieldBox: {
+    paddingLeft: 16,
+    paddingRight: 8,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 6,
-    paddingHorizontal: 6,
-    borderRadius: radius.sm,
+    gap: 10,
+    zIndex: 25,
   },
-  fieldBoxPressed: {
-    backgroundColor: colors.surfaceContainer,
+  trackCol: {
+    width: 14,
+    alignItems: "center",
   },
-  fieldTextGroup: {
+  fromDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 3.5,
+  },
+  dottedLine: {
+    width: 0,
+    height: 28,
+    borderLeftWidth: 2,
+    borderStyle: "dotted",
+    marginVertical: 4,
+  },
+  fieldsCol: {
     flex: 1,
-    gap: 1,
   },
-  fieldSubLabel: {
-    ...typography.codeSm,
-    fontSize: 9.5,
-    color: colors.textMuted,
-    fontWeight: "700",
-    letterSpacing: 0.5,
+  placeBtn: {
+    height: 50,
+    justifyContent: "center",
   },
-  fieldValue: {
-    ...typography.titleSm,
-    fontSize: 14.5,
-    color: colors.text,
-    fontWeight: "700",
+  placeCaption: {
+    ...typography.small,
+  },
+  placeValue: {
+    ...typography.bodySemibold,
   },
   fieldDivider: {
     height: 1,
-    backgroundColor: colors.surfaceContainerHighest,
-    marginVertical: 4,
   },
-  swapActionWrapper: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingLeft: 4,
-  },
-  swapCircleBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.surface,
-    alignItems: "center",
-    justifyContent: "center",
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.card,
-  },
-  swapCircleBtnPressed: {
-    backgroundColor: colors.surfaceContainerHigh,
-    transform: [{ scale: 0.92 }],
-  },
-  presetsContainer: {
-    gap: 6,
-  },
-  presetsLabel: {
-    ...typography.codeSm,
-    fontSize: 9.5,
-    color: colors.textMuted,
-    fontWeight: "700",
-    letterSpacing: 0.6,
-  },
-  presetsScroll: {
-    gap: 8,
-  },
-  presetChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.surfaceContainerLow,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.surfaceContainerHigh,
-  },
-  presetChipSelected: {
-    backgroundColor: colors.primaryFixed,
-    borderColor: colors.primary,
-  },
-  presetChipPressed: {
-    opacity: 0.8,
-  },
-  presetChipText: {
-    ...typography.labelSm,
-    fontSize: 11.5,
-    fontWeight: "600",
-    color: colors.text,
-  },
-  presetChipTextSelected: {
-    color: colors.onPrimaryFixed,
-    fontWeight: "700",
-  },
-  presetTagBadge: {
-    backgroundColor: colors.surfaceContainerHighest,
-    paddingHorizontal: 5,
-    paddingVertical: 1,
-    borderRadius: radius.pill,
-  },
-  presetTagBadgeSelected: {
-    backgroundColor: colors.onPrimaryFixed,
-  },
-  presetTagText: {
-    ...typography.codeSm,
-    fontSize: 9,
-    color: colors.textSecondary,
-    fontWeight: "600",
-  },
-  presetTagTextSelected: {
-    color: "#ffffff",
-  },
-  preferenceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingVertical: 4,
-  },
-  switchCol: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  switchLabel: {
-    ...typography.labelMd,
-    color: colors.text,
-    fontWeight: "600",
-  },
-  busBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: colors.surfaceContainerLow,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-  },
-  busBadgeText: {
-    ...typography.codeSm,
-    fontSize: 10,
-    color: colors.primary,
-    fontWeight: "700",
-  },
-  mapCard: {
-    width: "100%",
-    borderRadius: radius.card,
-    backgroundColor: colors.surfaceContainer,
-    padding: space.sm,
-    borderWidth: 1,
-    borderColor: colors.border,
-    ...shadows.card,
-  },
-  emptyCard: {
-    padding: space.md,
-    gap: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-  },
-  emptyHeaderRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 12,
-  },
-  emptyIconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: colors.surfaceContainerLow,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emptyTitle: {
-    ...typography.titleSm,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  emptyBody: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-    lineHeight: 18,
-    marginTop: 2,
-  },
-  featurePoints: {
-    gap: 6,
-    paddingTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: colors.surfaceContainerLow,
-  },
-  featureItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8,
-  },
-  featureText: {
-    ...typography.bodySm,
-    fontSize: 12,
-    color: colors.textSecondary,
-    flex: 1,
-  },
-  summaryCard: {
-    padding: space.md,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  summaryHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  summaryTitleGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  summaryEyebrow: {
-    ...typography.codeSm,
-    color: colors.primary,
-    fontWeight: "700",
-    letterSpacing: 0.6,
-  },
-  baselineBadge: {
-    backgroundColor: colors.surfaceContainerHighest,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  baselineBadgeText: {
-    ...typography.codeSm,
-    fontSize: 9.5,
-    color: colors.textSecondary,
-    fontWeight: "700",
-  },
-  corridorName: {
-    ...typography.titleMd,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  telemetryStrip: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.surfaceContainerLow,
-    padding: 10,
-    borderRadius: radius.control,
-    gap: 12,
-  },
-  telemetryItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  telemetryNumber: {
-    ...typography.labelLg,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  telemetryDivider: {
-    width: 1,
-    height: 16,
-    backgroundColor: colors.outlineVariant,
-  },
-  noteStrip: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 6,
-    backgroundColor: colors.surfaceContainerLow,
-    padding: 10,
-    borderRadius: radius.control,
-  },
-  noteStripText: {
-    ...typography.bodySm,
-    fontSize: 11,
-    color: colors.textSecondary,
-    flex: 1,
-    lineHeight: 15,
-  },
-  warningContainer: {
-    backgroundColor: colors.errorSurface,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: "#ffd8d2",
-    padding: 14,
-    gap: 10,
-  },
-  warningContainerClear: {
-    backgroundColor: colors.successSurface,
-    borderColor: "#c3e7d6",
-  },
-  warningHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  warningIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: colors.error,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  warningIconCircleClear: {
-    backgroundColor: colors.success,
-  },
-  warningCardTitle: {
-    ...typography.titleSm,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  warningCardSubtitle: {
-    ...typography.bodySm,
-    fontSize: 11.5,
-    color: colors.textSecondary,
-  },
-  affectingReportItem: {
-    backgroundColor: colors.surface,
-    borderRadius: radius.control,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    gap: 4,
-  },
-  affectingReportTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  affectingReportTitle: {
-    ...typography.labelLg,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  corroboratedBadge: {
-    backgroundColor: colors.evidenceSurface,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-  },
-  corroboratedBadgeText: {
-    ...typography.codeSm,
-    fontSize: 9.5,
-    color: colors.secondary,
-    fontWeight: "700",
-  },
-  affectingReportDesc: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-  },
-  affectingReportMeta: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 4,
-    borderTopWidth: 1,
-    borderTopColor: colors.surfaceContainerLow,
-  },
-  affectingMetaText: {
-    ...typography.codeSm,
-    fontSize: 10,
-    color: colors.textMuted,
-  },
-  noReportsText: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-  },
-  showAltBtn: {
-    height: 48,
-    borderRadius: radius.control,
-    backgroundColor: colors.secondary,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    ...shadows.card,
-  },
-  showAltBtnPressed: {
-    opacity: 0.9,
-  },
-  showAltBtnText: {
-    ...typography.labelLg,
-    color: "#ffffff",
-    fontWeight: "700",
-  },
-  detourCard: {
-    padding: space.md,
-    gap: 10,
-    borderWidth: 1.5,
-    borderColor: colors.secondary,
-  },
-  detourHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  detourTitleGroup: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  labelDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  legendBarDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-  },
-  detourEyebrow: {
-    ...typography.codeSm,
-    color: colors.secondary,
-    fontWeight: "700",
-    letterSpacing: 0.6,
-  },
-  clearBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: colors.successSurface,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-  },
-  clearBadgeText: {
-    ...typography.labelSm,
-    color: colors.success,
-    fontWeight: "600",
-  },
-  detourName: {
-    ...typography.titleMd,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  detourSelectRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 4,
-  },
-  detourL0Badge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.evidenceSurface,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
-    flex: 1,
-    marginRight: 8,
-  },
-  detourL0Text: {
-    ...typography.codeSm,
-    color: colors.secondary,
-    fontWeight: "600",
-    fontSize: 10.5,
-  },
-  selectThisBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: radius.md,
-    backgroundColor: colors.surfaceContainerLow,
-  },
-  selectThisBtnText: {
-    ...typography.labelMd,
-    fontWeight: "700",
-    color: colors.primary,
-  },
-  civicHonestyCard: {
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: radius.card,
-    padding: 14,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.surfaceContainerHigh,
-  },
-  civicHonestyHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  civicHonestyTitle: {
-    ...typography.titleSm,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  civicHonestyBody: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-    lineHeight: 18,
-  },
-  syncFooterRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 6,
-    borderTopWidth: 1,
-    borderTopColor: colors.surfaceContainerHigh,
-  },
-  syncFooterText: {
-    ...typography.codeSm,
-    color: colors.textMuted,
-  },
-  refreshBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: radius.sm,
-  },
-  refreshBtnText: {
-    ...typography.codeSm,
-    fontWeight: "700",
-    color: colors.primary,
-  },
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.45)",
-    justifyContent: "flex-end",
-  },
-  modalContent: {
-    backgroundColor: colors.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: space.md,
-    gap: 12,
-    maxHeight: "85%",
-  },
-  sheetHandleRow: {
-    alignItems: "center",
-    paddingBottom: 4,
-  },
-  sheetHandle: {
-    width: 36,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.outlineVariant,
-  },
-  modalHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingBottom: 8,
-  },
-  modalTitle: {
-    ...typography.titleMd,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  modalSubtitle: {
-    ...typography.bodySm,
-    fontSize: 12,
-    color: colors.textSecondary,
-  },
-  modalCloseBtn: {
-    minWidth: minTouchTarget,
-    minHeight: minTouchTarget,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  searchBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: radius.control,
-    paddingHorizontal: 12,
+  swapBtn: {
+    width: 44,
     height: 44,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: colors.surfaceContainerHigh,
+    borderRadius: 22,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  searchInput: {
-    flex: 1,
-    ...typography.bodyMd,
-    color: colors.text,
+  sheet: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderTopLeftRadius: radius.sheet,
+    borderTopRightRadius: radius.sheet,
+    paddingTop: 8,
+    paddingHorizontal: 20,
+    gap: 14,
+    zIndex: 30,
   },
-  modalItem: {
+  handle: {
+    width: 36,
+    height: 5,
+    borderRadius: 3,
+    alignSelf: "center",
+  },
+  sheetHeader: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-    minHeight: minTouchTarget + 6,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
-    borderRadius: radius.control,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.surfaceContainerLow,
+    justifyContent: "space-between",
   },
-  modalItemSelected: {
-    backgroundColor: colors.surfaceContainerLow,
+  sheetTitle: {
+    ...typography.title,
   },
-  modalItemPressed: {
-    backgroundColor: colors.surfaceContainer,
+  sheetHeaderActions: {
+    flexDirection: "row",
+    gap: 8,
   },
-  modalItemDisabled: {
-    opacity: 0.45,
+  leaveChip: {
+    height: 36,
+    paddingLeft: 12,
+    paddingRight: 10,
+    borderRadius: 18,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
   },
-  modalItemIconCircle: {
+  leaveChipText: {
+    ...typography.caption,
+    fontWeight: "600",
+  },
+  busToggle: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  modalItemInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  modalItemText: {
-    ...typography.titleSm,
-    fontSize: 14,
-    color: colors.text,
-    fontWeight: "600",
-  },
-  modalItemTextSelected: {
-    color: colors.primary,
-    fontWeight: "700",
-  },
-  modalItemTextDisabled: {
-    color: colors.textMuted,
-  },
-  modalItemSubtext: {
-    ...typography.codeSm,
-    fontSize: 10,
-    color: colors.textMuted,
-  },
-  selectedCheckCircle: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  fullScreenMapContainer: {
-    flex: 1,
-    position: "relative",
-    width: "100%",
-    height: "100%",
-  },
-  floatingRouteTopBar: {
-    position: "absolute",
-    top: 10,
-    left: space.gutter,
-    right: space.gutter,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: "rgba(255, 255, 255, 0.96)",
-    paddingVertical: 10,
-    paddingHorizontal: 14,
-    borderRadius: radius.pill,
     borderWidth: 1,
-    borderColor: colors.border,
-    zIndex: 25,
-    ...shadows.sheet,
-  },
-  topBarPlacesRow: {
-    flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    justifyContent: "center",
+  },
+  routeTilesRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  routeTile: {
     flex: 1,
+    height: 84,
+    borderRadius: radius.card,
+    paddingHorizontal: 16,
+    justifyContent: "center",
+    gap: 4,
   },
-  topBarDotGreen: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
+  routeTileMins: {
+    fontSize: 24,
+    fontWeight: "600",
+    letterSpacing: -0.48,
+    fontVariant: ["tabular-nums"],
   },
-  topBarDotRed: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.error,
+  routeTileSub: {
+    ...typography.caption,
+    fontVariant: ["tabular-nums"],
   },
-  topBarPlaceText: {
-    ...typography.labelSm,
-    color: colors.text,
-    fontWeight: "700",
-    maxWidth: 90,
-  },
-  topBarActions: {
-    flexDirection: "row",
-    alignItems: "center",
+  corridorSection: {
     gap: 8,
   },
-  topBarIconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.surfaceContainer,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  topBarDetailsBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: colors.primaryFixed,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: radius.pill,
-  },
-  topBarDetailsBtnText: {
-    ...typography.labelSm,
-    fontSize: 11,
-    color: colors.primary,
-    fontWeight: "700",
-  },
-  floatingBottomRouteCard: {
-    position: "absolute",
-    bottom: 70,
-    left: space.gutter,
-    right: space.gutter,
-    backgroundColor: "rgba(255, 255, 255, 0.97)",
-    borderRadius: radius.card,
-    padding: 14,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: colors.border,
-    zIndex: 25,
-    ...shadows.sheet,
-  },
-  floatingCardHeader: {
+  corridorTopRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: 8,
   },
-  floatingCardEyebrow: {
-    ...typography.codeSm,
-    fontSize: 9.5,
-    color: colors.secondary,
-    fontWeight: "700",
-  },
-  floatingCardTitle: {
-    ...typography.titleSm,
-    fontWeight: "700",
-    color: colors.text,
-    marginTop: 2,
-  },
-  floatingCardDurationBadge: {
-    backgroundColor: colors.primaryFixed,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-  },
-  floatingCardDurationText: {
-    ...typography.labelSm,
-    color: colors.primary,
-    fontWeight: "800",
-  },
-  floatingCardMetaRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 14,
-  },
-  floatingCardMetaItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  floatingCardMetaText: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-    fontSize: 12,
-  },
-  floatingAltToggleBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    backgroundColor: colors.evidenceSurface,
-    paddingVertical: 8,
-    borderRadius: radius.control,
-    borderWidth: 1,
-    borderColor: colors.secondary,
-  },
-  floatingAltToggleBtnActive: {
-    backgroundColor: colors.secondary,
-  },
-  floatingAltToggleText: {
-    ...typography.labelSm,
-    color: colors.secondary,
-    fontWeight: "700",
-  },
-  floatingAltToggleTextActive: {
-    color: "#ffffff",
-  },
-  floatingViewDetailsBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 4,
-    paddingVertical: 4,
-  },
-  floatingViewDetailsText: {
-    ...typography.bodySm,
-    color: colors.primary,
+  arriveText: {
+    ...typography.caption,
     fontWeight: "600",
-    fontSize: 12,
+    fontVariant: ["tabular-nums"],
   },
-  floatingEmptyPromptPill: {
-    position: "absolute",
-    bottom: 74,
-    left: space.gutter,
-    right: space.gutter,
+  corridorBar: {
     flexDirection: "row",
-    alignItems: "center",
+    gap: 3,
+    height: 8,
+  },
+  corridorSeg: {
+    borderRadius: 4,
+  },
+  corridorLabels: {
+    flexDirection: "row",
     justifyContent: "space-between",
-    backgroundColor: "rgba(255, 255, 255, 0.95)",
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.border,
-    zIndex: 25,
-    ...shadows.sheet,
   },
-  floatingEmptyPromptText: {
-    ...typography.labelMd,
-    color: colors.text,
-    fontWeight: "600",
+  corridorLabel: {
+    ...typography.label,
+    fontWeight: "500",
   },
-  fullScreenExpandPrompt: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 6,
-    paddingVertical: 8,
-    backgroundColor: colors.surfaceContainer,
-    borderRadius: radius.control,
-    marginTop: 8,
-  },
-  fullScreenExpandPromptText: {
-    ...typography.labelSm,
-    color: colors.primary,
-    fontWeight: "700",
-  },
-  topBarPlaceTarget: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 5,
-  },
-  floatingIncidentAlertCard: {
-    position: "absolute",
-    bottom: 245,
-    left: space.gutter,
-    right: space.gutter,
-    backgroundColor: "rgba(255, 255, 255, 0.98)",
-    borderRadius: radius.card,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: colors.error,
-    zIndex: 26,
-    ...shadows.sheet,
-  },
-  floatingIncidentAlertHeader: {
+  warningRow: {
+    height: 48,
+    borderRadius: radius.input,
+    paddingLeft: 14,
+    paddingRight: 12,
     flexDirection: "row",
     alignItems: "center",
     gap: 10,
   },
-  floatingIncidentIconBadge: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.errorSurface,
-    alignItems: "center",
-    justifyContent: "center",
+  warningTitle: {
+    flex: 1,
+    ...typography.secondary,
+    fontWeight: "600",
   },
-  floatingIncidentCategoryText: {
-    ...typography.labelMd,
-    color: colors.error,
-    fontWeight: "700",
+  warningLevel: {
+    ...typography.small,
+    fontWeight: "600",
   },
-  floatingIncidentReasonText: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-    fontSize: 12,
-    marginTop: 2,
+  actionRow: {
+    flexDirection: "row",
+    gap: 10,
   },
-  floatingIncidentCloseBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: colors.surfaceContainer,
+  saveBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: radius.button,
+    borderWidth: 1,
     alignItems: "center",
     justifyContent: "center",
   },

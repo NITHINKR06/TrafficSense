@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TrafficSense · Navigation bar spec</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>body{margin:0} table{border-collapse:collapse}</style>
+
+<style>body{margin:0}</style>
+
+<style>
+body{margin:0}
+.ts-tab{transition:transform 120ms cubic-bezier(.2,0,0,1);-webkit-tap-highlight-color:transparent}
+.ts-tab:active{transform:scale(.9)}
+.ts-tab svg,.ts-tab span{transition:color 200ms ease,stroke 200ms ease,font-weight 200ms ease}
+.ts-fab{transition:transform 140ms cubic-bezier(.2,0,0,1)}
+.ts-fab:active{transform:scale(.9)}
+.ts-ind{transition:transform 420ms cubic-bezier(.32,.72,0,1)}
+</style>
+<style>html,body{margin:0;background:#E8EBEE}#app{display:inline-block;min-width:100%}</style>
+</head>
+<body>
+<div id="app"></div>
+<template id="tpl-NavSpec">
+<div style="width:1440px;height:1260px;box-sizing:border-box;padding:56px;background:#F5F6F7;font-family:Inter,system-ui,sans-serif;color:#121619;display:flex;flex-direction:column;gap:40px">
+
+<div style="display:flex;align-items:flex-end;justify-content:space-between">
+<div>
+<div style="font-size:13px;font-weight:600;color:#0B6B5F;letter-spacing:.04em;text-transform:uppercase">Component</div>
+<h1 style="margin:6px 0 0;font-size:40px;line-height:46px;font-weight:650;letter-spacing:-.025em">Navigation bar</h1>
+<p style="margin:8px 0 0;font-size:16px;color:#4B555E">A floating capsule with four tabs and a separate Report action. Try tapping the tabs below.</p>
+</div>
+<span style="height:32px;padding:0 14px;border-radius:16px;background:#E2F0ED;color:#0B6B5F;font-size:13px;font-weight:600;display:flex;align-items:center">Interactive</span>
+</div>
+
+<div style="display:flex;gap:32px">
+<div style="display:flex;flex-direction:column;gap:12px">
+<span style="font-size:13px;font-weight:600;color:#4B555E">Light</span>
+<div style="width:390px;height:236px;border-radius:28px;overflow:hidden;position:relative;box-shadow:0 0 0 1px #D9DDE1">
+<div style="position:absolute;left:0;right:0;top:-560px;height:844px"><dc-import name="MapBase" dark="{{ false }}" scene="traffic" hint-size="100%,844px"></dc-import></div>
+<div style="position:absolute;left:0;bottom:0;width:390px;height:96px"><dc-import name="NavBar" dark="{{ false }}" active="home" hint-size="390px,96px"></dc-import></div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:12px">
+<span style="font-size:13px;font-weight:600;color:#4B555E">Dark</span>
+<div style="width:390px;height:236px;border-radius:28px;overflow:hidden;position:relative;box-shadow:0 0 0 1px #252D30">
+<div style="position:absolute;left:0;right:0;top:-560px;height:844px"><dc-import name="MapBase" dark="{{ true }}" scene="traffic" hint-size="100%,844px"></dc-import></div>
+<div style="position:absolute;left:0;bottom:0;width:390px;height:96px"><dc-import name="NavBar" dark="{{ true }}" active="map" hint-size="390px,96px"></dc-import></div>
+</div>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:12px">
+<span style="font-size:13px;font-weight:600;color:#4B555E">States</span>
+<div style="flex:1;border-radius:28px;background:#FFFFFF;box-shadow:0 0 0 1px #E2E5E8;padding:24px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px 16px;align-content:center">
+<sc-for list="{{states}}" as="s" hint-placeholder-count="4">
+<div style="display:flex;align-items:center;gap:14px">
+<span style="width:68px;height:52px;border-radius:26px;background:{{s.bg}};outline:{{s.ring}};outline-offset:2px;transform:{{s.tf}};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;flex-shrink:0">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{s.fg}}" stroke-width="{{s.sw}}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14"/></svg>
+<span style="font-size:11px;font-weight:{{s.fw}};color:{{s.fg}}">Map</span>
+</span>
+<span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;font-weight:600">{{s.name}}</span><span style="font-size:12px;color:#5F6A73">{{s.note}}</span></span>
+</div>
+</sc-for>
+</div>
+</div>
+</div>
+
+<div style="display:flex;gap:32px">
+<div style="width:812px;height:300px;border-radius:28px;background:#FFFFFF;box-shadow:0 0 0 1px #E2E5E8;position:relative;overflow:hidden">
+<span style="position:absolute;top:24px;left:28px;font-size:13px;font-weight:600;color:#4B555E">Anatomy · 1.5×</span>
+<div style="position:absolute;left:110px;top:110px;width:390px;height:96px;transform:scale(1.5);transform-origin:0 0"><dc-import name="NavBar" dark="{{ false }}" active="home" hint-size="390px,96px"></dc-import></div>
+<sc-for list="{{callouts}}" as="k" hint-placeholder-count="5">
+<span style="position:absolute;left:{{k.x}}px;top:64px;width:1px;height:{{k.len}}px;background:#0B6B5F"></span>
+<span style="position:absolute;left:{{k.cx}}px;top:52px;width:24px;height:24px;border-radius:12px;background:#0B6B5F;color:#FFFFFF;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center">{{k.n}}</span>
+</sc-for>
+<span style="position:absolute;left:122px;top:134px;width:1px;height:96px;background:#C8372B"></span>
+<span style="position:absolute;left:98px;top:174px;font-size:12px;font-weight:600;color:#C8372B">64</span>
+<span style="position:absolute;left:143px;top:246px;width:102px;height:1px;background:#C8372B"></span>
+<span style="position:absolute;left:184px;top:252px;font-size:12px;font-weight:600;color:#C8372B">68</span>
+<span style="position:absolute;left:560px;top:246px;width:15px;height:1px;background:#C8372B"></span>
+<span style="position:absolute;left:558px;top:252px;font-size:12px;font-weight:600;color:#C8372B">10</span>
+<span style="position:absolute;left:575px;top:246px;width:96px;height:1px;background:#C8372B"></span>
+<span style="position:absolute;left:614px;top:252px;font-size:12px;font-weight:600;color:#C8372B">64</span>
+</div>
+<div style="flex:1;border-radius:28px;background:#FFFFFF;box-shadow:0 0 0 1px #E2E5E8;padding:24px 28px;display:flex;flex-direction:column;gap:12px">
+<span style="font-size:13px;font-weight:600;color:#4B555E">Parts</span>
+<sc-for list="{{parts}}" as="p" hint-placeholder-count="5">
+<div style="display:flex;gap:12px;align-items:baseline">
+<span style="width:22px;height:22px;border-radius:11px;background:#E2F0ED;color:#0B6B5F;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0">{{p.n}}</span>
+<span style="display:flex;flex-direction:column;gap:2px"><span style="font-size:14px;font-weight:600">{{p.name}}</span><span style="font-size:13px;color:#4B555E">{{p.spec}}</span></span>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:32px">
+<div style="border-radius:28px;background:#FFFFFF;box-shadow:0 0 0 1px #E2E5E8;padding:24px 28px">
+<div style="font-size:13px;font-weight:600;color:#4B555E;margin-bottom:8px">Measurements</div>
+<div style="display:flex;flex-direction:column;width:100%;font-size:14px">
+<sc-for list="{{measure}}" as="m" hint-placeholder-count="7">
+<div style="display:flex;align-items:center;border-top:1px solid #EEF0F2"><div style="flex:none;padding:10px 0;color:#4B555E;width:45%">{{m.k}}</div><div style="flex:1;min-width:0;padding:10px 0;font-weight:600;font-variant-numeric:tabular-nums">{{m.v}}</div></div>
+</sc-for>
+</div>
+</div>
+<div style="border-radius:28px;background:#FFFFFF;box-shadow:0 0 0 1px #E2E5E8;padding:24px 28px">
+<div style="font-size:13px;font-weight:600;color:#4B555E;margin-bottom:8px">Motion</div>
+<div style="display:flex;flex-direction:column;width:100%;font-size:14px">
+<sc-for list="{{motion}}" as="m" hint-placeholder-count="7">
+<div style="display:flex;align-items:center;border-top:1px solid #EEF0F2"><div style="flex:none;padding:10px 12px 10px 0;font-weight:600;width:30%">{{m.k}}</div><div style="flex:1;min-width:0;padding:10px 12px 10px 0;color:#4B555E">{{m.what}}</div><div style="flex:none;padding:10px 0;font-size:13px;color:#0B6B5F;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums">{{m.t}}</div></div>
+</sc-for>
+</div>
+</div>
+</div>
+
+</div>
+</template>
+<template id="tpl-MapBase">
+<div style="width:100%;height:100%;overflow:hidden;background:{{c.land}};font-family:Inter,system-ui,sans-serif">
+<svg width="100%" height="100%" viewBox="0 {{vy}} 390 844" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Map of central Mangaluru">
+<rect y="-300" width="390" height="1444" fill="{{c.land}}"/>
+<ellipse cx="300" cy="250" rx="42" ry="28" fill="{{c.park}}"/>
+<ellipse cx="128" cy="575" rx="32" ry="20" fill="{{c.park}}"/>
+<ellipse cx="345" cy="520" rx="26" ry="36" fill="{{c.park}}"/>
+<path d="M0 -300H80C66 -100 60 0 72 0C60 120 84 220 66 330C52 430 80 520 60 640C48 720 72 790 58 844C50 950 66 1050 60 1144H0Z" fill="{{c.water}}"/>
+<path d="M66 170C140 150 200 190 260 160S360 120 390 140" stroke="{{c.water}}" stroke-width="16" fill="none"/>
+<path d="M60 700C140 676 200 728 280 706S360 656 390 676" stroke="{{c.water}}" stroke-width="34" fill="none"/>
+<g stroke="{{c.road}}" stroke-width="3" fill="none" stroke-linecap="round">
+<path d="M90 262H360M100 384H380M110 522H370M84 610H360M150 110V660M210 130V680M330 200V640M90 444C180 432 260 472 380 452M96 330C160 340 220 320 300 336M120 40H380M100 800H380"/>
+</g>
+<g fill="none" stroke-linecap="round">
+<path d="M250 -300C250 -100 248 -60 250 0C240 140 300 260 290 400S330 600 300 844S310 1000 300 1144" stroke="{{c.casing}}" stroke-width="10"/>
+<path d="M80 600C160 560 220 480 250 420S300 300 390 300" stroke="{{c.casing}}" stroke-width="10"/>
+<path d="M250 -300C250 -100 248 -60 250 0C240 140 300 260 290 400S330 600 300 844S310 1000 300 1144" stroke="{{c.major}}" stroke-width="6"/>
+<path d="M80 600C160 560 220 480 250 420S300 300 390 300" stroke="{{c.major}}" stroke-width="6"/>
+</g>
+<g opacity="{{trafficOp}}" fill="none" stroke-linecap="round">
+<path d="M80 600C160 560 220 480 250 420S300 300 390 300" pathLength="100" stroke="{{c.warn}}" stroke-width="5" stroke-dasharray="0 22 20 100"/>
+<path d="M250 0C240 140 300 260 290 400S330 600 300 844" pathLength="100" stroke="{{c.danger}}" stroke-width="5" stroke-dasharray="0 38 10 100"/>
+<path d="M250 0C240 140 300 260 290 400S330 600 300 844" pathLength="100" stroke="{{c.warn}}" stroke-width="5" stroke-dasharray="0 48 12 100"/>
+</g>
+<g font-size="11" font-weight="500" fill="{{c.label}}" letter-spacing=".01em">
+<text x="168" y="232">Urwa</text>
+<text x="98" y="300">Ladyhill</text>
+<text x="300" y="282">Bejai</text>
+<text x="232" y="356">Kadri</text>
+<text x="96" y="500">Hampankatta</text>
+<text x="226" y="560">Kankanady</text>
+<text x="300" y="636">Pumpwell</text>
+<text x="118" y="752">Bolar</text>
+<text x="146" y="418" font-size="14" font-weight="600">Mangaluru</text>
+</g>
+
+<g opacity="{{routeOp}}" fill="none" stroke-linecap="round">
+<path d="M140 478C140 420 180 360 230 330S270 300 282 300" stroke="{{c.casingRoute}}" stroke-width="9"/>
+<path d="M140 478C140 420 180 360 230 330S270 300 282 300" stroke="{{c.alt}}" stroke-width="5"/>
+<path d="M140 478C170 470 190 440 215 420S250 330 282 300" stroke="{{c.casingRoute}}" stroke-width="12"/>
+<path d="M140 478C170 470 190 440 215 420S250 330 282 300" stroke="{{c.route}}" stroke-width="7"/>
+<circle cx="140" cy="478" r="8" fill="{{c.casingRoute}}" stroke="{{c.route}}" stroke-width="4"/>
+<g transform="translate(282 300)">
+<path d="M0 0C-3-5-11-11-11-19A11 11 0 1 1 11-19C11-11 3-5 0 0Z" fill="{{c.ink}}" stroke="{{c.casingRoute}}" stroke-width="2"/>
+<circle cy="-19" r="4" fill="{{c.casingRoute}}"/>
+</g>
+</g>
+<g opacity="{{bubbleOp}}" font-size="12" font-weight="600">
+<rect x="226" y="400" width="62" height="26" rx="13" fill="{{c.route}}" stroke="{{c.casingRoute}}" stroke-width="2"/>
+<text x="257" y="417.5" text-anchor="middle" fill="{{c.onRoute}}">18 min</text>
+<rect x="104" y="340" width="62" height="26" rx="13" fill="{{c.bubble}}" stroke="{{c.bubbleBd}}" stroke-width="1"/>
+<text x="135" y="357.5" text-anchor="middle" fill="{{c.ink}}">21 min</text>
+<g transform="translate(206 432)">
+<circle r="10" fill="{{c.warn}}" stroke="{{c.casingRoute}}" stroke-width="2.5"/>
+<path d="M0-5v5M0 3.5v.5" stroke="{{c.casingRoute}}" stroke-width="2.2" stroke-linecap="round"/>
+</g>
+</g>
+
+<g opacity="{{pinOp}}">
+<g transform="translate(262 380)">
+<path d="M0 0C-3-5-12-11-12-20A12 12 0 1 1 12-20C12-11 3-5 0 0Z" fill="{{c.danger}}" stroke="{{c.casingRoute}}" stroke-width="2"/>
+<path d="M-4.5-20h9" stroke="{{c.casingRoute}}" stroke-width="2.2" stroke-linecap="round"/>
+</g>
+<g transform="translate(176 604)">
+<path d="M0 0C-3-5-12-11-12-20A12 12 0 1 1 12-20C12-11 3-5 0 0Z" fill="{{c.neutral}}" stroke="{{c.casingRoute}}" stroke-width="2"/>
+<path d="M-2-25h4l3 9h-10z" fill="none" stroke="{{c.casingRoute}}" stroke-width="1.8" stroke-linejoin="round"/>
+</g>
+<g transform="translate(212 505) scale(1.3)">
+<ellipse cy="1" rx="6" ry="2" fill="{{c.ink}}" opacity=".18"/>
+<path d="M0 0C-3-5-12-11-12-20A12 12 0 1 1 12-20C12-11 3-5 0 0Z" fill="{{c.warn}}" stroke="{{c.casingRoute}}" stroke-width="2"/>
+<path d="M0-27s4.5 4.5 4.5 7.5a4.5 4.5 0 0 1-9 0c0-3 4.5-7.5 4.5-7.5z" fill="{{c.casingRoute}}"/>
+</g>
+</g>
+<g opacity="{{youOp}}">
+<path d="M150 528 168 520 186 528 176 494H160Z" fill="{{c.route}}" opacity=".16" transform="rotate(200 168 520)"/>
+<circle cx="168" cy="520" r="9" fill="{{c.route}}" stroke="{{c.casingRoute}}" stroke-width="3.5"/>
+</g>
+</svg>
+</div>
+</template>
+<template id="tpl-NavBar">
+<div style="position:relative;width:390px;height:96px;font-family:Inter,system-ui,sans-serif">
+<nav aria-label="Main" style="position:absolute;left:16px;bottom:16px;width:284px;height:64px;box-sizing:border-box;padding:5px;border-radius:32px;background:{{c.glass}};-webkit-backdrop-filter:blur(20px) saturate(160%);backdrop-filter:blur(20px) saturate(160%);border:1px solid {{c.edge}};box-shadow:{{c.sh}};display:flex">
+<span class="ts-ind" aria-hidden="true" style="position:absolute;top:5px;left:5px;width:68px;height:52px;border-radius:26px;background:{{c.ind}};transform:{{indX}}"></span>
+<sc-for list="{{items}}" as="it" hint-placeholder-count="4">
+<button class="ts-tab" aria-current="{{it.current}}" onClick="{{it.pick}}" style="position:relative;width:68px;height:52px;border:0;background:transparent;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;font-family:inherit">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="{{it.sw}}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="stroke:{{it.fg}}"><path d="{{it.d}}"/></svg>
+<span style="font-size:11px;line-height:13px;font-weight:{{it.fw}};color:{{it.fg}};letter-spacing:.01em">{{it.label}}</span>
+</button>
+</sc-for>
+</nav>
+<button class="ts-fab" aria-label="Report a hazard" style="position:absolute;right:16px;bottom:16px;width:64px;height:64px;border-radius:32px;border:0;background:{{c.ac}};box-shadow:{{c.fabSh}};display:flex;align-items:center;justify-content:center;cursor:pointer">
+<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="{{c.onac}}" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+</div>
+</template>
+<script src="../runtime/ts-runtime.js"></script>
+<script>
+TS.define('NavSpec', function (DCLogic) {
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      states: [
+        {name:'Default',note:'Icon and label in muted grey',bg:'transparent',fg:'#5F6A73',sw:1.8,fw:500,ring:'none',tf:'none'},
+        {name:'Active',note:'Tinted pill, teal icon, bolder label',bg:'#E2F0ED',fg:'#0B6B5F',sw:2.1,fw:600,ring:'none',tf:'none'},
+        {name:'Pressed',note:'Scales to 0.90 while held',bg:'#EEF0F2',fg:'#5F6A73',sw:1.8,fw:500,ring:'none',tf:'scale(.9)'},
+        {name:'Keyboard focus',note:'2 px teal ring, 2 px gap',bg:'transparent',fg:'#5F6A73',sw:1.8,fw:500,ring:'2px solid #0B6B5F',tf:'none'}
+      ],
+      callouts: [
+        {n:1,x:138,cx:126,len:70},
+        {n:2,x:170,cx:158,len:78},
+        {n:3,x:296,cx:284,len:88},
+        {n:4,x:398,cx:386,len:126},
+        {n:5,x:623,cx:611,len:70}
+      ],
+      parts: [
+        {n:1,name:'Container',spec:'Capsule, 90% surface + 20 px blur, 1 px hairline'},
+        {n:2,name:'Active indicator',spec:'68 × 52 pill that slides between tabs'},
+        {n:3,name:'Icon',spec:'22 px, 1.8 stroke · 2.1 when active'},
+        {n:4,name:'Label',spec:'11 / 13 Inter · 500, 600 when active'},
+        {n:5,name:'Report action',spec:'64 px circle, teal, always visible'}
+      ],
+      measure: [
+        {k:'Container',v:'64 h · radius 32 · inset 16 from edges'},
+        {k:'Bottom offset',v:'16 + device safe area'},
+        {k:'Tabs',v:'4 × 68 w · 52 h (hit area ≥ 48)'},
+        {k:'Indicator',v:'68 × 52 · radius 26 · 5 inset'},
+        {k:'Report action',v:'64 circle · 10 gap from bar'},
+        {k:'Content padding',v:'Scroll views end 112 above bottom'},
+        {k:'Compact (on scroll)',v:'52 h · icons only · labels hidden'}
+      ],
+      motion: [
+        {k:'Switch tab',what:'Indicator slides to the new tab',t:'420 ms · (.32,.72,0,1)'},
+        {k:'Colour',what:'Icon + label cross-fade',t:'200 ms · ease'},
+        {k:'Press',what:'Tab or action scales down',t:'0.90 · 120 ms'},
+        {k:'Release',what:'Springs back to 1.0',t:'240 ms · spring'},
+        {k:'Scroll down',what:'Bar compacts, labels fade',t:'160 ms'},
+        {k:'Scroll up',what:'Bar returns to full size',t:'240 ms'},
+        {k:'Reduce motion',what:'No slide or scale, fade only',t:'150 ms'}
+      ]
+    };
+  }
+}
+return Component;
+}, 'tpl-NavSpec');
+TS.define('MapBase', function (DCLogic) {
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark;
+    const scene = this.props.scene ?? 'traffic';
+    const c = dark
+      ? { land:'#121618', park:'#142019', water:'#0C1B22', road:'#1F2528', casing:'#121618', major:'#343C41', label:'#7C878E', route:'#56C7B3', onRoute:'#03211C', casingRoute:'#0B0F10', alt:'#4E595F', warn:'#F2AA55', danger:'#F7897D', neutral:'#A9B4B8', ink:'#EEF2F3', bubble:'#1B2124', bubbleBd:'#2E373B' }
+      : { land:'#F2F3F0', park:'#E1EADB', water:'#CFE0E9', road:'#FFFFFF', casing:'#DDE0DA', major:'#FFFFFF', label:'#6B757E', route:'#0B6B5F', onRoute:'#FFFFFF', casingRoute:'#FFFFFF', alt:'#A3ACB3', warn:'#D27A12', danger:'#CC3B2E', neutral:'#4B555E', ink:'#121619', bubble:'#FFFFFF', bubbleBd:'#D5D9DD' };
+    return {
+      c,
+      vy: this.props.offset ?? 0,
+      routeOp: scene === 'route' || scene === 'preview' ? 1 : 0,
+      bubbleOp: scene === 'route' ? 1 : 0,
+      pinOp: scene === 'traffic' ? 1 : 0,
+      trafficOp: scene === 'traffic' || scene === 'route' ? 1 : 0,
+      youOp: scene === 'traffic' ? 1 : 0
+    };
+  }
+}
+return Component;
+}, 'tpl-MapBase');
+TS.define('NavBar', function (DCLogic) {
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { cur: null }; }
+  renderVals() {
+    const dark = !!this.props.dark;
+    const c = dark
+      ? { glass:'rgba(27,33,36,.86)', edge:'rgba(255,255,255,.07)', sh:'0 1px 0 rgba(255,255,255,.04) inset, 0 10px 30px rgba(0,0,0,.55)', ind:'#173B35', tx:'#EEF2F3', tx3:'#8A969B', ac:'#56C7B3', onac:'#03211C', fabSh:'0 10px 24px rgba(0,0,0,.5)' }
+      : { glass:'rgba(255,255,255,.9)', edge:'rgba(16,24,32,.06)', sh:'0 1px 2px rgba(16,24,32,.06), 0 10px 30px rgba(16,24,32,.12)', ind:'#E2F0ED', tx:'#0B6B5F', tx3:'#5F6A73', ac:'#0B6B5F', onac:'#FFFFFF', fabSh:'0 1px 2px rgba(16,24,32,.12), 0 10px 24px rgba(16,24,32,.18)' };
+    const auth = (this.props.role ?? 'commuter') === 'authority';
+    const cur = this.state.cur ?? this.props.active ?? 'home';
+    const D = {
+      home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z',
+      map: 'M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14',
+      plan: 'M4 19a2 2 0 1 0 4 0a2 2 0 1 0-4 0M16 5a2 2 0 1 0 4 0a2 2 0 1 0-4 0M8 19h8.5a3.5 3.5 0 0 0 0-7h-9a3.5 3.5 0 0 1 0-7H16',
+      me: auth ? 'M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6zM9 12l2 2 4-4' : 'M8 8a4 4 0 1 0 8 0a4 4 0 1 0-8 0M4 21a8 8 0 0 1 16 0'
+    };
+    const ids = ['home', 'map', 'plan', 'me'];
+    const labels = { home: 'Home', map: 'Map', plan: 'Plan', me: auth ? 'Ops' : 'Me' };
+    const idx = Math.max(0, ids.indexOf(cur));
+    const items = ids.map(id => ({
+      id, label: labels[id], d: D[id],
+      fg: id === cur ? c.tx : c.tx3,
+      fw: id === cur ? 600 : 500,
+      sw: id === cur ? 2.1 : 1.8,
+      current: id === cur ? 'page' : 'false',
+      pick: () => this.setState({ cur: id })
+    }));
+    return { c, items, indX: 'translateX(' + (idx * 68) + 'px)' };
+  }
+}
+return Component;
+}, 'tpl-NavBar');
+TS.mount('NavSpec', document.getElementById('app'));
+</script>
+</body>
+</html>

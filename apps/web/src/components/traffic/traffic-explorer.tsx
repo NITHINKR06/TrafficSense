@@ -2,8 +2,10 @@
 
 import { useCallback, useMemo, useState } from "react";
 import Link from "next/link";
-import { reportCategories, reportCategoryIcons } from "@/lib/reports/rules";
+import { computeIncidentConfidence } from "../../../../../packages/shared/src/index";
+import { reportCategories } from "@/lib/reports/rules";
 import { IncidentIcon } from "@/components/icons/incident-icons";
+import { TrustMeter } from "@/components/ui/trust-meter";
 import { useSearchParams } from "next/navigation";
 import type { TrafficSnapshot } from "@/lib/traffic/snapshot";
 import type { PublicIncident, PublicTraversal } from "@/lib/traffic/phase4";
@@ -21,28 +23,61 @@ import { TrafficMap } from "./traffic-map";
 import type { LiveIncident } from "@/lib/incidents/server";
 import { findNearestPreset } from "@/lib/routing/presets";
 
-export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, traversals, routeAlerts }: {
-  snapshot: TrafficSnapshot; slowdownAssessments: SlowdownAssessment[]; incidents: PublicIncident[]; traversals: PublicTraversal[];
-  routeComparison: RouteComparison; routeAlerts: RouteAlert[];
+function parseLevelNumber(level: string): number {
+  const num = Number(level.replace(/[^0-9]/g, ""));
+  return Number.isFinite(num) && num >= 1 && num <= 6 ? num : 1;
+}
+
+export function TrafficExplorer({
+  snapshot,
+  slowdownAssessments,
+  incidents,
+  traversals,
+  routeAlerts,
+}: {
+  snapshot: TrafficSnapshot;
+  slowdownAssessments: SlowdownAssessment[];
+  incidents: PublicIncident[];
+  traversals: PublicTraversal[];
+  routeComparison: RouteComparison;
+  routeAlerts: RouteAlert[];
 }) {
   const params = useSearchParams();
-  const deadlines = useMemo(() => [...slowdownAssessments, ...incidents, ...traversals, ...routeAlerts],
-    [slowdownAssessments, incidents, traversals, routeAlerts]);
+  const deadlines = useMemo(
+    () => [...slowdownAssessments, ...incidents, ...traversals, ...routeAlerts],
+    [slowdownAssessments, incidents, traversals, routeAlerts]
+  );
   const { elapsedMs, refreshStarted } = useAssessmentClock(snapshot, deadlines);
-  const alertViews = Object.fromEntries(routeAlerts.map(row => [row.segment_id, routeAlertView(row, snapshot.read_at, elapsedMs)]));
-  const incidentViews = Object.fromEntries(incidents.map(row => [row.id, incidentView(row, snapshot.read_at, elapsedMs)]));
-  const traversalViews = Object.fromEntries(traversals.map(row => [row.segment_id, traversalView(row, snapshot.read_at, elapsedMs)]));
-  const lifecycleLabels = Object.fromEntries((snapshot.fixture?.segments ?? []).map(segment => {
-    const rows = incidents.filter(row => row.segment_id === segment.id).sort((a, b) => b.started_at.localeCompare(a.started_at));
-    const current = rows.find(row => row.is_current) ?? rows[0];
-    return [segment.id, current ? incidentViews[current.id].label : "No retained incident · road status unknown"];
-  }));
-  const slowdowns = Object.fromEntries(slowdownAssessments.map(row =>
-    [row.segment_id, slowdownView(row, snapshot.read_at, elapsedMs)]));
-  const assessments = Object.fromEntries(snapshot.report_assessments.map(row =>
-    [row.segment_id, assessmentView(row, snapshot.read_at, elapsedMs)]));
-  const episodeCounts = Object.fromEntries((snapshot.fixture?.segments ?? []).map(segment =>
-    [segment.id, snapshot.incident_episodes.filter(episode => episode.segment_id === segment.id).length]));
+  const alertViews = Object.fromEntries(
+    routeAlerts.map((row) => [row.segment_id, routeAlertView(row, snapshot.read_at, elapsedMs)])
+  );
+  const incidentViews = Object.fromEntries(
+    incidents.map((row) => [row.id, incidentView(row, snapshot.read_at, elapsedMs)])
+  );
+  const traversalViews = Object.fromEntries(
+    traversals.map((row) => [row.segment_id, traversalView(row, snapshot.read_at, elapsedMs)])
+  );
+  const lifecycleLabels = Object.fromEntries(
+    (snapshot.fixture?.segments ?? []).map((segment) => {
+      const rows = incidents
+        .filter((row) => row.segment_id === segment.id)
+        .sort((a, b) => b.started_at.localeCompare(a.started_at));
+      const current = rows.find((row) => row.is_current) ?? rows[0];
+      return [segment.id, current ? incidentViews[current.id].label : "No retained incident · road status unknown"];
+    })
+  );
+  const slowdowns = Object.fromEntries(
+    slowdownAssessments.map((row) => [row.segment_id, slowdownView(row, snapshot.read_at, elapsedMs)])
+  );
+  const assessments = Object.fromEntries(
+    snapshot.report_assessments.map((row) => [row.segment_id, assessmentView(row, snapshot.read_at, elapsedMs)])
+  );
+  const episodeCounts = Object.fromEntries(
+    (snapshot.fixture?.segments ?? []).map((segment) => [
+      segment.id,
+      snapshot.incident_episodes.filter((episode) => episode.segment_id === segment.id).length,
+    ])
+  );
   const [directionFilter, setDirectionFilter] = useState<"all" | "outbound" | "inbound">("all");
   const selectSegment = useCallback((id: string) => {
     const url = new URL(window.location.href);
@@ -51,7 +86,6 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
   }, []);
 
   const fixture = snapshot.fixture;
-
   const initialIncidentId = params.get("incident");
   const [selectedLiveIncidentId, setSelectedLiveIncidentId] = useState<string | null>(initialIncidentId);
   const [liveIncidents, setLiveIncidents] = useState<LiveIncident[]>([]);
@@ -66,16 +100,30 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
     });
   }, [liveIncidents, incidentFilter]);
 
-  if (!fixture) return (
-    <div className="panel" role="status">
-      <h2>No synthetic traffic data</h2>
-      <p>No demonstration corridor is loaded. This does not mean roads are clear. A local operator can load a scenario; guest browsing cannot run the simulator.</p>
-      {params.has("segment") && <p>The requested segment is not available in this empty dataset.</p>}
-      <RefreshTraffic onRefresh={refreshStarted} />
-    </div>
-  );
+  if (!fixture) {
+    return (
+      <div className="panel max-w-xl mx-auto mt-32" role="status">
+        <h2 className="font-display text-2xl font-bold m-0">No synthetic traffic data</h2>
+        <p className="text-sm text-[#4A505C] mt-2">
+          No demonstration corridor is loaded. This does not mean roads are clear. A local operator can load a scenario;
+          guest browsing cannot run the simulator.
+        </p>
+        {params.has("segment") && (
+          <p className="text-sm text-[#4A505C] mt-1">
+            The requested segment is not available in this empty dataset.
+          </p>
+        )}
+        <div className="mt-4">
+          <RefreshTraffic onRefresh={refreshStarted} />
+        </div>
+      </div>
+    );
+  }
+
   const selected = resolveSegment(fixture, params.getAll("segment"));
-  const visibleSegments = fixture.segments.filter(s => directionFilter === "all" || s.direction === directionFilter);
+  const visibleSegments = fixture.segments.filter(
+    (s) => directionFilter === "all" || s.direction === directionFilter
+  );
 
   return (
     <div data-testid="traffic-ready" className="relative w-full h-full overflow-hidden flex flex-col">
@@ -96,102 +144,109 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
         onIncidentsChange={setLiveIncidents}
       />
 
-      {/* Floating Google Maps Overlay Panel on Top-Left */}
-      <aside className="absolute top-4 left-4 z-20 w-80 sm:w-96 max-h-[calc(100vh-80px)] flex flex-col bg-surface/95 backdrop-blur-md rounded-2xl border border-surface-container shadow-2xl overflow-hidden pointer-events-auto">
-        <div className="p-3.5 pb-2.5 border-b border-surface-container bg-surface-container-low/70">
+      {/* Floating Glass Incident Panel (Top-Left, below floating TopBar) */}
+      <aside className="absolute top-[104px] left-4 lg:left-7 z-20 w-[calc(100vw-32px)] sm:w-[392px] max-h-[calc(100dvh-216px)] flex flex-col rounded-[36px] bg-[#F3EFE6]/88 backdrop-blur-2xl border border-white/80 shadow-[0_24px_60px_rgba(17,20,26,0.20)] overflow-hidden pointer-events-auto">
+        <div className="p-5 pb-3.5 border-b border-[#11141A]/10">
           <div className="flex items-center justify-between gap-2">
-            <h2 className="text-sm font-bold text-surface-on flex items-center gap-1.5 m-0">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-              Mangaluru Live Traffic
-            </h2>
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-900 border border-emerald-200">
-              ● {liveIncidents.length} REAL INCIDENT{liveIncidents.length !== 1 ? "S" : ""}
+            <span className="h-[26px] px-2.5 rounded-full bg-[#11141A] text-[#D5F75A] inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold tracking-[0.08em]">
+              <span className="w-1.5 h-1.5 rounded-full bg-[#FF5B2E]" />
+              LIVE · MANGALURU
+            </span>
+            <span className="font-mono text-[11px] font-semibold text-[#4A505C]">
+              {liveIncidents.length} INCIDENT{liveIncidents.length !== 1 ? "S" : ""}
             </span>
           </div>
-          <p className="text-[11px] text-surface-on-variant mt-1 m-0">
-            Live database incidents from community commuters.
-          </p>
+          <h2 className="font-display text-[22px] font-bold tracking-[-0.02em] text-[#11141A] mt-2.5 mb-0">
+            Live Road Feed
+          </h2>
 
-          {/* Filter Chips */}
-          <div className="flex items-center gap-1 mt-2.5 overflow-x-auto pb-0.5" role="tablist" aria-label="Incident filters">
-            <button
-              type="button"
-              onClick={() => setIncidentFilter("all")}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition whitespace-nowrap ${
-                incidentFilter === "all" ? "bg-primary text-primary-on" : "bg-surface-container text-surface-on hover:bg-surface-container-high"
-              }`}
-            >
-              All ({liveIncidents.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setIncidentFilter("verified")}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition whitespace-nowrap ${
-                incidentFilter === "verified" ? "bg-primary text-primary-on" : "bg-surface-container text-surface-on hover:bg-surface-container-high"
-              }`}
-            >
-              L3+ Verified ({liveIncidents.filter(i => ["L3", "L4", "L5", "L6"].includes(i.level)).length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setIncidentFilter("accident")}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition whitespace-nowrap ${
-                incidentFilter === "accident" ? "bg-primary text-primary-on" : "bg-surface-container text-surface-on hover:bg-surface-container-high"
-              }`}
-            >
-              Accidents
-            </button>
-            <button
-              type="button"
-              onClick={() => setIncidentFilter("hazards")}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-semibold transition whitespace-nowrap ${
-                incidentFilter === "hazards" ? "bg-primary text-primary-on" : "bg-surface-container text-surface-on hover:bg-surface-container-high"
-              }`}
-            >
-              Hazards
-            </button>
+          {/* Filter Pills */}
+          <div className="flex items-center gap-1.5 mt-3 overflow-x-auto pb-0.5" role="tablist" aria-label="Incident filters">
+            {(
+              [
+                { id: "all", label: `All (${liveIncidents.length})` },
+                {
+                  id: "verified",
+                  label: `L3+ (${liveIncidents.filter((i) => ["L3", "L4", "L5", "L6"].includes(i.level)).length})`,
+                },
+                { id: "accident", label: "Crashes" },
+                { id: "hazards", label: "Hazards" },
+              ] as const
+            ).map((tab) => (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setIncidentFilter(tab.id)}
+                className={`h-8 px-3 rounded-full text-[11px] font-semibold transition whitespace-nowrap border-0 cursor-pointer ${
+                  incidentFilter === tab.id
+                    ? "bg-[#11141A] text-[#F3EFE6]"
+                    : "bg-white/75 text-[#11141A] hover:bg-white"
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Scrollable Feed of DB Incidents */}
-        <div className="overflow-y-auto divide-y divide-surface-container flex-1 max-h-[300px]" role="list">
+        <div className="overflow-y-auto divide-y divide-[#11141A]/10 flex-1 min-h-0" role="list">
           {filteredIncidents.length === 0 ? (
-            <p className="text-xs text-surface-on-variant p-4 text-center m-0">No incidents match this filter.</p>
+            <p className="text-xs text-[#4A505C] p-6 text-center m-0">
+              No incidents match this filter.
+            </p>
           ) : (
-            filteredIncidents.map(inc => {
+            filteredIncidents.map((inc) => {
               const preset = findNearestPreset([inc.lng, inc.lat]);
               const isSelected = inc.id === selectedLiveIncidentId;
+              const lvlNum = parseLevelNumber(inc.level);
+              const confidence = computeIncidentConfidence(inc);
+              const badgeBg =
+                inc.category === "accident"
+                  ? "#FF5B2E"
+                  : inc.category === "flood"
+                  ? "#2B4BFF"
+                  : inc.category === "road_closed"
+                  ? "#11141A"
+                  : "#F5B700";
+              const badgeText =
+                inc.category === "flood" || inc.category === "road_closed" ? "#FFFFFF" : "#11141A";
+
               return (
                 <button
                   key={inc.id}
                   type="button"
                   onClick={() => setSelectedLiveIncidentId(inc.id)}
-                  className={`w-full text-left p-3 transition flex items-start gap-2.5 hover:bg-surface-container-low ${
-                    isSelected ? "bg-primary/10 border-l-4 border-primary" : ""
+                  className={`w-full text-left p-4 transition flex items-start gap-3 border-0 cursor-pointer ${
+                    isSelected ? "bg-white/95" : "bg-transparent hover:bg-white/60"
                   }`}
                 >
-                  <span className="text-primary mt-0.5 shrink-0">
+                  <span
+                    className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 mt-0.5"
+                    style={{ background: badgeBg, color: badgeText }}
+                  >
                     <IncidentIcon category={inc.category} size={18} />
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-1">
-                      <span className="text-xs font-bold text-surface-on truncate">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="font-display text-sm font-bold text-[#11141A] truncate">
                         {preset?.name ?? reportCategories[inc.category]}
                       </span>
-                      <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-md border ${
-                        ["L3", "L4", "L5", "L6"].includes(inc.level)
-                          ? "bg-emerald-50 text-emerald-900 border-emerald-200"
-                          : "bg-amber-50 text-amber-950 border-amber-200"
-                      }`}>
+                      <span className="font-mono text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#11141A] text-[#D5F75A] shrink-0">
                         {inc.level}
                       </span>
                     </div>
-                    <p className="text-[11px] text-surface-on-variant m-0 truncate mt-0.5">
-                      {reportCategories[inc.category]} · {inc.report_count} report{inc.report_count !== 1 ? "s" : ""}
+                    <p className="text-xs text-[#4A505C] m-0 truncate mt-0.5">
+                      {reportCategories[inc.category]} · {confidence.tierLabel} ({Math.round(confidence.score * 100)}%)
                     </p>
-                    <p className="text-[10px] text-surface-on-variant/80 m-0 truncate">
-                      {inc.level_reason}
-                    </p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="w-24">
+                        <TrustMeter level={lvlNum} height={5} />
+                      </div>
+                      <span className="font-mono text-[10px] text-[#4A505C] truncate">
+                        {confidence.explanation}
+                      </span>
+                    </div>
                   </div>
                 </button>
               );
@@ -199,30 +254,40 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
           )}
         </div>
 
-        {/* Route Planner Link */}
-        <div className="p-2.5 border-t border-surface-container bg-surface-container-lowest flex items-center justify-between gap-2">
+        {/* Route Planner Action */}
+        <div className="p-3.5 border-t border-[#11141A]/10 bg-white/60 flex items-center gap-2">
           <Link
             href="/planner"
-            className="button text-xs py-1.5 px-3 w-full text-center font-semibold"
+            className="h-10 px-4 rounded-full bg-[#11141A] text-[#F3EFE6] w-full flex items-center justify-center gap-2 text-xs font-bold no-underline hover:bg-[#2A303C]"
           >
-            Plan Route in City Planner →
+            <span>Plan Route Around Incidents</span>
+            <span aria-hidden="true">→</span>
           </Link>
         </div>
 
         {/* Collapsible Corridor Details for Tests & Operator Tools */}
-        <details className="border-t border-surface-container bg-surface-container-low/40 text-xs">
-          <summary className="p-2.5 font-semibold text-surface-on cursor-pointer hover:bg-surface-container-low flex items-center justify-between select-none">
-            <span>Corridor Segments & Analysis</span>
-            <span className="text-[10px] text-surface-on-variant font-mono">L1–L6</span>
+        <details className="border-t border-[#11141A]/10 bg-white/40 text-xs">
+          <summary className="px-4 py-2.5 font-mono text-[10px] font-semibold tracking-[0.08em] uppercase text-[#4A505C] cursor-pointer hover:bg-white/60 flex items-center justify-between select-none">
+            <span>Corridor Segments &amp; L1–L6</span>
+            <span>{visibleSegments.length}</span>
           </summary>
-          <div className="p-2.5 pt-0 space-y-2 max-h-[220px] overflow-y-auto">
-            <div className="flex items-center gap-1 text-[11px] pt-1">
-              <button type="button" className={`px-2 py-0.5 rounded text-xs font-semibold ${directionFilter === "all" ? "bg-primary text-primary-on" : "bg-surface-container text-surface-on"}`} onClick={() => setDirectionFilter("all")}>All ({fixture.segments.length})</button>
-              <button type="button" className={`px-2 py-0.5 rounded text-xs font-semibold ${directionFilter === "outbound" ? "bg-primary text-primary-on" : "bg-surface-container text-surface-on"}`} onClick={() => setDirectionFilter("outbound")}>Outbound</button>
-              <button type="button" className={`px-2 py-0.5 rounded text-xs font-semibold ${directionFilter === "inbound" ? "bg-primary text-primary-on" : "bg-surface-container text-surface-on"}`} onClick={() => setDirectionFilter("inbound")}>Inbound</button>
+          <div className="px-4 pb-3 pt-1 space-y-2 max-h-[180px] overflow-y-auto">
+            <div className="flex items-center gap-1 text-[11px]">
+              {(["all", "outbound", "inbound"] as const).map((dir) => (
+                <button
+                  key={dir}
+                  type="button"
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-semibold border-0 cursor-pointer capitalize ${
+                    directionFilter === dir ? "bg-[#11141A] text-[#F3EFE6]" : "bg-white/80 text-[#11141A]"
+                  }`}
+                  onClick={() => setDirectionFilter(dir)}
+                >
+                  {dir === "all" ? `All (${fixture.segments.length})` : dir}
+                </button>
+              ))}
             </div>
-            <ul data-segment-list className="space-y-1">
-              {visibleSegments.map(segment => (
+            <ul data-segment-list className="space-y-1 list-none p-0 m-0">
+              {visibleSegments.map((segment) => (
                 <li key={segment.id}>
                   <a
                     href={`/traffic?segment=${encodeURIComponent(segment.id)}`}
@@ -232,7 +297,7 @@ export function TrafficExplorer({ snapshot, slowdownAssessments, incidents, trav
                       e.preventDefault();
                       selectSegment(segment.id);
                     }}
-                    className="block p-1.5 rounded border border-surface-container text-[11px] hover:bg-surface-container"
+                    className="block p-2 rounded-xl bg-white/70 border border-[#EEE9DC] text-[11px] text-[#11141A] no-underline hover:bg-white"
                   >
                     {segment.name} ({segment.direction})
                   </a>
