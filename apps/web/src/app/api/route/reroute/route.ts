@@ -52,6 +52,7 @@ export async function POST(req: NextRequest) {
         const client = createClient(url, key, { auth: { persistSession: false } });
         const liveIncidents = await getActiveLiveIncidents(client);
         for (const inc of liveIncidents) {
+          if (inc.status !== "open") continue;
           activeIncidents.push({
             id: inc.id,
             category: inc.category,
@@ -96,6 +97,19 @@ export async function POST(req: NextRequest) {
     let targetBlocked: RerouteBlockedIncident | null = null;
     if (directBlockedIncident && Array.isArray(directBlockedIncident.point)) {
       targetBlocked = directBlockedIncident;
+    } else if (
+      Array.isArray(directBlockedIncident) &&
+      directBlockedIncident.length === 2 &&
+      typeof directBlockedIncident[0] === "number" &&
+      typeof directBlockedIncident[1] === "number"
+    ) {
+      targetBlocked = {
+        id: typeof blockedIncidentId === "string" ? blockedIncidentId : "direct-incident",
+        point: [directBlockedIncident[0], directBlockedIncident[1]],
+        category: "incident",
+        level: "L2",
+        label: "Reported hazard",
+      };
     } else if (blockedIncidentId) {
       const found = activeIncidents.find((i) => i.id === blockedIncidentId);
       if (found) {

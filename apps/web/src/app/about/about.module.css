@@ -13,27 +13,28 @@
 }
 
 .title {
-  font-size: 2rem;
-  font-weight: 800;
-  color: var(--on-surface, #131b2e);
-  letter-spacing: -0.02em;
+  font-family: var(--font-display);
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: var(--on-surface, #11141A);
+  letter-spacing: -0.04em;
   margin: 0.4rem 0 0.75rem 0;
-  line-height: 1.2;
+  line-height: 1.05;
 }
 
 .lead {
-  font-size: 1.1rem;
-  color: var(--on-surface-variant, #3e4947);
+  font-size: 1.05rem;
+  color: var(--on-surface-variant, #4A505C);
   line-height: 1.6;
   margin: 0;
 }
 
 .section {
   background: var(--surface-container-lowest, #ffffff);
-  border: 1px solid var(--outline-variant, #cbd5e1);
-  border-radius: 0.75rem;
-  padding: 1.5rem;
-  box-shadow: 0 1px 3px rgba(19, 27, 46, 0.04);
+  border: 1px solid var(--ts-line, #EEE9DC);
+  border-radius: 36px;
+  padding: 2rem;
+  box-shadow: 0 12px 28px rgba(17, 20, 26, 0.05);
 }
 
 .sectionTitle {

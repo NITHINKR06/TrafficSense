@@ -15,39 +15,64 @@ export default async function OrganisationPage({ params }: { params: Promise<{ o
   const sharedJourneys = await getEmployerSharedJourneys(supabase, orgId);
 
   return (
-    <section className="panel space-y-6">
-      <div className="panel-heading">
-        <p className="eyebrow m-0">Organisation Dashboard</p>
-        <span className="simulated-pill">SIMULATED</span>
-      </div>
-      <div>
-        <h1 className="text-2xl font-bold">{org.name}</h1>
-        <p className="text-sm text-surface-on-variant mt-1">
-          Active commuter journeys shared with this organisation under employee consent.
-        </p>
+    <div className="max-w-[1360px] mx-auto space-y-6 pt-2">
+      <header className="flex flex-wrap items-end justify-between gap-6">
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="h-[30px] px-3 rounded-full bg-[#11141A] text-[#D5F75A] inline-flex items-center font-mono text-[11px] font-semibold tracking-[0.08em]">
+              ORGANISATION DASHBOARD
+            </span>
+            <span className="h-[30px] px-3 rounded-full bg-white border border-[#EEE9DC] text-[#4A505C] inline-flex items-center font-mono text-[10px] font-semibold tracking-[0.08em]">
+              SIMULATED
+            </span>
+          </div>
+          <h1 className="font-display font-bold text-4xl sm:text-5xl lg:text-[72px] leading-[0.9] tracking-[-0.05em] text-[#11141A] m-0">
+            {org.name}<span className="text-[#FF5B2E]">.</span>
+          </h1>
+          <p className="text-sm text-[#4A505C] m-0 max-w-2xl">
+            Active commuter journeys shared with this organisation under explicit employee consent.
+          </p>
+        </div>
+
+        <div className="rounded-[36px] bg-[#11141A] text-[#F3EFE6] px-8 py-5 text-center shadow-[0_16px_36px_rgba(17,20,26,0.18)]">
+          <div className="font-display font-bold text-5xl leading-none text-[#D5F75A]">
+            {sharedJourneys.length}
+          </div>
+          <div className="font-mono text-[10px] font-semibold tracking-[0.08em] text-[#B9BDC6] mt-2">
+            SHARING NOW
+          </div>
+        </div>
+      </header>
+
+      {/* Privacy Trio */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs">
+        <div className="h-14 px-5 rounded-full bg-white border border-[#EEE9DC] text-[#11141A] font-semibold flex items-center gap-3 shadow-[0_6px_16px_rgba(17,20,26,0.04)]">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#2E9E5B]" />
+          No GPS coordinates
+        </div>
+        <div className="h-14 px-5 rounded-full bg-white border border-[#EEE9DC] text-[#11141A] font-semibold flex items-center gap-3 shadow-[0_6px_16px_rgba(17,20,26,0.04)]">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#2E9E5B]" />
+          No home address
+        </div>
+        <div className="h-14 px-5 rounded-full bg-white border border-[#EEE9DC] text-[#11141A] font-semibold flex items-center gap-3 shadow-[0_6px_16px_rgba(17,20,26,0.04)]">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#2E9E5B]" />
+          No device ID
+        </div>
       </div>
 
-      <div className="p-4 rounded-xl bg-surface-container-low border border-surface-container text-xs space-y-1">
-        <p className="font-semibold text-surface-on">Privacy &amp; Data Safeguards</p>
-        <p className="text-surface-on-variant">
-          Employees must explicitly consent to share each journey. Only corridor and current status summaries are disclosed; delay is not measured in this build. Exact GPS coordinates, home addresses, device identities, and historical trip routes are never recorded or provided.
-        </p>
-        <p className="text-surface-on-variant">
-          If an employee stops sharing or completes their commute, subsequent refreshes immediately remove the entry.
-        </p>
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-bold">Consented Employee Journeys ({sharedJourneys.length})</h2>
-          <span className="text-xs text-surface-on-variant">Refresh page to sync latest updates</span>
+      <section className="rounded-[36px] bg-white border border-[#EEE9DC] p-7 lg:p-8 space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="font-display text-2xl font-bold m-0 text-[#11141A]">
+            Consented Employee Journeys ({sharedJourneys.length})
+          </h2>
+          <span className="font-mono text-[11px] text-[#4A505C]">Refresh page to sync latest updates</span>
         </div>
 
         {sharedJourneys.length === 0 ? (
-          <div className="p-6 rounded-xl bg-surface-container-lowest border border-dashed border-surface-container text-center space-y-1">
-            <p className="text-sm font-semibold text-surface-on">No active shared journeys</p>
-            <p className="text-xs text-surface-on-variant">
-              No employees have currently shared active commute delays with this organisation.
+          <div className="p-8 rounded-[28px] bg-[#F8F5EE] border border-dashed border-[#DCD5C4] text-center space-y-1">
+            <p className="font-display text-base font-bold text-[#11141A] m-0">No active shared journeys</p>
+            <p className="text-xs text-[#4A505C] m-0">
+              No employees have currently shared active commute status with this organisation.
             </p>
           </div>
         ) : (
@@ -55,52 +80,45 @@ export default async function OrganisationPage({ params }: { params: Promise<{ o
             {sharedJourneys.map((j) => (
               <div
                 key={j.journey_id}
-                className="p-4 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm space-y-3"
+                className="p-5 rounded-[28px] bg-[#F8F5EE] border border-[#EEE9DC] space-y-3"
               >
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
-                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-green-100 text-green-800">
+                    <span className="px-2.5 py-1 rounded-full text-[10px] font-mono font-bold bg-[#D5F75A] text-[#11141A]">
                       CONSENTED SHARE
                     </span>
-                    <span className="text-xs font-mono text-surface-on-variant">
-                      Ref: {j.journey_id.slice(0, 8)}...
-                    </span>
+                    <span className="text-xs font-mono text-[#4A505C]">Ref: {j.journey_id.slice(0, 8)}…</span>
                   </div>
-                    <span className="text-xs font-mono text-surface-on-variant">
-                      Sharing started {new Date(j.shared_at).toLocaleString()}
+                  <span className="text-xs font-mono text-[#4A505C]">
+                    Started {new Date(j.shared_at).toLocaleString()}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
                   <div>
-                    <span className="text-xs text-surface-on-variant block">Corridor</span>
-                    <span className="font-semibold text-surface-on">{j.corridor_name}</span>
+                    <span className="font-mono text-[10px] text-[#4A505C] uppercase block">Corridor</span>
+                    <span className="font-display font-bold text-[#11141A]">{j.corridor_name}</span>
                   </div>
                   <div>
-                    <span className="text-xs text-surface-on-variant block">Delay measurement</span>
-                    <span className="font-semibold text-surface-on">{j.status.toUpperCase()}</span>
+                    <span className="font-mono text-[10px] text-[#4A505C] uppercase block">Status</span>
+                    <span className="font-display font-bold text-[#11141A]">{j.status.toUpperCase()}</span>
                   </div>
                   <div>
-                    <span className="text-xs text-surface-on-variant block">Journey evidence</span>
-                    <span className="font-semibold text-surface-on">Not collected</span>
+                    <span className="font-mono text-[10px] text-[#4A505C] uppercase block">Journey evidence</span>
+                    <span className="font-semibold text-[#4A505C]">Not collected</span>
                   </div>
-                </div>
-
-                <div className="text-[11px] text-surface-on-variant border-t border-surface-container-high pt-2 flex items-center justify-between">
-                  <span>Coordinates and route history are not shared</span>
-                  <span>Consent is active</span>
                 </div>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </section>
 
-      <div className="pt-4 border-t border-surface-container-high">
-        <Link className="button" href="/employer">
+      <div>
+        <Link className="ts-btn-ghost" href="/employer" prefetch={false}>
           ← Back to your organisations
         </Link>
       </div>
-    </section>
+    </div>
   );
 }

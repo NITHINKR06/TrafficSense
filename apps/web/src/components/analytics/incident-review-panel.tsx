@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
+
+const subscribeNoop = () => () => {};
 import Link from "next/link";
 import { reportCategories, reportCategoryIcons } from "@/lib/reports/rules";
 import type { AuthorityIncidentHistoryItem, AuthorityNotificationItem, LiveIncident } from "@/lib/incidents/server";
@@ -64,9 +66,13 @@ export function IncidentReviewPanel() {
   // Real-time Authority Push Notifications
   const [notifications, setNotifications] = useState<AuthorityNotificationItem[]>([]);
   const [latestAlert, setLatestAlert] = useState<AuthorityNotificationItem | null>(null);
-  const [hasWebNotificationPerm, setHasWebNotificationPerm] = useState<boolean>(() => {
-    return typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted";
-  });
+  const browserNotificationGranted = useSyncExternalStore(
+    subscribeNoop,
+    () => typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted",
+    () => false
+  );
+  const [permOverride, setPermOverride] = useState(false);
+  const hasWebNotificationPerm = browserNotificationGranted || permOverride;
   const [highlightedIncidentId, setHighlightedIncidentId] = useState<string | null>(null);
   const seenNotificationIds = useRef<Set<string>>(new Set());
   const isFirstPoll = useRef(true);
@@ -78,7 +84,7 @@ export function IncidentReviewPanel() {
   const [spreadError, setSpreadError] = useState<string | null>(null);
 
   const fetchIncidents = useCallback(async (): Promise<LiveIncident[]> => {
-    const response = await fetch("/api/incidents", { cache: "no-store" });
+    const response = await fetch("/api/incidents?include_photos=1", { cache: "no-store" });
     const data = await response.json();
     if (!response.ok || !data.ok || !Array.isArray(data.incidents)) {
       throw new Error("Unable to load active incidents.");
@@ -96,7 +102,7 @@ export function IncidentReviewPanel() {
   const requestNotificationPermission = useCallback(async () => {
     if (typeof window !== "undefined" && "Notification" in window) {
       const perm = await Notification.requestPermission();
-      setHasWebNotificationPerm(perm === "granted");
+      setPermOverride(perm === "granted");
       if (perm === "granted") {
         new Notification("TrafficSense Control Room Alerts", {
           body: "Push notifications active for commuter incident sightings with photo evidence.",
@@ -284,7 +290,7 @@ export function IncidentReviewPanel() {
           <div className="flex items-center gap-2 self-end sm:self-center">
             <button
               type="button"
-              className="button text-xs px-3 py-1.5 whitespace-nowrap"
+              className="h-9 px-4 rounded-full bg-[#11141A] text-[#F3EFE6] text-xs font-semibold whitespace-nowrap hover:bg-[#2A303C] transition cursor-pointer"
               onClick={() => {
                 setHighlightedIncidentId(latestAlert.incident_id);
                 const el = document.getElementById(`incident-${latestAlert.incident_id}`);
@@ -295,7 +301,7 @@ export function IncidentReviewPanel() {
             </button>
             <button
               type="button"
-              className="button secondary text-xs px-2.5 py-1.5 flex items-center justify-center"
+              className="w-9 h-9 rounded-full bg-white text-[#11141A] border border-[#EEE9DC] flex items-center justify-center hover:bg-[#F3EFE6] transition cursor-pointer"
               onClick={() => setLatestAlert(null)}
               aria-label="Dismiss alert"
             >
@@ -308,20 +314,20 @@ export function IncidentReviewPanel() {
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
-            <h2 id="incident-review-title" className="text-base font-bold text-surface-on">Active Incident Review</h2>
+            <h2 id="incident-review-title" className="font-display text-2xl font-bold tracking-[-0.03em] text-[#11141A] m-0">Review queue</h2>
             {notifications.filter((n) => !n.is_read).length > 0 && (
-              <span className="px-2 py-0.5 rounded-full text-[11px] font-bold bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">
-                {notifications.filter((n) => !n.is_read).length} new
+              <span className="h-7 px-3 rounded-full text-[11px] font-mono font-bold bg-[#FFE3D8] text-[#8F3209] inline-flex items-center">
+                {notifications.filter((n) => !n.is_read).length} NEW
               </span>
             )}
           </div>
-          <p className="text-xs text-surface-on-variant">Confirming records an L6 authority decision; resolving removes the incident from public active views. Reported cause and congestion evidence remain separate.</p>
+          <p className="text-xs text-[#4A505C] mt-1 mb-0">Confirming records an L6 authority decision; resolving removes the incident from public active views. Reported cause and congestion evidence remain separate.</p>
         </div>
         <div className="flex items-center gap-2">
           {!hasWebNotificationPerm && (
             <button
               type="button"
-              className="button secondary text-xs px-3 py-1.5 border border-primary/40 text-primary flex items-center gap-1.5"
+              className="h-9 px-4 rounded-full bg-white text-[#11141A] border border-[#EEE9DC] text-xs font-semibold flex items-center gap-1.5 hover:bg-[#F3EFE6] transition cursor-pointer"
               onClick={() => void requestNotificationPermission()}
               title="Allow browser notifications for real-time alerts"
             >
@@ -330,12 +336,12 @@ export function IncidentReviewPanel() {
             </button>
           )}
           {hasWebNotificationPerm && (
-            <span className="text-[11px] text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 font-medium bg-emerald-50 dark:bg-emerald-950/50 px-2.5 py-1 rounded-md border border-emerald-200 dark:border-emerald-800">
+            <span className="h-8 px-3 rounded-full text-[11px] text-[#11141A] bg-[#EFF9C4] flex items-center gap-1.5 font-mono font-semibold">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
-              <span>Alerts Active</span>
+              <span>ALERTS ACTIVE</span>
             </span>
           )}
-          <button type="button" className="button secondary text-xs px-3 py-1.5" onClick={() => void loadIncidents()} disabled={isLoading || pendingIncidentId !== null}>
+          <button type="button" className="h-9 px-4 rounded-full bg-[#F3EFE6] text-[#11141A] border border-[#EEE9DC] text-xs font-semibold hover:bg-[#E8E2D3] transition cursor-pointer" onClick={() => void loadIncidents()} disabled={isLoading || pendingIncidentId !== null}>
             {isLoading ? "Refreshing…" : "Refresh incidents"}
           </button>
         </div>
@@ -397,14 +403,37 @@ export function IncidentReviewPanel() {
                   </div>
                 )}
                 <p className="text-xs text-surface-on-variant">{incident.level_reason} · {incident.report_count} report{incident.report_count === 1 ? "" : "s"} · first reported {formatIncidentTime(incident.first_reported_at)} IST</p>
-                <div className="flex flex-wrap gap-2">
-                  {incident.level !== "L6" && <button type="button" className="button text-xs px-3 py-1.5" disabled={isPending} onClick={() => void updateIncident(incident, "confirm")}>{isPending ? "Saving…" : "Confirm (L6)"}</button>}
-                  <button type="button" className="button secondary text-xs px-3 py-1.5" disabled={isPending} onClick={() => void updateIncident(incident, "resolve")}>{isPending ? "Saving…" : "Resolve incident"}</button>
-                  <button type="button" className="button secondary text-xs px-3 py-1.5" disabled={isPending} onClick={() => void updateIncident(incident, "reject")}>{isPending ? "Saving…" : "Reject report"}</button>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  {incident.level !== "L6" && (
+                    <button
+                      type="button"
+                      className="h-10 px-4 rounded-full bg-[#D5F75A] text-[#11141A] text-xs font-bold hover:brightness-95 transition cursor-pointer disabled:opacity-50"
+                      disabled={isPending}
+                      onClick={() => void updateIncident(incident, "confirm")}
+                    >
+                      {isPending ? "Saving…" : "Confirm (L6)"}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="h-10 px-4 rounded-full bg-[#F3EFE6] text-[#11141A] border border-[#EEE9DC] text-xs font-semibold hover:bg-[#E8E2D3] transition cursor-pointer disabled:opacity-50"
+                    disabled={isPending}
+                    onClick={() => void updateIncident(incident, "resolve")}
+                  >
+                    {isPending ? "Saving…" : "Resolve incident"}
+                  </button>
+                  <button
+                    type="button"
+                    className="h-10 px-4 rounded-full bg-[#FFE3D8] text-[#8F3209] text-xs font-semibold hover:brightness-95 transition cursor-pointer disabled:opacity-50"
+                    disabled={isPending}
+                    onClick={() => void updateIncident(incident, "reject")}
+                  >
+                    {isPending ? "Saving…" : "Reject report"}
+                  </button>
                   {isVerified && (
                     <button
                       type="button"
-                      className="button secondary text-xs px-3 py-1.5"
+                      className="h-10 px-4 rounded-full bg-white text-[#11141A] border border-[#EEE9DC] text-xs font-semibold hover:bg-[#F3EFE6] transition cursor-pointer disabled:opacity-50"
                       disabled={isPending || isCheckingSpread}
                       onClick={() => void handleCheckSpread(incident)}
                     >

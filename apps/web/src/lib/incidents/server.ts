@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { ReportCategory } from "@/lib/reports/rules";
 
 export type LiveIncident = {
@@ -6,13 +6,17 @@ export type LiveIncident = {
   category: ReportCategory;
   lat: number;
   lng: number;
-  status: "open" | "resolved" | "expired";
+  status: "open" | "cleared" | "resolved" | "expired";
   level: "L1" | "L2" | "L3" | "L4" | "L5" | "L6";
   level_reason: string;
   first_reported_at: string;
   last_confirmed_at: string;
+  cleared_at?: string | null;
+  clear_count?: number;
+  confirm_count?: number;
   provenance: "reported" | "verified" | "authority";
   report_count: number;
+  has_photo?: boolean;
   photo_data_url?: string | null;
   photo_confidence?: string | null;
 };
@@ -130,15 +134,36 @@ export async function submitIncidentReport(
   let finalReason = result.level_reason;
 
   if (result.incident_id && input.l5_verified) {
-    const { data: promoted, error: promoteError } = await supabase.rpc("apply_incident_photo_verification", {
+    let rpcClient: SupabaseClient = supabase;
+    let reporterId: string | null = null;
+    const serviceUrl = process.env.SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (serviceUrl && serviceKey) {
+      const { data: userData } = await supabase.auth.getUser();
+      reporterId = userData?.user?.id ?? null;
+      if (reporterId) {
+        rpcClient = createClient(serviceUrl, serviceKey, { auth: { persistSession: false } });
+      }
+    }
+    const { data: promoted, error: promoteError } = await rpcClient.rpc("apply_incident_photo_verification", {
       p_incident_id: result.incident_id,
       p_summary: input.l5_summary ?? null,
       p_photo_data_url: input.l5_photo_data_url ?? null,
       p_confidence_tier: input.l5_confidence_tier ?? "moderate",
+      ...(reporterId ? { p_reporter_id: reporterId } : {}),
     });
     if (!promoteError && promoted?.ok) {
       finalLevel = "L5";
       finalReason = (promoted.level_reason as string) || "L5 AI Vision corroborated photo evidence";
+    }
+  } else if (result.incident_id && input.l5_photo_data_url) {
+    try {
+      await supabase.rpc("attach_incident_photo", {
+        p_incident_id: result.incident_id,
+        p_photo_data_url: input.l5_photo_data_url,
+      });
+    } catch {
+      // Best-effort photo attachment when L5 promotion is not granted
     }
   }
 
@@ -244,4 +269,35 @@ export async function markAuthorityNotificationAsRead(
     return { ok: false, affected: 0 };
   }
   return { ok: Boolean(data.ok), affected: Number(data.affected ?? 0) };
+}
+
+export type IncidentFeedbackResult =
+  | {
+      ok: true;
+      incident_id: string;
+      status: "open" | "cleared" | "resolved" | "expired";
+      clear_count: number;
+      confirm_count: number;
+      cleared_at: string | null;
+    }
+  | { ok: false; error: string };
+
+/**
+ * Records a commuter's "Still there" (confirm) or "Cleared" (clear) feedback.
+ * After 3+ commuters mark an incident as cleared, its status transitions to 'cleared'.
+ */
+export async function submitIncidentFeedback(
+  supabase: SupabaseClient,
+  incidentId: string,
+  vote: "confirm" | "clear"
+): Promise<IncidentFeedbackResult> {
+  const { data, error } = await supabase.rpc("submit_incident_feedback", {
+    p_incident_id: incidentId,
+    p_vote: vote,
+  });
+
+  if (error || !data) {
+    return { ok: false, error: error?.message ?? "Failed to record incident feedback" };
+  }
+  return data as IncidentFeedbackResult;
 }

@@ -27,6 +27,7 @@ export type IncidentFeatureProperties = {
   level: LiveIncident["level"];
   selected: boolean;
   onRoute: boolean;
+  cleared: boolean;
   colour: string;
 };
 
@@ -96,6 +97,7 @@ export function incidentCollection(
           level: incident.level,
           selected: incident.id === options.selectedId,
           onRoute: options.routeIncidentIds?.has(incident.id) ?? false,
+          cleared: incident.status === "cleared" || (incident.clear_count ?? 0) >= 3,
           colour: INCIDENT_COLOUR,
         },
         geometry: { type: "Point", coordinates: [incident.lng, incident.lat] },

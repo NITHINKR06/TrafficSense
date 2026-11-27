@@ -1,507 +1,609 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import styles from "./about.module.css";
 
 export const metadata: Metadata = {
-  title: "Data Provenance, Methodology & Proof · TrafficSense Mangaluru",
+  title: "How it works, Provenance & Validation · TrafficSense Mangaluru",
   description:
-    "Complete transparency on data provenance: what is 100% real, what is estimated, and what is simulated demo data, with verifiable source proofs.",
+    "Trust, in six steps. See where our data comes from, how every report is checked, and who can open what.",
 };
+
+const TRUST_STEPS = [
+  {
+    level: "L1",
+    label: "Reported",
+    note: "Someone taps to flag a problem. Nothing more yet.",
+    height: "34%",
+    bg: "#2A303C",
+    text: "#F3EFE6",
+    sub: "#B9BDC6",
+  },
+  {
+    level: "L2",
+    label: "Place supported",
+    note: "Their GPS is within 50 m of the spot they reported.",
+    height: "46%",
+    bg: "#2A303C",
+    text: "#F3EFE6",
+    sub: "#B9BDC6",
+  },
+  {
+    level: "L3",
+    label: "3+ people agree",
+    note: "Three separate reporters, 15 minutes, one spot.",
+    height: "58%",
+    bg: "#2A303C",
+    text: "#F3EFE6",
+    sub: "#B9BDC6",
+  },
+  {
+    level: "L4",
+    label: "Slowdown seen",
+    note: "Traffic on that stretch is actually moving slower.",
+    height: "70%",
+    bg: "#2A303C",
+    text: "#F3EFE6",
+    sub: "#B9BDC6",
+  },
+  {
+    level: "L5",
+    label: "Photo checked",
+    note: "A photo is checked against the place, on our server.",
+    height: "82%",
+    bg: "#F3EFE6",
+    text: "#11141A",
+    sub: "#4A505C",
+  },
+  {
+    level: "L6",
+    label: "Authority confirmed",
+    note: "A verified authority signs it off. The top of the ladder.",
+    height: "94%",
+    bg: "#D5F75A",
+    text: "#11141A",
+    sub: "#2A303C",
+  },
+] as const;
+
+const WORKFLOW_CARDS = [
+  {
+    label: "REPORT",
+    text: "Tap once. Pick what you see. Done in seconds.",
+    discBg: "#FF5B2E",
+    discBorder: "0",
+    stroke: "#11141A",
+    path: "M12 5v14M5 12h14",
+  },
+  {
+    label: "VERIFY",
+    text: "Rules and evidence decide the level, not opinions.",
+    discBg: "#11141A",
+    discBorder: "0",
+    stroke: "#D5F75A",
+    path: "M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z",
+  },
+  {
+    label: "ALERT",
+    text: "You hear about it only if it saves you 5+ minutes.",
+    discBg: "#FFFFFF",
+    discBorder: "2px solid #11141A",
+    stroke: "#11141A",
+    path: "M6 17V11a6 6 0 0 1 12 0v6l2 2H4zM10 21h4",
+  },
+  {
+    label: "ANALYSE",
+    text: "Authorities see patterns by place and hour.",
+    discBg: "#D5F75A",
+    discBorder: "0",
+    stroke: "#11141A",
+    path: "M4 20V10M10 20V4M16 20v-8M22 20H2",
+  },
+] as const;
+
+const PROVENANCE = [
+  {
+    title: "Real, live data",
+    tag: "● 100% REAL",
+    tagBg: "#EFF9C4",
+    tagText: "#11141A",
+    cardBg: "#FFFFFF",
+    text: "Mangaluru's actual streets, real driving routes, citizen GPS reports, spatial clustering and the Authority audit log.",
+  },
+  {
+    title: "Free-flow estimates",
+    tag: "~ ESTIMATED",
+    tagBg: "#F3EFE6",
+    tagText: "#11141A",
+    cardBg: "#FFFFFF",
+    text: "How long a trip takes on an empty road comes from typical speeds for each road type, not from tracking anyone.",
+  },
+  {
+    title: "Demo fixtures",
+    tag: "SYNTHETIC DEMO",
+    tagBg: "#FFE3D8",
+    tagText: "#8F3209",
+    cardBg: "#FFFFFF",
+    text: "The 4-month trends and corridor slowdown cohorts are made up for the demo. They sit behind toggles and are always labelled SIMULATED.",
+  },
+] as const;
+
+const SOURCE_ROWS = [
+  {
+    subsystem: "Road network & places",
+    badge: "100% REAL",
+    badgeBg: "#EFF9C4",
+    badgeText: "#11141A",
+    source: "OpenStreetMap (ODbL)",
+    href: "https://www.openstreetmap.org/copyright",
+    proof: "Real Mangaluru street shapes and junction coordinates",
+  },
+  {
+    subsystem: "Basemap & vector tiles",
+    badge: "100% REAL",
+    badgeBg: "#EFF9C4",
+    badgeText: "#11141A",
+    source: "OpenFreeMap Liberty",
+    href: "https://openfreemap.org",
+    proof: "Live MapLibre GL tiles drawn in /traffic and /planner",
+  },
+  {
+    subsystem: "Turn-by-turn routing",
+    badge: "100% REAL",
+    badgeBg: "#EFF9C4",
+    badgeText: "#11141A",
+    source: "Project OSRM",
+    href: "https://project-osrm.org",
+    proof: "Live shortest paths, plus a check for hazards and detours near the route",
+  },
+  {
+    subsystem: "Spatial clustering & GPS",
+    badge: "100% REAL",
+    badgeBg: "#EFF9C4",
+    badgeText: "#11141A",
+    source: "PostGIS & browser GPS",
+    href: "https://postgis.net",
+    proof: "100 m clustering, a 50 m GPS check for L2, and the 3-reporter, 15-minute rule for L3",
+  },
+  {
+    subsystem: "L5 photo check",
+    badge: "100% REAL",
+    badgeBg: "#EFF9C4",
+    badgeText: "#11141A",
+    source: "Google Gemini Vision",
+    href: "https://ai.google.dev",
+    proof: "Photo is stripped of metadata in the browser, then checked by AI on the server",
+  },
+  {
+    subsystem: "Authority sign-off & audit",
+    badge: "100% REAL",
+    badgeBg: "#EFF9C4",
+    badgeText: "#11141A",
+    source: "Supabase PostgreSQL",
+    href: "https://supabase.com",
+    proof: "Role-gated L6 confirmation and resolution, with an immutable incident_audit_log",
+  },
+  {
+    subsystem: "4-month trends & speed drops",
+    badge: "SIMULATED",
+    badgeBg: "#FFE3D8",
+    badgeText: "#8F3209",
+    source: "Deterministic demo fixtures",
+    href: "/demo",
+    proof: "Kept apart behind SIMULATED badges and the Authority history toggle",
+  },
+] as const;
+
+const RULES = [
+  {
+    title: "Rate limit and bounds",
+    text: "A named account can file up to 5 reports an hour, and only inside Mangaluru.",
+  },
+  {
+    title: "100 m anchored clustering",
+    text: "Same-type reports within 100 m merge into one incident, and the pin never drifts.",
+  },
+  {
+    title: "Sticky L3 and guarded L5",
+    text: "3+ independent reporters in 15 minutes lock L3. L5 happens on the server, only after the photo check passes.",
+  },
+  {
+    title: "Safe clearing and expiry",
+    text: "3+ nearby clear votes mark a non-L6 incident cleared. Only an Authority can resolve L6. Unconfirmed reports expire after 3 hours.",
+  },
+] as const;
+
+const PRIVACY = [
+  {
+    title: "No reporter identity leaks",
+    text: "Public feeds and Authority views never see reporter emails, user IDs or device IDs.",
+  },
+  {
+    title: "Photos are stripped first",
+    text: "Images are re-encoded as compressed JPEGs in your browser, so camera GPS and EXIF data are gone before upload.",
+  },
+  {
+    title: "No background tracking",
+    text: "Location is read only when you report or plan a route. Sharing with an employer is opt-in and never uses GPS.",
+  },
+] as const;
+
+const ACCESS_ROWS: { feature: string; roles: [boolean, boolean, boolean, boolean, boolean] }[] = [
+  { feature: "Live map", roles: [true, true, true, true, true] },
+  { feature: "Plan a route", roles: [true, true, true, true, true] },
+  { feature: "Report", roles: [true, true, true, true, true] },
+  { feature: "Workspace", roles: [false, true, false, false, false] },
+  { feature: "Employer view", roles: [false, false, true, false, false] },
+  { feature: "Control room", roles: [false, false, false, true, false] },
+  { feature: "Oversight", roles: [false, false, false, false, true] },
+];
+
+function SectionLabel({ id, n, children }: { id: string; n: number; children: React.ReactNode }) {
+  return (
+    <div id={id} className="flex items-center gap-3">
+      <span className="w-8 h-8 rounded-full bg-[#11141A] text-[#D5F75A] inline-flex items-center justify-center font-mono text-xs font-bold">
+        {n}
+      </span>
+      <span className="font-mono font-semibold text-xs tracking-[0.08em] text-[#4A505C] uppercase">
+        {children}
+      </span>
+    </div>
+  );
+}
 
 export default function AboutPage() {
   return (
-    <div className={styles.aboutContainer}>
-      <header className={styles.header}>
-        <div className="flex items-center gap-2 mb-2">
-          <span className="simulated-pill">SYSTEM PROVENANCE & METHODOLOGY</span>
-          <span className="text-xs text-on-surface-variant font-medium">Radical Transparency & Proof</span>
+    <div className="max-w-[1384px] mx-auto pt-4 pb-16 space-y-14">
+      {/* Hero Header */}
+      <header className="space-y-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="h-[30px] px-3 rounded-full bg-[#11141A] text-[#D5F75A] inline-flex items-center font-mono text-[11px] font-semibold tracking-[0.08em]">
+            PROVENANCE &amp; VALIDATION
+          </span>
+          <span className="h-[30px] px-3 rounded-full bg-white border border-[#EEE9DC] text-[#4A505C] inline-flex items-center font-mono text-[11px] font-semibold tracking-[0.06em]">
+            EXPLAINABLE TRUTH OVER BLIND PREDICTION
+          </span>
         </div>
-        <h1 className={styles.title}>TrafficSense Data Sources, Provenance & System Rules</h1>
-        <p className={styles.lead}>
-          TrafficSense replaces ambiguous crowdsourcing and invasive corporate tracking with an explainable,
-          evidence-based framework. Per our strict honesty rules, this page details exactly what data is real,
-          what is mathematically estimated, what is simulated for demonstration, and where each data source comes from for proof.
+
+        <h1 className="font-display font-bold text-6xl sm:text-8xl lg:text-[116px] leading-[0.88] tracking-[-0.055em] text-[#11141A] m-0">
+          Trust, in
+          <br />
+          six steps<span className="text-[#FF5B2E]">.</span>
+        </h1>
+
+        <p className="text-base sm:text-lg text-[#4A505C] max-w-2xl leading-relaxed m-0 font-medium">
+          Anyone can say the road is blocked. We want to know it is. So every report climbs a ladder, and
+          only real evidence moves it up: nearby GPS, other people, slowing traffic, a checked photo, or an
+          Authority&apos;s word. Anything simulated stays clearly labelled and kept apart.
         </p>
-        <div className="actions mt-3">
-          <Link className="button" href="/planner">
-            Try Live Route Planner →
+
+        <div className="flex flex-wrap items-center gap-2.5 pt-1">
+          <Link className="ts-btn-primary" href="/planner">
+            Try the route planner →
           </Link>
-          <Link className="button secondary" href="/traffic">
-            Open Traffic Explorer
+          <Link className="ts-btn-ink" href="/traffic">
+            Open traffic explorer
           </Link>
-          <Link className="button secondary" href="/authority">
-            Authority Dashboard
+          <Link className="ts-btn-ghost" href="/authority">
+            Authority dashboard
           </Link>
         </div>
       </header>
 
-      {/* SECTION 1: PROVENANCE & PROOF */}
-      <section className={styles.section} aria-labelledby="provenance-title">
-        <h2 id="provenance-title" className={styles.sectionTitle}>
-          1. Data Provenance: Real Data vs. Demo Simulation
-        </h2>
-        <p className={styles.text}>
-          To uphold our fundamental tenet of <strong>Explainable Truth Over Blind Prediction</strong>, we explicitly
-          disclose the origin and nature of every data layer used in TrafficSense:
-        </p>
-
-        <div className={styles.provenanceOverviewGrid}>
-          <div className={styles.provenanceOverviewCard}>
-            <h3>
-              Real Infrastructure & Live Data
-              <span className={styles.badgeReal}>● 100% Real</span>
-            </h3>
-            <p>
-              Actual geospatial roads, real turn-by-turn routing calculations, real citizen incident reports, and real
-              server-enforced PostgreSQL verification rules.
-            </p>
-            <ul>
-              <li><strong>Road network & coordinates:</strong> Real OpenStreetMap geometries for Mangaluru.</li>
-              <li><strong>Routing calculation:</strong> Real shortest-path graph traversal via Project OSRM.</li>
-              <li><strong>Live user reports:</strong> Real database records with browser GPS coordinates.</li>
-              <li><strong>PostGIS verification:</strong> Real geospatial distance queries (L1 → L2 → L3).</li>
-              <li><strong>Authority audit logs:</strong> Real authenticated state transitions in PostgreSQL.</li>
-            </ul>
-          </div>
-
-          <div className={styles.provenanceOverviewCard}>
-            <h3>
-              Free-Flow Physics Estimates
-              <span className={styles.badgeEstimated}>~ Estimated</span>
-            </h3>
-            <p>
-              Durations on unobstructed roads are derived mathematically from legal road-class speed baselines rather
-              than pervasive personal tracking.
-            </p>
-            <ul>
-              <li><strong>Free-flow travel time:</strong> Baseline duration assuming speed limits for road class.</li>
-              <li><strong>Honesty boundary:</strong> We do not track continuous personal probes on every side street.</li>
-              <li><strong>Excess delay:</strong> Calculated as actual physical trip time minus the free-flow baseline.</li>
-            </ul>
-          </div>
-
-          <div className={styles.provenanceOverviewCard}>
-            <h3>
-              Simulated Demonstration Data
-              <span className={styles.badgeSimulated}>Synthetic Demo</span>
-            </h3>
-            <p>
-              Pre-computed synthetic fixtures used exclusively to demonstrate multi-month municipal trends and algorithmic
-              slowdown detection without waiting months.
-            </p>
-            <ul>
-              <li><strong>4-month hotspot trends:</strong> July–Oct 2026 fixture on Authority page (isolated by toggle).</li>
-              <li><strong>Multi-source speed drops:</strong> 60-second cohort simulator on Explorer page for L4 testing.</li>
-              <li><strong>Visual isolation:</strong> Every simulated artifact is clearly labelled <code>SIMULATED</code>.</li>
-            </ul>
-          </div>
+      {/* Rising 6-Step Trust Ladder Card */}
+      <section
+        aria-label="Trust ladder L1 to L6"
+        className="rounded-[36px] sm:rounded-[48px] bg-[#11141A] text-[#F3EFE6] p-6 sm:p-11"
+      >
+        <div className="mb-8 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
+          <h2 className="m-0 font-display font-bold text-3xl sm:text-5xl leading-[0.95] tracking-[-0.04em]">
+            Every report earns
+            <br />
+            its level<span className="text-[#D5F75A]">.</span>
+          </h2>
+          <p className="m-0 max-w-sm text-sm text-[#B9BDC6] leading-relaxed">
+            Taller means more trusted. A report never skips a step, and it can&apos;t be bought or voted up
+            by one person.
+          </p>
         </div>
 
-        <h3 className="text-base font-bold text-on-surface mt-4 mb-2">
-          Authoritative Data Source & Verification Matrix
-        </h3>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 items-end lg:h-[400px]">
+          {TRUST_STEPS.map((step) => (
+            <div
+              key={step.level}
+              style={{ background: step.bg, color: step.text, height: step.height }}
+              className="min-h-[170px] lg:min-h-0 rounded-[24px] sm:rounded-[28px] p-5 flex flex-col justify-between box-border"
+            >
+              <span className="font-mono font-bold text-[22px] leading-none">{step.level}</span>
+              <div>
+                <span className="block font-display font-bold text-xl sm:text-2xl leading-[1.02] tracking-[-0.02em]">
+                  {step.label}
+                </span>
+                <span
+                  style={{ color: step.sub }}
+                  className="mt-2 block text-[12px] sm:text-[13px] leading-snug font-medium"
+                >
+                  {step.note}
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
 
-        <div className={styles.tableWrapper}>
-          <table className={styles.provenanceTable}>
+      {/* 4-Step Flow Strip */}
+      <section aria-label="Four step workflow" className="space-y-4">
+        <div className="font-mono font-semibold text-xs tracking-[0.08em] text-[#4A505C] uppercase">
+          THE WHOLE LOOP, IN FOUR WORDS
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+          {WORKFLOW_CARDS.map((card) => (
+            <div
+              key={card.label}
+              className="rounded-[32px] sm:rounded-[40px] bg-white border border-[#EEE9DC] p-6 sm:p-7 min-h-[220px] sm:min-h-[240px] flex flex-col justify-between"
+            >
+              <span
+                className="w-16 h-16 rounded-full flex items-center justify-center shrink-0"
+                style={{ background: card.discBg, border: card.discBorder }}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  width="30"
+                  height="30"
+                  fill="none"
+                  stroke={card.stroke}
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d={card.path} />
+                </svg>
+              </span>
+              <div className="mt-6">
+                <span className="block font-mono font-semibold text-sm tracking-[0.08em] text-[#11141A]">
+                  {card.label}
+                </span>
+                <p className="mt-2 mb-0 text-sm text-[#4A505C] leading-snug font-medium">{card.text}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Data Provenance Trio */}
+      <section aria-labelledby="provenance-title" className="space-y-4">
+        <SectionLabel id="provenance-title" n={1}>
+          What&apos;s real, what&apos;s estimated, what&apos;s simulated
+        </SectionLabel>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {PROVENANCE.map((item) => (
+            <div
+              key={item.title}
+              style={{ background: item.cardBg }}
+              className="rounded-[36px] border border-[#EEE9DC] p-7 flex flex-col gap-4 min-h-[240px]"
+            >
+              <span
+                style={{ background: item.tagBg, color: item.tagText }}
+                className="self-start h-7 px-3 rounded-full inline-flex items-center font-mono text-[10px] font-bold"
+              >
+                {item.tag}
+              </span>
+              <h2 className="font-display text-2xl font-bold tracking-[-0.02em] text-[#11141A] m-0">
+                {item.title}
+              </h2>
+              <p className="text-sm text-[#4A505C] leading-relaxed m-0 font-medium">{item.text}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Authoritative Data Source & Verification Matrix */}
+      <section aria-labelledby="sources-title" className="space-y-4">
+        <SectionLabel id="sources-title" n={2}>
+          Where every piece comes from
+        </SectionLabel>
+
+        <p className="m-0 max-w-2xl text-sm sm:text-base text-[#4A505C] leading-relaxed font-medium">
+          Six of seven parts run on real, open and auditable sources. The one that doesn&apos;t is marked
+          SIMULATED, in plain sight.
+        </p>
+
+        <div className="rounded-[36px] sm:rounded-[40px] bg-white border border-[#EEE9DC] px-5 sm:px-8 py-4 overflow-x-auto">
+          <table className="w-full min-w-[680px] text-left border-collapse text-sm">
             <thead>
-              <tr>
-                <th>Subsystem / Layer</th>
-                <th>Status & Provenance</th>
-                <th>Authoritative Source & License</th>
-                <th>Verifiable Proof / Inspection Method</th>
+              <tr className="font-mono text-[11px] font-semibold tracking-[0.08em] text-[#4A505C] uppercase">
+                <th className="py-3.5 pr-4">Part</th>
+                <th className="py-3.5 px-4">Provenance</th>
+                <th className="py-3.5 px-4">Source</th>
+                <th className="py-3.5 pl-4">How we check it</th>
               </tr>
             </thead>
-            <tbody>
-              <tr>
-                <td><strong>Road Network & Places</strong></td>
-                <td><span className={styles.badgeReal}>● Real Public Data</span></td>
-                <td>
-                  <a
-                    href="https://www.openstreetmap.org/copyright"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={styles.sourceLink}
-                  >
-                    OpenStreetMap Contributors ↗
-                  </a>
-                  <br />
-                  <span className="text-xs text-on-surface-variant">Open Database License (ODbL)</span>
-                </td>
-                <td>
-                  Real Mangaluru arterial corridors (Hampankatta, Lalbagh, Kadri, Bunts Hostel, Kankanady). Nodes,
-                  ways, and geometries directly match OSM geographic features.
-                </td>
-              </tr>
-              <tr>
-                <td><strong>Vector Tiles & Basemap</strong></td>
-                <td><span className={styles.badgeReal}>● Real Vector Tiles</span></td>
-                <td>
-                  <a
-                    href="https://openfreemap.org"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={styles.sourceLink}
-                  >
-                    OpenFreeMap ↗
-                  </a>
-                  <br />
-                  <span className="text-xs text-on-surface-variant">Hosted vector tile service + MapLibre GL</span>
-                </td>
-                <td>
-                  Vector tiles streamed over HTTPS from <code>tiles.openfreemap.org</code>. Includes bundled offline
-                  schematic backup in <code>src/lib/traffic/mangaluru-basemap.ts</code>. Zero tracking or API keys.
-                </td>
-              </tr>
-              <tr>
-                <td><strong>Turn-by-Turn Driving Engine</strong></td>
-                <td><span className={styles.badgeReal}>● Real Engine (Free-Flow Est)</span></td>
-                <td>
-                  <a
-                    href="https://project-osrm.org"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={styles.sourceLink}
-                  >
-                    Project OSRM ↗
-                  </a>
-                  <br />
-                  <span className="text-xs text-on-surface-variant">Open Source Routing Machine (BSD 2-Clause)</span>
-                </td>
-                <td>
-                  The <code>/api/route</code> endpoint forwards real coordinates to OSRM driving servers, computing
-                  physical driving distance, polyline geometry, and free-flow duration. Inspectable in browser DevTools.
-                </td>
-              </tr>
-              <tr>
-                <td><strong>Live Incident Reporting & GPS</strong></td>
-                <td><span className={styles.badgeReal}>● Real User Data</span></td>
-                <td>
-                  <a
-                    href="https://postgis.net"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={styles.sourceLink}
-                  >
-                    W3C Geolocation API & PostGIS ↗
-                  </a>
-                  <br />
-                  <span className="text-xs text-on-surface-variant">HTML5 Navigator + PostGIS Extension</span>
-                </td>
-                <td>
-                  Real device coordinates captured on report submission. Stored in <code>public.incident_reports</code> and
-                  geofenced against road segments using PostGIS <code>meter_distance</code> (&le; 50m check).
-                </td>
-              </tr>
-              <tr>
-                <td><strong>Multi-Source Corroboration</strong></td>
-                <td><span className={styles.badgeReal}>● Real Server Logic</span></td>
-                <td>
-                  <a
-                    href="https://supabase.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={styles.sourceLink}
-                  >
-                    PostgreSQL 17 / Supabase ↗
-                  </a>
-                  <br />
-                  <span className="text-xs text-on-surface-variant">Deterministic SQL triggers & functions</span>
-                </td>
-                <td>
-                  The database function <code>evaluate_incident_verification_level()</code> automatically enforces L1 (submitted)
-                  &rarr; L2 (device GPS &le; 50m) &rarr; L3 (&ge; 3 distinct reporters in 15 mins).
-                </td>
-              </tr>
-              <tr>
-                <td><strong>Authority Verification & Audit</strong></td>
-                <td><span className={styles.badgeReal}>● Real Database Logs</span></td>
-                <td>
-                  PostgreSQL Row-Level Security
-                  <br />
-                  <span className="text-xs text-on-surface-variant">Immutable change triggers & audit log table</span>
-                </td>
-                <td>
-                  Verifications executed via <code>verify_incident_by_authority()</code> store immutable timestamped records in
-                  <code>public.incident_audit_log</code> with controller IDs and reason codes.
-                </td>
-              </tr>
-              <tr>
-                <td><strong>4-Month Historical Trends</strong></td>
-                <td><span className={styles.badgeSimulated}>Simulated Demo Baseline</span></td>
-                <td>
-                  Synthetic Fixture
-                  <br />
-                  <span className="text-xs text-on-surface-variant">Deterministic seed in src/lib/analytics/history.ts</span>
-                </td>
-                <td>
-                  Allows testing municipal hotspot charts and recurrence indexes without waiting months. On <code>/authority</code>,
-                  an explicit toggle allows users to view 100% clean live rows or include the 4-month simulated demo history.
-                </td>
-              </tr>
-              <tr>
-                <td><strong>Multi-Source Speed Drops</strong></td>
-                <td><span className={styles.badgeSimulated}>Simulated Demo Cohort</span></td>
-                <td>
-                  Deterministic Speed Model
-                  <br />
-                  <span className="text-xs text-on-surface-variant">src/lib/traffic/simulator.ts</span>
-                </td>
-                <td>
-                  Demonstrates L4 slowdown detection on <code>/traffic</code> by generating 6 consecutive 60-second synchronized
-                  observations without requiring physical road blockades during evaluation.
-                </td>
-              </tr>
+            <tbody className="divide-y divide-[#EEE9DC]">
+              {SOURCE_ROWS.map((row) => (
+                <tr key={row.subsystem} className="text-[#11141A]">
+                  <td className="py-4 pr-4 font-semibold">{row.subsystem}</td>
+                  <td className="py-4 px-4">
+                    <span
+                      className="h-6 px-2.5 rounded-full inline-flex items-center font-mono text-[10px] font-bold whitespace-nowrap"
+                      style={{ background: row.badgeBg, color: row.badgeText }}
+                    >
+                      {row.badge}
+                    </span>
+                  </td>
+                  <td className="py-4 px-4">
+                    {row.href.startsWith("http") ? (
+                      <a
+                        href={row.href}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="font-semibold text-[#2B4BFF] hover:underline"
+                      >
+                        {row.source} ↗
+                      </a>
+                    ) : (
+                      <Link href={row.href} className="font-semibold text-[#2B4BFF] hover:underline">
+                        {row.source} →
+                      </Link>
+                    )}
+                  </td>
+                  <td className="py-4 pl-4 text-sm text-[#4A505C]">{row.proof}</td>
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
-
-        <div className={styles.verificationGuideBox}>
-          <h3 className="flex items-center gap-2">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-primary shrink-0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            <span>How You Can Verify the Proof Yourself</span>
-          </h3>
-          <ol className={styles.verificationStepsList}>
-            <li>
-              <strong>Inspect Live Route Calculation:</strong> Open the <Link href="/planner" className={styles.sourceLink}>Route Planner</Link>,
-              select any two Mangaluru locations (e.g. Hampankatta to Kadri Park), and inspect the network request to <code>/api/route</code> in
-              your browser DevTools. You will see the real polyline geometry and distances calculated directly by OSRM over OpenStreetMap.
-            </li>
-            <li>
-              <strong>Submit a Live Verified Incident:</strong> Click &ldquo;Report an Incident&rdquo; in the Route Planner. Your browser will prompt
-              for device geolocation. Submit the report and watch it appear in the database with a real timestamp, GPS accuracy check (&le; 50m),
-              and verification badge.
-            </li>
-            <li>
-              <strong>Inspect Authority Audit Records:</strong> Visit the <Link href="/authority" className={styles.sourceLink}>Authority Dashboard</Link>.
-              Toggle the switch &ldquo;Include 4-month simulated demo history&rdquo; to OFF. The dashboard immediately purges simulated records
-              and displays exclusively real incident rows created during your session.
-            </li>
-            <li>
-              <strong>Audit the Open Source SQL Functions:</strong> Inspect the repository migration files in <code>supabase/migrations/</code>.
-              Every verification rule, spatial query, and RLS security boundary is written in standard, auditable PostGIS SQL.
-            </li>
-          </ol>
-        </div>
       </section>
 
-      {/* SECTION 2: VERIFICATION LADDER */}
-      <section className={styles.section} aria-labelledby="ladder-title">
-        <h2 id="ladder-title" className={styles.sectionTitle}>
-          2. Evidence levels: 1 person reported, 3+ people confirmed, or official action
-        </h2>
-        <p className={styles.text}>
-          Crowdsourced incident reports alone cannot prove road obstruction. TrafficSense structures evidence across six
-          rigorous tiers:
-        </p>
-        <div className={styles.ladderGrid}>
-          <div className={styles.ladderCard}>
-            <div className={styles.ladderHeader}>
-              <span className={styles.ladderBadgeActive}>L1</span>
-              <h3>Reported</h3>
-            </div>
-            <p>
-              An unconfirmed user report specifying a category and directed segment. Location is manually chosen by the
-              reporter. Does not verify obstruction or cause.
-            </p>
-            <span className={styles.statusIndicatorActive}>● Active in demonstration</span>
+      {/* Validation rules + Privacy */}
+      <section aria-labelledby="validation-title" className="space-y-4">
+        <SectionLabel id="validation-title" n={3}>
+          The rules we play by
+        </SectionLabel>
+
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)] gap-4">
+          <div className="rounded-[36px] bg-white border border-[#EEE9DC] p-7 sm:p-9">
+            <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-[-0.03em] text-[#11141A] m-0">
+              How reports are validated
+            </h2>
+            <ol className="mt-6 mb-0 p-0 list-none flex flex-col gap-5">
+              {RULES.map((rule, i) => (
+                <li key={rule.title} className="flex gap-4">
+                  <span className="w-9 h-9 rounded-full bg-[#F3EFE6] text-[#11141A] inline-flex items-center justify-center flex-none font-mono text-xs font-bold">
+                    {i + 1}
+                  </span>
+                  <div>
+                    <div className="font-display font-bold text-lg tracking-[-0.015em] text-[#11141A]">
+                      {rule.title}
+                    </div>
+                    <p className="mt-1 mb-0 text-sm text-[#4A505C] leading-relaxed font-medium">{rule.text}</p>
+                  </div>
+                </li>
+              ))}
+            </ol>
           </div>
 
-          <div className={styles.ladderCard}>
-            <div className={styles.ladderHeader}>
-              <span className={styles.ladderBadgeActive}>L2</span>
-              <h3>Location Support</h3>
-            </div>
-            <p>
-              Server verification that the reporter&apos;s physical GPS coordinates match the incident location within &le; 50 meters
-              and fresh device timestamp (&lt; 2 min).
-            </p>
-            <span className={styles.statusIndicatorActive}>● Active via PostGIS</span>
-          </div>
-
-          <div className={styles.ladderCard}>
-            <div className={styles.ladderHeader}>
-              <span className={styles.ladderBadgeActive}>L3</span>
-              <h3>Multiple Sources</h3>
-            </div>
-            <p>
-              Requires at least three distinct reporting sources within a rolling 15-minute window on the same directed segment.
-              Eliminates duplicate or repeat reports from the same device.
-            </p>
-            <span className={styles.statusIndicatorActive}>● Active in demonstration</span>
-          </div>
-
-          <div className={styles.ladderCard}>
-            <div className={styles.ladderHeader}>
-              <span className={styles.ladderBadgeActive}>L4</span>
-              <h3>Slowdown Evidence</h3>
-            </div>
-            <p>
-              Synchronized multi-source speed drop. Requires &ge; 3 independent sources across 6 consecutive 1-minute intervals (5
-              full minutes) with speed &lt; 40% of baseline.
-            </p>
-            <span className={styles.statusIndicatorActive}>● Active in demonstration</span>
-          </div>
-
-          <div className={styles.ladderCard}>
-            <div className={styles.ladderHeader}>
-              <span className={styles.ladderBadgePending}>L5</span>
-              <h3>Media Verification</h3>
-            </div>
-            <p>
-              Cryptographically signed, metadata-scrubbed photo/video evidence submitted with consensual spatial/temporal bounds.
-            </p>
-            <span className={styles.statusIndicatorPending}>○ Planned extension</span>
-          </div>
-
-          <div className={styles.ladderCard}>
-            <div className={styles.ladderHeader}>
-              <span className={styles.ladderBadgeActive}>L6</span>
-              <h3>Authority Action</h3>
-            </div>
-            <p>
-              Official verification, on-site civic response, or dispatch logged by certified municipal traffic controllers with
-              immutable audit logging.
-            </p>
-            <span className={styles.statusIndicatorActive}>● Active in demonstration</span>
-          </div>
-        </div>
-      </section>
-
-      {/* SECTION 3: SPEED EVIDENCE */}
-      <section className={styles.section} aria-labelledby="speed-title">
-        <h2 id="speed-title" className={styles.sectionTitle}>
-          3. Speed Evidence & Observation Windows
-        </h2>
-        <ul className={styles.bulletList}>
-          <li>
-            <strong>Synchronized Cadence:</strong> Speed evaluations require observations at exact 60-second intervals across 5
-            complete minutes (6 sample points). Missing samples or off-cadence ticks disqualify a source cohort.
-          </li>
-          <li>
-            <strong>Strict Speed Threshold:</strong> Every speed sample in the qualifying window must fall strictly below 40% of
-            the unrounded assumed segment baseline.
-          </li>
-          <li>
-            <strong>Freshness Boundary:</strong> Samples are valid for 20 minutes from observation. Future-dated samples are
-            rejected, and expired samples automatically lose evidence support.
-          </li>
-          <li>
-            <strong>Independent Devices:</strong> Synthetic speed sources model independent telemetry streams bound to segment
-            geometry, distinct from human user accounts.
-          </li>
-        </ul>
-      </section>
-
-      {/* SECTION 4: INCIDENT LIFECYCLE */}
-      <section className={styles.section} aria-labelledby="lifecycle-title">
-        <h2 id="lifecycle-title" className={styles.sectionTitle}>
-          4. Incident Lifecycle & Clearance Protocol
-        </h2>
-        <ul className={styles.bulletList}>
-          <li>
-            <strong>Automatic Lifecycle Inception:</strong> Persisted incidents originate when L4 slowdown evidence is sustained
-            across the corridor, even in the absence of manual citizen reports.
-          </li>
-          <li>
-            <strong>Verified Clearance:</strong> Recovery requires the same &ge; 3 sources across adjacent 5-minute slowdown and
-            recovery windows, with speeds strictly above 70% of the baseline and no conflicting slowdown cohort.
-          </li>
-          <li>
-            <strong>Reopenings:</strong> If slowdown recurs on the same segment after clearance, a new unique incident identifier is
-            created referencing the prior incident lineage.
-          </li>
-          <li>
-            <strong>No Silent Resets:</strong> Simulator resets, lack of fresh observations, or high speed without cohort continuity
-            do not record clearance; status changes to unconfirmed or stale.
-          </li>
-        </ul>
-      </section>
-
-      {/* SECTION 5: ROUTE INTELLIGENCE */}
-      <section className={styles.section} aria-labelledby="routing-title">
-        <h2 id="routing-title" className={styles.sectionTitle}>
-          5. Route Intelligence & Alternative Route Alerts
-        </h2>
-        <ul className={styles.bulletList}>
-          <li>
-            <strong>Fixed Route Pairs:</strong> The system evaluates verified primary corridors against fixed alternative bypass
-            routes with predefined baseline travel durations.
-          </li>
-          <li>
-            <strong>300-Second (5-Minute) Advantage Threshold:</strong> An active route alert requires the completed primary duration
-            to exceed the alternative by at least 300 seconds (5 minutes).
-          </li>
-          <li>
-            <strong>Mandatory Abstention Rules:</strong> Route alerts abstain (refuse to recommend an alternative) if:
-            <ul className="list-disc pl-5 mt-1 space-y-1">
-              <li>No current supported incident or slowdown exists on the primary route.</li>
-              <li>The time advantage is under 300 seconds.</li>
-              <li>A supported slowdown or recent reported hazard exists on the alternative bypass route.</li>
+          <div className="rounded-[36px] bg-[#11141A] text-[#F3EFE6] p-7 sm:p-9">
+            <h2 className="font-display text-2xl sm:text-3xl font-bold tracking-[-0.03em] text-[#D5F75A] m-0">
+              Privacy, by design
+            </h2>
+            <ul className="mt-6 mb-0 p-0 list-none flex flex-col gap-5">
+              {PRIVACY.map((item) => (
+                <li key={item.title} className="flex gap-4">
+                  <span className="w-2.5 h-2.5 mt-2 rounded-full bg-[#D5F75A] flex-none" />
+                  <div>
+                    <div className="font-display font-bold text-lg tracking-[-0.015em]">{item.title}</div>
+                    <p className="mt-1 mb-0 text-sm text-[#B9BDC6] leading-relaxed font-medium">{item.text}</p>
+                  </div>
+                </li>
+              ))}
             </ul>
-          </li>
-          <li>
-            <strong>Independent Segment Sums:</strong> Travel durations compare completed segment traversals from retained simulation
-            runs; they are not continuous personal journey measurements.
-          </li>
-        </ul>
-      </section>
-
-      {/* SECTION 6: EPISODES & RATE LIMITS */}
-      <section className={styles.section} aria-labelledby="episodes-title">
-        <h2 id="episodes-title" className={styles.sectionTitle}>
-          6. Report Grouping, Episodes & Rate Limits
-        </h2>
-        <ul className={styles.bulletList}>
-          <li>
-            <strong>Episode Clustering:</strong> Reports group chronologically by segment and direction. A gap of 20 minutes
-            without reports seals the episode and begins a new successor episode.
-          </li>
-          <li>
-            <strong>Anti-Spoofing Rate Limits:</strong> Each source is capped at 5 reports per 15 minutes. The global demo ceiling
-            is 300 reports per hour, with 2,000 maximum retained reports.
-          </li>
-          <li>
-            <strong>Idempotency:</strong> Re-submitting an identical report reference replays the stored outcome without inflating
-            incident counts.
-          </li>
-        </ul>
-      </section>
-
-      {/* SECTION 7: PRIVACY & DATA ETHICS */}
-      <section className={styles.section} aria-labelledby="privacy-title">
-        <h2 id="privacy-title" className={styles.sectionTitle}>
-          7. Privacy, Anonymity & Data Ethics
-        </h2>
-        <ul className={styles.bulletList}>
-          <li>
-            <strong>Zero Device Tracking:</strong> TrafficSense never requests background geolocation, battery states, device IDs, or
-            continuous movement trails.
-          </li>
-          <li>
-            <strong>Ephemeral Guest Reporting:</strong> Guest sessions use temporary, non-identifying tokens stored in local browser
-            cookies that expire after 24 hours.
-          </li>
-          <li>
-            <strong>Consensual Employer Sharing:</strong> Commuter travel summaries are accessible to employers only with explicit,
-            granular, revocable employee authorization.
-          </li>
-          <li>
-            <strong>Truth in Labelling:</strong> All test corridor information is strictly designated <code>SIMULATED</code>. No
-            fabricated confidence percentages or pseudo-probabilistic guarantees are shown.
-          </li>
-        </ul>
-      </section>
-
-      <footer className={styles.footer}>
-        <p>TrafficSense Mangaluru · Prototype for verifiable civic traffic intelligence</p>
-        <div className="actions mt-2">
-          <Link href="/planner">Route Planner</Link>
-          <Link href="/traffic">Traffic Explorer</Link>
-          <Link href="/authority">Authority Dashboard</Link>
-          <Link href="/demo">Guest Demo Overview</Link>
-          <Link href="/">Home</Link>
+          </div>
         </div>
-      </footer>
+      </section>
+
+      {/* Role Access Matrix */}
+      <section aria-labelledby="access-matrix-title" className="space-y-4">
+        <SectionLabel id="access-matrix-title" n={4}>
+          Who can open what
+        </SectionLabel>
+
+        <p className="m-0 max-w-2xl text-sm sm:text-base text-[#4A505C] leading-relaxed font-medium">
+          Everyone can see the map, plan a route and report. Deeper tools are limited to the people whose
+          job needs them.
+        </p>
+
+        <div className="rounded-[32px] sm:rounded-[40px] bg-white border border-[#EEE9DC] px-5 sm:px-8 py-3 overflow-x-auto">
+          <div className="min-w-[600px]">
+            <div className="grid grid-cols-[minmax(0,1.6fr)_repeat(5,minmax(0,1fr))] items-center h-[60px] font-mono font-semibold text-xs tracking-[0.08em] text-[#4A505C]">
+              <span />
+              <span className="text-center">GUEST</span>
+              <span className="text-center">COMMUTER</span>
+              <span className="text-center">EMPLOYER</span>
+              <span className="text-center">AUTHORITY</span>
+              <span className="text-center">ADMIN</span>
+            </div>
+
+            {ACCESS_ROWS.map((row) => (
+              <div
+                key={row.feature}
+                className="grid grid-cols-[minmax(0,1.6fr)_repeat(5,minmax(0,1fr))] items-center h-[60px] border-t border-[#EEE9DC] text-base sm:text-lg font-semibold text-[#11141A]"
+              >
+                <span>{row.feature}</span>
+                {row.roles.map((allowed, idx) => (
+                  <span key={idx} className="flex justify-center">
+                    {allowed ? (
+                      <i className="block w-[22px] h-[22px] rounded-full bg-[#11141A]" />
+                    ) : (
+                      <i className="block w-2 h-2 rounded-full bg-[#DCD5C4]" />
+                    )}
+                  </span>
+                ))}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center gap-5 font-mono text-[11px] font-semibold tracking-[0.08em] text-[#4A505C]">
+          <span className="inline-flex items-center gap-2">
+            <i className="block w-[14px] h-[14px] rounded-full bg-[#11141A]" /> HAS ACCESS
+          </span>
+          <span className="inline-flex items-center gap-2">
+            <i className="block w-2 h-2 rounded-full bg-[#DCD5C4]" /> NO ACCESS
+          </span>
+        </div>
+      </section>
+
+      {/* Closing band */}
+      <section
+        aria-label="Try it"
+        className="rounded-[36px] sm:rounded-[44px] bg-[#FF5B2E] p-8 sm:p-12 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6"
+      >
+        <h2 className="m-0 font-display font-bold text-4xl sm:text-6xl leading-[0.95] tracking-[-0.04em] text-[#11141A]">
+          Don&apos;t take our word.
+          <br />
+          Check the road<span className="text-[#F3EFE6]">.</span>
+        </h2>
+        <div className="flex flex-wrap gap-3">
+          <Link
+            href="/traffic"
+            className="h-14 px-8 rounded-full bg-[#11141A] text-[#F3EFE6] inline-flex items-center font-bold text-base no-underline"
+          >
+            Open the map
+          </Link>
+          <Link
+            href="/report"
+            className="h-14 px-8 rounded-full bg-[#F3EFE6] text-[#11141A] inline-flex items-center font-bold text-base no-underline"
+          >
+            Report a problem
+          </Link>
+        </div>
+      </section>
+
+      {/* Honesty Chips */}
+      <div className="flex flex-wrap gap-2">
+        <span className="h-11 px-5 rounded-full bg-[#11141A] text-[#F3EFE6] inline-flex items-center gap-2.5 text-[15px] font-semibold">
+          <svg
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+          </svg>
+          Reroute alert only if you save 5+ min
+        </span>
+        <span className="h-11 px-5 rounded-full border-[1.5px] border-[#11141A] text-[#11141A] inline-flex items-center font-mono font-semibold text-xs tracking-[0.08em]">
+          SIMULATED DATA
+        </span>
+        <span className="h-11 px-5 rounded-full bg-white border border-[#EEE9DC] text-[#11141A] inline-flex items-center text-[15px] font-semibold">
+          Not an official service
+        </span>
+      </div>
     </div>
   );
 }

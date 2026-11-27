@@ -1,1315 +1,779 @@
 import * as ImagePicker from "expo-image-picker";
 import * as Location from "expo-location";
 import { router, Stack } from "expo-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
+  Animated,
   Image,
   KeyboardAvoidingView,
-  Modal,
   Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import Svg, { Path, Circle } from "react-native-svg";
 import type { ReportCategory } from "@trafficsense/shared";
-import { submitIncident } from "../src/lib/api";
-import { MobileApiError } from "../src/lib/request";
-import { verifyEvidence, type L5VerifyResult } from "../src/lib/verify-evidence";
-import { mangaluruPlaces } from "../src/lib/places";
-import { formatCoordinates, toReportLocationInput, type ReportLocation } from "../src/lib/report-location";
-import { useAuth } from "../src/providers/auth-provider";
+import { PlacePickerModal } from "../src/components/PlacePickerModal";
+import { TrafficMap } from "../src/components/traffic-map";
 import {
-  AppHeader,
+  Banner,
   Button,
-  Card,
-  FeedbackBox,
+  DetailField,
   Icon,
+  IconButton,
+  StateCard,
+  TierBadge,
   type IconName,
 } from "../src/components/ui";
-import { colors, layout, minTouchTarget, radius, shadows, space, typography } from "../src/theme/tokens";
+import { submitIncident } from "../src/lib/api";
+import { categoryLabel } from "../src/lib/format";
+import { mangaluruPlaces } from "../src/lib/places";
+import { toReportLocationInput, type ReportLocation } from "../src/lib/report-location";
+import { MobileApiError } from "../src/lib/request";
+import { verifyEvidence, type L5VerifyResult } from "../src/lib/verify-evidence";
+import { useAuth } from "../src/providers/auth-provider";
+import { useTheme } from "../src/theme/theme-provider";
+import { motion, radius, space, typography } from "../src/theme/tokens";
 
-type ReportState =
-  | { kind: "idle" }
-  | { kind: "error"; message: string; signInRequired?: boolean }
-  | { kind: "success"; level: string; levelReason: string; l5Result?: L5VerifyResult };
-
-const LOCATION_DENIED =
-  "Location permission was denied. Allow location in your phone settings to submit a report.";
-const LOCATION_UNAVAILABLE =
-  "Your location could not be read. Turn on location services and try again.";
-
-interface HazardOption {
+type CategoryOption = {
   category: ReportCategory;
-  title: string;
-  subtitle: string;
+  label: string;
   icon: IconName;
-  iconBg: string;
-  iconColor: string;
-}
+};
 
-const HAZARD_OPTIONS: HazardOption[] = [
-  {
-    category: "accident",
-    title: "Accident",
-    subtitle: "Collisions, breakdown",
-    icon: "car_crash",
-    iconBg: colors.errorSurface,
-    iconColor: colors.error,
-  },
-  {
-    category: "road_closed",
-    title: "Road closed",
-    subtitle: "Barricades, diversion",
-    icon: "do_not_disturb",
-    iconBg: colors.surfaceContainerHighest,
-    iconColor: colors.text,
-  },
-  {
-    category: "heavy_traffic",
-    title: "Heavy volume",
-    subtitle: "Gridlock, crawling",
-    icon: "traffic",
-    iconBg: colors.surfaceContainerHighest,
-    iconColor: colors.text,
-  },
-  {
-    category: "flood",
-    title: "Flood / Rain",
-    subtitle: "Waterlogging, puddles",
-    icon: "flood",
-    iconBg: colors.primaryFixed,
-    iconColor: colors.primary,
-  },
-  {
-    category: "road_repair",
-    title: "Road repair",
-    subtitle: "Potholes, excavation",
-    icon: "construction",
-    iconBg: colors.warningSurface,
-    iconColor: colors.warning,
-  },
-  {
-    category: "other",
-    title: "Other hazard",
-    subtitle: "Fallen tree, wire, etc.",
-    icon: "help_center",
-    iconBg: colors.surfaceContainerHighest,
-    iconColor: colors.text,
-  },
+const CATEGORIES: CategoryOption[] = [
+  { category: "accident", label: "Accident", icon: "octagon-alert" },
+  { category: "road_closed", label: "Closed", icon: "circle-minus" },
+  { category: "heavy_traffic", label: "Traffic", icon: "car" },
+  { category: "flood", label: "Flooding", icon: "droplet" },
+  { category: "road_repair", label: "Road works", icon: "construction" },
+  { category: "other", label: "Other", icon: "circle-alert" },
 ];
 
 export default function ReportScreen() {
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
-  return <ReportForm key={session?.user.id ?? "guest"} />;
-}
+  const { colors, shadows, reduceMotion } = useTheme();
 
-function ReportForm() {
-  const { session } = useAuth();
   const [selectedCategory, setSelectedCategory] = useState<ReportCategory | null>(null);
   const [note, setNote] = useState("");
-  const [state, setState] = useState<ReportState>({ kind: "idle" })
-  const [submitting, setSubmitting] = useState(false);
-  const [capturedImage, setCapturedImage] = useState<{ uri: string; base64: string; mimeType: string } | null>(null);
-  const [verifying, setVerifying] = useState(false);
   const [location, setLocation] = useState<ReportLocation | null>(null);
-  const [locating, setLocating] = useState(false);
-  const [locationPickerOpen, setLocationPickerOpen] = useState(false);
+  const [locationOff, setLocationOff] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<{
+    uri: string;
+    base64: string;
+    mimeType: string;
+  } | null>(null);
+  const [l5Result, setL5Result] = useState<L5VerifyResult | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [sentData, setSentData] = useState<{
+    category: ReportCategory;
+    placeLabel: string;
+    level: string;
+  } | null>(null);
+  const [undoSeconds, setUndoSeconds] = useState(10);
 
-  const requestCurrentLocation = async () => {
-    setState({ kind: "idle" });
-    setLocating(true);
-    try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.status !== Location.PermissionStatus.GRANTED) {
-        setState({ kind: "error", message: LOCATION_DENIED });
-        return;
-      }
-      const position = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      setLocation({
-        source: "device",
-        label: "Current device location",
-        lat: position.coords.latitude,
-        lng: position.coords.longitude,
-        gpsAccuracyM: position.coords.accuracy ?? null,
-        gpsFixAt: new Date(position.timestamp).toISOString(),
-      });
-    } catch {
-      setState({ kind: "error", message: LOCATION_UNAVAILABLE });
-    } finally {
-      setLocating(false);
-    }
-  };
+  const [checkPop] = useState(() => new Animated.Value(0));
+  const [ringAnim] = useState(() => new Animated.Value(0));
 
-  const pickFromCamera = async () => {
-    const perm = await ImagePicker.requestCameraPermissionsAsync();
-    if (perm.status !== "granted") {
-      setState({ kind: "error", message: "Camera permission is required to attach a photo." });
-      return;
+  useEffect(() => {
+    if (!sentData) return;
+    if (reduceMotion) {
+      checkPop.setValue(1);
+    } else {
+      Animated.spring(checkPop, {
+        toValue: 1,
+        friction: 5,
+        tension: 120,
+        useNativeDriver: true,
+      }).start();
+      Animated.timing(ringAnim, {
+        toValue: 1,
+        duration: 900,
+        easing: motion.easing.enter,
+        useNativeDriver: true,
+      }).start();
     }
-    const result = await ImagePicker.launchCameraAsync({
-      mediaTypes: ["images"],
-      quality: 0.7,
-      base64: true,
-      exif: false,
-    });
-    if (!result.canceled && result.assets[0]) {
-      const asset = result.assets[0];
-      if (!asset.base64) return;
-      // Guard: ~4 MB base64 limit (4MB * 0.75 = 3MB raw; base64 is ~1.33x)
-      if (asset.base64.length > 5_600_000) {
-        setState({ kind: "error", message: "Photo is too large. Choose a smaller image (max 4 MB)." });
-        return;
-      }
-      setCapturedImage({ uri: asset.uri, base64: asset.base64, mimeType: asset.mimeType ?? "image/jpeg" });
-    }
-  };
 
-  const pickFromGallery = async () => {
+    const interval = setInterval(() => {
+      setUndoSeconds((s) => (s > 0 ? s - 1 : 0));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [sentData, checkPop, ringAnim, reduceMotion]);
+
+  async function pickPhoto() {
+    setErrorMsg(null);
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (perm.status !== "granted") {
-      setState({ kind: "error", message: "Gallery permission is required to attach a photo." });
+      setErrorMsg("Photo library permission is needed to attach a photo.");
       return;
     }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"],
-      quality: 0.7,
+      quality: 0.3,
       base64: true,
       exif: false,
     });
-    if (!result.canceled && result.assets[0]) {
+    if (!result.canceled && result.assets[0]?.base64) {
       const asset = result.assets[0];
-      if (!asset.base64) return;
-      if (asset.base64.length > 5_600_000) {
-        setState({ kind: "error", message: "Photo is too large. Choose a smaller image (max 4 MB)." });
+      if (asset.base64 && asset.base64.length > 5_600_000) {
+        setErrorMsg("Photo is too large. Choose a smaller image (max 4 MB).");
         return;
       }
-      setCapturedImage({ uri: asset.uri, base64: asset.base64, mimeType: asset.mimeType ?? "image/jpeg" });
-    }
-  };
-
-  const submit = async () => {
-    setState({ kind: "idle" });
-    if (!session) {
-      setState({
-        kind: "error",
-        message: "Sign in with a commuter account before submitting a report.",
-        signInRequired: true,
+      setCapturedImage({
+        uri: asset.uri,
+        base64: asset.base64!,
+        mimeType: asset.mimeType ?? "image/jpeg",
       });
-      return;
     }
-    if (!selectedCategory) {
-      setState({ kind: "error", message: "Select the hazard you observed before submitting." });
-      return;
-    }
-    if (!location) {
-      setState({ kind: "error", message: "Choose the report location before submitting." });
-      return;
-    }
+  }
 
+  async function resolveLocationOnSend(): Promise<ReportLocation | null> {
+    if (location) return location;
+    try {
+      const perm = await Location.requestForegroundPermissionsAsync();
+      if (perm.status !== Location.PermissionStatus.GRANTED) {
+        setLocationOff(true);
+        return null;
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const resolved: ReportLocation = {
+        source: "device",
+        label: "Current device location",
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        gpsAccuracyM: pos.coords.accuracy ?? null,
+        gpsFixAt: new Date(pos.timestamp).toISOString(),
+      };
+      setLocation(resolved);
+      return resolved;
+    } catch {
+      setLocationOff(true);
+      return null;
+    }
+  }
+
+  async function handleSend() {
+    if (!selectedCategory || !session || submitting) return;
+    setErrorMsg(null);
+    setLocationOff(false);
     setSubmitting(true);
-    let l5Result: L5VerifyResult | undefined;
 
-    // Optional L5 vision verification if image is attached
-    if (capturedImage) {
-      setVerifying(true);
-      try {
-        const verifyResponse = await verifyEvidence(
+    try {
+      const resolvedLocation = await resolveLocationOnSend();
+      if (!resolvedLocation) {
+        setSubmitting(false);
+        return;
+      }
+
+      let verifiedResult: L5VerifyResult | undefined;
+      let photoDataUrl: string | null = null;
+      if (capturedImage) {
+        const candidateUrl = `data:${capturedImage.mimeType};base64,${capturedImage.base64}`;
+        if (candidateUrl.length <= 1_200_000) {
+          photoDataUrl = candidateUrl;
+        }
+        const verifyRes = await verifyEvidence(
           {
             imageBase64: capturedImage.base64,
             mimeType: capturedImage.mimeType,
             userSelectedCategory: selectedCategory,
-            lat: location.lat,
-            lng: location.lng,
+            lat: resolvedLocation.lat,
+            lng: resolvedLocation.lng,
           },
           session.access_token,
         );
-        if (verifyResponse.ok) {
-          l5Result = verifyResponse.result;
+        if (verifyRes.ok) {
+          verifiedResult = verifyRes.result;
+          setL5Result(verifiedResult);
         }
-        // If verify fails (ok: false), we proceed without L5 — never block submission
-      } catch {
-        // Vision errors are non-fatal — submit the report regardless
-      } finally {
-        setVerifying(false);
       }
-    }
 
-    try {
-      const result = await submitIncident(
+      const locInput = toReportLocationInput(resolvedLocation);
+      const res = await submitIncident(
         {
           category: selectedCategory,
-          ...toReportLocationInput(location),
+          ...locInput,
           note: note.trim() || null,
+          l5Verified: Boolean(verifiedResult?.upgradeEligible),
+          l5Summary: verifiedResult?.summary ?? null,
+          l5PhotoDataUrl: photoDataUrl,
+          l5ConfidenceTier: verifiedResult?.confidenceTier ?? null,
         },
         session.access_token,
       );
 
-      setState({
-        kind: "success",
-        level: result.level,
-        levelReason: result.level_reason,
-        l5Result,
+      setUndoSeconds(10);
+      setSentData({
+        category: selectedCategory,
+        placeLabel: resolvedLocation.label,
+        level: res.level ?? (verifiedResult?.upgradeEligible ? "L5" : "L1"),
       });
-      setNote("");
-      setCapturedImage(null);
-    } catch (reason) {
-      if (reason instanceof MobileApiError && reason.authRequired) {
-        setState({
-          kind: "error",
-          message: "Your session has ended. Sign in again to submit.",
-          signInRequired: true,
-        });
-      } else if (reason instanceof MobileApiError && reason.status === 429) {
-        setState({
-          kind: "error",
-          message: "You have reported too often. Wait a few minutes and try again.",
-        });
+    } catch (err) {
+      if (err instanceof MobileApiError && err.status === 401) {
+        setErrorMsg("Sign in again to send reports.");
       } else {
-        setState({
-          kind: "error",
-          message:
-            reason instanceof Error
-              ? reason.message
-              : "Report submission is unavailable. Try again later.",
-        });
+        setErrorMsg(err instanceof Error ? err.message : "Report could not be sent.");
       }
     } finally {
       setSubmitting(false);
-      setVerifying(false);
     }
-  };
+  }
+
+  const locationTitle = location ? location.label : "Near Jyothi Circle";
+  const locationSub = location
+    ? location.source === "device"
+      ? "Your location · asked only now"
+      : "Picked junction · no GPS used"
+    : "Your location · asked only now";
+
+  const ringScale = ringAnim.interpolate({ inputRange: [0, 1], outputRange: [0.8, 1.6] });
+  const ringOpacity = ringAnim.interpolate({ inputRange: [0, 1], outputRange: [0.6, 0] });
 
   return (
-    <View style={styles.screenWrapper}>
+    <View style={styles.container}>
       <Stack.Screen options={{ headerShown: false }} />
-      <AppHeader
-        title="Report"
-        canGoBack
-        onBack={() => router.back()}
-        showLive={false}
-      />
 
-      <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
-        style={{ flex: 1 }}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* Unauthenticated Commuter Note */}
-          {!session ? (
-            <FeedbackBox
-              variant="warning"
-              title="Sign in required to submit"
-              message="Anyone can browse the traffic map, but submitting road hazard reports requires an authenticated commuter account."
-              actionText="Sign in now"
-              onAction={() => router.push("/auth/login?next=/report")}
-            />
-          ) : null}
+      {/* Background Map Context */}
+      <View style={StyleSheet.absoluteFill}>
+        <TrafficMap
+          fullScreen
+          incidents={[]}
+          segments={[]}
+          selectedIncidentId={null}
+          onSelectIncident={() => {}}
+          fitKey={1}
+          hideControls
+          hideAttribution
+        />
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.scrim }]} />
 
-          {/* Error Feedback */}
-          {state.kind === "error" ? (
-            <FeedbackBox
-              variant="error"
-              message={state.message}
-              actionText={state.signInRequired ? "Sign in" : undefined}
-              onAction={
-                state.signInRequired
-                  ? () => router.push("/auth/login?next=/report")
-                  : undefined
-              }
-            />
-          ) : null}
-
-          {/* Stepper Flow */}
-          <Card style={styles.stepperCard}>
-            <View style={styles.stepperHeader}>
-              <View style={styles.stepperStepRow}>
-                <View style={styles.stepperDot} />
-                <Text style={styles.stepperStepText}>Step 1 of 3: Select category</Text>
-              </View>
-              <View style={styles.civicFeedBadge}>
-                <Text style={styles.civicFeedBadgeText}>Civic Feed</Text>
-              </View>
-            </View>
-            {/* 3-segment progress track */}
-            <View style={styles.stepperTrack}>
-              <View style={[styles.stepperBar, styles.stepperBarActive]} />
-              <View style={styles.stepperBar} />
-              <View style={styles.stepperBar} />
-            </View>
-            <Text style={styles.stepperSubtitle}>
-              Tap the primary obstacle currently affecting coastal transit.
+        {/* Centered Pin Chip */}
+        <View style={[styles.pinContainer, { top: Math.max(insets.top + 28, 72) }]}>
+          <View style={[styles.pinChip, { backgroundColor: colors.surface }, shadows.sm]}>
+            <Text style={[styles.pinChipText, { color: colors.text }]}>
+              {sentData ? "Your report" : "Report here"}
             </Text>
-          </Card>
+          </View>
+          <Svg width={34} height={44} viewBox="-14 -36 28 38">
+            <Path
+              d="M0 0C-3-5-12-11-12-20A12 12 0 1 1 12-20C12-11 3-5 0 0Z"
+              fill={colors.accent}
+              stroke={colors.surface}
+              strokeWidth={2}
+            />
+            <Circle cy={-20} r={4.5} fill={colors.surface} />
+          </Svg>
+        </View>
+      </View>
 
-          {/* 1. Observed Hazard Grid */}
-          <View style={styles.hazardSection}>
-            <View style={styles.hazardSectionHeader}>
-              <Text style={styles.hazardSectionTitle}>1. Observed Hazard</Text>
-              <Text style={styles.singleSelectionText}>Single selection</Text>
+      {/* Bottom Modal Sheet */}
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={styles.sheetWrap}
+      >
+        <View
+          style={[
+            styles.sheet,
+            {
+              backgroundColor: colors.sheet,
+              paddingBottom: Math.max(insets.bottom + 16, 28),
+            },
+            shadows.sheet,
+          ]}
+        >
+          <View style={[styles.handle, { backgroundColor: colors.handle }]} />
+
+          {sentData ? (
+            /* SENT STATE */
+            <View style={styles.sentWrap}>
+              <View style={styles.sentCircleBox}>
+                <Animated.View
+                  style={[
+                    styles.sentRing,
+                    {
+                      borderColor: colors.accent,
+                      opacity: ringOpacity,
+                      transform: [{ scale: ringScale }],
+                    },
+                  ]}
+                />
+                <Animated.View
+                  style={[
+                    styles.sentCircle,
+                    {
+                      backgroundColor: colors.accent,
+                      transform: [{ scale: checkPop }],
+                    },
+                  ]}
+                >
+                  <Icon name="check" size={40} color={colors.onAccent} strokeWidth={2.6} />
+                </Animated.View>
+              </View>
+
+              <Text style={[styles.sentTitle, { color: colors.text }]}>Report sent</Text>
+              <Text style={[styles.sentSub, { color: colors.text2 }]}>
+                {categoryLabel(sentData.category)} · {sentData.placeLabel} · thank you
+              </Text>
+
+              <View
+                style={[
+                  styles.sentCard,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ]}
+              >
+                <TierBadge level={sentData.level} />
+                <View style={{ flex: 1, gap: 2 }}>
+                  <Text style={[styles.sentCardTitle, { color: colors.text }]}>
+                    Visible to nearby commuters
+                  </Text>
+                  <Text style={[styles.sentCardSub, { color: colors.text3 }]}>
+                    Trust rises as others confirm it
+                  </Text>
+                </View>
+              </View>
+
+              <Button
+                title="View on map"
+                size="L-sheet"
+                variant="primary"
+                onPress={() => router.replace("/traffic")}
+                style={{ width: "100%", marginTop: 24 }}
+              />
+
+              <View style={styles.sentFooterRow}>
+                <Button
+                  title="Done"
+                  size="M"
+                  variant="text"
+                  onPress={() => router.back()}
+                  textStyle={{ color: colors.text }}
+                  style={{ flex: 1 }}
+                />
+                {undoSeconds > 0 ? (
+                  <Button
+                    title={`Undo · ${undoSeconds} s`}
+                    size="M"
+                    variant="text"
+                    onPress={() => setSentData(null)}
+                    textStyle={{ color: colors.text2 }}
+                    style={{ flex: 1 }}
+                  />
+                ) : null}
+              </View>
             </View>
+          ) : (
+            /* COMPOSE / GUEST GATE */
+            <ScrollView
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+              contentContainerStyle={styles.composeContent}
+            >
+              <View style={styles.composeHeader}>
+                <Text style={[styles.composeTitle, { color: colors.text }]}>
+                  What’s happening?
+                </Text>
+                <IconButton
+                  accessibilityLabel="Close"
+                  variant="tonal"
+                  size={40}
+                  onPress={() => router.back()}
+                >
+                  <Icon name="x" size={16} color={colors.text} strokeWidth={2.4} />
+                </IconButton>
+              </View>
 
-            <View style={styles.hazardGrid}>
-              {HAZARD_OPTIONS.map((opt) => {
-                const isSelected = selectedCategory === opt.category;
-                return (
-                  <Pressable
-                    key={opt.category}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: isSelected }}
-                    accessibilityLabel={`${opt.title}: ${opt.subtitle}`}
-                    onPress={() => setSelectedCategory(opt.category)}
-                    style={[
-                      styles.hazardCard,
-                      isSelected && styles.hazardCardActive,
-                    ]}
-                  >
-                    {/* Top Row: Icon and Active Check */}
-                    <View style={styles.hazardCardTop}>
+              {!session ? (
+                <Banner
+                  variant="warning"
+                  title="Sign in to send reports"
+                  body="Browsing stays open to everyone."
+                  actionLabel="Sign in"
+                  onAction={() => router.push("/auth/login?next=/report")}
+                />
+              ) : null}
+
+              {locationOff ? (
+                <StateCard
+                  variant="location-off"
+                  onAction={() => {
+                    setLocationOff(false);
+                    setPickerOpen(true);
+                  }}
+                />
+              ) : null}
+
+              {errorMsg ? (
+                <Banner
+                  variant="danger"
+                  icon="circle-alert"
+                  title={errorMsg}
+                  onDismiss={() => setErrorMsg(null)}
+                />
+              ) : null}
+
+              {/* 3x2 Category Grid */}
+              <View accessibilityRole="radiogroup" style={styles.catGrid}>
+                {CATEGORIES.map((cat) => {
+                  const active = selectedCategory === cat.category;
+                  return (
+                    <Pressable
+                      key={cat.category}
+                      accessibilityRole="radio"
+                      accessibilityState={{ checked: active }}
+                      onPress={() => setSelectedCategory(cat.category)}
+                      style={styles.catItem}
+                    >
                       <View
                         style={[
-                          styles.hazardIconBox,
+                          styles.catCircle,
                           {
-                            backgroundColor: isSelected
-                              ? colors.primary
-                              : opt.iconBg,
+                            backgroundColor: active ? colors.accent : colors.surface2,
+                            borderWidth: active ? 4 : 0,
+                            borderColor: active ? colors.accentSoft : "transparent",
                           },
                         ]}
                       >
                         <Icon
-                          name={opt.icon}
-                          size={22}
-                          color={isSelected ? "#ffffff" : opt.iconColor}
+                          name={cat.icon}
+                          size={26}
+                          color={active ? colors.onAccent : colors.text}
+                          strokeWidth={1.9}
                         />
                       </View>
-
-                      {isSelected ? (
-                        <View style={styles.checkBadge}>
-                          <Icon name="check" size={12} color="#ffffff" />
-                        </View>
-                      ) : null}
-                    </View>
-
-                    {/* Bottom Row: Title and Subtitle */}
-                    <View style={styles.hazardCardBottom}>
                       <Text
                         style={[
-                          styles.hazardCardTitle,
-                          isSelected && styles.hazardCardTitleActive,
+                          styles.catLabel,
+                          {
+                            color: active ? colors.text : colors.text2,
+                            fontWeight: active ? "600" : "500",
+                          },
                         ]}
                       >
-                        {opt.title}
+                        {cat.label}
                       </Text>
-                      <Text
-                        style={[
-                          styles.hazardCardSubtitle,
-                          isSelected && styles.hazardCardSubtitleActive,
-                        ]}
-                        numberOfLines={1}
-                      >
-                        {opt.subtitle}
-                      </Text>
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </View>
-
-          {/* 2. Observation Note */}
-          <Card style={styles.noteCard}>
-            <View style={styles.noteHeader}>
-              <Icon name="edit_note" size={20} color={colors.primary} />
-              <Text style={styles.noteTitle}>
-                Optional note (e.g., landmark or lane affected)
-              </Text>
-            </View>
-            <Text style={styles.noteSubtitle}>
-              Details help fellow Mangaloreans gauge clear passage through monsoons.
-            </Text>
-
-            <View style={styles.textInputBox}>
-              <TextInput
-                placeholder="e.g. Left lane submerged under railway bridge near Pumpwell Circle"
-                placeholderTextColor={colors.textMuted}
-                value={note}
-                onChangeText={(val) => setNote(val.slice(0, 300))}
-                multiline
-                numberOfLines={3}
-                style={styles.textArea}
-              />
-            </View>
-
-            <View style={styles.noteFooter}>
-              <View style={styles.noteFooterLeft}>
-                <Icon name="visibility" size={14} color={colors.textMuted} />
-                <Text style={styles.noteFooterText}>Public to active commuters</Text>
+                    </Pressable>
+                  );
+                })}
               </View>
-              <Text style={styles.noteFooterCounter}>
-                {note.length} / 300 characters
-              </Text>
-            </View>
-          </Card>
 
-          {/* 3. Photo Evidence (optional) */}
-          <Card style={styles.photoCard}>
-            <View style={styles.photoHeader}>
-              <Icon name="camera_alt" size={20} color={colors.evidence} />
-              <Text style={styles.photoTitle}>Optional photo evidence (L5 upgrade)</Text>
-            </View>
-            <Text style={styles.photoSubtitle}>
-              Attach a clear photo to enable AI vision verification. This may upgrade your report to a higher trust tier.
-            </Text>
-
-            {capturedImage ? (
-              <View style={styles.photoPreviewBox}>
-                <Image source={{ uri: capturedImage.uri }} style={styles.photoPreview} resizeMode="cover" />
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Remove attached photo"
-                  onPress={() => setCapturedImage(null)}
-                  style={styles.photoRemoveBtn}
-                >
-                  <Icon name="close" size={16} color="#ffffff" />
-                </Pressable>
-                <View style={styles.photoAttachedBadge}>
-                  <Icon name="check_circle" size={13} color={colors.success} />
-                  <Text style={styles.photoAttachedText}>Photo ready for AI analysis</Text>
+              {/* Location Row */}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Location: ${locationTitle}. Tap Change to pick a junction.`}
+                onPress={() => setPickerOpen(true)}
+                style={[
+                  styles.locRow,
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                ]}
+              >
+                <View style={[styles.locIconTile, { backgroundColor: colors.accentSoft }]}>
+                  <Icon name="navigation" size={18} color={colors.accent} filled />
                 </View>
-              </View>
-            ) : (
-              <View style={styles.photoActions}>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Take a photo with camera"
-                  onPress={() => void pickFromCamera()}
-                  style={styles.photoActionBtn}
-                >
-                  <Icon name="photo_camera" size={20} color={colors.primary} />
-                  <Text style={styles.photoActionText}>Camera</Text>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Pick a photo from gallery"
-                  onPress={() => void pickFromGallery()}
-                  style={styles.photoActionBtn}
-                >
-                  <Icon name="photo_library" size={20} color={colors.primary} />
-                  <Text style={styles.photoActionText}>Gallery</Text>
-                </Pressable>
-              </View>
-            )}
-
-            <View style={styles.photoPrivacyRow}>
-              <Icon name="lock" size={13} color={colors.textMuted} />
-              <Text style={styles.photoPrivacyText}>
-                EXIF location is not captured. Image is analyzed server-side and not stored permanently.
-              </Text>
-            </View>
-          </Card>
-
-          {/* 2. Location and trust */}
-          <View style={styles.trustSection}>
-            <Text style={styles.trustSectionTitle}>2. Report location</Text>
-
-            {/* Sub-card 1: Location Corridor */}
-            <Card style={styles.trustCard}>
-              <View style={styles.trustCardTop}>
-                <View style={[styles.trustIconCircle, { backgroundColor: colors.primaryFixed }]}>
-                  <Icon name="location_on" size={18} color={colors.primary} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.trustRowBetween}>
-                    <Text style={styles.trustRoadName}>{location?.label ?? "Choose where this hazard is"}</Text>
-                    <View style={styles.autoDetectedBadge}>
-                      <Text style={styles.autoDetectedText}>{location?.source === "device" ? "Device GPS" : location?.source === "reference" ? "Reference point" : "Required"}</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.trustCoords}>
-                    {location ? formatCoordinates(location) : "Use current device location or choose an approximate Mangaluru reference point."}
+                <View style={styles.locTextCol}>
+                  <Text style={[styles.locTitle, { color: colors.text }]} numberOfLines={1}>
+                    {locationTitle}
+                  </Text>
+                  <Text style={[styles.locSub, { color: colors.text3 }]} numberOfLines={1}>
+                    {locationSub}
                   </Text>
                 </View>
-              </View>
-              <View style={styles.trustNoticePill}>
-                <Icon name="lock" size={13} color={colors.textSecondary} />
-                <Text style={styles.trustNoticePillText}>{location?.source === "device" ? "GPS was requested only after your tap" : "Reference points are approximate and are not GPS"}</Text>
-              </View>
-              <View style={styles.locationActions}>
-                <Button title={locating ? "Getting current location…" : "Use current location"} loading={locating} onPress={() => void requestCurrentLocation()} variant="outline" />
-                <Button title="Choose reference point" onPress={() => setLocationPickerOpen(true)} variant="outline" />
-              </View>
-            </Card>
+                <Text style={[styles.changeText, { color: colors.accent }]}>Change</Text>
+              </Pressable>
 
-            {/* Tier assignment */}
-            <Card style={styles.trustCard}>
-              <View style={styles.trustCardTop}>
-                <View style={[styles.trustIconCircle, { backgroundColor: colors.evidenceSurface }]}>
-                  <Icon name="verified" size={18} color={colors.evidence} />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <View style={styles.trustRowBetween}>
-                    <Text style={styles.trustRoadName}>3. Verification & Trust Tier</Text>
-                    <View style={styles.tierL1Badge}>
-                      <Text style={styles.tierL1BadgeText}>L1 Tier</Text>
-                    </View>
-                  </View>
-                  <Text style={styles.trustCoords}>
-                    Your report will be recorded as L1 (Single observation) until corroborated by other commuters.
-                  </Text>
-                </View>
+              {/* Detail + L5 Photo */}
+              <View style={styles.detailRow}>
+                <DetailField
+                  value={note}
+                  onChangeText={setNote}
+                  style={{ flex: 1 }}
+                />
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Add a photo, can raise trust to L5"
+                  onPress={() => void pickPhoto()}
+                  style={[
+                    styles.photoBtn,
+                    {
+                      borderColor: capturedImage ? colors.accent : colors.text3,
+                      backgroundColor: capturedImage ? colors.accentSoft : "transparent",
+                    },
+                  ]}
+                >
+                  {capturedImage ? (
+                    <Image source={{ uri: capturedImage.uri }} style={styles.photoThumb} />
+                  ) : (
+                    <>
+                      <Icon name="camera" size={20} color={colors.text} />
+                      <Text style={[styles.l5Text, { color: colors.accent }]}>L5</Text>
+                    </>
+                  )}
+                </Pressable>
               </View>
-            </Card>
 
-            {/* Sub-card 3: Honesty Notice */}
-            <View style={styles.honestyBanner}>
-              <View style={styles.honestyIconCircle}>
-                <Icon name="shield" size={18} color="#ffffff" />
-              </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.honestyTitle}>Honesty notice</Text>
-                <Text style={styles.honestyBody}>
-                  A report is a subjective observation, not proof of its cause. Civic trust keeps Mangaluru flowing safely.
+              {l5Result && l5Result.upgradeEligible ? (
+                <Text style={[styles.l5Note, { color: colors.accent }]}>
+                  Photo verified · {l5Result.summary}
+                </Text>
+              ) : null}
+
+              {/* Trust Line */}
+              <View style={styles.trustRow}>
+                <TierBadge level={capturedImage ? "L5" : "L1"} standalone={false} />
+                <Text style={[styles.trustText, { color: colors.text3 }]}>
+                  Starts as a single report. Rises as others confirm.
                 </Text>
               </View>
-            </View>
-          </View>
 
-          {/* Action Buttons */}
-          <View style={styles.actionsStack}>
-            <Button
-              title={verifying ? "Analysing photo…" : submitting ? "Submitting observation…" : "Submit report"}
-              loading={submitting || verifying}
-              onPress={() => void submit()}
-              variant="primary"
-              icon={<Icon name="send" size={18} color="#ffffff" />}
-            />
-
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Cancel report"
-              onPress={() => router.back()}
-              style={styles.cancelBtn}
-            >
-              <Text style={styles.cancelBtnText}>Cancel</Text>
-            </Pressable>
-          </View>
-
-          <View style={{ height: layout.safeBottomPadding }} />
-        </ScrollView>
+              <Button
+                title="Send report"
+                size="L-sheet"
+                variant="primary"
+                disabled={!selectedCategory || !session}
+                loading={submitting}
+                onPress={() => void handleSend()}
+                style={{ marginTop: 4 }}
+              />
+            </ScrollView>
+          )}
+        </View>
       </KeyboardAvoidingView>
 
-      <Modal visible={locationPickerOpen} transparent animationType="slide" onRequestClose={() => setLocationPickerOpen(false)}>
-        <View style={styles.locationModalBackdrop}>
-          <Card style={styles.locationModalCard}>
-            <View style={styles.locationModalHeader}>
-              <View><Text style={styles.locationModalTitle}>Choose a reference point</Text><Text style={styles.locationModalBody}>Use this when you cannot use device GPS. It submits an approximate point.</Text></View>
-              <Pressable accessibilityRole="button" accessibilityLabel="Close reference-point picker" onPress={() => setLocationPickerOpen(false)} style={styles.locationModalClose}><Icon name="close" size={20} color={colors.text} /></Pressable>
-            </View>
-            <ScrollView style={styles.locationList}>
-              {mangaluruPlaces.map((place) => (
-                <Pressable key={place.name} accessibilityRole="button" onPress={() => { setLocation({ source: "reference", label: place.name, lat: place.coords[1], lng: place.coords[0], gpsAccuracyM: null, gpsFixAt: null }); setLocationPickerOpen(false); }} style={styles.locationOption}>
-                  <Icon name="location_on" size={18} color={colors.primary} />
-                  <Text style={styles.locationOptionText}>{place.name}</Text>
-                </Pressable>
-              ))}
-            </ScrollView>
-          </Card>
-        </View>
-      </Modal>
-
-      {/* Success Modal */}
-      <Modal
-        visible={state.kind === "success"}
-        transparent
-        animationType="fade"
-      >
-        <View style={styles.successBackdrop}>
-          <Card style={styles.successModalCard}>
-            <View style={[
-              styles.successIconCircle,
-              state.kind === "success" && state.l5Result?.upgradeEligible
-                ? { backgroundColor: colors.evidence }
-                : undefined
-            ]}>
-              <Icon
-                name={state.kind === "success" && state.l5Result?.upgradeEligible ? "verified" : "check"}
-                size={28}
-                color="#ffffff"
-              />
-            </View>
-            <Text style={styles.successTitle}>Report Recorded</Text>
-            <Text style={styles.successSubtitle}>
-              {state.kind === "success"
-                ? `Assigned tier: ${state.level}. ${state.levelReason} Dispatched to the Civic Traffic Authority dashboard for verification.`
-                : ""}
-            </Text>
-
-            {state.kind === "success" && state.l5Result ? (
-              <View style={styles.l5ResultBox}>
-                <View style={styles.l5ResultHeader}>
-                  <Icon name="smart_toy" size={16} color={colors.evidence} />
-                  <Text style={styles.l5ResultTitle}>AI Vision Analysis</Text>
-                  {state.l5Result.upgradeEligible ? (
-                    <View style={styles.l5UpgradeBadge}>
-                      <Text style={styles.l5UpgradeBadgeText}>Upgrade eligible</Text>
-                    </View>
-                  ) : null}
-                </View>
-                <Text style={styles.l5ResultSummary}>{state.l5Result.summary}</Text>
-                <View style={styles.l5ResultRow}>
-                  <Text style={styles.l5ResultLabel}>Detected:</Text>
-                  <Text style={styles.l5ResultValue}>{state.l5Result.detectedCategory}</Text>
-                </View>
-                <View style={styles.l5ResultRow}>
-                  <Text style={styles.l5ResultLabel}>Confidence:</Text>
-                  <Text style={styles.l5ResultValue}>{Math.round(state.l5Result.confidence * 100)}%</Text>
-                </View>
-                <View style={styles.l5ResultRow}>
-                  <Text style={styles.l5ResultLabel}>Category match:</Text>
-                  <Text style={[
-                    styles.l5ResultValue,
-                    { color: state.l5Result.matchesUserCategory ? colors.success : colors.warning }
-                  ]}>
-                    {state.l5Result.matchesUserCategory ? "✓ Confirmed" : "⚠ Differs"}
-                  </Text>
-                </View>
-              </View>
-            ) : null}
-
-            <Button
-              title="View on Live Traffic Map"
-              onPress={() => {
-                setState({ kind: "idle" });
-                router.replace("/traffic");
-              }}
-              variant="primary"
-            />
-            <Pressable
-              onPress={() => {
-                setState({ kind: "idle" });
-              }}
-              style={styles.doneBtn}
-            >
-              <Text style={styles.doneBtnText}>Close</Text>
-            </Pressable>
-          </Card>
-        </View>
-      </Modal>
+      <PlacePickerModal
+        visible={pickerOpen}
+        title="Choose location"
+        selectedIndex={null}
+        onSelectPreset={(idx) => {
+          const p = mangaluruPlaces[idx];
+          setLocation({
+            source: "reference",
+            label: p.name,
+            lat: p.coords[1],
+            lng: p.coords[0],
+            gpsAccuracyM: null,
+            gpsFixAt: null,
+          });
+        }}
+        onSelectDeviceLocation={([lng, lat], label) => {
+          setLocation({
+            source: "device",
+            label,
+            lat,
+            lng,
+            gpsAccuracyM: null,
+            gpsFixAt: new Date().toISOString(),
+          });
+        }}
+        onClose={() => setPickerOpen(false)}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screenWrapper: {
+  container: {
     flex: 1,
-    backgroundColor: colors.background,
+    justifyContent: "flex-end",
   },
-  scrollContent: {
-    paddingHorizontal: space.gutter,
-    paddingTop: 8,
-    gap: 14,
-  },
-  previewStateBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    backgroundColor: colors.surfaceContainerHigh,
-    borderRadius: radius.control,
-    padding: 8,
-    ...shadows.card,
-  },
-  previewStateLeft: {
-    flexDirection: "row",
+  pinContainer: {
+    position: "absolute",
+    alignSelf: "center",
     alignItems: "center",
     gap: 6,
   },
-  previewStateText: {
-    ...typography.labelMd,
-    fontWeight: "600",
-    color: colors.text,
-  },
-  previewStateButtons: {
-    flexDirection: "row",
-    gap: 6,
-  },
-  previewSmallBtn: {
-    backgroundColor: colors.surface,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-    ...shadows.card,
-  },
-  previewSmallBtnText: {
-    ...typography.labelSm,
-    fontSize: 10.5,
-    color: colors.text,
-  },
-  previewSuccessBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: colors.secondary,
+  pinChip: {
+    height: 28,
     paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: radius.pill,
-  },
-  previewSuccessBtnText: {
-    ...typography.labelSm,
-    fontSize: 10.5,
-    color: "#ffffff",
-    fontWeight: "600",
-  },
-  permissionBanner: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    backgroundColor: "#ffdcc3",
-    borderRadius: radius.control,
-    padding: 14,
-    gap: 12,
-    ...shadows.card,
-  },
-  permissionIconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "rgba(255, 183, 124, 0.45)",
-    alignItems: "center",
+    borderRadius: 14,
     justifyContent: "center",
   },
-  permissionTextCol: {
-    flex: 1,
-    gap: 4,
-  },
-  permissionTitle: {
-    ...typography.titleSm,
-    fontWeight: "700",
-    color: "#2f1500",
-  },
-  permissionSubtitle: {
-    ...typography.bodySm,
-    color: "#6e3900",
+  pinChipText: {
     fontSize: 12,
-    lineHeight: 16,
-  },
-  permissionActionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    paddingTop: 4,
-  },
-  allowBtn: {
-    backgroundColor: "#5b2f00",
-    paddingHorizontal: 14,
-    paddingVertical: 6,
-    borderRadius: 8,
-  },
-  allowBtnText: {
-    ...typography.labelMd,
-    color: "#ffffff",
     fontWeight: "600",
   },
-  dismissBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+  sheetWrap: {
+    justifyContent: "flex-end",
   },
-  dismissBtnText: {
-    ...typography.labelMd,
-    color: "#5b2f00",
-    fontWeight: "600",
+  sheet: {
+    borderTopLeftRadius: radius.modalSheet,
+    borderTopRightRadius: radius.modalSheet,
+    paddingTop: 8,
+    paddingHorizontal: space.gutter,
+    maxHeight: "88%",
   },
-  stepperCard: {
-    padding: space.md,
-    gap: 8,
-  },
-  stepperHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  stepperStepRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  stepperDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: colors.primary,
-  },
-  stepperStepText: {
-    ...typography.labelLg,
-    fontWeight: "700",
-    color: colors.primary,
-  },
-  civicFeedBadge: {
-    backgroundColor: colors.surfaceContainer,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-  },
-  civicFeedBadgeText: {
-    ...typography.codeSm,
-    color: colors.textSecondary,
-    fontSize: 9.5,
-  },
-  stepperTrack: {
-    flexDirection: "row",
-    gap: 6,
-    height: 6,
-    width: "100%",
-  },
-  stepperBar: {
-    flex: 1,
-    height: 6,
+  handle: {
+    width: 36,
+    height: 5,
     borderRadius: 3,
-    backgroundColor: colors.surfaceContainerHighest,
+    alignSelf: "center",
   },
-  stepperBarActive: {
-    backgroundColor: colors.primary,
+  composeContent: {
+    paddingTop: 14,
+    gap: 16,
   },
-  stepperSubtitle: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-  },
-  hazardSection: {
-    gap: 8,
-  },
-  hazardSectionHeader: {
+  composeHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
   },
-  hazardSectionTitle: {
-    ...typography.titleMd,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  singleSelectionText: {
-    ...typography.labelSm,
-    color: colors.primary,
+  composeTitle: {
+    fontSize: 24,
+    lineHeight: 30,
     fontWeight: "600",
+    letterSpacing: -0.48,
   },
-  hazardGrid: {
+  catGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
+    rowGap: 16,
   },
-  hazardCard: {
-    width: "48%",
-    flexGrow: 1,
-    height: 128,
-    backgroundColor: colors.surface,
+  catItem: {
+    width: "33.333%",
+    alignItems: "center",
+    gap: 8,
+  },
+  catCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  catLabel: {
+    ...typography.caption,
+  },
+  locRow: {
+    height: 64,
     borderRadius: radius.card,
     borderWidth: 1,
-    borderColor: colors.border,
-    padding: 14,
-    justifyContent: "space-between",
-    ...shadows.card,
-  },
-  hazardCardActive: {
-    backgroundColor: colors.primaryFixed,
-    borderColor: colors.primary,
-    borderWidth: 1.5,
-  },
-  hazardCardTop: {
+    paddingLeft: 14,
+    paddingRight: 16,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-  },
-  hazardIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  checkBadge: {
-    width: 22,
-    height: 22,
-    borderRadius: 11,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  hazardCardBottom: {
-    gap: 2,
-  },
-  hazardCardTitle: {
-    ...typography.titleSm,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  hazardCardTitleActive: {
-    color: colors.onPrimaryFixed,
-  },
-  hazardCardSubtitle: {
-    ...typography.bodySm,
-    fontSize: 11,
-    color: colors.textSecondary,
-  },
-  hazardCardSubtitleActive: {
-    color: colors.onPrimaryFixedVariant,
-  },
-  noteCard: {
-    padding: space.md,
-    gap: 8,
-  },
-  noteHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  noteTitle: {
-    ...typography.titleSm,
-    fontWeight: "600",
-    color: colors.text,
-    flex: 1,
-  },
-  noteSubtitle: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-    fontSize: 11.5,
-  },
-  textInputBox: {
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: radius.control,
-    padding: 10,
-    minHeight: 74,
-  },
-  textArea: {
-    ...typography.bodyMd,
-    color: colors.text,
-    minHeight: 54,
-    textAlignVertical: "top",
-  },
-  noteFooter: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingTop: 4,
-  },
-  noteFooterLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-  },
-  noteFooterText: {
-    ...typography.codeSm,
-    color: colors.textMuted,
-  },
-  noteFooterCounter: {
-    ...typography.codeSm,
-    color: colors.textMuted,
-  },
-  trustSection: {
-    gap: 10,
-  },
-  trustSectionTitle: {
-    ...typography.titleMd,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  trustCard: {
-    padding: 12,
-    gap: 8,
-  },
-  trustCardTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  trustIconCircle: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  trustRowBetween: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  trustRoadName: {
-    ...typography.titleSm,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  autoDetectedBadge: {
-    backgroundColor: colors.surfaceContainerHigh,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-  },
-  autoDetectedText: {
-    ...typography.codeSm,
-    fontSize: 9.5,
-    color: colors.textSecondary,
-    fontWeight: "600",
-  },
-  tierL1Badge: {
-    backgroundColor: colors.evidenceSurface,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-  },
-  tierL1BadgeText: {
-    ...typography.codeSm,
-    fontSize: 9.5,
-    color: colors.evidence,
-    fontWeight: "700",
-  },
-  trustCoords: {
-    ...typography.codeSm,
-    color: colors.textSecondary,
-    fontSize: 11,
-    marginTop: 2,
-  },
-  trustNoticePill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: colors.surfaceContainerLow,
-    padding: 6,
-    borderRadius: radius.control,
-  },
-  trustNoticePillText: {
-    ...typography.codeSm,
-    color: colors.textSecondary,
-    fontSize: 10.5,
-  },
-  honestyBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: colors.evidenceSurface,
-    borderRadius: radius.card,
-    padding: 14,
     gap: 12,
   },
-  honestyIconCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: colors.evidence,
+  locIconTile: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.iconTile,
     alignItems: "center",
     justifyContent: "center",
   },
-  honestyTitle: {
-    ...typography.titleSm,
-    fontWeight: "700",
-    color: colors.evidence,
+  locTextCol: {
+    flex: 1,
+    gap: 1,
   },
-  honestyBody: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-    fontSize: 11.5,
-    lineHeight: 16,
-    marginTop: 2,
+  locTitle: {
+    ...typography.bodySemibold,
   },
-  actionsStack: {
-    gap: 10,
-    paddingTop: 6,
+  locSub: {
+    ...typography.small,
   },
-  locationActions: { gap: space.sm, marginTop: space.sm },
-  locationModalBackdrop: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(0,0,0,0.45)", padding: space.gutter },
-  locationModalCard: { maxHeight: "78%", padding: space.md, gap: space.md },
-  locationModalHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: space.sm },
-  locationModalTitle: { ...typography.titleMd, color: colors.text, fontWeight: "700" },
-  locationModalBody: { ...typography.bodySm, color: colors.textSecondary, marginTop: 4, maxWidth: 290 },
-  locationModalClose: { width: minTouchTarget, height: minTouchTarget, alignItems: "center", justifyContent: "center", borderRadius: radius.pill, backgroundColor: colors.surfaceContainer },
-  locationList: { maxHeight: 420 },
-  locationOption: { minHeight: minTouchTarget, flexDirection: "row", alignItems: "center", gap: space.sm, borderTopWidth: 1, borderTopColor: colors.border, paddingVertical: space.sm },
-  locationOptionText: { ...typography.bodyMd, color: colors.text, flex: 1 },
-  cancelBtn: {
-    minHeight: minTouchTarget,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  cancelBtnText: {
-    ...typography.labelLg,
-    color: colors.textSecondary,
+  changeText: {
+    ...typography.secondary,
     fontWeight: "600",
   },
-  successBackdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.5)",
+  detailRow: {
+    flexDirection: "row",
+    gap: 10,
+  },
+  photoBtn: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    borderStyle: "dashed",
     alignItems: "center",
     justifyContent: "center",
-    padding: space.gutter,
+    gap: 1,
+    overflow: "hidden",
   },
-  successModalCard: {
+  photoThumb: {
+    width: 56,
+    height: 56,
+  },
+  l5Text: {
+    fontSize: 9,
+    fontWeight: "700",
+  },
+  l5Note: {
+    ...typography.small,
+  },
+  trustRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingHorizontal: 4,
+  },
+  trustText: {
+    flex: 1,
+    ...typography.small,
+  },
+  sentWrap: {
+    paddingTop: 28,
+    alignItems: "center",
+    textAlign: "center",
+  },
+  sentCircleBox: {
+    width: 88,
+    height: 88,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sentRing: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    borderRadius: 44,
+    borderWidth: 2,
+  },
+  sentCircle: {
+    width: 88,
+    height: 88,
+    borderRadius: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  sentTitle: {
+    marginTop: 24,
+    fontSize: 26,
+    lineHeight: 32,
+    fontWeight: "600",
+    letterSpacing: -0.52,
+  },
+  sentSub: {
+    marginTop: 6,
+    ...typography.body,
+    textAlign: "center",
+  },
+  sentCard: {
+    marginTop: 24,
     width: "100%",
-    padding: 24,
+    borderRadius: radius.card,
+    borderWidth: 1,
+    padding: 16,
+    flexDirection: "row",
     alignItems: "center",
     gap: 14,
   },
-  successIconCircle: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: colors.primary,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  successTitle: {
-    ...typography.headlineMd,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  successSubtitle: {
-    ...typography.bodyMd,
-    color: colors.textSecondary,
-    textAlign: "center",
-  },
-  doneBtn: {
-    paddingVertical: 8,
-  },
-  doneBtnText: {
-    ...typography.labelMd,
-    color: colors.textSecondary,
+  sentCardTitle: {
+    ...typography.secondary,
     fontWeight: "600",
   },
-photoCard: {
-    padding: space.md,
-    gap: 10,
+  sentCardSub: {
+    ...typography.small,
   },
-  photoHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  photoTitle: {
-    ...typography.titleSm,
-    fontWeight: "600",
-    color: colors.text,
-    flex: 1,
-  },
-  photoSubtitle: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-    fontSize: 11.5,
-  },
-  photoActions: {
+  sentFooterRow: {
+    marginTop: 10,
+    width: "100%",
     flexDirection: "row",
     gap: 10,
   },
-  photoActionBtn: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    paddingVertical: 14,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    borderRadius: radius.control,
-    borderStyle: "dashed",
-    backgroundColor: colors.primaryFixed,
-  },
-  photoActionText: {
-    ...typography.labelMd,
-    color: colors.primary,
-    fontWeight: "700",
-  },
-  photoPreviewBox: {
-    borderRadius: radius.card,
-    overflow: "hidden",
-    position: "relative",
-  },
-  photoPreview: {
-    width: "100%",
-    height: 180,
-    borderRadius: radius.card,
-  },
-  photoRemoveBtn: {
-    position: "absolute",
-    top: 8,
-    right: 8,
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: "rgba(0,0,0,0.55)",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  photoAttachedBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingTop: 6,
-  },
-  photoAttachedText: {
-    ...typography.labelSm,
-    color: colors.success,
-  },
-  photoPrivacyRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 4,
-  },
-  photoPrivacyText: {
-    ...typography.bodySm,
-    fontSize: 10.5,
-    color: colors.textMuted,
-    flex: 1,
-  },
-  l5ResultBox: {
-    backgroundColor: colors.evidenceSurface,
-    borderRadius: radius.card,
-    borderWidth: 1,
-    borderColor: colors.evidence + "33",
-    padding: space.md,
-    gap: 8,
-    width: "100%",
-  },
-  l5ResultHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  l5ResultTitle: {
-    ...typography.labelMd,
-    color: colors.evidence,
-    fontWeight: "700",
-    flex: 1,
-  },
-  l5UpgradeBadge: {
-    backgroundColor: colors.evidence,
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: radius.pill,
-  },
-  l5UpgradeBadgeText: {
-    ...typography.codeSm,
-    color: "#ffffff",
-    fontSize: 9.5,
-  },
-  l5ResultSummary: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-    lineHeight: 18,
-  },
-  l5ResultRow: {
-    flexDirection: "row",
-    gap: 6,
-  },
-  l5ResultLabel: {
-    ...typography.labelSm,
-    color: colors.textMuted,
-    minWidth: 80,
-  },
-  l5ResultValue: {
-    ...typography.labelSm,
-    color: colors.text,
-    fontWeight: "600",
-    flex: 1,
-  },
-
 });

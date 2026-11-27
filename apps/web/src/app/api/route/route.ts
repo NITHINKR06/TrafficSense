@@ -36,6 +36,7 @@ export async function POST(req: NextRequest) {
         const client = createClient(url, key, { auth: { persistSession: false } });
         const liveIncidents = await getActiveLiveIncidents(client);
         for (const inc of liveIncidents) {
+          if (inc.status !== "open") continue;
           incidents.push({
             id: inc.id,
             category: inc.category,

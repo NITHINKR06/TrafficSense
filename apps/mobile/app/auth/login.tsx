@@ -1,7 +1,7 @@
-import { Link, router, Stack, useLocalSearchParams } from "expo-router";
+import { router, Stack, useLocalSearchParams } from "expo-router";
 import { useEffect, useState } from "react";
 import {
-  ActivityIndicator,
+  Image,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -10,72 +10,85 @@ import {
   Text,
   View,
 } from "react-native";
-import { useAuth } from "../../src/providers/auth-provider";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import {
+  Button,
+  Icon,
+  IconButton,
+  ListGroup,
+  ModalSheet,
+  PasswordField,
+  SimulatedTag,
+  TextField,
+  Toast,
+} from "../../src/components/ui";
 import { safeReturnPath } from "../../src/lib/auth-rules";
-import { AppHeader, Button, Card, FeedbackBox, FormField, Icon } from "../../src/components/ui";
-import type { IconName } from "../../src/components/ui/Icon";
-import { colors, layout, minTouchTarget, radius, shadows, space, typography } from "../../src/theme/tokens";
+import { useAuth } from "../../src/providers/auth-provider";
+import { useTheme } from "../../src/theme/theme-provider";
+import { radius, space, typography } from "../../src/theme/tokens";
 
 type DemoAccount = {
   label: string;
+  sub: string;
   role: "commuter" | "employer" | "authority" | "admin";
   email: string;
   password: string;
-  badge: string;
-  icon: IconName;
-  description: string;
+  initial: string;
 };
 
 const SEEDED_DEMO_ACCOUNTS: DemoAccount[] = [
   {
-    label: "Commuter (Primary)",
+    label: "Commuter · Primary",
+    sub: "commuter@demo.trafficsense.test",
     role: "commuter",
     email: "commuter@demo.trafficsense.test",
     password: "9dwxkTxE5YdAEXnGmMuJ5sfdf2h777ix",
-    badge: "COMMUTER",
-    icon: "directions_car",
-    description: "Standard road user · Submit & verify reports",
+    initial: "C",
   },
   {
-    label: "Commuter B",
+    label: "Commuter B · Corroborator",
+    sub: "commuter-b@demo.trafficsense.test",
     role: "commuter",
     email: "commuter-b@demo.trafficsense.test",
     password: "w7CEllGEJayU78SSrtZDI9jTzo83Owb_",
-    badge: "CORROBORATOR",
-    icon: "directions_car",
-    description: "Second driver · Independent corridor verification",
+    initial: "B",
   },
   {
-    label: "Traffic Authority",
+    label: "Traffic Authority · Ops",
+    sub: "authority@demo.trafficsense.test",
     role: "authority",
     email: "authority@demo.trafficsense.test",
     password: "1vtM3X1e0Rc6BigIJRIGE-JKgGXDDSvz",
-    badge: "AUTHORITY",
-    icon: "shield",
-    description: "Control room · Verify, confirm & clear hazards",
+    initial: "A",
   },
   {
-    label: "Employer A",
+    label: "Employer A · Coordinator",
+    sub: "employer-a@demo.trafficsense.test",
     role: "employer",
     email: "employer-a@demo.trafficsense.test",
     password: "bfYZVofoGLTBibYmXwKSiGOHY8EfTWmy",
-    badge: "EMPLOYER",
-    icon: "group",
-    description: "Workplace coordinator · Commute delay receipts",
+    initial: "E",
   },
 ];
 
+const IS_PRODUCTION = process.env.EXPO_PUBLIC_APP_ENV === "production";
+
 export default function LoginScreen() {
+  const insets = useSafeAreaInsets();
   const { next } = useLocalSearchParams<{ next?: string }>();
   const { signIn, configurationError } = useAuth();
+  const { colors, shadows } = useTheme();
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(configurationError);
   const [submitting, setSubmitting] = useState(false);
-  const [activeDemoEmail, setActiveDemoEmail] = useState<string | null>(null);
+  const [demoSheetOpen, setDemoSheetOpen] = useState(false);
   const [demoAccounts, setDemoAccounts] = useState<DemoAccount[]>(SEEDED_DEMO_ACCOUNTS);
+  const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   useEffect(() => {
+    if (IS_PRODUCTION) return;
     let cancelled = false;
     const apiBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
     if (!apiBaseUrl) return;
@@ -84,81 +97,43 @@ export default function LoginScreen() {
       .then((res) => res.json())
       .then((data) => {
         if (!cancelled && data.ok && Array.isArray(data.accounts) && data.accounts.length > 0) {
-          const mapped: DemoAccount[] = data.accounts.map((acc: { label?: string; role?: string; email: string; password: string }) => {
-            const role = (acc.role ?? "commuter") as DemoAccount["role"];
-            const rawLabel = acc.label ?? acc.email;
-            const label = rawLabel.replace(/-/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-            let icon: IconName = "directions_car";
-            let badge = "COMMUTER";
-            let description = "Standard road user · Submit & verify reports";
-            if (role === "authority") {
-              icon = "shield";
-              badge = "AUTHORITY";
-              description = "Control room · Verify, confirm & clear hazards";
-            } else if (role === "employer") {
-              icon = "group";
-              badge = "EMPLOYER";
-              description = "Workplace coordinator · Commute delay receipts";
-            } else if (label.toLowerCase().includes("b") || label.toLowerCase().includes("c")) {
-              icon = "directions_car";
-              badge = "CORROBORATOR";
-              description = "Secondary driver · Multi-party verification";
-            }
-            return {
-              label,
-              role,
-              email: acc.email,
-              password: acc.password,
-              badge,
-              icon,
-              description,
-            };
-          });
+          const mapped: DemoAccount[] = data.accounts.map(
+            (acc: { label?: string; role?: string; email: string; password: string }) => {
+              const role = (acc.role ?? "commuter") as DemoAccount["role"];
+              const rawLabel = acc.label ?? acc.email;
+              const label = rawLabel
+                .replace(/-/g, " ")
+                .replace(/\b\w/g, (c) => c.toUpperCase());
+              return {
+                label,
+                sub: acc.email,
+                role,
+                email: acc.email,
+                password: acc.password,
+                initial: (label[0] ?? "D").toUpperCase(),
+              };
+            },
+          );
           setDemoAccounts(mapped);
         }
       })
-      .catch(() => {
-        // Fallback to seeded demo accounts already in state
-      });
+      .catch(() => {});
 
     return () => {
       cancelled = true;
     };
   }, []);
 
-  async function handleQuickDemoSignIn(account: DemoAccount) {
-    setEmail(account.email);
-    setPassword(account.password);
+  async function handleSignIn(targetEmail = email, targetPassword = password, targetRole?: string) {
     setError(null);
     setSubmitting(true);
-    setActiveDemoEmail(account.email);
-
-    const result = await signIn(account.email, account.password);
-    setSubmitting(false);
-    setActiveDemoEmail(null);
-
-    if (result) {
-      setError(result);
-      return;
-    }
-
-    if (account.role === "authority") {
-      router.replace("/authority");
-    } else {
-      router.replace(safeReturnPath(next));
-    }
-  }
-
-  async function submit() {
-    setError(null);
-    setSubmitting(true);
-    const result = await signIn(email, password);
+    const result = await signIn(targetEmail, targetPassword);
     setSubmitting(false);
     if (result) {
       setError(result);
       return;
     }
-    if (email.toLowerCase().includes("authority")) {
+    if (targetRole === "authority" || targetEmail.toLowerCase().includes("authority")) {
       router.replace("/authority");
     } else {
       router.replace(safeReturnPath(next));
@@ -166,459 +141,416 @@ export default function LoginScreen() {
   }
 
   return (
-    <View style={styles.screenWrapper}>
+    <View style={[styles.screen, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ headerShown: false }} />
-      <AppHeader
-        title="Sign in"
-        subtitle="TrafficSense Mangaluru"
-        canGoBack
-        onBack={() => router.replace("/")}
-        showLive={false}
-      />
 
       <KeyboardAvoidingView
-        behavior={Platform.OS === "ios" ? "padding" : "height"}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
         style={{ flex: 1 }}
       >
         <ScrollView
-          contentContainerStyle={styles.container}
+          contentContainerStyle={[
+            styles.scrollContent,
+            {
+              paddingTop: Math.max(insets.top + 8, 16),
+              paddingBottom: Math.max(insets.bottom + 16, 24),
+            },
+          ]}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Hero Branding Header */}
-          <View style={styles.header}>
-            <View style={styles.badgeRow}>
-              <View style={styles.corridorTag}>
-                <Text style={styles.corridorTagText}>MANGALURU CORRIDOR</Text>
-              </View>
-              <View style={styles.demoPill}>
-                <Icon name="verified" size={13} color={colors.secondary} />
-                <Text style={styles.demoPillText}>DEMO AUTH</Text>
-              </View>
+          <IconButton
+            accessibilityLabel="Back"
+            variant="tonal"
+            size={44}
+            onPress={() => (router.canGoBack() ? router.back() : router.replace("/"))}
+            style={{ marginLeft: -4 }}
+          >
+            <Icon name="arrow-left" size={18} color={colors.text} />
+          </IconButton>
+
+          <View style={styles.brandHeader}>
+            <View style={[{ borderRadius: radius.input }, shadows.card]}>
+              <Image
+                source={require("../../assets/design-icon.png")}
+                style={styles.appIcon}
+                accessibilityLabel="TrafficSense"
+              />
             </View>
-            <Text style={styles.title}>Account Access</Text>
-            <Text style={styles.subtitle}>
-              Sign in with a commuter, authority, or employer account. Public traffic maps and route planning remain open without signing in.
+            <Text style={[styles.title, { color: colors.text }]}>Welcome back</Text>
+            <Text style={[styles.subtitle, { color: colors.text2 }]}>
+              Sign in to report and confirm hazards.
             </Text>
           </View>
 
-          {/* Quick Judge Demo Sign-In Card (1-Click) */}
-          <Card style={styles.quickDemoCard}>
-            <View style={styles.quickDemoHeader}>
-              <View style={styles.quickDemoTitleRow}>
-                <View style={styles.quickDemoIconCircle}>
-                  <Icon name="tune" size={18} color="#ffffff" />
-                </View>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.quickDemoTitle}>Quick Judge Demo Sign-In</Text>
-                  <Text style={styles.quickDemoSubtitle}>
-                    1-Click instant authentication for evaluation
-                  </Text>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.demoAccountsList}>
-              {demoAccounts.map((account) => {
-                const isActive = activeDemoEmail === account.email && submitting;
-                const isAuthority = account.role === "authority";
-                const isEmployer = account.role === "employer";
-
-                const badgeBg = isAuthority
-                  ? colors.errorSurface
-                  : isEmployer
-                  ? colors.warningSurface
-                  : colors.evidenceSurface;
-
-                const badgeColor = isAuthority
-                  ? colors.error
-                  : isEmployer
-                  ? colors.warning
-                  : colors.secondary;
-
-                return (
-                  <Pressable
-                    key={account.email}
-                    accessibilityRole="button"
-                    accessibilityLabel={`Quick sign in as ${account.label}`}
-                    disabled={submitting}
-                    onPress={() => void handleQuickDemoSignIn(account)}
-                    style={({ pressed }) => [
-                      styles.demoAccountRow,
-                      pressed && styles.demoAccountRowPressed,
-                      isActive && styles.demoAccountRowActive,
-                    ]}
-                  >
-                    <View style={[styles.roleIconBox, { backgroundColor: badgeBg }]}>
-                      <Icon name={account.icon} size={20} color={badgeColor} />
-                    </View>
-
-                    <View style={styles.demoAccountInfo}>
-                      <View style={styles.demoAccountTopRow}>
-                        <Text style={styles.demoAccountLabel}>{account.label}</Text>
-                        <View style={[styles.roleBadge, { backgroundColor: badgeBg }]}>
-                          <Text style={[styles.roleBadgeText, { color: badgeColor }]}>
-                            {account.badge}
-                          </Text>
-                        </View>
-                      </View>
-                      <Text style={styles.demoAccountDesc} numberOfLines={1}>
-                        {account.description}
-                      </Text>
-                      <Text style={styles.demoAccountEmail}>{account.email}</Text>
-                    </View>
-
-                    <View style={styles.demoActionCol}>
-                      {isActive ? (
-                        <ActivityIndicator size="small" color={colors.primary} />
-                      ) : (
-                        <View style={styles.quickSignBtn}>
-                          <Text style={styles.quickSignBtnText}>Sign in</Text>
-                          <Icon name="chevron_right" size={14} color={colors.primary} />
-                        </View>
-                      )}
-                    </View>
-                  </Pressable>
-                );
-              })}
-            </View>
-          </Card>
-
-          {/* Guest Explorer CTA */}
+          {/* Google Sign-In */}
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Continue as guest to view traffic map"
-            onPress={() => router.replace("/traffic")}
+            accessibilityLabel="Continue with Google"
+            onPress={() => setToastMsg("Google sign-in requires OAuth configuration")}
             style={({ pressed }) => [
-              styles.guestButton,
-              pressed && styles.guestButtonPressed,
+              styles.googleBtn,
+              {
+                backgroundColor: pressed ? colors.surface2 : colors.surface,
+                borderColor: colors.borderStrong,
+              },
             ]}
           >
-            <Icon name="explore" size={18} color={colors.primary} />
-            <Text style={styles.guestButtonText}>Continue as Guest (Public Map & Routes)</Text>
+            <View style={[styles.googleCircle, { borderColor: colors.text2 }]}>
+              <Text style={[styles.googleG, { color: colors.text }]}>G</Text>
+            </View>
+            <Text style={[styles.googleText, { color: colors.text }]}>
+              Continue with Google
+            </Text>
           </Pressable>
 
           {/* Divider */}
           <View style={styles.dividerRow}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR SIGN IN WITH PASSWORD</Text>
-            <View style={styles.dividerLine} />
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+            <Text style={[styles.dividerText, { color: colors.text3 }]}>or with email</Text>
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
           </View>
 
-          {/* Manual Sign-In Card */}
-          <Card style={styles.formCard}>
-            <FormField
-              label="Email address"
-              accessibilityLabel="Email address"
+          {/* Form */}
+          <View style={styles.form}>
+            <TextField
+              label="Email"
+              value={email}
+              onChangeText={(t) => {
+                setEmail(t);
+                if (error) setError(null);
+              }}
+              placeholder="you@example.com"
               autoCapitalize="none"
               autoComplete="email"
               keyboardType="email-address"
-              onChangeText={setEmail}
-              placeholder="commuter@demo.trafficsense.test"
-              value={email}
+              editable={!submitting}
             />
 
-            <FormField
+            <PasswordField
               label="Password"
-              accessibilityLabel="Password"
-              autoCapitalize="none"
-              onChangeText={setPassword}
-              placeholder="••••••••••••"
-              secureTextEntry
               value={password}
+              onChangeText={(t) => {
+                setPassword(t);
+                if (error) setError(null);
+              }}
+              placeholder="Your password"
+              autoCapitalize="none"
+              editable={!submitting}
+              error={error}
             />
 
-            {error ? (
-              <FeedbackBox
-                variant="error"
-                message={error}
-                actionText="Dismiss"
-                onAction={() => setError(null)}
-              />
-            ) : null}
+            <View style={styles.forgotRow}>
+              <Pressable
+                accessibilityRole="button"
+                hitSlop={8}
+                onPress={() => router.push("/auth/forgot-password")}
+              >
+                <Text style={[styles.forgotLink, { color: colors.accent }]}>
+                  Forgot password?
+                </Text>
+              </Pressable>
+            </View>
 
             <Button
-              title="Sign in with credentials"
-              loading={submitting && !activeDemoEmail}
-              onPress={() => void submit()}
+              title="Sign in"
+              size="L"
               variant="primary"
-              icon={<Icon name="chevron_right" size={18} color="#ffffff" />}
+              loading={submitting}
+              onPress={() => void handleSignIn()}
+              style={{ marginTop: 4 }}
             />
-          </Card>
 
-          {/* Footer Actions */}
-          <View style={styles.footer}>
-            <Text style={styles.footerText}>Need a new commuter account?</Text>
-            <Link href="/auth/register" asChild>
-              <Button
-                title="Create a commuter account"
-                onPress={() => router.push("/auth/register")}
-                variant="outline"
-              />
-            </Link>
-
-            <View style={styles.transparencyNotice}>
-              <Icon name="shield" size={14} color={colors.textMuted} />
-              <Text style={styles.transparencyNoticeText}>
-                Local demo mode: Uses synthetic Mangaluru corridor accounts. No private personal data or GPS tracking is retained.
+            <View style={styles.switchAuthRow}>
+              <Text style={[styles.switchAuthText, { color: colors.text2 }]}>
+                New here?{" "}
               </Text>
+              <Pressable hitSlop={8} onPress={() => router.push("/auth/register")}>
+                <Text style={[styles.switchAuthLink, { color: colors.accent }]}>
+                  Create account
+                </Text>
+              </Pressable>
             </View>
           </View>
 
-          <View style={{ height: layout.safeBottomPadding }} />
+          {/* Bottom Actions */}
+          <View style={styles.bottomStack}>
+            {!IS_PRODUCTION ? (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Try a demo account"
+                onPress={() => setDemoSheetOpen(true)}
+                style={({ pressed }) => [
+                  styles.demoRow,
+                  {
+                    borderColor: colors.text3,
+                    opacity: pressed ? 0.8 : 1,
+                  },
+                ]}
+              >
+                <View style={[styles.demoIconTile, { backgroundColor: colors.surface2 }]}>
+                  <Icon name="flask-conical" size={16} color={colors.text} />
+                </View>
+                <View style={styles.demoTextCol}>
+                  <Text style={[styles.demoTitle, { color: colors.text }]}>
+                    Try a demo account
+                  </Text>
+                  <Text style={[styles.demoSub, { color: colors.text3 }]}>
+                    Test data · no sign-up needed
+                  </Text>
+                </View>
+                <Icon name="chevron-right" size={16} color={colors.text3} />
+              </Pressable>
+            ) : null}
+
+            <Button
+              title="Continue as guest"
+              size="M"
+              variant="text"
+              onPress={() => router.replace("/")}
+              textStyle={{ color: colors.text }}
+            />
+
+            <Text style={[styles.legalLine, { color: colors.text3 }]}>
+              By continuing you agree to the{" "}
+              <Text
+                style={{ color: colors.text2, fontWeight: "600", textDecorationLine: "underline" }}
+                onPress={() => router.push("/legal")}
+              >
+                Terms
+              </Text>{" "}
+              and{" "}
+              <Text
+                style={{ color: colors.text2, fontWeight: "600", textDecorationLine: "underline" }}
+                onPress={() => router.push("/legal")}
+              >
+                Privacy Policy
+              </Text>
+              .
+            </Text>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Demo Accounts ModalSheet (non-production only) */}
+      <ModalSheet visible={demoSheetOpen} onClose={() => setDemoSheetOpen(false)}>
+        <View style={styles.demoSheet}>
+          <View style={styles.demoSheetHeader}>
+            <Text style={[styles.demoSheetTitle, { color: colors.text }]}>
+              Demo accounts
+            </Text>
+            <SimulatedTag label="Test data" />
+          </View>
+
+          <ListGroup>
+            {demoAccounts.map((acc, idx) => (
+              <Pressable
+                key={acc.email}
+                accessibilityRole="button"
+                onPress={() => {
+                  setDemoSheetOpen(false);
+                  setEmail(acc.email);
+                  setPassword(acc.password);
+                  void handleSignIn(acc.email, acc.password, acc.role);
+                }}
+                style={({ pressed }) => [
+                  styles.demoAccRow,
+                  idx > 0 && { borderTopWidth: 1, borderTopColor: colors.border },
+                  pressed && { backgroundColor: colors.surface2 },
+                ]}
+              >
+                <View style={[styles.demoAvatar, { backgroundColor: colors.accentSoft }]}>
+                  <Text style={[styles.demoAvatarText, { color: colors.accent }]}>
+                    {acc.initial}
+                  </Text>
+                </View>
+                <View style={styles.demoAccTextCol}>
+                  <Text style={[styles.demoAccLabel, { color: colors.text }]}>
+                    {acc.label}
+                  </Text>
+                  <Text style={[styles.demoAccEmail, { color: colors.text3 }]} numberOfLines={1}>
+                    {acc.sub}
+                  </Text>
+                </View>
+                <Icon name="chevron-right" size={16} color={colors.text3} />
+              </Pressable>
+            ))}
+          </ListGroup>
+        </View>
+      </ModalSheet>
+
+      <Toast
+        visible={Boolean(toastMsg)}
+        message={toastMsg ?? ""}
+        onDismiss={() => setToastMsg(null)}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screenWrapper: {
+  screen: {
     flex: 1,
-    backgroundColor: colors.background,
   },
-  container: {
-    padding: space.gutter,
-    paddingTop: space.sm,
-    paddingBottom: space.xl,
-    gap: space.md,
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: space[6],
   },
-  header: {
-    gap: space.xs,
-    paddingBottom: 4,
-  },
-  badgeRow: {
-    flexDirection: "row",
+  brandHeader: {
+    marginTop: 8,
     alignItems: "center",
-    gap: space.xs,
-    marginBottom: 4,
   },
-  corridorTag: {
-    backgroundColor: colors.surfaceContainerHighest,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.pill,
-  },
-  corridorTagText: {
-    ...typography.codeSm,
-    fontSize: 10,
-    color: colors.primary,
-    fontWeight: "700",
-  },
-  demoPill: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: colors.evidenceSurface,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.pill,
-  },
-  demoPillText: {
-    ...typography.codeSm,
-    fontSize: 10,
-    color: colors.secondary,
-    fontWeight: "700",
+  appIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: radius.input,
   },
   title: {
-    ...typography.headlineMd,
-    fontWeight: "700",
-    color: colors.text,
+    marginTop: 16,
+    ...typography.display,
+    textAlign: "center",
   },
   subtitle: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-    lineHeight: 19,
+    marginTop: 6,
+    ...typography.body,
+    textAlign: "center",
   },
-  quickDemoCard: {
-    padding: space.md,
+  googleBtn: {
+    marginTop: 24,
+    height: 52,
+    borderRadius: radius.button,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 12,
+  },
+  googleCircle: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
     borderWidth: 1.5,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
-    ...shadows.card,
-  },
-  quickDemoHeader: {
-    paddingBottom: 4,
-  },
-  quickDemoTitleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-  },
-  quickDemoIconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: colors.primary,
     alignItems: "center",
     justifyContent: "center",
   },
-  quickDemoTitle: {
-    ...typography.titleSm,
-    fontWeight: "700",
-    color: colors.text,
-  },
-  quickDemoSubtitle: {
-    ...typography.bodySm,
+  googleG: {
     fontSize: 12,
-    color: colors.textSecondary,
-  },
-  demoAccountsList: {
-    gap: 8,
-  },
-  demoAccountRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    minHeight: minTouchTarget + 6,
-    padding: 10,
-    backgroundColor: colors.surfaceContainerLow,
-    borderRadius: radius.control,
-    borderWidth: 1,
-    borderColor: colors.surfaceContainerHigh,
-    gap: 10,
-  },
-  demoAccountRowPressed: {
-    backgroundColor: colors.surfaceContainer,
-    transform: [{ scale: 0.99 }],
-  },
-  demoAccountRowActive: {
-    borderColor: colors.primary,
-    backgroundColor: colors.evidenceSurface,
-  },
-  roleIconBox: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  demoAccountInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  demoAccountTopRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-  },
-  demoAccountLabel: {
-    ...typography.labelMd,
     fontWeight: "700",
-    color: colors.text,
   },
-  roleBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 1.5,
-    borderRadius: radius.pill,
-  },
-  roleBadgeText: {
-    ...typography.codeSm,
-    fontSize: 9,
-    fontWeight: "700",
-    letterSpacing: 0.4,
-  },
-  demoAccountDesc: {
-    ...typography.bodySm,
-    fontSize: 11.5,
-    color: colors.textSecondary,
-  },
-  demoAccountEmail: {
-    ...typography.codeSm,
-    fontSize: 10,
-    color: colors.textMuted,
-  },
-  demoActionCol: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingLeft: 4,
-  },
-  quickSignBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 3,
-    backgroundColor: colors.surface,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  quickSignBtnText: {
-    ...typography.labelSm,
-    fontSize: 11.5,
-    fontWeight: "700",
-    color: colors.primary,
-  },
-  guestButton: {
-    minHeight: minTouchTarget,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.primary,
-    borderRadius: radius.control,
-    paddingHorizontal: space.md,
-    paddingVertical: 12,
-  },
-  guestButtonPressed: {
-    backgroundColor: colors.surfaceContainerLow,
-    transform: [{ scale: 0.99 }],
-  },
-  guestButtonText: {
-    ...typography.labelMd,
-    fontWeight: "700",
-    color: colors.primary,
+  googleText: {
+    fontSize: 16,
+    fontWeight: "600",
   },
   dividerRow: {
+    marginVertical: 18,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
-    marginVertical: 4,
   },
   dividerLine: {
     flex: 1,
     height: 1,
-    backgroundColor: colors.surfaceContainerHighest,
   },
   dividerText: {
-    ...typography.codeSm,
-    fontSize: 10,
-    fontWeight: "700",
-    color: colors.textMuted,
-    letterSpacing: 0.8,
+    ...typography.caption,
   },
-  formCard: {
-    padding: space.md,
-    gap: space.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    backgroundColor: colors.surface,
+  form: {
+    gap: 12,
   },
-  footer: {
-    alignItems: "stretch",
-    gap: space.sm,
-    paddingTop: space.xs,
+  forgotRow: {
+    alignItems: "flex-end",
   },
-  footerText: {
-    ...typography.bodySm,
-    color: colors.textSecondary,
-    textAlign: "center",
+  forgotLink: {
+    ...typography.caption,
+    fontWeight: "600",
   },
-  transparencyNotice: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 6,
-    paddingHorizontal: 6,
+  switchAuthRow: {
     marginTop: 4,
+    flexDirection: "row",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  transparencyNoticeText: {
-    ...typography.codeSm,
-    fontSize: 10.5,
-    color: colors.textMuted,
+  switchAuthText: {
+    ...typography.secondary,
+  },
+  switchAuthLink: {
+    ...typography.secondary,
+    fontWeight: "600",
+  },
+  bottomStack: {
+    marginTop: "auto",
+    paddingTop: 24,
+    gap: 8,
+  },
+  demoRow: {
+    height: 56,
+    borderRadius: radius.buttonLg,
+    borderWidth: 1,
+    borderStyle: "dashed",
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  demoIconTile: {
+    width: 32,
+    height: 32,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  demoTextCol: {
     flex: 1,
-    lineHeight: 14,
+  },
+  demoTitle: {
+    ...typography.secondary,
+    fontWeight: "600",
+  },
+  demoSub: {
+    ...typography.small,
+  },
+  legalLine: {
+    textAlign: "center",
+    ...typography.small,
+  },
+  demoSheet: {
+    paddingTop: 8,
+    gap: 16,
+  },
+  demoSheetHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  demoSheetTitle: {
+    ...typography.title,
+  },
+  demoAccRow: {
+    height: 62,
+    paddingHorizontal: 14,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  demoAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  demoAvatarText: {
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  demoAccTextCol: {
+    flex: 1,
+    gap: 2,
+  },
+  demoAccLabel: {
+    ...typography.bodySemibold,
+  },
+  demoAccEmail: {
+    ...typography.small,
   },
 });

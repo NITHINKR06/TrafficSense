@@ -5,50 +5,48 @@ import { getViewer } from "@/lib/auth/server";
 
 export const metadata: Metadata = {
   title: "Report Traffic Incident · TrafficSense Mangaluru",
-  description: "Report road hazards, accidents, flooding, and traffic obstacles. Dispatched to the Civic Traffic Authority dashboard for verification.",
+  description:
+    "Report road hazards, accidents, flooding, and traffic obstacles. Dispatched to the Civic Traffic Authority dashboard for verification.",
 };
 
 export default async function ReportPage() {
   const viewer = await getViewer();
   return (
-    <section className="panel space-y-6">
-      <div className="panel-heading">
-        <p className="eyebrow m-0">Citizen Hazard Reporting</p>
-        <span className="simulated-pill">COMMUNITY EVIDENCE</span>
-      </div>
+    <div className="space-y-6">
+      <div className="rounded-[36px] bg-white border border-[#EEE9DC] p-7 lg:p-9 shadow-[0_12px_28px_rgba(17,20,26,0.05)]">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="h-[30px] px-3 rounded-full bg-[#11141A] text-[#D5F75A] inline-flex items-center gap-2 font-mono text-[11px] font-semibold tracking-[0.08em]">
+            <span className="w-1.5 h-1.5 rounded-full bg-[#FF5B2E]" />
+            CITIZEN HAZARD REPORTING
+          </span>
+          <span className="simulated-pill">COMMUNITY EVIDENCE</span>
+        </div>
 
-      <div>
-        <h1 className="text-2xl font-bold">Report a Road Problem</h1>
-        <p className="text-sm text-surface-on-variant mt-1">
-          Submit observed road hazards and obstacles in Mangaluru. All reports are immediately queued for verification by the Civic Traffic Authority.
-        </p>
-      </div>
-
-      <div className="p-4 rounded-xl bg-surface-container-low border border-surface-container text-xs space-y-1">
-        <p className="font-semibold text-surface-on">Report &amp; Verification Workflow</p>
-        <p className="text-surface-on-variant">
-          Your report is recorded under your authenticated session and positioned on the OpenStreetMap road network. The Civic Traffic Authority reviews incoming incidents in their civic portal to verify and assign official L6 confirmation.
+        <h1 className="font-display font-bold text-4xl lg:text-[52px] leading-[0.95] tracking-[-0.04em] mt-4 mb-0 text-[#11141A]">
+          Report a road problem<span className="text-[#FF5B2E]">.</span>
+        </h1>
+        <p className="text-sm lg:text-base text-[#4A505C] mt-3 max-w-2xl mb-0">
+          Your report starts at L1, positions on the Mangaluru road network, and queues in the Civic Traffic Authority
+          control room for verification.
         </p>
       </div>
 
       <WebReportScreen viewer={viewer ? { email: viewer.email ?? "", role: viewer.role } : null} />
 
-      <div className="pt-4 border-t border-surface-container-high flex flex-wrap items-center justify-between gap-3 text-xs">
-        <div className="flex items-center gap-4">
-          <Link className="text-primary hover:underline" href="/traffic">
+      <div className="flex flex-wrap items-center justify-between gap-3 text-xs text-[#4A505C] px-2">
+        <div className="flex flex-wrap items-center gap-4">
+          <Link className="font-semibold text-[#11141A] hover:underline no-underline" href="/traffic">
             ← Live traffic map
           </Link>
-          <Link className="text-primary hover:underline font-semibold" href="/planner">
+          <Link className="font-semibold text-[#11141A] hover:underline no-underline" href="/planner">
             Route planner →
           </Link>
-          <Link className="text-surface-on-variant hover:underline" href="/authority">
+          <Link className="text-[#4A505C] hover:underline no-underline" href="/authority" prefetch={false}>
             Authority civic review
           </Link>
         </div>
-        <span className="text-surface-on-variant font-mono">
-          TrafficSense Mangaluru · OpenStreetMap SDK
-        </span>
+        <span className="font-mono text-[11px]">TrafficSense Mangaluru · OpenStreetMap SDK</span>
       </div>
-    </section>
+    </div>
   );
 }

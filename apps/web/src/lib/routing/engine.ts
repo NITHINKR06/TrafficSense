@@ -15,6 +15,24 @@ export type VerifiedIncident = {
   label?: string;
 };
 
+export type HazardRoutingPolicy = "hard_exclude" | "soft_avoid" | "map_only";
+
+/**
+ * Policy table mapping verification level + hazard category to routing behavior:
+ * - L6 or confirmed road_closed/landslide -> hard_exclude
+ * - L3/L5/L4 or confirmed flood -> soft_avoid (try detour and show time cost)
+ * - Unverified L1/L2 -> map_only (advisory warning, never forces override)
+ */
+export function classifyHazardPolicy(level: string, category: string): HazardRoutingPolicy {
+  if (level === "L6" && (category === "road_closed" || category === "landslide" || category === "flood")) {
+    return "hard_exclude";
+  }
+  if (level === "L6" || level === "L5" || level === "L3" || level === "L4") {
+    return "soft_avoid";
+  }
+  return "map_only";
+}
+
 /**
  * Turns current multi-source report assessments into route warnings without
  * exposing report identities. These are L3 corroboration indicators, not
@@ -62,16 +80,32 @@ export function haversineDistanceM(coord1: Coordinate, coord2: Coordinate): numb
 }
 
 /**
- * Returns minimum distance in meters from a point to a route geometry.
+ * Returns minimum distance in meters from a point to a route polyline
+ * using point-to-segment projection on a local equirectangular plane.
  */
 export function minDistanceToRoute(point: Coordinate, routeCoords: Coordinate[]): number {
   if (routeCoords.length === 0) return Infinity;
-  let minDistance = Infinity;
+  if (routeCoords.length === 1) return haversineDistanceM(point, routeCoords[0]);
 
-  for (let i = 0; i < routeCoords.length; i++) {
-    const d = haversineDistanceM(point, routeCoords[i]);
-    if (d < minDistance) {
-      minDistance = d;
+  const R = 6371000;
+  const rad = Math.PI / 180;
+  const cosLat0 = Math.cos(point[1] * rad);
+  const toXY = ([lng, lat]: Coordinate): [number, number] => [
+    (lng - point[0]) * rad * R * cosLat0,
+    (lat - point[1]) * rad * R,
+  ];
+
+  let minDistance = Infinity;
+  for (let i = 1; i < routeCoords.length; i++) {
+    const [ax, ay] = toXY(routeCoords[i - 1]);
+    const [bx, by] = toXY(routeCoords[i]);
+    const dx = bx - ax;
+    const dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / lenSq));
+    const dist = Math.hypot(ax + t * dx, ay + t * dy);
+    if (dist < minDistance) {
+      minDistance = dist;
     }
   }
 

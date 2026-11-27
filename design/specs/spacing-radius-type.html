@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TrafficSense · Spacing, radius & type spec</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>body{margin:0} table{border-collapse:collapse}</style>
+<style>html,body{margin:0;background:#E8EBEE}#app{display:inline-block;min-width:100%}</style>
+</head>
+<body>
+<div id="app"></div>
+<template id="tpl-SpacingSpec">
+<div style="width:1440px;height:1060px;box-sizing:border-box;padding:56px;background:#F5F6F7;font-family:Inter,system-ui,sans-serif;color:#121619;display:flex;flex-direction:column;gap:32px">
+
+<div>
+<div style="font-size:13px;font-weight:600;color:#0B6B5F;letter-spacing:.04em;text-transform:uppercase">Foundations</div>
+<h1 style="margin:6px 0 0;font-size:40px;line-height:46px;font-weight:650;letter-spacing:-.025em">Spacing, radius &amp; type</h1>
+<p style="margin:8px 0 0;font-size:16px;color:#4B555E">Everything sits on a 4 px grid. Use the tokens, never in-between values.</p>
+</div>
+
+<div style="display:flex;gap:32px;flex:1;min-height:0">
+
+<div style="width:420px;border-radius:28px;background:#FFFFFF;box-shadow:0 0 0 1px #E2E5E8;padding:24px 28px;display:flex;flex-direction:column;gap:10px">
+<span style="font-size:13px;font-weight:600;color:#4B555E;margin-bottom:4px">Spacing scale</span>
+<sc-for list="{{space}}" as="s" hint-placeholder-count="9">
+<div style="display:flex;align-items:center;gap:14px;height:34px">
+<span style="width:28px;font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;text-align:right">{{s.v}}</span>
+<span style="width:{{s.w}}px;height:16px;border-radius:3px;background:#F2C9C4"></span>
+<span style="flex:1;font-size:13px;color:#4B555E">{{s.use}}</span>
+</div>
+</sc-for>
+<div style="height:1px;background:#EEF0F2;margin:6px 0"></div>
+<span style="font-size:13px;font-weight:600;color:#4B555E;margin-bottom:4px">Radius</span>
+<div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px">
+<sc-for list="{{radii}}" as="r" hint-placeholder-count="7">
+<div style="display:flex;flex-direction:column;gap:6px">
+<span style="height:52px;border-radius:{{r.css}};background:#E2F0ED;border:1.5px solid #0B6B5F"></span>
+<span style="font-size:12px;font-weight:600">{{r.v}}</span>
+<span style="font-size:11px;color:#5F6A73">{{r.use}}</span>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="width:420px;border-radius:28px;background:#FFFFFF;box-shadow:0 0 0 1px #E2E5E8;padding:24px 28px;display:flex;flex-direction:column;gap:14px">
+<span style="font-size:13px;font-weight:600;color:#4B555E">Screen layout</span>
+<div style="position:relative;width:364px;height:560px;border-radius:24px;background:#F5F6F7;box-shadow:0 0 0 1px #E2E5E8;overflow:hidden">
+<span style="position:absolute;left:0;top:0;bottom:0;width:20px;background:rgba(200,55,43,.12)"></span>
+<span style="position:absolute;right:0;top:0;bottom:0;width:20px;background:rgba(200,55,43,.12)"></span>
+<span style="position:absolute;left:4px;top:8px;font-size:10px;font-weight:700;color:#C8372B">20</span>
+<div style="position:absolute;left:20px;right:20px;top:24px;font-size:24px;font-weight:650;letter-spacing:-.02em">Nearby</div>
+<span style="position:absolute;left:20px;right:20px;top:54px;height:24px;background:rgba(200,55,43,.12)"></span>
+<span style="position:absolute;left:176px;top:58px;font-size:10px;font-weight:700;color:#C8372B">24 section</span>
+<div style="position:absolute;left:20px;right:20px;top:78px;height:176px;border-radius:20px;background:#FFFFFF;box-shadow:0 0 0 1px #E2E5E8">
+<span style="position:absolute;inset:0;border:16px solid rgba(11,107,95,.12);border-radius:20px"></span>
+<span style="position:absolute;left:3px;top:3px;font-size:10px;font-weight:700;color:#0B6B5F">16</span>
+<span style="position:absolute;left:16px;top:16px;width:40px;height:40px;border-radius:12px;background:#FCF0DF"></span>
+<span style="position:absolute;left:56px;top:16px;width:12px;height:40px;background:rgba(200,55,43,.12)"></span>
+<span style="position:absolute;left:68px;top:18px;width:150px;height:14px;border-radius:4px;background:#121619"></span>
+<span style="position:absolute;left:68px;top:40px;width:110px;height:10px;border-radius:4px;background:#C9CED3"></span>
+<span style="position:absolute;left:16px;top:56px;right:16px;height:12px;background:rgba(200,55,43,.12)"></span>
+<span style="position:absolute;left:16px;top:68px;right:16px;height:10px;border-radius:4px;background:#C9CED3"></span>
+<span style="position:absolute;left:16px;top:84px;width:200px;height:10px;border-radius:4px;background:#C9CED3"></span>
+<span style="position:absolute;left:16px;top:94px;right:16px;height:12px;background:rgba(200,55,43,.12)"></span>
+<span style="position:absolute;left:16px;top:106px;width:150px;height:44px;border-radius:14px;background:#EEF0F2"></span>
+<span style="position:absolute;left:174px;top:106px;width:90px;height:44px;border-radius:14px;box-shadow:inset 0 0 0 1px #E2E5E8"></span>
+<span style="position:absolute;right:16px;top:106px;width:44px;height:44px;border-radius:14px;background:#0B6B5F"></span>
+</div>
+<span style="position:absolute;left:20px;right:20px;top:254px;height:12px;background:rgba(200,55,43,.12)"></span>
+<span style="position:absolute;left:176px;top:255px;font-size:10px;font-weight:700;color:#C8372B">12 card gap</span>
+<div style="position:absolute;left:20px;right:20px;top:266px;height:60px;border-radius:20px;background:#FFFFFF;box-shadow:0 0 0 1px #E2E5E8"></div>
+<span style="position:absolute;left:20px;right:20px;top:326px;height:12px;background:rgba(200,55,43,.12)"></span>
+<div style="position:absolute;left:20px;right:20px;top:338px;height:60px;border-radius:20px;background:#FFFFFF;box-shadow:0 0 0 1px #E2E5E8"></div>
+<span style="position:absolute;left:0;right:0;bottom:0;height:112px;background:rgba(11,107,95,.08);border-top:1px dashed #0B6B5F"></span>
+<span style="position:absolute;left:20px;bottom:84px;font-size:10px;font-weight:700;color:#0B6B5F">112 clear space for the nav bar</span>
+<span style="position:absolute;left:16px;bottom:16px;width:266px;height:56px;border-radius:28px;background:#FFFFFF;box-shadow:0 0 0 1px #E2E5E8,0 8px 20px rgba(16,24,32,.10)"></span>
+<span style="position:absolute;right:16px;bottom:16px;width:56px;height:56px;border-radius:28px;background:#0B6B5F"></span>
+</div>
+</div>
+
+<div style="flex:1;display:flex;flex-direction:column;gap:32px">
+<div style="border-radius:28px;background:#FFFFFF;box-shadow:0 0 0 1px #E2E5E8;padding:24px 28px">
+<div style="font-size:13px;font-weight:600;color:#4B555E;margin-bottom:8px">Type · Inter</div>
+<div style="display:flex;flex-direction:column;width:100%">
+<sc-for list="{{type}}" as="y" hint-placeholder-count="7">
+<div style="display:flex;align-items:center;border-top:1px solid #EEF0F2"><div style="flex:none;padding:9px 12px 9px 0;font-size:{{y.fs}}px;line-height:{{y.lh}}px;font-weight:{{y.fw}};letter-spacing:{{y.ls}};white-space:nowrap">{{y.name}}</div><div style="flex:none;margin-left:auto;padding:9px 0;font-size:12px;color:#4B555E;text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums">{{y.spec}}</div></div>
+</sc-for>
+</div>
+</div>
+<div style="border-radius:28px;background:#FFFFFF;box-shadow:0 0 0 1px #E2E5E8;padding:24px 28px;display:flex;gap:20px;align-items:center">
+<span style="position:relative;width:48px;height:48px;border-radius:8px;border:1.5px dashed #C8372B;box-sizing:border-box;display:flex;align-items:center;justify-content:center;flex-shrink:0"><span style="width:36px;height:36px;border-radius:18px;background:#EEF0F2"></span></span>
+<span style="display:flex;flex-direction:column;gap:4px"><span style="font-size:14px;font-weight:600">Touch targets</span><span style="font-size:13px;line-height:18px;color:#4B555E">Every tappable thing gets a 48 × 48 hit area, even when it looks smaller. Keep 8 px between targets.</span></span>
+</div>
+</div>
+</div>
+
+</div>
+</template>
+<script src="../runtime/ts-runtime.js"></script>
+<script>
+TS.define('SpacingSpec', function (DCLogic) {
+class Component extends DCLogic {
+  renderVals() {
+    return {
+      space: [
+        {v:4,use:'Icon to tight label'},
+        {v:8,use:'Chip gap, between buttons'},
+        {v:12,use:'Inside cards, card to card'},
+        {v:16,use:'Card padding, sheet sides'},
+        {v:20,use:'Screen gutter'},
+        {v:24,use:'Between sections'},
+        {v:32,use:'Large breaks'},
+        {v:48,use:'Empty states'}
+      ].map(s => ({...s, w: s.v * 3})),
+      radii: [
+        {v:'8',use:'Tags',css:'8px'},
+        {v:'12',use:'Icon tiles',css:'12px'},
+        {v:'14',use:'Inputs, M buttons',css:'14px'},
+        {v:'16',use:'L buttons',css:'16px'},
+        {v:'20',use:'Cards',css:'20px'},
+        {v:'28',use:'Sheets',css:'28px'},
+        {v:'Full',use:'Chips, nav',css:'999px'}
+      ],
+      type: [
+        {name:'Display',spec:'28 / 34 · 650 · −2%',fs:28,lh:34,fw:650,ls:'-.02em'},
+        {name:'Title',spec:'20 / 26 · 650 · −1.5%',fs:20,lh:26,fw:650,ls:'-.015em'},
+        {name:'Heading',spec:'17 / 22 · 600',fs:17,lh:22,fw:600,ls:'0'},
+        {name:'Body',spec:'15 / 22 · 400',fs:15,lh:22,fw:400,ls:'0'},
+        {name:'Secondary',spec:'14 / 20 · 400',fs:14,lh:20,fw:400,ls:'0'},
+        {name:'Caption',spec:'13 / 18 · 400–500',fs:13,lh:18,fw:500,ls:'0'},
+        {name:'Label',spec:'11 / 13 · 600 · +1%',fs:11,lh:13,fw:600,ls:'.01em'}
+      ]
+    };
+  }
+}
+return Component;
+}, 'tpl-SpacingSpec');
+TS.mount('SpacingSpec', document.getElementById('app'));
+</script>
+</body>
+</html>

@@ -1,14 +1,39 @@
 # Project Progress
 
-## Technical Routing Architecture Documentation & KaTeX Math Formulations — verified, 24 Oct 2026
+## Web App UI Redesign (trafficsense-web handoff) — verified in Docker checks & browser, 27 Nov 2026
 
-- **Context & Scope:**
-  - Authored comprehensive route planning and dynamic detour engine specification in `docs/routing-and-rerouting-flow.md`.
-  - Detailed 5W1H matrix, end-to-end decision flowchart, sequence lifecycle diagram, and complete mathematical formulations (Haversine geodesic, point-to-polyline buffer scans, polar vector generator, OSRM road snapping, departure clearance trajectory math, multi-objective detour cost penalty scoring, delta metrics, and parallel arterial corridor expansion).
-  - Resolved KaTeX underscore formatting in math mode to ensure clean rendering.
+- **Scope & Design Source:**
+  - Replaced the web application UI (`apps/web`) to match the `trafficsense-web (3)` design specification (`tokens.json`, `motion.css`, `motion.js`, `specs/`, and all 17 page references) while preserving 100% of existing backend logic, Supabase RPCs, API routes, OSRM routing, MapLibre GL maps, and AI Vision L5 verification.
+  - Upgraded `next` and `eslint-config-next` from `16.4.0` to `16.4.6` via `pnpm` inside Docker.
+- **Implementation:**
+  - **Tokens, Fonts & Motion (`apps/web/src/app/globals.css`, `layout.tsx`, `public/vendor/`, `components/layout/motion-layer.tsx`):** Applied `#F3EFE6` bone, `#11141A` ink, `#FF5B2E` signal orange, `#D5F75A` lime, `#2B4BFF` cobalt, and `#FFB020` amber tokens with `Bricolage Grotesque`, `Instrument Sans`, and `JetBrains Mono`. Bundled `gsap.min.js` + `DrawSVGPlugin.min.js` and `MotionLayer` for SVG stroke draw-in, hover micro-motion, and endless brand pulse animation (respecting `prefers-reduced-motion`).
+  - **Shared Chrome (`top-bar.tsx`, `dock.tsx`, `viewer-chrome.tsx`, `app-shell.tsx`):** Built the floating 92px glass `TopBar` (brand pill, `DEMO DATA` chip, Alerts bell, role/sign-in pill) and bottom-centre floating `Dock` (76px desktop / 68px mobile glass pill with role-aware tabs for consumer, employer, authority, and admin).
+  - **Pages & Components:** Redesigned `/` (`HomeWeb` hero + `StylisedCityMap` + L1–L6 `TrustMeter` bento + workflow strip + role cards + honesty chips), `/traffic` (`LiveDesktop` floating glass feed), `/planner` (`PlannerWeb` floating search & route sheet), `/report` (`ReportWeb` 3×2 category tiles & `ReportSentWeb` L1 confirmation), `/login` & `/register` (`AuthScreen` & `AuthForm`), `/demo`, `/about`, `/access-denied`, `/not-found`, `/workspace` (`YouWeb`), `/employer` & `/employer/[orgId]`, `/authority`, and `/admin`.
+  - **Browser Layout Fixes:** Converted `/` hero to flex/grid layout to prevent `backdrop-filter` absolute-positioning overlap, collapsed signed-in TopBar role pill to a 44px avatar on `<640px` mobile, and offset MapLibre `top-right` / `bottom-right` controls clear of the TopBar and Dock.
 - **Verification Evidence:**
-  - Inspected LaTeX math syntax across all equations and verified zero math rendering errors.
-  - Inspected flowchart and sequence diagrams in Mermaid syntax.
+  - `docker compose run --rm -T app sh -c "cd apps/web && pnpm exec tsc --noEmit && pnpm exec eslint . && CI=true pnpm exec next build"`: Passed with **0 TypeScript errors**, **0 ESLint errors** (4 pre-existing unused-var warnings), and **26/26** static/partial-prerendered routes built cleanly.
+  - `just test`: Passed **240/240** tests across 11 suites.
+  - Browser inspection (`http://localhost:3000` at `1440×900` and `390×844`): Verified `/`, `/traffic`, `/planner`, `/report`, `/login` → `/workspace` (1-click Commuter sign-in), `/demo`, and `/about` render cleanly with working navigation and no desktop overlap or mobile horizontal overflow. *(Note: on `390px` mobile `/traffic` and `/planner`, MapLibre's top-right zoom buttons sit behind the full-width floating feed/search card.)*
+
+## Mobile App Redesign (design/BUILD_SPEC.md) — verified in automated checks & Metro bundle, 26 Nov 2026
+
+- **Scope & Design Source:**
+  - Imported the complete redesign package from `/home/nithinkr06/Downloads/animation3D/trafficsense-design (2)` into `design/` (commit `776b5ea`) without modifying or deleting any source files.
+  - Rebuilt the React Native / Expo mobile app (`apps/mobile`) to match `design/BUILD_SPEC.md`, `design/tokens/tokens.json`, and all 14 screen references in `design/screens/`.
+- **Implementation:**
+  - **Packages (`apps/mobile/package.json`, `pnpm-lock.yaml`):** Installed `react-native-svg@15.15.4`, `expo-blur@~57.0.3`, `expo-haptics@~57.0.3`, and `lucide-react-native` inside Docker via `pnpm`.
+  - **Theme & Tokens (`apps/mobile/src/theme/tokens.ts`, `theme-provider.tsx`):** Implemented Light and Dark color palettes, spacing scale, radii, typography with tabular figures, elevation/dark hairline rules, motion curves, `System | Light | Dark` persistence via `expo-secure-store`, and `ReduceMotion` awareness.
+  - **UI Primitives & Floating NavBar (`apps/mobile/src/components/ui/`):** Built `Icon` (Lucide), `Button` (L/L-sheet/M/S, primary/secondary/tonal/text/danger/signout, width-locked loading), `IconButton`, `TextField`, `PasswordField`, `SearchField`, `DetailField`, `FilterChip`, `SegmentedControl`, `SimulatedTag`, `TierBadge` (6-bar ladder), `LiveDot`, `FreshnessChip`, `SwitchControl`, `Radio`, `Checkbox`, `Card`, `HeroCard`, `StatTile`, `ListGroup`, `ListRow`, `IncidentRow`, `Banner`, `StateCard`, `SkeletonBlock`, `Toast`, `ModalSheet`, and the floating `BottomNav` capsule + separate 64pt Report FAB with `expo-blur`, `expo-haptics`, sliding active indicator, and scroll-compact mode.
+  - **Logo Animation, Loading & Welcome (`LogoAnimation.tsx`, `app/_layout.tsx`, `app/welcome.tsx`):** Implemented animated SVG logo splash (1.8s min display, zoom-through-pin exit, skips Welcome for returning users) and first-launch Welcome screen.
+  - **Screens:** Rebuilt Home (`app/index.tsx`), Live Map (`app/traffic.tsx` with draggable `MapSheet` & `IncidentCard` carousel), Plan Route (`app/planner.tsx`), Place Picker (`src/components/PlacePickerModal.tsx`), Report Hazard (`app/report.tsx` with guest gate, 3×2 category grid, L5 photo verification, on-send GPS permission request, and animated Sent state with 10s Undo), Sign in (`app/auth/login.tsx` with non-production Demo accounts sheet), Forgot password (`app/auth/forgot-password.tsx`), Create account (`app/auth/register.tsx` with 4-segment strength meter), Me (`app/workspace.tsx` with Appearance picker), Journeys (`app/journeys.tsx` with employer consent modal), Authority Ops (`app/authority.tsx`), and Privacy & Legal (`app/legal.tsx`).
+  - **Map Layer (`src/map/map-html.ts`, `src/components/traffic-map.tsx`):** Upgraded Leaflet OpenStreetMap rendering with Light/Dark theme support, SVG teardrop category pins (no emojis), route casings, and glass map controls pill.
+- **Verification Evidence:**
+  - `docker compose exec -T mobile pnpm --filter @trafficsense/mobile typecheck`: Passed with 0 errors.
+  - `docker compose exec -T mobile pnpm --filter @trafficsense/mobile exec eslint .`: Passed with 0 errors and 0 warnings.
+  - `docker compose exec -T -w /app mobile pnpm test`: Passed all 240 tests across 11 suites (**240/240 passed**).
+  - Android Metro bundle (`entry.bundle?platform=android`): Compiled cleanly with **HTTP 200** (`13,105,482` bytes).
+  - `git diff --check apps/mobile`: Clean (0 whitespace issues).
+  - *Remaining device check:* Interactive visual inspection and touch/gesture testing in Expo Go on a physical Android device was not run in this container session.
 
 ## Mobile Expo Bundler Dependency Mismatch & Route Export Fix — verified, 24 Oct 2026
 
@@ -1468,5 +1493,36 @@ For each bounded task, record: goal/source module and exclusions; dependencies a
   - End-to-end simulation: Commuter started journey, shared with Junction employer, verified active share with resolved employer name, verified employer read access via `read_employer_shared_journeys`, stopped sharing, and ended journey. Commuter C confirmed 0 orgs and empty state.
   - `git diff --check`: 0 whitespace issues.
 
+## Mobile Map, Planner Rerouting, Photo Evidence & Cleared-Dot Lifecycle — verified, 26 Nov 2026
+
+- **Implementation:**
+  - **Database & Backend (`supabase/migrations/20261126000100_commuter_cleared_feedback_and_photo_attach.sql`, `apps/web/src/lib/incidents/server.ts`, `apps/web/src/app/api/incidents/[id]/feedback/route.ts`, `apps/web/src/app/api/incidents/route.ts`, `apps/web/src/app/api/route/route.ts`, `apps/web/src/app/api/route/reroute/route.ts`):** Added `submit_incident_feedback` (`confirm` / `clear`, transitioning incidents to `'cleared'` at 3+ clears while keeping them visible for 6h unless re-reported), `attach_incident_photo` fallback, 1.2MB photo cap, and filtered `'cleared'` incidents out of active routing blockers; updated `/api/route/reroute` to accept `[lng, lat]` `blockedIncident` payloads directly. Removed all 4 `TEST DATA` seeded incidents from local Postgres.
+  - **Mobile & Shared (`packages/shared/src/index.ts`, `apps/mobile/src/lib/api.ts`, `apps/mobile/src/map/map-html.ts`, `apps/mobile/src/map/map-data.ts`, `apps/mobile/src/components/traffic-map.tsx`, `apps/mobile/app/traffic.tsx`, `apps/mobile/app/planner.tsx`, `apps/mobile/app/report.tsx`):** Removed green corridor segments from Map & Planner, fixed the Layers button glitch (in-place tile layer switch), fixed the 5 filter chips, rendered user-attached photos on incident cards, rendered cleared incidents as small dots with `"Happened X ago · Cleared"` text, and wired automatic + tap-to-reroute `/api/route/reroute` detours in Planner.
+- **Verification (2 full passes):** `pnpm --filter @trafficsense/mobile typecheck` (0 errors), mobile `eslint` (0 errors), `pnpm test` (240/240 passed), Android Metro export (`3495 modules`, 0 errors), live `GET /api/incidents`, `POST /api/route`, `POST /api/route/reroute`, and Postgres cleared-dot + photo persistence check.
 
 
+
+## Web UI Spec Alignment (Authority, About, Admin, Planner & Report Pill/Title Pass) — verified, 27 Nov 2026
+
+- **Implementation:**
+  - **Authority Control Room (`apps/web/src/app/authority/page.tsx`, `apps/web/src/components/analytics/authority-dashboard.tsx`, `apps/web/src/components/analytics/incident-review-panel.tsx`):** Matched `Authority.html` header (`CIVIC AUTHORITY` badge, `Control room.` display title, `← My Account` and `Live Traffic Map ↗` pill buttons), pill-styled 5-tab navigation bar, toolbar Refresh/Export CSV/view-toggle pill buttons, and Review queue pill actions (`Confirm (L6)` lime pill, `Resolve incident` bone pill, `Reject report` peach pill). Replaced `Notification.permission` lazy initializer with `useSyncExternalStore` to eliminate SSR/client hydration mismatch.
+  - **About, Admin, SignOut, Planner & Report (`apps/web/src/app/about/page.tsx`, `apps/web/src/app/admin/page.tsx`, `apps/web/src/components/sign-out.tsx`, `apps/web/src/components/routing/route-planner.tsx`, `apps/web/src/components/reports/web-report-screen.tsx`):** Updated About main title (`Trust, in six steps.`), Admin main title (`Oversight.`), and remaining legacy `.button` / `.rounded-lg` action buttons to TrafficSense pill buttons while preserving all backend logic, routing, and data contracts.
+- **Verification:**
+  - `docker compose run --rm -T app sh -c "cd apps/web && pnpm exec tsc --noEmit && pnpm exec eslint . && CI=true pnpm exec next build"`: 0 TypeScript errors, 0 ESLint errors, 26/26 routes built.
+  - `just test`: 240/240 unit tests passed across 11 suites.
+  - Browser verification (`1440×900` and `390×844` on `http://localhost:3000`): `/authority`, `/about`, and `/planner` rendered cleanly with 0 console errors and 0 hydration errors.
+
+## Backend Hardening & Upgrade Stages A, B & C — verified, 27 Nov 2026
+
+- **Stage A (`d70c23a`) — Security, Privacy & Routing Hardening:**
+  - Migration `supabase/migrations/20261127000100_stage_a_security_and_trust_hardening.sql`: Revoked direct `anon`/`authenticated` `EXECUTE` on `apply_incident_photo_verification` (server-only via `service_role`); dropped public `SELECT` RLS policies on `incident_reports` and `incident_feedback`; removed `%authority%` email-pattern bypass on `authority_notifications`; anchored `incidents.lat`/`lng` at first report; widened clustering to `100m`; made `L3` sticky; protected `L6` from commuter `clear` votes and capped `confirm` expiry extensions; made `read_active_live_incidents()` pure read-only.
+  - Updated `apps/web/src/lib/incidents/server.ts` to call L5 promotion via `service_role` when configured, and `apps/web/src/lib/routing/engine.ts` (`minDistanceToRoute`) to use point-to-segment projection instead of vertex-only distance (and fixed `tests/spread.test.mjs` perpendicular 201m offset).
+- **Stage B (`34e3b02`) — Shared Geo Math, Slim `/api/incidents` & MapLibre Clustering:**
+  - Added shared `haversineDistanceM` and `minDistanceToRoute` to `packages/shared/src/index.ts`.
+  - Slimmed default `GET /api/incidents` poll payload by omitting `photo_data_url` unless `?include_photos=1` is passed, and added `GET /api/incidents/[id]/photo` for on-demand photo loading.
+  - Replaced 100+ DOM markers in `TrafficMap` (`apps/web/src/components/traffic/traffic-map.tsx`) with a MapLibre GeoJSON `cluster: true` source + circle/symbol layers.
+- **Stage C — Confidence Score Engine, Routing Policy & Live Congestion Heat Layer:**
+  - Added `computeIncidentConfidence` (`0..1` log-odds score, tier label, and human-readable factor breakdown) in `packages/shared/src/index.ts` and surfaced it in `TrafficExplorer` (`/traffic`).
+  - Added `classifyHazardPolicy` (`hard_exclude` / `soft_avoid` / `map_only`) in `apps/web/src/lib/routing/engine.ts`.
+  - Upgraded `Traffic On/Off` in `RoutePlanner` (`/planner`) to render a live report-derived GeoJSON heat layer (`live-traffic-heat-geojson`) alongside the simulated corridor overlay.
+- **Verification (after Stage C):** `tsc --noEmit` (0 errors), `eslint .` (0 errors), `next build` (27/27 routes built), `just test` (240/240 passed).

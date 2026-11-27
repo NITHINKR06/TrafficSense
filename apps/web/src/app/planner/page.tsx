@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function PlannerPage() {
   return (
-    <div data-fullscreen="true" className="relative w-full h-[calc(100vh-65px)] min-h-[500px] overflow-hidden flex flex-col">
+    <div data-fullscreen="true" className="relative w-full h-dvh min-h-[500px] overflow-hidden flex flex-col">
       <RoutePlanner />
     </div>
   );

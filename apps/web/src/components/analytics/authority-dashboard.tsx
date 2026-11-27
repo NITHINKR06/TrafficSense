@@ -202,62 +202,64 @@ export function AuthorityDashboard() {
 
   const problemReportCard = (
     <section
-      className="p-5 rounded-xl bg-surface-container-lowest border border-primary/30 shadow-sm space-y-3"
+      className="p-6 rounded-[32px] bg-white border border-[#EEE9DC] shadow-[0_10px_28px_rgba(17,20,26,0.05)] space-y-4"
       aria-labelledby="problem-report-title"
     >
-      <div className="flex items-center justify-between gap-2 border-b border-surface-container pb-2">
+      <div className="flex items-center justify-between gap-2 border-b border-[#EEE9DC] pb-3">
         <div>
-          <span className="text-[10px] font-mono uppercase tracking-wider text-primary font-bold">
+          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#FF5B2E] font-bold">
             DECISION-SUPPORT DIRECTIVE
           </span>
-          <h2 id="problem-report-title" className="text-base font-bold text-surface-on m-0">
+          <h2 id="problem-report-title" className="font-display text-xl font-bold text-[#11141A] m-0">
             Authority Problem Report
           </h2>
         </div>
-        <span className="text-xs text-surface-on-variant">Advisory finding</span>
+        <span className="h-7 px-3 rounded-full bg-[#F3EFE6] text-[#4A505C] inline-flex items-center font-mono text-[10px] font-semibold">
+          Advisory finding
+        </span>
       </div>
 
       <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-        <div className="rounded-lg bg-surface-container-low p-3">
-          <dt className="text-xs text-surface-on-variant">Priority corridor location</dt>
-          <dd className="font-semibold text-surface-on mt-1">{data.top_hotspot}</dd>
+        <div className="rounded-[20px] bg-[#F8F5EE] p-4">
+          <dt className="font-mono text-[10px] uppercase tracking-[0.06em] text-[#4A505C]">Priority corridor location</dt>
+          <dd className="font-display font-bold text-[#11141A] mt-1">{data.top_hotspot}</dd>
         </div>
-        <div className="rounded-lg bg-surface-container-low p-3">
-          <dt className="text-xs text-surface-on-variant">Reported cause mix</dt>
-          <dd className="font-semibold text-surface-on mt-1 capitalize">{data.primary_cause.replace("_", " ")}</dd>
+        <div className="rounded-[20px] bg-[#F8F5EE] p-4">
+          <dt className="font-mono text-[10px] uppercase tracking-[0.06em] text-[#4A505C]">Reported cause mix</dt>
+          <dd className="font-display font-bold text-[#11141A] mt-1 capitalize">{data.primary_cause.replace("_", " ")}</dd>
         </div>
-        <div className="rounded-lg bg-surface-container-low p-3">
-          <dt className="text-xs text-surface-on-variant">Recurrence pattern</dt>
-          <dd className="font-semibold text-surface-on mt-1">
+        <div className="rounded-[20px] bg-[#F8F5EE] p-4">
+          <dt className="font-mono text-[10px] uppercase tracking-[0.06em] text-[#4A505C]">Recurrence pattern</dt>
+          <dd className="font-semibold text-[#11141A] mt-1 text-xs">
             {showDemoHistory ? recurrenceStatement : "Live-only records; collect a longer time window."}
           </dd>
         </div>
-        <div className="rounded-lg bg-surface-container-low p-3">
-          <dt className="text-xs text-surface-on-variant">Delay evidence</dt>
-          <dd className="font-semibold text-surface-on mt-1">
+        <div className="rounded-[20px] bg-[#F8F5EE] p-4">
+          <dt className="font-mono text-[10px] uppercase tracking-[0.06em] text-[#4A505C]">Delay evidence</dt>
+          <dd className="font-semibold text-[#11141A] mt-1 text-xs">
             {showDemoHistory ? `${data.total_delay_hours} hrs observed` : "Not measured for live reports"}
           </dd>
         </div>
       </dl>
 
-      <div className="text-xs border-l-4 border-primary bg-surface-container-low px-3.5 py-2.5 rounded-r-lg text-surface-on space-y-1">
-        <p className="font-bold text-primary m-0">Suggested investigation protocol:</p>
-        <p className="text-surface-on m-0">{investigation}</p>
+      <div className="text-xs border-l-4 border-[#FF5B2E] bg-[#F8F5EE] px-4 py-3 rounded-r-[20px] text-[#11141A] space-y-1">
+        <p className="font-bold text-[#FF5B2E] m-0">Suggested investigation protocol:</p>
+        <p className="text-[#4A505C] m-0">{investigation}</p>
       </div>
     </section>
   );
 
   const hotspotRankingsCard = (
-    <div className="p-5 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm space-y-3">
-      <div className="flex items-center justify-between border-b border-surface-container pb-2">
+    <div className="p-6 rounded-[32px] bg-white border border-[#EEE9DC] shadow-[0_10px_28px_rgba(17,20,26,0.05)] space-y-3">
+      <div className="flex items-center justify-between border-b border-[#EEE9DC] pb-3">
         <div>
-          <h2 className="text-base font-bold text-surface-on m-0">Corridor Hotspot Rankings</h2>
-          <p className="text-xs text-surface-on-variant m-0">
+          <h2 className="font-display text-xl font-bold text-[#11141A] m-0">Corridor Hotspot Rankings</h2>
+          <p className="text-xs text-[#4A505C] m-0 mt-0.5">
             Prioritized by commuter delay-hours and recurrence frequency.
           </p>
         </div>
-        <span className="text-[10px] font-mono text-primary font-bold">
-          SORT: DELAY (DESC)
+        <span className="h-7 px-3 rounded-full bg-[#11141A] text-[#D5F75A] inline-flex items-center font-mono text-[10px] font-bold">
+          DELAY (DESC)
         </span>
       </div>
 
@@ -271,34 +273,36 @@ export function AuthorityDashboard() {
             <div
               key={h.junction_id}
               onClick={() => setSelectedHotspotId(h.junction_id)}
-              className={`p-3 rounded-lg border cursor-pointer transition flex items-center justify-between gap-3 ${
+              className={`p-3.5 rounded-[20px] border cursor-pointer transition flex items-center justify-between gap-3 ${
                 isSelected
-                  ? "bg-primary/5 border-primary ring-2 ring-primary/40 shadow-sm"
-                  : "bg-surface-container-low border-surface-container hover:border-primary/40 hover:bg-surface-container"
+                  ? "bg-[#11141A] text-[#F3EFE6] border-[#11141A] shadow-sm"
+                  : "bg-[#F8F5EE] text-[#11141A] border-[#EEE9DC] hover:bg-[#EFEADD]"
               }`}
               title="Click to center on map"
             >
               <div className="flex items-start gap-3">
                 <span
-                  className={`font-mono font-bold text-xs rounded-full w-7 h-7 flex items-center justify-center shrink-0 ${
+                  className={`font-mono font-bold text-xs rounded-full w-8 h-8 flex items-center justify-center shrink-0 ${
                     isTop
-                      ? "bg-red-600 text-white"
+                      ? "bg-[#FF5B2E] text-[#11141A]"
                       : rankNumber <= 3
-                      ? "bg-amber-600 text-white"
-                      : "bg-surface-container-high text-surface-on"
+                      ? "bg-[#FFB020] text-[#11141A]"
+                      : isSelected
+                      ? "bg-[#2A303C] text-[#F3EFE6]"
+                      : "bg-white text-[#11141A] border border-[#EEE9DC]"
                   }`}
                 >
                   #{rankNumber}
                 </span>
 
                 <div className="space-y-0.5">
-                  <p className="font-bold text-surface-on text-xs sm:text-sm m-0 leading-tight">
+                  <p className="font-display font-bold text-xs sm:text-sm m-0 leading-tight">
                     {h.junction_name}
                   </p>
-                  <div className="flex flex-wrap items-center gap-2 text-[11px] text-surface-on-variant">
+                  <div className={`flex flex-wrap items-center gap-2 text-[11px] ${isSelected ? "text-[#B9BDC6]" : "text-[#4A505C]"}`}>
                     <span>{h.incident_count} events</span>
                     <span>·</span>
-                    <span className="font-mono text-[10px] px-1.5 py-0.2 rounded bg-surface-container">
+                    <span className="font-mono text-[10px] px-2 py-0.5 rounded-full bg-black/5">
                       {h.primary_window}
                     </span>
                     <span>·</span>
@@ -308,10 +312,10 @@ export function AuthorityDashboard() {
               </div>
 
               <div className="text-right shrink-0">
-                <div className="font-bold text-xs sm:text-sm text-warning-on-container">
+                <div className="font-bold text-xs sm:text-sm">
                   {showDemoHistory ? `${h.total_delay_hours} hrs` : "Live view"}
                 </div>
-                <span className="text-[10px] text-surface-on-variant block">
+                <span className={`text-[10px] block ${isSelected ? "text-[#B9BDC6]" : "text-[#4A505C]"}`}>
                   {showDemoHistory ? `~${h.average_delay_minutes}m avg` : `${h.incident_count} reports`}
                 </span>
               </div>
@@ -321,14 +325,14 @@ export function AuthorityDashboard() {
       </div>
 
       {selectedHotspotId && (
-        <div className="pt-2 flex items-center justify-between text-xs text-surface-on-variant border-t border-surface-container">
+        <div className="pt-2 flex items-center justify-between text-xs text-[#4A505C] border-t border-[#EEE9DC]">
           <span>
-            Focusing on: <strong className="text-surface-on">{selectedHotspotId}</strong>
+            Focusing on: <strong className="text-[#11141A]">{selectedHotspotId}</strong>
           </span>
           <button
             type="button"
             onClick={() => setSelectedHotspotId(null)}
-            className="text-primary hover:underline text-xs"
+            className="text-[#FF5B2E] font-semibold hover:underline text-xs cursor-pointer"
           >
             Clear selection
           </button>
@@ -338,20 +342,20 @@ export function AuthorityDashboard() {
   );
 
   const quickReviewCard = (
-    <div className="p-4 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm space-y-2">
+    <div className="p-6 rounded-[32px] bg-white border border-[#EEE9DC] shadow-[0_10px_28px_rgba(17,20,26,0.05)] space-y-3">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-bold text-surface-on">Active Incident Review Queue</span>
-        <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary/10 text-primary font-bold">
+        <span className="font-display text-lg font-bold text-[#11141A]">Review queue</span>
+        <span className="h-7 px-3 rounded-full bg-[#FFE3D8] text-[#8F3209] inline-flex items-center font-mono text-[10px] font-bold">
           {liveIncidents.length} REPORTED
         </span>
       </div>
-      <p className="text-xs text-surface-on-variant m-0">
+      <p className="text-xs text-[#4A505C] m-0">
         Community reports awaiting authority verification (L6 confirmation, OSRM route spread analysis, or resolution).
       </p>
       <button
         type="button"
         onClick={() => setActiveTab("review")}
-        className="button secondary text-xs w-full py-1.5 mt-1"
+        className="h-11 px-5 rounded-full bg-[#11141A] text-[#F3EFE6] text-xs font-semibold w-full mt-1 hover:bg-[#2A303C] transition inline-flex items-center justify-center cursor-pointer"
       >
         Open Incident Review Console →
       </button>
@@ -361,16 +365,16 @@ export function AuthorityDashboard() {
   return (
     <div className="space-y-6">
       {/* Executive Command Toolbar */}
-      <div className="p-4 rounded-xl border border-surface-container bg-surface-container-lowest shadow-sm space-y-3">
+      <div className="p-5 rounded-[28px] border border-[#EEE9DC] bg-white shadow-[0_10px_28px_rgba(17,20,26,0.05)] space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           {/* Analysis Filters */}
           <div className="flex flex-wrap items-center gap-2.5">
-            <label className="text-xs font-semibold text-surface-on-variant" htmlFor="month-select">
+            <label className="font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-[#4A505C]" htmlFor="month-select">
               Analysis Window:
             </label>
             <select
               id="month-select"
-              className="text-xs rounded-lg border border-surface-container bg-surface-container-low px-3 py-1.5 text-surface-on font-medium focus:ring-2 focus:ring-primary"
+              className="h-10 text-xs rounded-full border border-[#EEE9DC] bg-[#F3EFE6] px-4 text-[#11141A] font-semibold focus:outline-none focus:ring-2 focus:ring-[#11141A]"
               value={selectedMonth}
               onChange={(e) => setSelectedMonth(e.target.value)}
             >
@@ -381,7 +385,7 @@ export function AuthorityDashboard() {
               <option value="2026-10">October 2026</option>
             </select>
 
-            <span className="text-[10px] font-mono px-2 py-1 rounded bg-surface-container-high text-surface-on-variant font-bold">
+            <span className="h-8 px-3 rounded-full bg-[#11141A] text-[#D5F75A] inline-flex items-center font-mono text-[10px] font-semibold tracking-[0.08em]">
               {showDemoHistory ? "SIMULATED + LIVE DATA" : `LIVE ONLY (${liveIncidents.length} stored)`}
             </span>
           </div>
@@ -390,7 +394,7 @@ export function AuthorityDashboard() {
           <div className="flex items-center gap-2">
             <button
               type="button"
-              className="button secondary text-xs px-3.5 py-1.5 flex items-center gap-1.5"
+              className="h-10 px-4 rounded-full bg-[#F3EFE6] text-[#11141A] border border-[#EEE9DC] text-xs font-semibold flex items-center gap-1.5 hover:bg-[#E8E2D3] transition cursor-pointer"
               onClick={() => void refreshLiveIncidents()}
               title="Refresh live incident records"
             >
@@ -399,7 +403,7 @@ export function AuthorityDashboard() {
             </button>
             <button
               type="button"
-              className="button text-xs px-3.5 py-1.5 flex items-center gap-1.5"
+              className="h-10 px-4 rounded-full bg-[#FF5B2E] text-[#11141A] text-xs font-bold flex items-center gap-1.5 hover:brightness-95 transition cursor-pointer"
               onClick={exportCsv}
               title="Download filtered incident data as CSV"
               aria-label="Export CSV"
@@ -438,16 +442,16 @@ export function AuthorityDashboard() {
       )}
 
       {/* Navigation View Tabs */}
-      <div className="flex items-center gap-1.5 overflow-x-auto border-b border-surface-container pb-2" role="tablist">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1" role="tablist">
         <button
           type="button"
           role="tab"
           aria-selected={activeTab === "all"}
           onClick={() => setActiveTab("all")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition flex items-center gap-1.5 ${
+          className={`h-10 px-4 rounded-full text-xs font-semibold whitespace-nowrap transition flex items-center gap-2 cursor-pointer ${
             activeTab === "all"
-              ? "bg-primary text-white shadow-sm"
-              : "text-surface-on-variant hover:text-surface-on hover:bg-surface-container"
+              ? "bg-[#11141A] text-[#F3EFE6] shadow-[0_8px_18px_rgba(17,20,26,0.16)]"
+              : "bg-white text-[#4A505C] border border-[#EEE9DC] hover:text-[#11141A] hover:bg-[#FAF7F0]"
           }`}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
@@ -458,10 +462,10 @@ export function AuthorityDashboard() {
           role="tab"
           aria-selected={activeTab === "map"}
           onClick={() => setActiveTab("map")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition flex items-center gap-1.5 ${
+          className={`h-10 px-4 rounded-full text-xs font-semibold whitespace-nowrap transition flex items-center gap-2 cursor-pointer ${
             activeTab === "map"
-              ? "bg-primary text-white shadow-sm"
-              : "text-surface-on-variant hover:text-surface-on hover:bg-surface-container"
+              ? "bg-[#11141A] text-[#F3EFE6] shadow-[0_8px_18px_rgba(17,20,26,0.16)]"
+              : "bg-white text-[#4A505C] border border-[#EEE9DC] hover:text-[#11141A] hover:bg-[#FAF7F0]"
           }`}
         >
           <MapIcon size={14} className="shrink-0" />
@@ -472,10 +476,10 @@ export function AuthorityDashboard() {
           role="tab"
           aria-selected={activeTab === "review"}
           onClick={() => setActiveTab("review")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition flex items-center gap-1.5 ${
+          className={`h-10 px-4 rounded-full text-xs font-semibold whitespace-nowrap transition flex items-center gap-2 cursor-pointer ${
             activeTab === "review"
-              ? "bg-primary text-white shadow-sm"
-              : "text-surface-on-variant hover:text-surface-on hover:bg-surface-container"
+              ? "bg-[#11141A] text-[#F3EFE6] shadow-[0_8px_18px_rgba(17,20,26,0.16)]"
+              : "bg-white text-[#4A505C] border border-[#EEE9DC] hover:text-[#11141A] hover:bg-[#FAF7F0]"
           }`}
         >
           <AlertTriangleIcon size={14} className="shrink-0" />
@@ -486,10 +490,10 @@ export function AuthorityDashboard() {
           role="tab"
           aria-selected={activeTab === "diagnostics"}
           onClick={() => setActiveTab("diagnostics")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition flex items-center gap-1.5 ${
+          className={`h-10 px-4 rounded-full text-xs font-semibold whitespace-nowrap transition flex items-center gap-2 cursor-pointer ${
             activeTab === "diagnostics"
-              ? "bg-primary text-white shadow-sm"
-              : "text-surface-on-variant hover:text-surface-on hover:bg-surface-container"
+              ? "bg-[#11141A] text-[#F3EFE6] shadow-[0_8px_18px_rgba(17,20,26,0.16)]"
+              : "bg-white text-[#4A505C] border border-[#EEE9DC] hover:text-[#11141A] hover:bg-[#FAF7F0]"
           }`}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
@@ -500,10 +504,10 @@ export function AuthorityDashboard() {
           role="tab"
           aria-selected={activeTab === "history"}
           onClick={() => setActiveTab("history")}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition flex items-center gap-1.5 ${
+          className={`h-10 px-4 rounded-full text-xs font-semibold whitespace-nowrap transition flex items-center gap-2 cursor-pointer ${
             activeTab === "history"
-              ? "bg-primary text-white shadow-sm"
-              : "text-surface-on-variant hover:text-surface-on hover:bg-surface-container"
+              ? "bg-[#11141A] text-[#F3EFE6] shadow-[0_8px_18px_rgba(17,20,26,0.16)]"
+              : "bg-white text-[#4A505C] border border-[#EEE9DC] hover:text-[#11141A] hover:bg-[#FAF7F0]"
           }`}
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
@@ -513,32 +517,32 @@ export function AuthorityDashboard() {
 
       {/* Row 1: KPI Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-4 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm flex flex-col justify-between">
+        <div className="p-5 rounded-[32px] bg-[#11141A] text-[#F3EFE6] shadow-[0_14px_32px_rgba(17,20,26,0.14)] flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between text-xs text-surface-on-variant">
+            <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.08em] text-[#B9BDC6]">
               <span>Total Incidents</span>
-              <AlertTriangleIcon size={16} className="text-surface-on-variant shrink-0" />
+              <AlertTriangleIcon size={16} className="text-[#D5F75A] shrink-0" />
             </div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-surface-on mt-1 tracking-tight">
+            <div className="font-display text-3xl sm:text-4xl font-bold text-[#F3EFE6] mt-2 tracking-[-0.03em]">
               {data.total_incidents}
             </div>
           </div>
-          <span className="text-[11px] text-surface-on-variant mt-2 pt-2 border-t border-surface-container/60">
+          <span className="text-[11px] text-[#B9BDC6] mt-3 pt-2.5 border-t border-[#2A303C]">
             {showDemoHistory ? "Synthetic + live observations" : "Real stored observations"}
           </span>
         </div>
 
-        <div className="p-4 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm flex flex-col justify-between">
+        <div className="p-5 rounded-[32px] bg-white border border-[#EEE9DC] shadow-[0_10px_28px_rgba(17,20,26,0.05)] flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between text-xs text-surface-on-variant">
+            <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.08em] text-[#4A505C]">
               <span>Total Commuter Delay</span>
-              <ClockIcon size={16} className="text-surface-on-variant shrink-0" />
+              <ClockIcon size={16} className="text-[#FF5B2E] shrink-0" />
             </div>
-            <div className="text-2xl sm:text-3xl font-extrabold text-warning-on-container mt-1 tracking-tight">
+            <div className="font-display text-2xl sm:text-3xl font-bold text-[#11141A] mt-2 tracking-[-0.03em]">
               {showDemoHistory ? `${data.total_delay_hours} hrs` : "Not measured"}
             </div>
           </div>
-          <span className="text-[11px] text-surface-on-variant mt-2 pt-2 border-t border-surface-container/60">
+          <span className="text-[11px] text-[#4A505C] mt-3 pt-2.5 border-t border-[#EEE9DC]">
             {showDemoHistory ? "Synthetic history model" : "Live reports do not measure delay"}
           </span>
         </div>
@@ -548,37 +552,37 @@ export function AuthorityDashboard() {
             const top = data.hotspots[0]?.junction_id;
             if (top) setSelectedHotspotId(top);
           }}
-          className="p-4 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm flex flex-col justify-between cursor-pointer hover:border-primary/50 transition"
+          className="p-5 rounded-[32px] bg-white border border-[#EEE9DC] shadow-[0_10px_28px_rgba(17,20,26,0.05)] flex flex-col justify-between cursor-pointer hover:border-[#11141A] transition"
           title="Click to locate top hotspot on map"
         >
           <div>
-            <div className="flex items-center justify-between text-xs text-surface-on-variant">
-              <span>Top Congested Hotspot</span>
-              <span className="text-xs font-mono font-bold px-1.5 py-0.5 rounded bg-red-100 dark:bg-red-950 text-red-700 dark:text-red-300">
+            <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.08em] text-[#4A505C]">
+              <span>Top Hotspot</span>
+              <span className="px-2 py-0.5 rounded-full bg-[#FFE3D8] text-[#8F3209] font-bold">
                 #1 RANK
               </span>
             </div>
-            <div className="text-lg sm:text-xl font-bold text-primary mt-1 truncate" title={data.top_hotspot}>
+            <div className="font-display text-xl sm:text-2xl font-bold text-[#11141A] mt-2 truncate" title={data.top_hotspot}>
               {data.top_hotspot}
             </div>
           </div>
-          <span className="text-[11px] text-surface-on-variant mt-2 pt-2 border-t border-surface-container/60 flex items-center justify-between">
+          <span className="text-[11px] text-[#4A505C] mt-3 pt-2.5 border-t border-[#EEE9DC] flex items-center justify-between">
             <span>Highest delay impact</span>
-            <span className="text-primary font-medium">Locate ↗</span>
+            <span className="text-[#FF5B2E] font-bold">Locate ↗</span>
           </span>
         </div>
 
-        <div className="p-4 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm flex flex-col justify-between">
+        <div className="p-5 rounded-[32px] bg-white border border-[#EEE9DC] shadow-[0_10px_28px_rgba(17,20,26,0.05)] flex flex-col justify-between">
           <div>
-            <div className="flex items-center justify-between text-xs text-surface-on-variant">
-              <span>Primary Trigger Cause</span>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-surface-on-variant shrink-0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+            <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.08em] text-[#4A505C]">
+              <span>Primary Cause</span>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#4A505C] shrink-0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
             </div>
-            <div className="text-lg sm:text-xl font-bold text-surface-on mt-1 truncate capitalize" title={data.primary_cause}>
+            <div className="font-display text-xl sm:text-2xl font-bold text-[#11141A] mt-2 truncate capitalize" title={data.primary_cause}>
               {data.primary_cause.replace("_", " ")}
             </div>
           </div>
-          <span className="text-[11px] text-surface-on-variant mt-2 pt-2 border-t border-surface-container/60">
+          <span className="text-[11px] text-[#4A505C] mt-3 pt-2.5 border-t border-[#EEE9DC]">
             Most frequent corridor factor
           </span>
         </div>
@@ -590,26 +594,26 @@ export function AuthorityDashboard() {
           {/* Map Section Header with Big Screen Hero vs Split View Switcher */}
           <div className="flex flex-wrap items-center justify-between gap-3 px-1">
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-surface-on m-0">
+              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-[-0.03em] text-[#11141A] m-0">
                 Corridor Hotspot Map
               </h2>
-              <p className="text-xs text-surface-on-variant m-0">
+              <p className="text-xs text-[#4A505C] m-0">
                 Live OpenStreetMap showing ranked congestion nodes and citizen reports along Mangaluru central corridor.
               </p>
             </div>
 
             <div className="flex items-center gap-2">
-              <span className="text-[11px] font-mono text-primary font-bold hidden sm:inline">
+              <span className="text-[11px] font-mono text-[#11141A] font-bold hidden sm:inline">
                 {data.hotspots.length} JUNCTIONS
               </span>
-              <div className="flex items-center gap-1 bg-surface-container-lowest p-1 rounded-lg border border-surface-container text-xs shadow-sm">
+              <div className="flex items-center gap-1 bg-white p-1 rounded-full border border-[#EEE9DC] text-xs shadow-sm">
                 <button
                   type="button"
                   onClick={() => setMapLayout("hero")}
-                  className={`px-3 py-1 rounded font-semibold transition flex items-center gap-1.5 ${
+                  className={`px-3.5 py-1.5 rounded-full font-semibold transition flex items-center gap-1.5 cursor-pointer ${
                     mapLayout === "hero"
-                      ? "bg-primary text-white shadow-sm"
-                      : "text-surface-on-variant hover:text-surface-on hover:bg-surface-container"
+                      ? "bg-[#11141A] text-[#F3EFE6] shadow-sm"
+                      : "text-[#4A505C] hover:text-[#11141A] hover:bg-[#F3EFE6]"
                   }`}
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
@@ -618,10 +622,10 @@ export function AuthorityDashboard() {
                 <button
                   type="button"
                   onClick={() => setMapLayout("split")}
-                  className={`px-3 py-1 rounded font-semibold transition flex items-center gap-1.5 ${
+                  className={`px-3.5 py-1.5 rounded-full font-semibold transition flex items-center gap-1.5 cursor-pointer ${
                     mapLayout === "split"
-                      ? "bg-primary text-white shadow-sm"
-                      : "text-surface-on-variant hover:text-surface-on hover:bg-surface-container"
+                      ? "bg-[#11141A] text-[#F3EFE6] shadow-sm"
+                      : "text-[#4A505C] hover:text-[#11141A] hover:bg-[#F3EFE6]"
                   }`}
                 >
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><rect width="18" height="18" x="3" y="3" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>

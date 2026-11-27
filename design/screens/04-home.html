@@ -1,0 +1,379 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TrafficSense · Home</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>body{margin:0} button{font-family:inherit;cursor:pointer} a{color:inherit;text-decoration:none}</style>
+
+<style>body{margin:0}</style>
+
+<style>
+body{margin:0}
+.ts-tab{transition:transform 120ms cubic-bezier(.2,0,0,1);-webkit-tap-highlight-color:transparent}
+.ts-tab:active{transform:scale(.9)}
+.ts-tab svg,.ts-tab span{transition:color 200ms ease,stroke 200ms ease,font-weight 200ms ease}
+.ts-fab{transition:transform 140ms cubic-bezier(.2,0,0,1)}
+.ts-fab:active{transform:scale(.9)}
+.ts-ind{transition:transform 420ms cubic-bezier(.32,.72,0,1)}
+</style>
+<style>html,body{margin:0;background:#E8EBEE}#app{display:inline-block;min-width:100%}</style>
+</head>
+<body>
+<div id="app"></div>
+<template id="tpl-Main">
+<div style="width:900px;height:1488px;box-sizing:border-box;padding:32px;display:flex;gap:56px;background:#E8EBEE;font-family:Inter,system-ui,sans-serif">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div style="display:flex;flex-direction:column;gap:16px;width:390px">
+<div style="height:28px;display:flex;align-items:center;font-size:13px;font-weight:600;color:#4B555E">{{t.name}}</div>
+<div style="width:390px;height:1380px;border-radius:40px;overflow:hidden;position:relative;background:{{t.bg}};box-shadow:0 0 0 1px {{t.frame}}">
+<div style="position:absolute;inset:0;padding:24px 20px 0;box-sizing:border-box;display:flex;flex-direction:column;gap:20px">
+
+<div style="position:relative;z-index:10;display:flex;align-items:center;justify-content:space-between">
+<div>
+<div style="font-size:13px;font-weight:500;color:{{t.tx3}}">Thursday · Mangaluru · 27°</div>
+<h1 style="margin:2px 0 0;font-size:28px;line-height:34px;font-weight:650;letter-spacing:-.025em;color:{{t.tx}}">Good morning</h1>
+</div>
+<div style="position:relative;display:flex;gap:8px">
+<button aria-label="More options" aria-expanded="{{t.expanded}}" onClick="{{t.toggle}}" style="width:44px;height:44px;border-radius:50%;border:0;background:{{t.moreBg}};display:flex;align-items:center;justify-content:center">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="{{t.tx}}" aria-hidden="true"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>
+</button>
+<button aria-label="Account" style="width:44px;height:44px;border-radius:50%;border:0;background:{{t.acs}};color:{{t.ac}};font-size:16px;font-weight:600">A</button>
+<sc-if value="{{t.open}}" hint-placeholder-val="{{ false }}">
+<div role="menu" style="position:absolute;top:52px;right:0;width:240px;z-index:10;border-radius:20px;background:{{t.sf}};border:1px solid {{t.bd}};box-shadow:{{t.menuSh}};padding:6px">
+<sc-for list="{{t.menu}}" as="m" hint-placeholder-count="5">
+<sc-if value="{{m.sep}}" hint-placeholder-val="{{ false }}"><div style="height:1px;background:{{m.t.bd}};margin:6px 10px"></div></sc-if>
+<a role="menuitem" href="{{m.href}}" style="height:44px;border-radius:12px;display:flex;align-items:center;gap:12px;padding:0 12px;font-size:15px;font-weight:500;color:{{m.t.tx}}">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{m.t.tx2}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{m.d}}"/></svg>{{m.label}}</a>
+</sc-for>
+</div>
+</sc-if>
+</div>
+</div>
+
+<button style="height:56px;border-radius:28px;border:1px solid {{t.bd}};background:{{t.sf}};display:flex;align-items:center;gap:12px;padding:0 8px 0 20px;text-align:left">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{t.tx}}" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M4 11a7 7 0 1 0 14 0a7 7 0 1 0-14 0M20 20l-3.5-3.5"/></svg>
+<span style="flex:1;font-size:16px;font-weight:500;color:{{t.tx2}}">Where to?</span>
+<span style="height:40px;padding:0 14px;border-radius:20px;background:{{t.sf2}};display:flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:{{t.tx}}">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="{{t.tx}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h16v12H4zM9 8V5h6v3"/></svg>Work</span>
+</button>
+
+<div style="border-radius:28px;background:{{t.hero}};border:1px solid {{t.heroBd}};padding:22px 22px 20px;display:flex;flex-direction:column;gap:18px">
+<div style="display:flex;align-items:center;justify-content:space-between">
+<span style="font-size:13px;font-weight:600;color:{{t.heroTx2}}">To work · Pumpwell Circle</span>
+<span style="font-size:13px;color:{{t.heroTx3}}">via Kadri bypass</span>
+</div>
+<div style="display:flex;align-items:flex-end;justify-content:space-between">
+<div style="display:flex;align-items:baseline;gap:6px">
+<span style="font-size:56px;line-height:56px;font-weight:650;letter-spacing:-.04em;color:{{t.heroTx}};font-variant-numeric:tabular-nums">18</span>
+<span style="font-size:20px;font-weight:600;color:{{t.heroTx}}">min</span>
+</div>
+<div style="text-align:right">
+<div style="font-size:15px;font-weight:600;color:{{t.heroTx}}">Arrive 10:32</div>
+<div style="font-size:13px;color:{{t.heroWarn}};margin-top:2px">+2 min than usual</div>
+</div>
+</div>
+<div style="display:flex;flex-direction:column;gap:8px">
+<div style="display:flex;align-items:center;gap:4px">
+<span style="width:10px;height:10px;border-radius:50%;border:2.5px solid {{t.heroAc}};box-sizing:border-box;flex-shrink:0"></span>
+<span style="flex:40;height:6px;border-radius:3px;background:{{t.heroAc}}"></span>
+<span style="flex:16;height:6px;border-radius:3px;background:{{t.heroWarn}}"></span>
+<span style="flex:44;height:6px;border-radius:3px;background:{{t.heroAc}}"></span>
+<span style="width:10px;height:10px;border-radius:50%;background:{{t.heroTx}};flex-shrink:0"></span>
+</div>
+<div style="display:flex;justify-content:space-between;font-size:12px;color:{{t.heroTx3}}"><span>Ladyhill</span><span style="color:{{t.heroWarn}};font-weight:600">Flooding · Jyothi</span><span>Pumpwell</span></div>
+</div>
+<div style="display:flex;gap:10px">
+<button style="flex:1;height:52px;border-radius:16px;border:0;background:{{t.heroBtn}};color:{{t.heroBtnTx}};font-size:16px;font-weight:600">Start journey</button>
+<a href="06-plan-route.html" style="flex:1;height:52px;border-radius:16px;border:1px solid {{t.heroBd2}};color:{{t.heroTx}};font-size:16px;font-weight:600;display:flex;align-items:center;justify-content:center">2 routes</a>
+</div>
+</div>
+
+<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px">
+<sc-for list="{{t.stats}}" as="s" hint-placeholder-count="3">
+<button style="position:relative;height:88px;border-radius:20px;border:1px solid {{s.bd}};background:{{s.bg}};padding:0 14px;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:4px;text-align:left">
+<span style="font-size:24px;line-height:28px;font-weight:650;letter-spacing:-.02em;color:{{s.fg}};font-variant-numeric:tabular-nums">{{s.v}}</span>
+<span style="font-size:12px;line-height:15px;font-weight:500;color:{{s.t.tx2}}">{{s.label}}</span>
+</button>
+</sc-for>
+</div>
+
+<div style="border-radius:24px;background:{{t.sf}};border:1px solid {{t.bd}};padding:18px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;gap:12px;align-items:center">
+<span style="width:44px;height:44px;border-radius:14px;background:{{t.wns}};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="{{t.wn}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/></svg>
+</span>
+<div style="flex:1;min-width:0">
+<div style="font-size:16px;font-weight:600;color:{{t.tx}}">Still flooded at Jyothi?</div>
+<div style="font-size:13px;color:{{t.tx3}};margin-top:2px">You passed it · 7 people confirmed</div>
+</div>
+<button aria-label="Not now" style="width:36px;height:36px;margin:-8px -8px 0 0;align-self:flex-start;border-radius:50%;border:0;background:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{t.tx3}}" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+</div>
+<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px">
+<button style="height:48px;border-radius:14px;border:0;background:{{t.sf2}};color:{{t.tx}};font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{t.tx}}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m5 12 5 5 9-10"/></svg>Yes</button>
+<button style="height:48px;border-radius:14px;border:0;background:{{t.sf2}};color:{{t.tx}};font-size:15px;font-weight:600;display:flex;align-items:center;justify-content:center;gap:8px">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{t.tx}}" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>Cleared</button>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;gap:12px">
+<div style="display:flex;align-items:center;justify-content:space-between">
+<div style="display:flex;align-items:center;gap:8px">
+<h2 style="margin:0;font-size:20px;font-weight:650;letter-spacing:-.015em;color:{{t.tx}}">Around you</h2>
+<span style="width:6px;height:6px;border-radius:50%;background:{{t.ac}}"></span>
+<span style="font-size:13px;color:{{t.tx3}}">09:42</span>
+<span style="height:22px;padding:0 8px;border-radius:11px;border:1px dashed {{t.tx3}};font-size:11px;font-weight:600;color:{{t.tx2}};display:flex;align-items:center">Simulated</span>
+</div>
+<a href="05-live-map.html" style="font-size:14px;font-weight:600;color:{{t.ac}};padding:12px 0">Open map</a>
+</div>
+<a href="05-live-map.html" aria-label="Open live map" style="display:block;position:relative;height:168px;border-radius:24px;overflow:hidden;border:1px solid {{t.bd}}">
+<dc-import name="MapBase" dark="{{t.dark}}" scene="traffic" offset="{{ 60 }}" hint-size="100%,168px"></dc-import>
+<span style="position:absolute;left:12px;bottom:12px;height:30px;padding:0 10px;border-radius:15px;background:{{t.sf}};font-size:12px;font-weight:600;color:{{t.tx}};display:flex;align-items:center;gap:8px">3 reports within 2 km</span>
+</a>
+<div style="border-radius:24px;background:{{t.sf}};border:1px solid {{t.bd}};overflow:hidden">
+<sc-for list="{{t.incidents}}" as="i" hint-placeholder-count="3">
+<button style="width:100%;height:68px;border:0;border-top:{{i.sep}};background:none;display:flex;align-items:center;gap:12px;padding:0 16px;text-align:left">
+<span style="width:40px;height:40px;border-radius:12px;background:{{i.ibg}};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="{{i.ifg}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{i.d}}"/></svg>
+</span>
+<span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+<span style="font-size:15px;font-weight:600;color:{{i.t.tx}}">{{i.title}}</span>
+<span style="font-size:13px;color:{{i.t.tx3}}">{{i.meta}}</span>
+</span>
+<span style="display:flex;align-items:center;gap:6px;flex-shrink:0">
+<span style="display:flex;align-items:flex-end;gap:2px;height:12px">
+<sc-for list="{{i.bars}}" as="b" hint-placeholder-count="6"><span style="width:3px;height:{{b.h}}px;border-radius:1px;background:{{b.c}}"></span></sc-for>
+</span>
+<span style="font-size:12px;font-weight:600;color:{{i.t.tx2}}">{{i.tier}}</span>
+</span>
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{i.t.tx3}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="flex-shrink:0;margin-right:-4px"><path d="m9 6 6 6-6 6"/></svg>
+</button>
+</sc-for>
+</div>
+</div>
+
+<div style="display:flex;flex-direction:column;align-items:center;gap:6px;font-size:12px;color:{{t.tx3}}">
+<span style="display:flex;align-items:center;gap:6px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="{{t.tx3}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 11h12v10H6zM8 11V7a4 4 0 0 1 8 0v4"/></svg>Location is used only when you report</span>
+<span style="display:flex;gap:12px"><a href="14-privacy-legal.html" style="color:{{t.tx2}};font-weight:600">Privacy</a><a href="14-privacy-legal.html" style="color:{{t.tx2}};font-weight:600">Terms</a><a href="14-privacy-legal.html" style="color:{{t.tx2}};font-weight:600">Licenses</a><span>© OpenStreetMap</span></span>
+</div>
+
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:96px">
+<dc-import name="NavBar" dark="{{t.dark}}" active="home" hint-size="390px,96px"></dc-import>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+</template>
+<template id="tpl-MapBase">
+<div style="width:100%;height:100%;overflow:hidden;background:{{c.land}};font-family:Inter,system-ui,sans-serif">
+<svg width="100%" height="100%" viewBox="0 {{vy}} 390 844" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Map of central Mangaluru">
+<rect y="-300" width="390" height="1444" fill="{{c.land}}"/>
+<ellipse cx="300" cy="250" rx="42" ry="28" fill="{{c.park}}"/>
+<ellipse cx="128" cy="575" rx="32" ry="20" fill="{{c.park}}"/>
+<ellipse cx="345" cy="520" rx="26" ry="36" fill="{{c.park}}"/>
+<path d="M0 -300H80C66 -100 60 0 72 0C60 120 84 220 66 330C52 430 80 520 60 640C48 720 72 790 58 844C50 950 66 1050 60 1144H0Z" fill="{{c.water}}"/>
+<path d="M66 170C140 150 200 190 260 160S360 120 390 140" stroke="{{c.water}}" stroke-width="16" fill="none"/>
+<path d="M60 700C140 676 200 728 280 706S360 656 390 676" stroke="{{c.water}}" stroke-width="34" fill="none"/>
+<g stroke="{{c.road}}" stroke-width="3" fill="none" stroke-linecap="round">
+<path d="M90 262H360M100 384H380M110 522H370M84 610H360M150 110V660M210 130V680M330 200V640M90 444C180 432 260 472 380 452M96 330C160 340 220 320 300 336M120 40H380M100 800H380"/>
+</g>
+<g fill="none" stroke-linecap="round">
+<path d="M250 -300C250 -100 248 -60 250 0C240 140 300 260 290 400S330 600 300 844S310 1000 300 1144" stroke="{{c.casing}}" stroke-width="10"/>
+<path d="M80 600C160 560 220 480 250 420S300 300 390 300" stroke="{{c.casing}}" stroke-width="10"/>
+<path d="M250 -300C250 -100 248 -60 250 0C240 140 300 260 290 400S330 600 300 844S310 1000 300 1144" stroke="{{c.major}}" stroke-width="6"/>
+<path d="M80 600C160 560 220 480 250 420S300 300 390 300" stroke="{{c.major}}" stroke-width="6"/>
+</g>
+<g opacity="{{trafficOp}}" fill="none" stroke-linecap="round">
+<path d="M80 600C160 560 220 480 250 420S300 300 390 300" pathLength="100" stroke="{{c.warn}}" stroke-width="5" stroke-dasharray="0 22 20 100"/>
+<path d="M250 0C240 140 300 260 290 400S330 600 300 844" pathLength="100" stroke="{{c.danger}}" stroke-width="5" stroke-dasharray="0 38 10 100"/>
+<path d="M250 0C240 140 300 260 290 400S330 600 300 844" pathLength="100" stroke="{{c.warn}}" stroke-width="5" stroke-dasharray="0 48 12 100"/>
+</g>
+<g font-size="11" font-weight="500" fill="{{c.label}}" letter-spacing=".01em">
+<text x="168" y="232">Urwa</text>
+<text x="98" y="300">Ladyhill</text>
+<text x="300" y="282">Bejai</text>
+<text x="232" y="356">Kadri</text>
+<text x="96" y="500">Hampankatta</text>
+<text x="226" y="560">Kankanady</text>
+<text x="300" y="636">Pumpwell</text>
+<text x="118" y="752">Bolar</text>
+<text x="146" y="418" font-size="14" font-weight="600">Mangaluru</text>
+</g>
+
+<g opacity="{{routeOp}}" fill="none" stroke-linecap="round">
+<path d="M140 478C140 420 180 360 230 330S270 300 282 300" stroke="{{c.casingRoute}}" stroke-width="9"/>
+<path d="M140 478C140 420 180 360 230 330S270 300 282 300" stroke="{{c.alt}}" stroke-width="5"/>
+<path d="M140 478C170 470 190 440 215 420S250 330 282 300" stroke="{{c.casingRoute}}" stroke-width="12"/>
+<path d="M140 478C170 470 190 440 215 420S250 330 282 300" stroke="{{c.route}}" stroke-width="7"/>
+<circle cx="140" cy="478" r="8" fill="{{c.casingRoute}}" stroke="{{c.route}}" stroke-width="4"/>
+<g transform="translate(282 300)">
+<path d="M0 0C-3-5-11-11-11-19A11 11 0 1 1 11-19C11-11 3-5 0 0Z" fill="{{c.ink}}" stroke="{{c.casingRoute}}" stroke-width="2"/>
+<circle cy="-19" r="4" fill="{{c.casingRoute}}"/>
+</g>
+</g>
+<g opacity="{{bubbleOp}}" font-size="12" font-weight="600">
+<rect x="226" y="400" width="62" height="26" rx="13" fill="{{c.route}}" stroke="{{c.casingRoute}}" stroke-width="2"/>
+<text x="257" y="417.5" text-anchor="middle" fill="{{c.onRoute}}">18 min</text>
+<rect x="104" y="340" width="62" height="26" rx="13" fill="{{c.bubble}}" stroke="{{c.bubbleBd}}" stroke-width="1"/>
+<text x="135" y="357.5" text-anchor="middle" fill="{{c.ink}}">21 min</text>
+<g transform="translate(206 432)">
+<circle r="10" fill="{{c.warn}}" stroke="{{c.casingRoute}}" stroke-width="2.5"/>
+<path d="M0-5v5M0 3.5v.5" stroke="{{c.casingRoute}}" stroke-width="2.2" stroke-linecap="round"/>
+</g>
+</g>
+
+<g opacity="{{pinOp}}">
+<g transform="translate(262 380)">
+<path d="M0 0C-3-5-12-11-12-20A12 12 0 1 1 12-20C12-11 3-5 0 0Z" fill="{{c.danger}}" stroke="{{c.casingRoute}}" stroke-width="2"/>
+<path d="M-4.5-20h9" stroke="{{c.casingRoute}}" stroke-width="2.2" stroke-linecap="round"/>
+</g>
+<g transform="translate(176 604)">
+<path d="M0 0C-3-5-12-11-12-20A12 12 0 1 1 12-20C12-11 3-5 0 0Z" fill="{{c.neutral}}" stroke="{{c.casingRoute}}" stroke-width="2"/>
+<path d="M-2-25h4l3 9h-10z" fill="none" stroke="{{c.casingRoute}}" stroke-width="1.8" stroke-linejoin="round"/>
+</g>
+<g transform="translate(212 505) scale(1.3)">
+<ellipse cy="1" rx="6" ry="2" fill="{{c.ink}}" opacity=".18"/>
+<path d="M0 0C-3-5-12-11-12-20A12 12 0 1 1 12-20C12-11 3-5 0 0Z" fill="{{c.warn}}" stroke="{{c.casingRoute}}" stroke-width="2"/>
+<path d="M0-27s4.5 4.5 4.5 7.5a4.5 4.5 0 0 1-9 0c0-3 4.5-7.5 4.5-7.5z" fill="{{c.casingRoute}}"/>
+</g>
+</g>
+<g opacity="{{youOp}}">
+<path d="M150 528 168 520 186 528 176 494H160Z" fill="{{c.route}}" opacity=".16" transform="rotate(200 168 520)"/>
+<circle cx="168" cy="520" r="9" fill="{{c.route}}" stroke="{{c.casingRoute}}" stroke-width="3.5"/>
+</g>
+</svg>
+</div>
+</template>
+<template id="tpl-NavBar">
+<div style="position:relative;width:390px;height:96px;font-family:Inter,system-ui,sans-serif">
+<nav aria-label="Main" style="position:absolute;left:16px;bottom:16px;width:284px;height:64px;box-sizing:border-box;padding:5px;border-radius:32px;background:{{c.glass}};-webkit-backdrop-filter:blur(20px) saturate(160%);backdrop-filter:blur(20px) saturate(160%);border:1px solid {{c.edge}};box-shadow:{{c.sh}};display:flex">
+<span class="ts-ind" aria-hidden="true" style="position:absolute;top:5px;left:5px;width:68px;height:52px;border-radius:26px;background:{{c.ind}};transform:{{indX}}"></span>
+<sc-for list="{{items}}" as="it" hint-placeholder-count="4">
+<button class="ts-tab" aria-current="{{it.current}}" onClick="{{it.pick}}" style="position:relative;width:68px;height:52px;border:0;background:transparent;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;font-family:inherit">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="{{it.sw}}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="stroke:{{it.fg}}"><path d="{{it.d}}"/></svg>
+<span style="font-size:11px;line-height:13px;font-weight:{{it.fw}};color:{{it.fg}};letter-spacing:.01em">{{it.label}}</span>
+</button>
+</sc-for>
+</nav>
+<button class="ts-fab" aria-label="Report a hazard" style="position:absolute;right:16px;bottom:16px;width:64px;height:64px;border-radius:32px;border:0;background:{{c.ac}};box-shadow:{{c.fabSh}};display:flex;align-items:center;justify-content:center;cursor:pointer">
+<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="{{c.onac}}" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+</div>
+</template>
+<script src="../runtime/ts-runtime.js"></script>
+<script>
+TS.define('Main', function (DCLogic) {
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { open: [false, false] }; }
+  renderVals() {
+    const T = {
+      light:{dark:false,name:'Light',bg:'#F5F6F7',sf:'#FFFFFF',sf2:'#EEF0F2',bd:'#E2E5E8',tx:'#121619',tx2:'#4B555E',tx3:'#68737D',ac:'#0B6B5F',acs:'#E2F0ED',onac:'#FFFFFF',wn:'#9A5700',wns:'#FCF0DF',dg:'#B42318',dgs:'#FCEBE9',frame:'#D9DDE1',
+        hero:'#0E1A19',heroBd:'#0E1A19',heroBd2:'rgba(255,255,255,.18)',heroTx:'#FFFFFF',heroTx2:'#B9C6C3',heroTx3:'#93A29F',heroAc:'#5CCFBB',heroWarn:'#F2B163',heroBtn:'#5CCFBB',heroBtnTx:'#04221D'},
+      dark:{dark:true,name:'Dark',bg:'#0B0F10',sf:'#13181A',sf2:'#1B2124',bd:'#252D30',tx:'#EEF2F3',tx2:'#A9B4B8',tx3:'#8A969B',ac:'#56C7B3',acs:'#0F2C28',onac:'#03211C',wn:'#F2AA55',wns:'#2A2013',dg:'#F7897D',dgs:'#331A19',frame:'#252D30',
+        hero:'#13201E',heroBd:'#1F3330',heroBd2:'rgba(255,255,255,.14)',heroTx:'#EEF2F3',heroTx2:'#A9B9B5',heroTx3:'#86978F',heroAc:'#56C7B3',heroWarn:'#F2AA55',heroBtn:'#56C7B3',heroBtnTx:'#03211C'}
+    };
+    const I = {
+      drop:'M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z',
+      closed:'M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M7 12h10',
+      cone:'M10 4h4l5 16H5L10 4zM8 11h8M6.5 16h11M3 20h18'
+    };
+    const incs = [
+      {title:'Jyothi Circle',meta:'Flooding · 4 min · 350 m',tier:'L3',n:3,sev:'wn',d:I.drop},
+      {title:'Kadri bypass',meta:'Closed · 12 min · 1.1 km',tier:'L2',n:2,sev:'dg',d:I.closed},
+      {title:'Bejai Church Road',meta:'Road works · 18 min · 1.6 km',tier:'L1',n:1,sev:'nt',d:I.cone}
+    ];
+    const M = [
+      {label:'Settings',href:'Me.dc.html',d:'M12 8a4 4 0 1 0 0 8a4 4 0 1 0 0-8zM12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1'},
+      {label:'Help & feedback',href:'Legal.dc.html',d:'M3 12a9 9 0 1 0 18 0a9 9 0 1 0-18 0M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6V14M12 17h.01'},
+      {label:'Privacy policy',href:'Legal.dc.html',sep:true,d:'M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6z'},
+      {label:'Terms of use',href:'Legal.dc.html',d:'M7 3h7l5 5v13H7zM14 3v5h5M10 13h6M10 17h6'},
+      {label:'Licenses',href:'Legal.dc.html',d:'M4 6h16M4 12h16M4 18h10'}
+    ];
+    const open = this.state.open;
+    const themes = [T.light, T.dark].map((t, idx) => ({
+      ...t,
+      open: open[idx],
+      expanded: open[idx] ? 'true' : 'false',
+      moreBg: open[idx] ? t.sf2 : t.sf,
+      menuSh: t.dark ? '0 1px 0 rgba(255,255,255,.04) inset, 0 16px 40px rgba(0,0,0,.6)' : '0 1px 2px rgba(16,24,32,.06), 0 16px 40px rgba(16,24,32,.16)',
+      toggle: () => { const o = open.slice(); o[idx] = !o[idx]; this.setState({ open: o }); },
+      menu: M.map(m => ({...m, t, sep: !!m.sep})),
+      stats: [
+        {v:'3',label:'Reports nearby',fg:t.tx,bg:t.sf,bd:t.bd,ic:t.tx3,d:'M12 21s7-6.3 7-12a7 7 0 0 0-14 0c0 5.7 7 12 7 12zM9.5 9a2.5 2.5 0 1 0 5 0a2.5 2.5 0 1 0-5 0',t},
+        {v:'1',label:'On your route',fg:t.wn,bg:t.wns,bd:t.wns,ic:t.wn,d:'M12 3 2 20h20L12 3zM12 10v4M12 17h.01',t},
+        {v:'14:20',label:'High tide, Ullal',fg:t.tx,bg:t.sf,bd:t.bd,ic:t.tx3,d:'M2 9c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2M2 15c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2 2.5 2 5 2',t}
+      ],
+      incidents: incs.map((i,k) => ({
+        ...i, t,
+        sep: k ? '1px solid ' + t.bd : '0',
+        ibg: i.sev === 'wn' ? t.wns : i.sev === 'dg' ? t.dgs : t.sf2,
+        ifg: i.sev === 'wn' ? t.wn : i.sev === 'dg' ? t.dg : t.tx2,
+        bars: [4,6,8,10,12,14].map((h,j) => ({h, c: j < i.n ? t.ac : t.bd}))
+      }))
+    }));
+    return { themes };
+  }
+}
+return Component;
+}, 'tpl-Main');
+TS.define('MapBase', function (DCLogic) {
+class Component extends DCLogic {
+  renderVals() {
+    const dark = !!this.props.dark;
+    const scene = this.props.scene ?? 'traffic';
+    const c = dark
+      ? { land:'#121618', park:'#142019', water:'#0C1B22', road:'#1F2528', casing:'#121618', major:'#343C41', label:'#7C878E', route:'#56C7B3', onRoute:'#03211C', casingRoute:'#0B0F10', alt:'#4E595F', warn:'#F2AA55', danger:'#F7897D', neutral:'#A9B4B8', ink:'#EEF2F3', bubble:'#1B2124', bubbleBd:'#2E373B' }
+      : { land:'#F2F3F0', park:'#E1EADB', water:'#CFE0E9', road:'#FFFFFF', casing:'#DDE0DA', major:'#FFFFFF', label:'#6B757E', route:'#0B6B5F', onRoute:'#FFFFFF', casingRoute:'#FFFFFF', alt:'#A3ACB3', warn:'#D27A12', danger:'#CC3B2E', neutral:'#4B555E', ink:'#121619', bubble:'#FFFFFF', bubbleBd:'#D5D9DD' };
+    return {
+      c,
+      vy: this.props.offset ?? 0,
+      routeOp: scene === 'route' || scene === 'preview' ? 1 : 0,
+      bubbleOp: scene === 'route' ? 1 : 0,
+      pinOp: scene === 'traffic' ? 1 : 0,
+      trafficOp: scene === 'traffic' || scene === 'route' ? 1 : 0,
+      youOp: scene === 'traffic' ? 1 : 0
+    };
+  }
+}
+return Component;
+}, 'tpl-MapBase');
+TS.define('NavBar', function (DCLogic) {
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { cur: null }; }
+  renderVals() {
+    const dark = !!this.props.dark;
+    const c = dark
+      ? { glass:'rgba(27,33,36,.86)', edge:'rgba(255,255,255,.07)', sh:'0 1px 0 rgba(255,255,255,.04) inset, 0 10px 30px rgba(0,0,0,.55)', ind:'#173B35', tx:'#EEF2F3', tx3:'#8A969B', ac:'#56C7B3', onac:'#03211C', fabSh:'0 10px 24px rgba(0,0,0,.5)' }
+      : { glass:'rgba(255,255,255,.9)', edge:'rgba(16,24,32,.06)', sh:'0 1px 2px rgba(16,24,32,.06), 0 10px 30px rgba(16,24,32,.12)', ind:'#E2F0ED', tx:'#0B6B5F', tx3:'#5F6A73', ac:'#0B6B5F', onac:'#FFFFFF', fabSh:'0 1px 2px rgba(16,24,32,.12), 0 10px 24px rgba(16,24,32,.18)' };
+    const auth = (this.props.role ?? 'commuter') === 'authority';
+    const cur = this.state.cur ?? this.props.active ?? 'home';
+    const D = {
+      home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z',
+      map: 'M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14',
+      plan: 'M4 19a2 2 0 1 0 4 0a2 2 0 1 0-4 0M16 5a2 2 0 1 0 4 0a2 2 0 1 0-4 0M8 19h8.5a3.5 3.5 0 0 0 0-7h-9a3.5 3.5 0 0 1 0-7H16',
+      me: auth ? 'M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6zM9 12l2 2 4-4' : 'M8 8a4 4 0 1 0 8 0a4 4 0 1 0-8 0M4 21a8 8 0 0 1 16 0'
+    };
+    const ids = ['home', 'map', 'plan', 'me'];
+    const labels = { home: 'Home', map: 'Map', plan: 'Plan', me: auth ? 'Ops' : 'Me' };
+    const idx = Math.max(0, ids.indexOf(cur));
+    const items = ids.map(id => ({
+      id, label: labels[id], d: D[id],
+      fg: id === cur ? c.tx : c.tx3,
+      fw: id === cur ? 600 : 500,
+      sw: id === cur ? 2.1 : 1.8,
+      current: id === cur ? 'page' : 'false',
+      pick: () => this.setState({ cur: id })
+    }));
+    return { c, items, indX: 'translateX(' + (idx * 68) + 'px)' };
+  }
+}
+return Component;
+}, 'tpl-NavBar');
+TS.mount('Main', document.getElementById('app'));
+</script>
+</body>
+</html>

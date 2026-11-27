@@ -1,0 +1,174 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TrafficSense · Authority</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>body{margin:0} button{font-family:inherit;cursor:pointer}</style>
+
+<style>
+body{margin:0}
+.ts-tab{transition:transform 120ms cubic-bezier(.2,0,0,1);-webkit-tap-highlight-color:transparent}
+.ts-tab:active{transform:scale(.9)}
+.ts-tab svg,.ts-tab span{transition:color 200ms ease,stroke 200ms ease,font-weight 200ms ease}
+.ts-fab{transition:transform 140ms cubic-bezier(.2,0,0,1)}
+.ts-fab:active{transform:scale(.9)}
+.ts-ind{transition:transform 420ms cubic-bezier(.32,.72,0,1)}
+</style>
+<style>html,body{margin:0;background:#E8EBEE}#app{display:inline-block;min-width:100%}</style>
+</head>
+<body>
+<div id="app"></div>
+<template id="tpl-Authority">
+<div style="width:900px;height:952px;box-sizing:border-box;padding:32px;display:flex;gap:56px;background:#E8EBEE;font-family:Inter,system-ui,sans-serif">
+<sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+<div style="display:flex;flex-direction:column;gap:16px;width:390px">
+<div style="height:28px;display:flex;align-items:center;font-size:13px;font-weight:600;color:#4B555E">{{t.name}}</div>
+<div style="width:390px;height:844px;border-radius:40px;overflow:hidden;position:relative;background:{{t.bg}};box-shadow:0 0 0 1px {{t.frame}}">
+<div style="position:absolute;top:0;left:0;right:0;bottom:0;overflow:hidden;padding:24px 20px 0;box-sizing:border-box;display:flex;flex-direction:column;gap:18px">
+
+<div style="display:flex;align-items:flex-start;justify-content:space-between">
+<div>
+<h1 style="margin:0;font-size:28px;line-height:34px;font-weight:650;letter-spacing:-.02em;color:{{t.tx}}">Control room</h1>
+<div style="display:flex;align-items:center;gap:6px;margin-top:4px;font-size:13px;font-weight:500;color:{{t.tx2}}">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="{{t.tx2}}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6zM9 12l2 2 4-4"></path></svg>L6 · Municipal ops</div>
+</div>
+<button aria-label="Refresh" style="width:44px;height:44px;border-radius:50%;border:1px solid {{t.bd}};background:{{t.sf}};display:flex;align-items:center;justify-content:center">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{t.tx}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 11a8 8 0 1 0-2.3 5.7M20 4v7h-7"></path></svg>
+</button>
+</div>
+
+<div style="display:flex;align-items:center;gap:10px;padding:4px 4px 4px 14px;border-radius:14px;background:{{t.wns}}">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{t.wn}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 1 1 12 0c0 7 3 8 3 8H3s3-1 3-8M10 20a2 2 0 0 0 4 0"></path></svg>
+<span style="flex:1;font-size:14px;font-weight:600;color:{{t.wn}}">2 reports need review</span>
+<button aria-label="Dismiss" style="width:44px;height:44px;border:0;background:none;display:flex;align-items:center;justify-content:center">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="{{t.wn}}" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"></path></svg>
+</button>
+</div>
+
+<div role="tablist" style="height:44px;padding:3px;box-sizing:border-box;border-radius:999px;background:{{t.sf2}};display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:2px">
+<button role="tab" aria-selected="true" style="border-radius:999px;border:0;background:{{t.sf}};color:{{t.tx}};font-size:14px;font-weight:600">Active · 3</button>
+<button role="tab" aria-selected="false" style="border-radius:999px;border:0;background:transparent;color:{{t.tx2}};font-size:14px;font-weight:600">History</button>
+</div>
+
+<sc-for list="{{t.items}}" as="i" hint-placeholder-count="2">
+<div style="border-radius:20px;background:{{i.t.sf}};border:1px solid {{i.t.bd}};padding:16px;display:flex;flex-direction:column;gap:14px">
+<div style="display:flex;align-items:center;gap:12px">
+<span style="width:40px;height:40px;border-radius:12px;background:{{i.ibg}};display:flex;align-items:center;justify-content:center;flex-shrink:0">
+<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="{{i.ifg}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="{{i.d}}"></path></svg>
+</span>
+<span style="flex:1;min-width:0;display:flex;flex-direction:column;gap:2px">
+<span style="font-size:15px;font-weight:600;color:{{i.t.tx}}">{{i.title}}</span>
+<span style="font-size:13px;color:{{i.t.tx3}}">{{i.meta}}</span>
+</span>
+<span style="height:26px;padding:0 9px;border-radius:999px;background:{{i.t.sf2}};display:flex;align-items:center;gap:6px;flex-shrink:0">
+<span style="display:flex;align-items:flex-end;gap:2px;height:12px">
+<sc-for list="{{i.bars}}" as="b" hint-placeholder-count="6"><span style="width:3px;height:{{b.h}}px;border-radius:1px;background:{{b.c}}"></span></sc-for>
+</span>
+<span style="font-size:12px;font-weight:600;color:{{i.t.tx2}}">{{i.tier}}</span>
+</span>
+</div>
+<div style="display:flex;gap:8px">
+<button style="flex:1;height:44px;border-radius:12px;border:0;background:{{i.t.ac}};color:{{i.t.onac}};font-size:14px;font-weight:600">Confirm L6</button>
+<button style="height:44px;padding:0 14px;border-radius:12px;border:1px solid {{i.t.bd}};background:transparent;color:{{i.t.tx}};font-size:14px;font-weight:600">Resolve</button>
+<button style="height:44px;padding:0 14px;border-radius:12px;border:1px solid {{i.t.bd}};background:transparent;color:{{i.t.dg}};font-size:14px;font-weight:600">Reject</button>
+</div>
+</div>
+</sc-for>
+
+<div style="display:flex;flex-direction:column;gap:8px">
+<span style="font-size:12px;font-weight:600;color:{{t.tx3}};letter-spacing:.04em;text-transform:uppercase;padding-left:4px">Recent actions</span>
+<div style="border-radius:18px;background:{{t.sf}};border:1px solid {{t.bd}};padding:4px 14px">
+<div style="height:48px;display:flex;align-items:center;gap:10px;font-size:14px;color:{{t.tx}}"><span style="width:8px;height:8px;border-radius:50%;background:{{t.ac}}"></span><span style="flex:1">Confirmed · Kadri bypass</span><span style="font-size:13px;color:{{t.tx3}}">09:31</span></div>
+</div>
+</div>
+
+</div>
+<div style="position:absolute;left:0;right:0;bottom:0;height:96px">
+<dc-import name="NavBar" dark="{{t.dark}}" active="me" role="authority" hint-size="390px,96px"></dc-import>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+</template>
+<template id="tpl-NavBar">
+<div style="position:relative;width:390px;height:96px;font-family:Inter,system-ui,sans-serif">
+<nav aria-label="Main" style="position:absolute;left:16px;bottom:16px;width:284px;height:64px;box-sizing:border-box;padding:5px;border-radius:32px;background:{{c.glass}};-webkit-backdrop-filter:blur(20px) saturate(160%);backdrop-filter:blur(20px) saturate(160%);border:1px solid {{c.edge}};box-shadow:{{c.sh}};display:flex">
+<span class="ts-ind" aria-hidden="true" style="position:absolute;top:5px;left:5px;width:68px;height:52px;border-radius:26px;background:{{c.ind}};transform:{{indX}}"></span>
+<sc-for list="{{items}}" as="it" hint-placeholder-count="4">
+<button class="ts-tab" aria-current="{{it.current}}" onClick="{{it.pick}}" style="position:relative;width:68px;height:52px;border:0;background:transparent;padding:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;cursor:pointer;font-family:inherit">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke-width="{{it.sw}}" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" style="stroke:{{it.fg}}"><path d="{{it.d}}"/></svg>
+<span style="font-size:11px;line-height:13px;font-weight:{{it.fw}};color:{{it.fg}};letter-spacing:.01em">{{it.label}}</span>
+</button>
+</sc-for>
+</nav>
+<button class="ts-fab" aria-label="Report a hazard" style="position:absolute;right:16px;bottom:16px;width:64px;height:64px;border-radius:32px;border:0;background:{{c.ac}};box-shadow:{{c.fabSh}};display:flex;align-items:center;justify-content:center;cursor:pointer">
+<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="{{c.onac}}" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+</div>
+</template>
+<script src="../runtime/ts-runtime.js"></script>
+<script>
+TS.define('Authority', function (DCLogic) {
+class Component extends DCLogic {
+  renderVals() {
+    const T = {
+      light:{dark:false,name:'Light',bg:'#F5F6F7',sf:'#FFFFFF',sf2:'#EEF0F2',bd:'#E2E5E8',tx:'#121619',tx2:'#4B555E',tx3:'#68737D',ac:'#0B6B5F',acs:'#E2F0ED',onac:'#FFFFFF',wn:'#9A5700',wns:'#FCF0DF',dg:'#B42318',dgs:'#FCEBE9',frame:'#D9DDE1'},
+      dark:{dark:true,name:'Dark',bg:'#0B0F10',sf:'#13181A',sf2:'#1B2124',bd:'#252D30',tx:'#EEF2F3',tx2:'#A9B4B8',tx3:'#8A969B',ac:'#56C7B3',acs:'#0F2C28',onac:'#03211C',wn:'#F2AA55',wns:'#2A2013',dg:'#F7897D',dgs:'#331A19',frame:'#252D30'}
+    };
+    const I = [
+      {title:'Jyothi Circle',meta:'Waterlogging · 7 confirms',tier:'L3',n:3,sev:'wn',d:'M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z'},
+      {title:'Bunts Hostel Junction',meta:'Heavy traffic · 3 confirms',tier:'L2',n:2,sev:'wn',d:'M5 16h14v-4l-2-5H7l-2 5v4zM5 12h14M7 16v2M17 16v2'}
+    ];
+    const themes = [T.light, T.dark].map(t => ({
+      ...t,
+      items: I.map(i => ({
+        ...i, t,
+        ibg: i.sev === 'wn' ? t.wns : t.sf2,
+        ifg: i.sev === 'wn' ? t.wn : t.tx2,
+        bars: [4,6,8,10,12,14].map((h,k) => ({h, c: k < i.n ? t.ac : t.bd}))
+      }))
+    }));
+    return { themes };
+  }
+}
+return Component;
+}, 'tpl-Authority');
+TS.define('NavBar', function (DCLogic) {
+class Component extends DCLogic {
+  constructor(props) { super(props); this.state = { cur: null }; }
+  renderVals() {
+    const dark = !!this.props.dark;
+    const c = dark
+      ? { glass:'rgba(27,33,36,.86)', edge:'rgba(255,255,255,.07)', sh:'0 1px 0 rgba(255,255,255,.04) inset, 0 10px 30px rgba(0,0,0,.55)', ind:'#173B35', tx:'#EEF2F3', tx3:'#8A969B', ac:'#56C7B3', onac:'#03211C', fabSh:'0 10px 24px rgba(0,0,0,.5)' }
+      : { glass:'rgba(255,255,255,.9)', edge:'rgba(16,24,32,.06)', sh:'0 1px 2px rgba(16,24,32,.06), 0 10px 30px rgba(16,24,32,.12)', ind:'#E2F0ED', tx:'#0B6B5F', tx3:'#5F6A73', ac:'#0B6B5F', onac:'#FFFFFF', fabSh:'0 1px 2px rgba(16,24,32,.12), 0 10px 24px rgba(16,24,32,.18)' };
+    const auth = (this.props.role ?? 'commuter') === 'authority';
+    const cur = this.state.cur ?? this.props.active ?? 'home';
+    const D = {
+      home: 'M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z',
+      map: 'M9 4 3 6v14l6-2 6 2 6-2V4l-6 2-6-2zM9 4v14M15 6v14',
+      plan: 'M4 19a2 2 0 1 0 4 0a2 2 0 1 0-4 0M16 5a2 2 0 1 0 4 0a2 2 0 1 0-4 0M8 19h8.5a3.5 3.5 0 0 0 0-7h-9a3.5 3.5 0 0 1 0-7H16',
+      me: auth ? 'M12 3 4 6v6c0 5 3.5 8 8 9 4.5-1 8-4 8-9V6zM9 12l2 2 4-4' : 'M8 8a4 4 0 1 0 8 0a4 4 0 1 0-8 0M4 21a8 8 0 0 1 16 0'
+    };
+    const ids = ['home', 'map', 'plan', 'me'];
+    const labels = { home: 'Home', map: 'Map', plan: 'Plan', me: auth ? 'Ops' : 'Me' };
+    const idx = Math.max(0, ids.indexOf(cur));
+    const items = ids.map(id => ({
+      id, label: labels[id], d: D[id],
+      fg: id === cur ? c.tx : c.tx3,
+      fw: id === cur ? 600 : 500,
+      sw: id === cur ? 2.1 : 1.8,
+      current: id === cur ? 'page' : 'false',
+      pick: () => this.setState({ cur: id })
+    }));
+    return { c, items, indX: 'translateX(' + (idx * 68) + 'px)' };
+  }
+}
+return Component;
+}, 'tpl-NavBar');
+TS.mount('Authority', document.getElementById('app'));
+</script>
+</body>
+</html>
