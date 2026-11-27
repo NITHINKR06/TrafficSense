@@ -62,16 +62,32 @@ export function haversineDistanceM(coord1: Coordinate, coord2: Coordinate): numb
 }
 
 /**
- * Returns minimum distance in meters from a point to a route geometry.
+ * Returns minimum distance in meters from a point to a route polyline
+ * using point-to-segment projection on a local equirectangular plane.
  */
 export function minDistanceToRoute(point: Coordinate, routeCoords: Coordinate[]): number {
   if (routeCoords.length === 0) return Infinity;
-  let minDistance = Infinity;
+  if (routeCoords.length === 1) return haversineDistanceM(point, routeCoords[0]);
 
-  for (let i = 0; i < routeCoords.length; i++) {
-    const d = haversineDistanceM(point, routeCoords[i]);
-    if (d < minDistance) {
-      minDistance = d;
+  const R = 6371000;
+  const rad = Math.PI / 180;
+  const cosLat0 = Math.cos(point[1] * rad);
+  const toXY = ([lng, lat]: Coordinate): [number, number] => [
+    (lng - point[0]) * rad * R * cosLat0,
+    (lat - point[1]) * rad * R,
+  ];
+
+  let minDistance = Infinity;
+  for (let i = 1; i < routeCoords.length; i++) {
+    const [ax, ay] = toXY(routeCoords[i - 1]);
+    const [bx, by] = toXY(routeCoords[i]);
+    const dx = bx - ax;
+    const dy = by - ay;
+    const lenSq = dx * dx + dy * dy;
+    const t = lenSq === 0 ? 0 : Math.max(0, Math.min(1, -(ax * dx + ay * dy) / lenSq));
+    const dist = Math.hypot(ax + t * dx, ay + t * dy);
+    if (dist < minDistance) {
+      minDistance = dist;
     }
   }
 

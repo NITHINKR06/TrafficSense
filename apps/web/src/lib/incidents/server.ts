@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import type { ReportCategory } from "@/lib/reports/rules";
 
 export type LiveIncident = {
@@ -133,11 +133,23 @@ export async function submitIncidentReport(
   let finalReason = result.level_reason;
 
   if (result.incident_id && input.l5_verified) {
-    const { data: promoted, error: promoteError } = await supabase.rpc("apply_incident_photo_verification", {
+    let rpcClient: SupabaseClient = supabase;
+    let reporterId: string | null = null;
+    const serviceUrl = process.env.SUPABASE_URL;
+    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    if (serviceUrl && serviceKey) {
+      const { data: userData } = await supabase.auth.getUser();
+      reporterId = userData?.user?.id ?? null;
+      if (reporterId) {
+        rpcClient = createClient(serviceUrl, serviceKey, { auth: { persistSession: false } });
+      }
+    }
+    const { data: promoted, error: promoteError } = await rpcClient.rpc("apply_incident_photo_verification", {
       p_incident_id: result.incident_id,
       p_summary: input.l5_summary ?? null,
       p_photo_data_url: input.l5_photo_data_url ?? null,
       p_confidence_tier: input.l5_confidence_tier ?? "moderate",
+      ...(reporterId ? { p_reporter_id: reporterId } : {}),
     });
     if (!promoteError && promoted?.ok) {
       finalLevel = "L5";
