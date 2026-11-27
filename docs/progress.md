@@ -1,5 +1,20 @@
 # Project Progress
 
+## Web App UI Redesign (trafficsense-web handoff) — verified in Docker checks & browser, 27 Nov 2026
+
+- **Scope & Design Source:**
+  - Replaced the web application UI (`apps/web`) to match the `trafficsense-web (3)` design specification (`tokens.json`, `motion.css`, `motion.js`, `specs/`, and all 17 page references) while preserving 100% of existing backend logic, Supabase RPCs, API routes, OSRM routing, MapLibre GL maps, and AI Vision L5 verification.
+  - Upgraded `next` and `eslint-config-next` from `16.4.0` to `16.4.6` via `pnpm` inside Docker.
+- **Implementation:**
+  - **Tokens, Fonts & Motion (`apps/web/src/app/globals.css`, `layout.tsx`, `public/vendor/`, `components/layout/motion-layer.tsx`):** Applied `#F3EFE6` bone, `#11141A` ink, `#FF5B2E` signal orange, `#D5F75A` lime, `#2B4BFF` cobalt, and `#FFB020` amber tokens with `Bricolage Grotesque`, `Instrument Sans`, and `JetBrains Mono`. Bundled `gsap.min.js` + `DrawSVGPlugin.min.js` and `MotionLayer` for SVG stroke draw-in, hover micro-motion, and endless brand pulse animation (respecting `prefers-reduced-motion`).
+  - **Shared Chrome (`top-bar.tsx`, `dock.tsx`, `viewer-chrome.tsx`, `app-shell.tsx`):** Built the floating 92px glass `TopBar` (brand pill, `DEMO DATA` chip, Alerts bell, role/sign-in pill) and bottom-centre floating `Dock` (76px desktop / 68px mobile glass pill with role-aware tabs for consumer, employer, authority, and admin).
+  - **Pages & Components:** Redesigned `/` (`HomeWeb` hero + `StylisedCityMap` + L1–L6 `TrustMeter` bento + workflow strip + role cards + honesty chips), `/traffic` (`LiveDesktop` floating glass feed), `/planner` (`PlannerWeb` floating search & route sheet), `/report` (`ReportWeb` 3×2 category tiles & `ReportSentWeb` L1 confirmation), `/login` & `/register` (`AuthScreen` & `AuthForm`), `/demo`, `/about`, `/access-denied`, `/not-found`, `/workspace` (`YouWeb`), `/employer` & `/employer/[orgId]`, `/authority`, and `/admin`.
+  - **Browser Layout Fixes:** Converted `/` hero to flex/grid layout to prevent `backdrop-filter` absolute-positioning overlap, collapsed signed-in TopBar role pill to a 44px avatar on `<640px` mobile, and offset MapLibre `top-right` / `bottom-right` controls clear of the TopBar and Dock.
+- **Verification Evidence:**
+  - `docker compose run --rm -T app sh -c "cd apps/web && pnpm exec tsc --noEmit && pnpm exec eslint . && CI=true pnpm exec next build"`: Passed with **0 TypeScript errors**, **0 ESLint errors** (4 pre-existing unused-var warnings), and **26/26** static/partial-prerendered routes built cleanly.
+  - `just test`: Passed **240/240** tests across 11 suites.
+  - Browser inspection (`http://localhost:3000` at `1440×900` and `390×844`): Verified `/`, `/traffic`, `/planner`, `/report`, `/login` → `/workspace` (1-click Commuter sign-in), `/demo`, and `/about` render cleanly with working navigation and no desktop overlap or mobile horizontal overflow. *(Note: on `390px` mobile `/traffic` and `/planner`, MapLibre's top-right zoom buttons sit behind the full-width floating feed/search card.)*
+
 ## Mobile App Redesign (design/BUILD_SPEC.md) — verified in automated checks & Metro bundle, 26 Nov 2026
 
 - **Scope & Design Source:**

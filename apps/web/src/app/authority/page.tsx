@@ -6,50 +6,54 @@ export default async function AuthorityPage() {
   await requireRole("authority");
 
   return (
-    <div data-fullscreen="true" className="w-full flex-1 flex flex-col px-4 sm:px-8 py-6 space-y-6 max-w-[1920px] mx-auto">
-      {/* Header bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-surface-container pb-4">
+    <div data-fullscreen="true" className="w-full flex-1 flex flex-col space-y-6">
+      {/* Control Room Header */}
+      <div className="rounded-[36px] bg-[#11141A] text-[#F3EFE6] p-7 lg:p-9 shadow-[0_24px_60px_rgba(17,20,26,0.18)] flex flex-wrap items-center justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-mono uppercase tracking-wider text-primary font-bold">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="h-[26px] px-3 rounded-full bg-[#1B2029] text-[#D5F75A] inline-flex items-center font-mono text-[10px] font-semibold tracking-[0.08em] uppercase">
               Civic Operations &amp; Intelligence
             </span>
-            <span className="simulated-pill">CIVIC AUTHORITY</span>
+            <span className="h-[26px] px-3 rounded-full bg-[#FF5B2E] text-[#11141A] inline-flex items-center font-mono text-[10px] font-bold tracking-[0.08em]">
+              CIVIC AUTHORITY
+            </span>
           </div>
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-surface-on tracking-tight">
-            Mangaluru Corridor Hotspot Dashboard
+          <h1 className="font-display font-bold text-3xl sm:text-4xl lg:text-[48px] leading-[0.96] tracking-[-0.04em] m-0">
+            Mangaluru Control Room<span className="text-[#D5F75A]">.</span>
           </h1>
-          <p className="text-xs sm:text-sm text-surface-on-variant mt-1">
+          <p className="text-xs sm:text-sm text-[#B9BDC6] mt-2 mb-0">
             Real-time decision support, arterial corridor congestion rankings, and citizen incident verification console.
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
-          <Link className="button secondary text-xs px-3.5 py-2" href="/workspace">
+        <div className="flex items-center gap-2.5">
+          <Link
+            className="h-11 px-5 rounded-full bg-[#1B2029] text-[#F3EFE6] border border-[#2A303C] inline-flex items-center text-xs font-semibold no-underline hover:bg-[#2A303C]"
+            href="/workspace"
+            prefetch={false}
+          >
             ← My Account
           </Link>
-          <Link className="button text-xs px-3.5 py-2" href="/traffic">
+          <Link
+            className="h-11 px-5 rounded-full bg-[#D5F75A] text-[#11141A] inline-flex items-center text-xs font-bold no-underline hover:opacity-90"
+            href="/traffic"
+          >
             Live Traffic Map ↗
           </Link>
         </div>
       </div>
 
-      {/* Main Executive Dashboard (KPIs, OpenStreetMap Hotspot Map, Rankings, Review Queue, Heatmap, and Audit Log) */}
+      {/* Main Executive Dashboard */}
       <AuthorityDashboard />
 
       {/* Methodology notice at bottom */}
-      <div className="p-4 rounded-xl bg-surface-container-low border border-surface-container text-xs space-y-1">
-        <p className="font-semibold text-surface-on">Methodology &amp; Purpose</p>
-        <p className="text-surface-on-variant">
-          Delay metrics reflect aggregated commuter excess travel time across synthetic observation windows. Outputs suggest areas for investigation and traffic light timing reviews; they do not represent confirmed accident causes or capital project mandates.
+      <div className="rounded-[28px] bg-white border border-[#EEE9DC] p-5 text-xs space-y-1">
+        <p className="font-semibold text-[#11141A] m-0">Methodology &amp; Purpose</p>
+        <p className="text-[#4A505C] m-0">
+          Delay metrics reflect aggregated commuter excess travel time across synthetic observation windows. Outputs
+          suggest areas for investigation and traffic light timing reviews; they do not represent confirmed accident
+          causes or capital project mandates.
         </p>
-      </div>
-
-      <div className="pt-2 flex items-center justify-between text-xs text-surface-on-variant border-t border-surface-container">
-        <Link className="text-primary hover:underline" href="/workspace">
-          ← Return to account workspace
-        </Link>
-        <span className="font-mono">Mangaluru Smart Mobility Civic Console</span>
       </div>
     </div>
   );

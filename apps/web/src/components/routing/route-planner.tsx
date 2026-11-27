@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { Map as MapInstance, Marker as MarkerInstance } from "maplibre-gl";
 import { formatRouteDuration, formatRouteDistance, type RouteOption } from "@/lib/routing/types";
 import type { DetourRouteDetails } from "@/lib/routing/reroute";
-import { reportCategories, reportCategoryIcons, type ReportCategory } from "@/lib/reports/rules";
+import { reportCategories, type ReportCategory } from "@/lib/reports/rules";
 import type { LiveIncident } from "@/lib/incidents/server";
 import { createFallbackStyle } from "@/lib/traffic/mangaluru-basemap";
 import { IncidentIcon, getIncidentSvgString } from "@/components/icons/incident-icons";
@@ -21,7 +21,6 @@ import {
   AlertTriangleIcon,
   MegaphoneIcon,
   CheckCircleIcon,
-  XCircleIcon,
   CameraIcon,
   SpinnerIcon,
   ShieldCheckIcon,
@@ -719,24 +718,24 @@ export function RoutePlanner() {
       {/* Fullscreen Map Canvas */}
       <div ref={mapContainer} className="absolute inset-0 w-full h-full" />
 
-      {/* Google Maps Style Floating Search & Direction Card (Top) */}
-      <div className="absolute top-3 inset-x-3 sm:left-4 sm:right-auto sm:w-[420px] z-30 pointer-events-auto">
-        <div className="bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-xl p-3 sm:p-3.5 space-y-2.5">
+      {/* Floating Search & Direction Card (Top, below floating TopBar) */}
+      <div className="absolute top-[86px] sm:top-[104px] inset-x-3 sm:left-7 sm:right-auto sm:w-[420px] z-30 pointer-events-auto">
+        <div className="bg-[#F3EFE6]/90 backdrop-blur-2xl rounded-[32px] border border-white/80 shadow-[0_24px_60px_rgba(17,20,26,0.20)] p-4 space-y-3">
           {/* Header Row: Title & Live Telemetry */}
           <div className="flex items-center justify-between">
-            <h2 className="text-xs sm:text-sm font-bold text-slate-900 flex items-center gap-1.5 m-0">
-              <MapIcon size={16} className="text-primary" />
-              <span>City Route Intelligence</span>
+            <h2 className="font-display text-sm sm:text-base font-bold text-[#11141A] flex items-center gap-2 m-0">
+              <MapIcon size={17} className="text-[#FF5B2E]" />
+              <span>Plan Route</span>
             </h2>
             <div className="flex items-center gap-1.5">
               <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#FF5B2E] opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-[#FF5B2E]" />
               </span>
-              <span className="text-[10px] font-semibold text-slate-600">
-                LIVE · {liveIncidents.length} hazard{liveIncidents.length === 1 ? "" : "s"}
+              <span className="font-mono text-[10px] font-semibold text-[#4A505C]">
+                {liveIncidents.length} HAZARD{liveIncidents.length === 1 ? "" : "S"}
               </span>
-              <span className="text-[9px] font-mono font-bold px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 border border-slate-200">
+              <span className="text-[9px] font-mono font-bold px-2 py-0.5 rounded-full bg-[#11141A] text-[#D5F75A]">
                 FREE-FLOW
               </span>
             </div>
@@ -940,11 +939,11 @@ export function RoutePlanner() {
         </div>
       </div>
 
-      {/* Google Maps Style Expandable Bottom Sheet */}
+      {/* Expandable Route Summary Sheet (above bottom Dock) */}
       <aside
-        className={`absolute bottom-0 inset-x-0 sm:left-4 sm:bottom-4 sm:inset-x-auto sm:w-[420px] z-20 flex flex-col bg-white/95 backdrop-blur-md rounded-t-3xl sm:rounded-2xl border border-slate-200/90 shadow-2xl overflow-hidden pointer-events-auto transition-all duration-300 ease-in-out ${
+        className={`absolute bottom-[92px] inset-x-3 sm:left-7 sm:bottom-[108px] sm:inset-x-auto sm:w-[420px] z-20 flex flex-col bg-[#F3EFE6]/92 backdrop-blur-2xl rounded-[32px] border border-white/80 shadow-[0_24px_60px_rgba(17,20,26,0.20)] overflow-hidden pointer-events-auto transition-all duration-300 ease-in-out ${
           isDrawerExpanded
-            ? "max-h-[75vh] sm:max-h-[calc(100vh-220px)]"
+            ? "max-h-[55vh] sm:max-h-[calc(100dvh-340px)]"
             : "max-h-[145px]"
         }`}
       >

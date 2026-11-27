@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 export default async function TrafficPage() {
   const result = await readTrafficSnapshot();
   return (
-    <div data-fullscreen="true" className="relative w-full h-[calc(100vh-65px)] min-h-[500px] overflow-hidden flex flex-col">
+    <div data-fullscreen="true" className="relative w-full h-dvh min-h-[500px] overflow-hidden flex flex-col">
       {result.status === "ready" ? (
         <TrafficExplorer
           snapshot={result.snapshot}
