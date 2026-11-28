@@ -8,6 +8,7 @@ import type { DetourRouteDetails } from "@/lib/routing/reroute";
 import { reportCategories, type ReportCategory } from "@/lib/reports/rules";
 import type { LiveIncident } from "@/lib/incidents/server";
 import { createFallbackStyle } from "@/lib/traffic/mangaluru-basemap";
+import { attachMapResizeObserver } from "@/lib/map/attach-resize-observer";
 import { IncidentIcon, getIncidentSvgString } from "@/components/icons/incident-icons";
 import {
   MapPinIcon,
@@ -669,6 +670,7 @@ export function RoutePlanner() {
   useEffect(() => {
     if (!mapContainer.current) return;
     let disposed = false;
+    let detachResize: (() => void) | null = null;
 
     async function initMap() {
       const { Map, NavigationControl, AttributionControl, setWorkerUrl } = await import("maplibre-gl");
@@ -684,6 +686,7 @@ export function RoutePlanner() {
         zoom: 12.5,
         attributionControl: false,
       });
+      detachResize = attachMapResizeObserver(mapContainer.current, map);
 
       map.addControl(new NavigationControl({ showCompass: false }), "top-right");
       map.addControl(new AttributionControl({ compact: true }), "bottom-right");
@@ -727,6 +730,7 @@ export function RoutePlanner() {
 
     return () => {
       disposed = true;
+      detachResize?.();
       mapRef.current?.remove();
       mapRef.current = null;
     };
