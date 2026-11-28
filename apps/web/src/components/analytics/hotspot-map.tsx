@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { Map as MapInstance, Marker as MarkerInstance, Popup as PopupInstance } from "maplibre-gl";
 import { createFallbackStyle } from "@/lib/traffic/mangaluru-basemap";
+import { attachMapResizeObserver } from "@/lib/map/attach-resize-observer";
 import type { HistoricalIncident } from "@/lib/analytics/history";
 import type { HotspotRanking } from "@/lib/analytics/metrics";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -80,6 +81,7 @@ export function HotspotMap({
     let disposed = false;
     let map: MapInstance | null = null;
     let fallbackUsed = false;
+    let detachResize: (() => void) | null = null;
 
     async function initMap() {
       try {
@@ -105,6 +107,7 @@ export function HotspotMap({
           touchPitch: false,
           cooperativeGestures: true,
         });
+        detachResize = attachMapResizeObserver(containerRef.current, map);
 
         map.addControl(new NavigationControl({ showCompass: false }), "top-right");
 
@@ -133,6 +136,7 @@ export function HotspotMap({
 
     return () => {
       disposed = true;
+      detachResize?.();
       if (activePopupRef.current) {
         activePopupRef.current.remove();
         activePopupRef.current = null;
