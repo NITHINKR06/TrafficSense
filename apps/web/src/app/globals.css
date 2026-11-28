@@ -205,9 +205,9 @@ a:active, button:active {
 
 .site-main--wide {
   width: 100%;
-  max-width: 1384px;
-  margin: 0 auto;
-  padding: 104px 28px 120px;
+  max-width: none;
+  margin: 0;
+  padding: 92px 20px 100px;
   min-height: 100dvh;
 }
 

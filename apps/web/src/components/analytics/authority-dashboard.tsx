@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect, useCallback } from "react";
+import { useState, useMemo, useEffect, useCallback, type ReactNode } from "react";
 import {
   computeAnalytics,
   computeRecurrenceHeatmap,
@@ -12,15 +12,9 @@ import { HotspotMap } from "@/components/analytics/hotspot-map";
 import { IncidentReviewPanel } from "@/components/analytics/incident-review-panel";
 import { RefreshIcon, ClockIcon, AlertTriangleIcon, MapIcon } from "@/components/icons/ui-icons";
 
-const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+/* ───────────── data helpers (logic unchanged) ───────────── */
 
-// Colour scale for heatmap cells: 0→transparent, 1-2→light amber, 3-4→medium amber, 5+→strong red
-function heatCellStyle(count: number): string {
-  if (count === 0) return "bg-surface-container";
-  if (count <= 2) return "bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-100";
-  if (count <= 4) return "bg-amber-300 dark:bg-amber-800 text-amber-900 dark:text-amber-100 font-semibold";
-  return "bg-red-500 dark:bg-red-700 text-white font-bold";
-}
+const DAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 function suggestedInvestigation(cause: string): string {
   if (/waterlogging|flood/i.test(cause)) return "Inspect drainage and flood-response readiness around the reported corridor.";
@@ -30,7 +24,6 @@ function suggestedInvestigation(cause: string): string {
   return "Collect a longer observation window before commissioning a traffic-engineering investigation.";
 }
 
-/** Approximate centres of the junctions tracked by the analytics dataset (lat, lng). */
 const JUNCTION_COORDS: Record<string, [number, number]> = {
   hampankatta: [12.868, 74.842],
   "ksrtc-bejai": [12.885, 74.848],
@@ -39,7 +32,6 @@ const JUNCTION_COORDS: Record<string, [number, number]> = {
   pumpwell: [12.858, 74.862],
 };
 
-/** Maps a live incident location to the closest tracked junction. */
 function nearestJunction(lat: number, lng: number) {
   let best: (typeof MANGALURU_JUNCTIONS)[number] = MANGALURU_JUNCTIONS[0];
   let bestDist = Number.POSITIVE_INFINITY;
@@ -56,7 +48,6 @@ function nearestJunction(lat: number, lng: number) {
   return best;
 }
 
-/** Maps live incident categories onto the analytics cause taxonomy. */
 function liveCategoryToCause(category: string): HistoricalIncident["cause"] {
   switch (category) {
     case "accident":
@@ -76,17 +67,51 @@ function liveCategoryToCause(category: string): HistoricalIncident["cause"] {
   }
 }
 
-type DashboardTab = "all" | "map" | "review" | "diagnostics" | "history";
-type MapLayout = "hero" | "split";
+/* ───────────── design tokens (from Authority.html) ─────────────
+   ink #11141A · bone #F3EFE6 · orange #FF5B2E · lime #D5F75A · muted #4A505C · hairline #EEE9DC */
+
+const mono = "font-mono text-[11px] font-semibold uppercase tracking-[0.08em]";
+const h2 = "font-display text-2xl font-bold tracking-[-0.02em] text-[#11141A] m-0 ad-rise";
+const pillBtn =
+  "h-12 px-[22px] rounded-full bg-white text-[#11141A] text-[15px] font-semibold inline-flex items-center gap-2.5 cursor-pointer";
+
+const CSS = `
+@keyframes ad-rise{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+@keyframes ad-dock{from{opacity:0;transform:translateY(24px) scale(.96)}to{opacity:1;transform:none}}
+.ad-rise{animation:ad-rise .8s cubic-bezier(.22,1,.36,1) both}
+.ad-dock{animation:ad-dock .8s cubic-bezier(.22,1,.36,1) .15s both}
+.ad-shell a,.ad-shell button{transition:transform .35s cubic-bezier(.4,0,.2,1),box-shadow .35s ease,background-color .35s ease}
+.ad-shell a:active,.ad-shell button:active{transform:scale(.97)}
+@media (prefers-reduced-motion:reduce){.ad-rise,.ad-dock{animation:none}.ad-shell *{transition:none!important}}
+`;
+
+function Ico({ children, size = 22, sw = 2 }: { children: ReactNode; size?: number; sw?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw}
+      strokeLinecap="round" strokeLinejoin="round" className="shrink-0" aria-hidden="true">
+      {children}
+    </svg>
+  );
+}
+
+const heatColor = (count: number, max: number) => {
+  if (count === 0) return "#F3EFE6";
+  const t = count / max;
+  return t <= 0.34 ? "#F4DCCD" : t <= 0.67 ? "#F7A27F" : "#FF5B2E";
+};
+
+type DashboardTab = "operations" | "analytics" | "audit";
+
+/* ───────────── component ───────────── */
 
 export function AuthorityDashboard() {
   const [selectedMonth, setSelectedMonth] = useState("all");
   const [selectedJunction, setSelectedJunction] = useState("all");
   const [showDemoHistory, setShowDemoHistory] = useState(false);
   const [selectedHotspotId, setSelectedHotspotId] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<DashboardTab>("all");
-  const [mapLayout, setMapLayout] = useState<MapLayout>("hero");
+  const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [liveIncidents, setLiveIncidents] = useState<HistoricalIncident[]>([]);
+  const [activeTab, setActiveTab] = useState<DashboardTab>("operations");
 
   const refreshLiveIncidents = useCallback(() => {
     return fetch("/api/incidents", { cache: "no-store" })
@@ -94,13 +119,7 @@ export function AuthorityDashboard() {
       .then((data) => {
         if (data.ok && Array.isArray(data.incidents)) {
           const mapped: HistoricalIncident[] = data.incidents.map((live: {
-            id: string;
-            category: string;
-            first_reported_at: string;
-            lat: number;
-            lng: number;
-            level: string;
-            provenance: string;
+            id: string; category: string; first_reported_at: string; lat: number; lng: number; level: string; provenance: string;
           }) => {
             const cause = liveCategoryToCause(live.category);
             const junction = nearestJunction(live.lat, live.lng);
@@ -110,7 +129,6 @@ export function AuthorityDashboard() {
             if (hour >= 8 && hour < 10) peak_window = "08:00-10:00";
             else if (hour >= 12 && hour < 14) peak_window = "12:00-14:00";
             else if (hour >= 17 && hour < 19) peak_window = "17:00-19:00";
-
             return {
               id: live.id,
               junction_id: junction.id,
@@ -124,6 +142,9 @@ export function AuthorityDashboard() {
               month: typeof live.first_reported_at === "string" ? live.first_reported_at.slice(0, 7) : "2026-10",
               peak_window,
               provenance: "reported" as const,
+              lat: Number.isFinite(live.lat) ? live.lat : undefined,
+              lng: Number.isFinite(live.lng) ? live.lng : undefined,
+              level: live.level,
             };
           });
           setLiveIncidents(mapped);
@@ -135,18 +156,25 @@ export function AuthorityDashboard() {
   useEffect(() => {
     void refreshLiveIncidents();
     const refresh = () => void refreshLiveIncidents();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
     window.addEventListener("trafficsense:incidents-changed", refresh);
-    const poll = window.setInterval(refresh, 30_000);
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisibility);
+    const poll = window.setInterval(refresh, 5_000);
     return () => {
       window.removeEventListener("trafficsense:incidents-changed", refresh);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisibility);
       window.clearInterval(poll);
     };
   }, [refreshLiveIncidents]);
 
-  const activeSource = useMemo(() => {
-    return showDemoHistory ? [...liveIncidents, ...HISTORICAL_INCIDENTS] : liveIncidents;
-  }, [showDemoHistory, liveIncidents]);
-
+  const activeSource = useMemo(
+    () => (showDemoHistory ? [...liveIncidents, ...HISTORICAL_INCIDENTS] : liveIncidents),
+    [showDemoHistory, liveIncidents],
+  );
   const data = useMemo(() => computeAnalytics(selectedMonth, activeSource), [selectedMonth, activeSource]);
   const heatmap = useMemo(() => computeRecurrenceHeatmap(selectedMonth, activeSource), [selectedMonth, activeSource]);
   const recurrenceStatement = useMemo(
@@ -161,34 +189,15 @@ export function AuthorityDashboard() {
     () => hourSlots.filter((slot) => Object.values(heatmap).some((dayRow) => (dayRow[slot] ?? 0) > 0)),
     [hourSlots, heatmap],
   );
+  const heatMax = useMemo(() => {
+    let m = 1;
+    for (const row of Object.values(heatmap)) for (const v of Object.values(row)) m = Math.max(m, v as number);
+    return m;
+  }, [heatmap]);
 
   function exportCsv() {
-    const headers = [
-      "Incident ID",
-      "Junction Name",
-      "Segment ID",
-      "Direction",
-      "Occurred At (UTC)",
-      "Duration (Minutes)",
-      "Commuter Delay (Minutes)",
-      "Cause",
-      "Peak Window",
-      "Provenance",
-    ];
-
-    const rows = data.incidents.map((i) => [
-      i.id,
-      `"${i.junction_name}"`,
-      i.segment_id,
-      i.direction,
-      i.occurred_at,
-      i.duration_minutes,
-      i.commuter_delay_minutes,
-      i.cause,
-      i.peak_window,
-      i.provenance,
-    ]);
-
+    const headers = ["Incident ID", "Junction Name", "Segment ID", "Direction", "Occurred At (UTC)", "Duration (Minutes)", "Commuter Delay (Minutes)", "Cause", "Peak Window", "Provenance"];
+    const rows = data.incidents.map((i) => [i.id, `"${i.junction_name}"`, i.segment_id, i.direction, i.occurred_at, i.duration_minutes, i.commuter_delay_minutes, i.cause, i.peak_window, i.provenance]);
     const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
@@ -200,699 +209,395 @@ export function AuthorityDashboard() {
     document.body.removeChild(link);
   }
 
-  const problemReportCard = (
-    <section
-      className="p-6 rounded-[32px] bg-white border border-[#EEE9DC] shadow-[0_10px_28px_rgba(17,20,26,0.05)] space-y-4"
-      aria-labelledby="problem-report-title"
-    >
-      <div className="flex items-center justify-between gap-2 border-b border-[#EEE9DC] pb-3">
-        <div>
-          <span className="font-mono text-[10px] uppercase tracking-[0.08em] text-[#FF5B2E] font-bold">
-            DECISION-SUPPORT DIRECTIVE
-          </span>
-          <h2 id="problem-report-title" className="font-display text-xl font-bold text-[#11141A] m-0">
-            Authority Problem Report
-          </h2>
-        </div>
-        <span className="h-7 px-3 rounded-full bg-[#F3EFE6] text-[#4A505C] inline-flex items-center font-mono text-[10px] font-semibold">
-          Advisory finding
-        </span>
-      </div>
+  const cleanCause = (s: string) => (s ?? "").replace("_", " ");
+  const metric = (h: (typeof data.hotspots)[number]) => (showDemoHistory ? h.total_delay_hours : h.incident_count);
+  const metricMax = Math.max(1, ...data.hotspots.map(metric));
+  const fmtDate = (iso: string) =>
+    new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
+      .format(new Date(iso)).replace(", ", " · ");
 
-      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-        <div className="rounded-[20px] bg-[#F8F5EE] p-4">
-          <dt className="font-mono text-[10px] uppercase tracking-[0.06em] text-[#4A505C]">Priority corridor location</dt>
-          <dd className="font-display font-bold text-[#11141A] mt-1">{data.top_hotspot}</dd>
-        </div>
-        <div className="rounded-[20px] bg-[#F8F5EE] p-4">
-          <dt className="font-mono text-[10px] uppercase tracking-[0.06em] text-[#4A505C]">Reported cause mix</dt>
-          <dd className="font-display font-bold text-[#11141A] mt-1 capitalize">{data.primary_cause.replace("_", " ")}</dd>
-        </div>
-        <div className="rounded-[20px] bg-[#F8F5EE] p-4">
-          <dt className="font-mono text-[10px] uppercase tracking-[0.06em] text-[#4A505C]">Recurrence pattern</dt>
-          <dd className="font-semibold text-[#11141A] mt-1 text-xs">
-            {showDemoHistory ? recurrenceStatement : "Live-only records; collect a longer time window."}
-          </dd>
-        </div>
-        <div className="rounded-[20px] bg-[#F8F5EE] p-4">
-          <dt className="font-mono text-[10px] uppercase tracking-[0.06em] text-[#4A505C]">Delay evidence</dt>
-          <dd className="font-semibold text-[#11141A] mt-1 text-xs">
-            {showDemoHistory ? `${data.total_delay_hours} hrs observed` : "Not measured for live reports"}
-          </dd>
-        </div>
-      </dl>
+  /* ───────────── tabs & header ───────────── */
 
-      <div className="text-xs border-l-4 border-[#FF5B2E] bg-[#F8F5EE] px-4 py-3 rounded-r-[20px] text-[#11141A] space-y-1">
-        <p className="font-bold text-[#FF5B2E] m-0">Suggested investigation protocol:</p>
-        <p className="text-[#4A505C] m-0">{investigation}</p>
-      </div>
-    </section>
-  );
-
-  const hotspotRankingsCard = (
-    <div className="p-6 rounded-[32px] bg-white border border-[#EEE9DC] shadow-[0_10px_28px_rgba(17,20,26,0.05)] space-y-3">
-      <div className="flex items-center justify-between border-b border-[#EEE9DC] pb-3">
-        <div>
-          <h2 className="font-display text-xl font-bold text-[#11141A] m-0">Corridor Hotspot Rankings</h2>
-          <p className="text-xs text-[#4A505C] m-0 mt-0.5">
-            Prioritized by commuter delay-hours and recurrence frequency.
-          </p>
-        </div>
-        <span className="h-7 px-3 rounded-full bg-[#11141A] text-[#D5F75A] inline-flex items-center font-mono text-[10px] font-bold">
-          DELAY (DESC)
-        </span>
-      </div>
-
-      <div className="space-y-2.5">
-        {data.hotspots.map((h, index) => {
-          const rankNumber = index + 1;
-          const isSelected = selectedHotspotId === h.junction_id;
-          const isTop = rankNumber === 1;
-
-          return (
-            <div
-              key={h.junction_id}
-              onClick={() => setSelectedHotspotId(h.junction_id)}
-              className={`p-3.5 rounded-[20px] border cursor-pointer transition flex items-center justify-between gap-3 ${
-                isSelected
-                  ? "bg-[#11141A] text-[#F3EFE6] border-[#11141A] shadow-sm"
-                  : "bg-[#F8F5EE] text-[#11141A] border-[#EEE9DC] hover:bg-[#EFEADD]"
-              }`}
-              title="Click to center on map"
-            >
-              <div className="flex items-start gap-3">
-                <span
-                  className={`font-mono font-bold text-xs rounded-full w-8 h-8 flex items-center justify-center shrink-0 ${
-                    isTop
-                      ? "bg-[#FF5B2E] text-[#11141A]"
-                      : rankNumber <= 3
-                      ? "bg-[#FFB020] text-[#11141A]"
-                      : isSelected
-                      ? "bg-[#2A303C] text-[#F3EFE6]"
-                      : "bg-white text-[#11141A] border border-[#EEE9DC]"
-                  }`}
-                >
-                  #{rankNumber}
-                </span>
-
-                <div className="space-y-0.5">
-                  <p className="font-display font-bold text-xs sm:text-sm m-0 leading-tight">
-                    {h.junction_name}
-                  </p>
-                  <div className={`flex flex-wrap items-center gap-2 text-[11px] ${isSelected ? "text-[#B9BDC6]" : "text-[#4A505C]"}`}>
-                    <span>{h.incident_count} events</span>
-                    <span>·</span>
-                    <span className="font-mono text-[10px] px-2 py-0.5 rounded-full bg-black/5">
-                      {h.primary_window}
-                    </span>
-                    <span>·</span>
-                    <span className="capitalize">{h.primary_cause.replace("_", " ")}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="text-right shrink-0">
-                <div className="font-bold text-xs sm:text-sm">
-                  {showDemoHistory ? `${h.total_delay_hours} hrs` : "Live view"}
-                </div>
-                <span className={`text-[10px] block ${isSelected ? "text-[#B9BDC6]" : "text-[#4A505C]"}`}>
-                  {showDemoHistory ? `~${h.average_delay_minutes}m avg` : `${h.incident_count} reports`}
-                </span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {selectedHotspotId && (
-        <div className="pt-2 flex items-center justify-between text-xs text-[#4A505C] border-t border-[#EEE9DC]">
-          <span>
-            Focusing on: <strong className="text-[#11141A]">{selectedHotspotId}</strong>
-          </span>
-          <button
-            type="button"
-            onClick={() => setSelectedHotspotId(null)}
-            className="text-[#FF5B2E] font-semibold hover:underline text-xs cursor-pointer"
-          >
-            Clear selection
-          </button>
-        </div>
-      )}
-    </div>
-  );
-
-  const quickReviewCard = (
-    <div className="p-6 rounded-[32px] bg-white border border-[#EEE9DC] shadow-[0_10px_28px_rgba(17,20,26,0.05)] space-y-3">
-      <div className="flex items-center justify-between">
-        <span className="font-display text-lg font-bold text-[#11141A]">Review queue</span>
-        <span className="h-7 px-3 rounded-full bg-[#FFE3D8] text-[#8F3209] inline-flex items-center font-mono text-[10px] font-bold">
-          {liveIncidents.length} REPORTED
-        </span>
-      </div>
-      <p className="text-xs text-[#4A505C] m-0">
-        Community reports awaiting authority verification (L6 confirmation, OSRM route spread analysis, or resolution).
-      </p>
-      <button
-        type="button"
-        onClick={() => setActiveTab("review")}
-        className="h-11 px-5 rounded-full bg-[#11141A] text-[#F3EFE6] text-xs font-semibold w-full mt-1 hover:bg-[#2A303C] transition inline-flex items-center justify-center cursor-pointer"
-      >
-        Open Incident Review Console →
-      </button>
-    </div>
-  );
+  const TABS: { id: DashboardTab; label: string; badge?: number }[] = [
+    { id: "operations", label: "Live Operations", badge: liveIncidents.length },
+    { id: "analytics", label: "Corridor Analytics" },
+    { id: "audit", label: "Audit & Timeline", badge: data.incidents.length },
+  ];
 
   return (
-    <div className="space-y-6">
-      {/* Executive Command Toolbar */}
-      <div className="p-5 rounded-[28px] border border-[#EEE9DC] bg-white shadow-[0_10px_28px_rgba(17,20,26,0.05)] space-y-3">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          {/* Analysis Filters */}
-          <div className="flex flex-wrap items-center gap-2.5">
-            <label className="font-mono text-[11px] font-semibold uppercase tracking-[0.06em] text-[#4A505C]" htmlFor="month-select">
-              Analysis Window:
-            </label>
-            <select
-              id="month-select"
-              className="h-10 text-xs rounded-full border border-[#EEE9DC] bg-[#F3EFE6] px-4 text-[#11141A] font-semibold focus:outline-none focus:ring-2 focus:ring-[#11141A]"
-              value={selectedMonth}
-              onChange={(e) => setSelectedMonth(e.target.value)}
-            >
-              <option value="all">All Available Months (Jul – Oct 2026)</option>
-              <option value="2026-07">July 2026</option>
-              <option value="2026-08">August 2026</option>
-              <option value="2026-09">September 2026</option>
-              <option value="2026-10">October 2026</option>
-            </select>
+    <div className="ad-shell w-full font-[family-name:var(--font-body)] text-[#11141A] pb-16">
+      <style>{CSS}</style>
 
-            <span className="h-8 px-3 rounded-full bg-[#11141A] text-[#D5F75A] inline-flex items-center font-mono text-[10px] font-semibold tracking-[0.08em]">
-              {showDemoHistory ? "SIMULATED + LIVE DATA" : `LIVE ONLY (${liveIncidents.length} stored)`}
-            </span>
+      {/* Unified Control Room Command Bar */}
+      <div className="rounded-[28px] bg-white/90 backdrop-blur-xl border border-[#E8E2D3] shadow-[0_10px_30px_rgba(17,20,26,0.06)] p-4 sm:p-5 flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full bg-[#F3EFE6] border border-[#E3DDCE] font-mono text-[10px] font-bold tracking-[0.08em] text-[#11141A]">
+                <span className="w-2 h-2 rounded-full bg-[#FF5B2E] animate-pulse" aria-hidden="true" />
+                CIVIC AUTHORITY
+              </span>
+              <span className="font-mono text-[10px] font-semibold tracking-[0.08em] text-[#4A505C] uppercase">
+                Mangaluru Corridor Dispatch
+              </span>
+            </div>
+            <h1 className="font-display font-bold text-5xl lg:text-[56px] leading-[0.95] tracking-[-0.04em] m-0">
+              Control room<span className="text-[#FF5B2E]">.</span>
+            </h1>
           </div>
 
-          {/* Quick Actions */}
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              className="h-10 px-4 rounded-full bg-[#F3EFE6] text-[#11141A] border border-[#EEE9DC] text-xs font-semibold flex items-center gap-1.5 hover:bg-[#E8E2D3] transition cursor-pointer"
-              onClick={() => void refreshLiveIncidents()}
-              title="Refresh live incident records"
-            >
-              <RefreshIcon size={14} className="shrink-0" />
-              <span>Refresh</span>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="relative inline-flex items-center">
+              <span className="sr-only">Analysis window</span>
+              <ClockIcon size={16} className="absolute left-3.5 pointer-events-none shrink-0 text-[#4A505C]" />
+              <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}
+                className="h-10 rounded-full bg-[#F3EFE6] text-[#11141A] text-[13px] font-semibold pl-9 pr-5 border border-[#E3DDCE] focus:outline-none focus:ring-2 focus:ring-[#11141A] cursor-pointer">
+                <option value="all">All months</option>
+                <option value="2026-07">July 2026</option>
+                <option value="2026-08">August 2026</option>
+                <option value="2026-09">September 2026</option>
+                <option value="2026-10">October 2026</option>
+              </select>
+            </label>
+
+            <div role="group" aria-label="Data source" className="h-10 p-1 rounded-full bg-[#F3EFE6] border border-[#E3DDCE] inline-flex">
+              {([false, true] as const).map((v) => (
+                <button key={String(v)} type="button" aria-pressed={showDemoHistory === v} onClick={() => setShowDemoHistory(v)}
+                  className={`px-3.5 rounded-full text-[12px] font-semibold cursor-pointer transition ${showDemoHistory === v ? "bg-[#11141A] text-[#F3EFE6] shadow-sm" : "text-[#4A505C] hover:text-[#11141A]"}`}>
+                  {v ? "Live + simulated" : "Live only"}
+                </button>
+              ))}
+            </div>
+
+            <button type="button" aria-label="Refresh" title="Refresh live incident records" onClick={() => void refreshLiveIncidents()}
+              className="w-10 h-10 rounded-full bg-[#F3EFE6] border border-[#E3DDCE] text-[#11141A] inline-flex items-center justify-center hover:bg-[#E8E2D3] cursor-pointer">
+              <RefreshIcon size={17} className="shrink-0" />
             </button>
-            <button
-              type="button"
-              className="h-10 px-4 rounded-full bg-[#FF5B2E] text-[#11141A] text-xs font-bold flex items-center gap-1.5 hover:brightness-95 transition cursor-pointer"
-              onClick={exportCsv}
-              title="Download filtered incident data as CSV"
-              aria-label="Export CSV"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-              <span>Export CSV</span>
+
+            <button type="button" onClick={exportCsv}
+              className="h-10 px-4 rounded-full bg-[#11141A] text-[#F3EFE6] text-[13px] font-semibold inline-flex items-center gap-2 hover:bg-[#2A303C] cursor-pointer">
+              <Ico size={16}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></Ico>
+              Export CSV
             </button>
           </div>
         </div>
 
-        {/* Demo History Switch & Honest Data Pill */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-surface-container/60">
-          <label htmlFor="demo-history-toggle" className="flex items-center gap-2 cursor-pointer text-xs font-medium text-surface-on">
-            <input
-              id="demo-history-toggle"
-              type="checkbox"
-              checked={showDemoHistory}
-              onChange={(e) => setShowDemoHistory(e.target.checked)}
-              className="rounded border-surface-container text-primary"
-            />
-            <span>Include 4-month simulated demo history (for corridor congestion trend evaluation)</span>
-          </label>
-          <span className="text-[11px] text-surface-on-variant">
-            {showDemoHistory ? "Synthetic observations enabled" : "Strict live reports only"}
+        {/* Segmented Dashboard Navigation Tabs */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[#EEE9DC]">
+          <div role="tablist" aria-label="Control room views" className="p-1 rounded-full bg-[#F3EFE6] border border-[#E3DDCE] inline-flex flex-wrap items-center gap-1">
+            {TABS.map((tab) => {
+              const active = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  role="tab"
+                  type="button"
+                  aria-selected={active}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    if (tab.id === "operations") {
+                      setTimeout(() => window.dispatchEvent(new Event("resize")), 40);
+                    }
+                  }}
+                  className={`h-9 px-4 rounded-full text-[13px] font-semibold inline-flex items-center gap-2 cursor-pointer transition ${
+                    active
+                      ? "bg-[#11141A] text-[#F3EFE6] shadow-[0_4px_12px_rgba(17,20,26,0.16)]"
+                      : "text-[#4A505C] hover:text-[#11141A] hover:bg-white/60"
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  {typeof tab.badge === "number" && (
+                    <span className={`h-5 min-w-5 px-1.5 rounded-full font-mono text-[10px] font-bold inline-flex items-center justify-center ${
+                      active ? "bg-[#D5F75A] text-[#11141A]" : "bg-white text-[#11141A]"
+                    }`}>
+                      {tab.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <span className="font-mono text-[11px] font-medium text-[#4A505C] hidden sm:inline">
+            Auto-syncing every 5s · Click map pin or card to focus
           </span>
         </div>
       </div>
 
       {showDemoHistory && (
-        <div className="p-3.5 rounded-xl bg-amber-50 dark:bg-amber-950/60 border border-amber-300 dark:border-amber-800 text-xs text-amber-900 dark:text-amber-100 flex items-start gap-2.5 shadow-sm">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-amber-600 shrink-0 mt-0.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
-          <span>
-            <strong>DEMO HISTORY ACTIVE:</strong> Displaying 4 months of synthetic historical incidents for long-term corridor trend evaluation alongside real citizen reports. Off by default per honesty rules so real counts are never inflated.
-          </span>
+        <div role="status" className="mt-4 rounded-[20px] bg-[#FDF0C4] text-[#6B4F00] px-5 py-3 text-xs leading-relaxed">
+          <strong className={`${mono} !text-[10px] mr-2`}>SIMULATED</strong>
+          Four months of synthetic incidents are shown alongside real citizen reports. It is off by default so real counts are never inflated.
         </div>
       )}
 
-      {/* Navigation View Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1" role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "all"}
-          onClick={() => setActiveTab("all")}
-          className={`h-10 px-4 rounded-full text-xs font-semibold whitespace-nowrap transition flex items-center gap-2 cursor-pointer ${
-            activeTab === "all"
-              ? "bg-[#11141A] text-[#F3EFE6] shadow-[0_8px_18px_rgba(17,20,26,0.16)]"
-              : "bg-white text-[#4A505C] border border-[#EEE9DC] hover:text-[#11141A] hover:bg-[#FAF7F0]"
-          }`}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><rect width="7" height="9" x="3" y="3" rx="1"/><rect width="7" height="5" x="14" y="3" rx="1"/><rect width="7" height="9" x="14" y="12" rx="1"/><rect width="7" height="5" x="3" y="16" rx="1"/></svg>
-          <span>Executive Dashboard Grid</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "map"}
-          onClick={() => setActiveTab("map")}
-          className={`h-10 px-4 rounded-full text-xs font-semibold whitespace-nowrap transition flex items-center gap-2 cursor-pointer ${
-            activeTab === "map"
-              ? "bg-[#11141A] text-[#F3EFE6] shadow-[0_8px_18px_rgba(17,20,26,0.16)]"
-              : "bg-white text-[#4A505C] border border-[#EEE9DC] hover:text-[#11141A] hover:bg-[#FAF7F0]"
-          }`}
-        >
-          <MapIcon size={14} className="shrink-0" />
-          <span>Corridor Hotspot Map &amp; Rankings</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "review"}
-          onClick={() => setActiveTab("review")}
-          className={`h-10 px-4 rounded-full text-xs font-semibold whitespace-nowrap transition flex items-center gap-2 cursor-pointer ${
-            activeTab === "review"
-              ? "bg-[#11141A] text-[#F3EFE6] shadow-[0_8px_18px_rgba(17,20,26,0.16)]"
-              : "bg-white text-[#4A505C] border border-[#EEE9DC] hover:text-[#11141A] hover:bg-[#FAF7F0]"
-          }`}
-        >
-          <AlertTriangleIcon size={14} className="shrink-0" />
-          <span>Incident Review &amp; Verification</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "diagnostics"}
-          onClick={() => setActiveTab("diagnostics")}
-          className={`h-10 px-4 rounded-full text-xs font-semibold whitespace-nowrap transition flex items-center gap-2 cursor-pointer ${
-            activeTab === "diagnostics"
-              ? "bg-[#11141A] text-[#F3EFE6] shadow-[0_8px_18px_rgba(17,20,26,0.16)]"
-              : "bg-white text-[#4A505C] border border-[#EEE9DC] hover:text-[#11141A] hover:bg-[#FAF7F0]"
-          }`}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-          <span>Recurrence Heatmap &amp; Causes</span>
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={activeTab === "history"}
-          onClick={() => setActiveTab("history")}
-          className={`h-10 px-4 rounded-full text-xs font-semibold whitespace-nowrap transition flex items-center gap-2 cursor-pointer ${
-            activeTab === "history"
-              ? "bg-[#11141A] text-[#F3EFE6] shadow-[0_8px_18px_rgba(17,20,26,0.16)]"
-              : "bg-white text-[#4A505C] border border-[#EEE9DC] hover:text-[#11141A] hover:bg-[#FAF7F0]"
-          }`}
-        >
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
-          <span>Incident Audit Log</span>
-        </button>
-      </div>
-
-      {/* Row 1: KPI Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="p-5 rounded-[32px] bg-[#11141A] text-[#F3EFE6] shadow-[0_14px_32px_rgba(17,20,26,0.14)] flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.08em] text-[#B9BDC6]">
-              <span>Total Incidents</span>
-              <AlertTriangleIcon size={16} className="text-[#D5F75A] shrink-0" />
-            </div>
-            <div className="font-display text-3xl sm:text-4xl font-bold text-[#F3EFE6] mt-2 tracking-[-0.03em]">
-              {data.total_incidents}
-            </div>
-          </div>
-          <span className="text-[11px] text-[#B9BDC6] mt-3 pt-2.5 border-t border-[#2A303C]">
-            {showDemoHistory ? "Synthetic + live observations" : "Real stored observations"}
-          </span>
+      {/* TAB 1: LIVE OPERATIONS (Full-width Map + Review Queue Side-by-Side) */}
+      <div className={activeTab === "operations" ? "mt-4 grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch" : "hidden"}>
+        <div className="xl:col-span-8 min-w-0">
+          <HotspotMap
+            hotspots={data.hotspots}
+            liveIncidents={data.incidents}
+            selectedHotspotId={selectedHotspotId}
+            onSelectHotspot={(id) => {
+              setSelectedIncidentId(null);
+              setSelectedHotspotId(id);
+            }}
+            selectedIncidentId={selectedIncidentId}
+            onSelectIncident={(id) => {
+              setSelectedHotspotId(null);
+              setSelectedIncidentId(id);
+            }}
+            showDemoHistory={showDemoHistory}
+            heightClassName="h-[540px] xl:h-[calc(100dvh-295px)] min-h-[540px]"
+          />
         </div>
 
-        <div className="p-5 rounded-[32px] bg-white border border-[#EEE9DC] shadow-[0_10px_28px_rgba(17,20,26,0.05)] flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.08em] text-[#4A505C]">
-              <span>Total Commuter Delay</span>
-              <ClockIcon size={16} className="text-[#FF5B2E] shrink-0" />
-            </div>
-            <div className="font-display text-2xl sm:text-3xl font-bold text-[#11141A] mt-2 tracking-[-0.03em]">
-              {showDemoHistory ? `${data.total_delay_hours} hrs` : "Not measured"}
-            </div>
-          </div>
-          <span className="text-[11px] text-[#4A505C] mt-3 pt-2.5 border-t border-[#EEE9DC]">
-            {showDemoHistory ? "Synthetic history model" : "Live reports do not measure delay"}
-          </span>
-        </div>
-
-        <div
-          onClick={() => {
-            const top = data.hotspots[0]?.junction_id;
-            if (top) setSelectedHotspotId(top);
-          }}
-          className="p-5 rounded-[32px] bg-white border border-[#EEE9DC] shadow-[0_10px_28px_rgba(17,20,26,0.05)] flex flex-col justify-between cursor-pointer hover:border-[#11141A] transition"
-          title="Click to locate top hotspot on map"
-        >
-          <div>
-            <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.08em] text-[#4A505C]">
-              <span>Top Hotspot</span>
-              <span className="px-2 py-0.5 rounded-full bg-[#FFE3D8] text-[#8F3209] font-bold">
-                #1 RANK
-              </span>
-            </div>
-            <div className="font-display text-xl sm:text-2xl font-bold text-[#11141A] mt-2 truncate" title={data.top_hotspot}>
-              {data.top_hotspot}
-            </div>
-          </div>
-          <span className="text-[11px] text-[#4A505C] mt-3 pt-2.5 border-t border-[#EEE9DC] flex items-center justify-between">
-            <span>Highest delay impact</span>
-            <span className="text-[#FF5B2E] font-bold">Locate ↗</span>
-          </span>
-        </div>
-
-        <div className="p-5 rounded-[32px] bg-white border border-[#EEE9DC] shadow-[0_10px_28px_rgba(17,20,26,0.05)] flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between font-mono text-[10px] uppercase tracking-[0.08em] text-[#4A505C]">
-              <span>Primary Cause</span>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-[#4A505C] shrink-0"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            </div>
-            <div className="font-display text-xl sm:text-2xl font-bold text-[#11141A] mt-2 truncate capitalize" title={data.primary_cause}>
-              {data.primary_cause.replace("_", " ")}
-            </div>
-          </div>
-          <span className="text-[11px] text-[#4A505C] mt-3 pt-2.5 border-t border-[#EEE9DC]">
-            Most frequent corridor factor
-          </span>
+        <div className="xl:col-span-4 min-w-0 xl:h-[calc(100dvh-295px)] min-h-[540px] flex flex-col rounded-[32px] bg-[#FAF7F0] border border-[#E8E2D3] p-4 sm:p-5 overflow-hidden">
+          <IncidentReviewPanel
+            selectedIncidentId={selectedIncidentId}
+            selectedHotspotId={selectedHotspotId}
+            onSelectIncident={(id) => {
+              setSelectedHotspotId(null);
+              setSelectedIncidentId(id);
+            }}
+            onClearSelection={() => {
+              setSelectedHotspotId(null);
+              setSelectedIncidentId(null);
+            }}
+            layoutMode="sidebar"
+            showTimeline={false}
+          />
         </div>
       </div>
 
-      {/* Row 2: Operational Corridor (OSM Map + Hotspot Rankings & Decision Support) */}
-      {(activeTab === "all" || activeTab === "map") && (
-        <div className="space-y-6">
-          {/* Map Section Header with Big Screen Hero vs Split View Switcher */}
-          <div className="flex flex-wrap items-center justify-between gap-3 px-1">
-            <div>
-              <h2 className="font-display text-xl sm:text-2xl font-bold tracking-[-0.03em] text-[#11141A] m-0">
-                Corridor Hotspot Map
-              </h2>
-              <p className="text-xs text-[#4A505C] m-0">
-                Live OpenStreetMap showing ranked congestion nodes and citizen reports along Mangaluru central corridor.
-              </p>
+      {/* TAB 2: CORRIDOR ANALYTICS */}
+      {activeTab === "analytics" && (
+        <div className="mt-5 space-y-5">
+          {/* KPI row */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <div className="rounded-[32px] p-[22px] h-[150px] bg-[#11141A] text-[#F3EFE6] flex flex-col justify-between">
+              <div className={`${mono} text-[#B9BDC6]`}>Incidents</div>
+              <div className="font-display font-bold text-[72px] leading-[0.9] tracking-[-0.05em] text-[#D5F75A]">{data.total_incidents}</div>
             </div>
 
-            <div className="flex items-center gap-2">
-              <span className="text-[11px] font-mono text-[#11141A] font-bold hidden sm:inline">
-                {data.hotspots.length} JUNCTIONS
-              </span>
-              <div className="flex items-center gap-1 bg-white p-1 rounded-full border border-[#EEE9DC] text-xs shadow-sm">
-                <button
-                  type="button"
-                  onClick={() => setMapLayout("hero")}
-                  className={`px-3.5 py-1.5 rounded-full font-semibold transition flex items-center gap-1.5 cursor-pointer ${
-                    mapLayout === "hero"
-                      ? "bg-[#11141A] text-[#F3EFE6] shadow-sm"
-                      : "text-[#4A505C] hover:text-[#11141A] hover:bg-[#F3EFE6]"
-                  }`}
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-                  <span>Big Screen Hero</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMapLayout("split")}
-                  className={`px-3.5 py-1.5 rounded-full font-semibold transition flex items-center gap-1.5 cursor-pointer ${
-                    mapLayout === "split"
-                      ? "bg-[#11141A] text-[#F3EFE6] shadow-sm"
-                      : "text-[#4A505C] hover:text-[#11141A] hover:bg-[#F3EFE6]"
-                  }`}
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="shrink-0"><rect width="18" height="18" x="3" y="3" rx="2"/><line x1="12" y1="3" x2="12" y2="21"/></svg>
-                  <span>Split View</span>
-                </button>
+            <div className="rounded-[32px] p-[22px] h-[150px] flex flex-col justify-between"
+              style={{ background: "repeating-linear-gradient(135deg,#fff 0 12px,#F6F2E8 12px 24px)" }}>
+              <div className={`${mono} text-[#4A505C]`}>Commuter delay</div>
+              {showDemoHistory ? (
+                <div className="font-display font-bold text-[34px] leading-none tracking-[-0.03em]">{data.total_delay_hours}<span className="text-lg text-[#4A505C]"> hrs</span></div>
+              ) : (
+                <div className="font-display font-bold text-[34px] leading-none tracking-[-0.03em] text-[#B8400F]">Not measured</div>
+              )}
+            </div>
+
+            <button type="button" onClick={() => { const t = data.hotspots[0]?.junction_id; if (t) { setSelectedHotspotId(t); setActiveTab("operations"); } }}
+              title="Locate on map"
+              className="rounded-[32px] p-[22px] h-[150px] bg-[#FF5B2E] text-[#11141A] flex flex-col justify-between text-left cursor-pointer">
+              <div className={mono}>Top hotspot · #1</div>
+              <div className="font-display font-bold text-[40px] leading-none tracking-[-0.035em] truncate w-full">{data.top_hotspot || "—"}</div>
+            </button>
+
+            <div className="rounded-[32px] p-[22px] h-[150px] bg-white flex flex-col justify-between">
+              <div className={`${mono} text-[#4A505C]`}>Top cause</div>
+              <div className="flex items-center gap-3 font-display font-bold text-[34px] leading-none tracking-[-0.03em] capitalize">
+                <AlertTriangleIcon size={34} className="shrink-0 text-[#FF5B2E]" />
+                <span className="truncate">{cleanCause(data.primary_cause) || "—"}</span>
               </div>
             </div>
           </div>
 
-          {mapLayout === "hero" ? (
-            /* Big Screen Hero View: Full-width Map across 100% of the screen */
-            <div className="space-y-6">
-              <HotspotMap
-                hotspots={data.hotspots}
-                liveIncidents={data.incidents}
-                selectedHotspotId={selectedHotspotId}
-                onSelectHotspot={setSelectedHotspotId}
-                showDemoHistory={showDemoHistory}
-                heightClassName="h-[620px] sm:h-[720px] lg:h-[780px]"
-              />
+          {/* Hotspot ranking + Problem report + Delay by type */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <section className="rounded-[36px] bg-white p-6 flex flex-col" aria-label="Hotspot ranking">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className={h2}>Hotspot ranking</h2>
+                <span className={`${mono} text-[#4A505C]`}>{showDemoHistory ? "By delay hrs" : "By events"}</span>
+              </div>
+              <ol className="list-none m-0 p-0 mt-5 flex flex-col gap-[18px] overflow-y-auto flex-1">
+                {data.hotspots.length === 0 && <li className="text-sm text-[#4A505C] py-8 text-center">No incidents in this window.</li>}
+                {data.hotspots.map((h, i) => {
+                  const selected = selectedHotspotId === h.junction_id;
+                  return (
+                    <li key={h.junction_id}>
+                      <button type="button" aria-pressed={selected} onClick={() => {
+                        setSelectedIncidentId(null);
+                        setSelectedHotspotId(selected ? null : h.junction_id);
+                        setActiveTab("operations");
+                      }}
+                        className={`w-full flex items-center gap-3.5 text-left cursor-pointer rounded-2xl ${selected ? "bg-[#F8F5EE] ring-8 ring-[#F8F5EE]" : ""}`}>
+                        <span className={`w-10 h-10 rounded-full shrink-0 inline-flex items-center justify-center font-mono text-sm font-bold ${i === 0 ? "bg-[#FF5B2E] text-[#11141A]" : "bg-[#11141A] text-[#F3EFE6]"}`}>
+                          {i + 1}
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-[17px] font-semibold truncate">{h.junction_name}</span>
+                          <span className="block h-2 mt-2 rounded bg-[#EFEADD] overflow-hidden">
+                            <span className={`block h-full rounded ${i === 0 ? "bg-[#FF5B2E]" : "bg-[#11141A]"}`}
+                              style={{ width: `${Math.max(6, (metric(h) / metricMax) * 100)}%` }} />
+                          </span>
+                        </span>
+                        <span className="font-display font-bold text-[26px] tracking-[-0.02em]">{metric(h)}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
 
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-                <div className="lg:col-span-6 space-y-6">
-                  {problemReportCard}
+            <section className="rounded-[36px] bg-white p-6" aria-label="Authority problem report">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className={h2}>Problem report</h2>
+                <span className={`${mono} text-[#4A505C]`}>Advisory</span>
+              </div>
+              <dl className="grid grid-cols-2 gap-2.5 mt-5 mb-0">
+                {[
+                  ["Priority corridor", data.top_hotspot || "—", true],
+                  ["Reported cause", cleanCause(data.primary_cause) || "—", true],
+                  ["Recurrence", showDemoHistory ? recurrenceStatement : "Live-only records; collect a longer time window.", false],
+                  ["Delay evidence", showDemoHistory ? `${data.total_delay_hours} hrs observed` : "Not measured for live reports", false],
+                ].map(([label, value, big]) => (
+                  <div key={label as string} className="rounded-[22px] bg-[#F3EFE6] p-4">
+                    <dt className={`${mono} !text-[10px] text-[#4A505C]`}>{label}</dt>
+                    <dd className={`m-0 mt-1.5 ${big ? "font-display font-bold text-xl capitalize tracking-[-0.02em]" : "text-[13px] font-semibold leading-snug"} ${!big && String(value).startsWith("Not") ? "text-[#B8400F]" : ""}`}>
+                      {value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+              <div className="mt-3 rounded-[22px] bg-[#F3EFE6] border-l-4 border-[#FF5B2E] px-4 py-3.5">
+                <div className={`${mono} !text-[10px] text-[#FF5B2E]`}>Suggested investigation</div>
+                <p className="text-sm text-[#4A505C] m-0 mt-1 leading-relaxed">{investigation}</p>
+              </div>
+            </section>
+
+            <section className="rounded-[36px] bg-white p-6" aria-label="Delay by incident type">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className={h2}>Delay by type</h2>
+                <span className={`${mono} text-[#4A505C]`}>{causeDelaySummary.length} causes</span>
+              </div>
+              <div className="mt-4">
+                <div className={`grid grid-cols-[1.6fr_1fr_1fr] gap-3.5 pb-2 border-b border-[#EEE9DC] ${mono} !text-[10px] text-[#4A505C]`}>
+                  <span>Cause</span><span className="text-right">Incidents</span><span className="text-right">Delay hrs</span>
                 </div>
-                <div className="lg:col-span-6 space-y-6">
-                  {hotspotRankingsCard}
-                  {quickReviewCard}
-                </div>
+                {causeDelaySummary.length === 0 && <p className="text-sm text-[#4A505C] py-6 text-center m-0">No data in this window.</p>}
+                {causeDelaySummary.map((row) => (
+                  <div key={row.cause} className="grid grid-cols-[1.6fr_1fr_1fr] gap-3.5 items-center h-[54px] border-b border-[#EEE9DC] last:border-0 text-[15px]">
+                    <span className="font-semibold truncate">{row.label}</span>
+                    <span className="text-right font-mono font-semibold text-[13px]">{row.count}</span>
+                    <span className={`text-right font-semibold ${showDemoHistory ? "" : "text-[#B8400F] text-[13px]"}`}>
+                      {showDemoHistory ? row.total_delay_hours : "Not measured"}
+                    </span>
+                  </div>
+                ))}
               </div>
-            </div>
-          ) : (
-            /* Split View: Side-by-side 7:5 columns */
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-              <div className="lg:col-span-7 space-y-6">
-                <HotspotMap
-                  hotspots={data.hotspots}
-                  liveIncidents={data.incidents}
-                  selectedHotspotId={selectedHotspotId}
-                  onSelectHotspot={setSelectedHotspotId}
-                  showDemoHistory={showDemoHistory}
-                  heightClassName="h-[620px] lg:h-[680px]"
-                />
-                {problemReportCard}
-              </div>
-              <div className="lg:col-span-5 space-y-6">
-                {hotspotRankingsCard}
-                {quickReviewCard}
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+            </section>
+          </div>
 
-      {/* Row 3: Active Incident Review Console */}
-      {(activeTab === "all" || activeTab === "review") && (
-        <div className="space-y-2">
-          <IncidentReviewPanel />
-        </div>
-      )}
-
-      {/* Row 4: Diagnostics & Heatmap (Recurrence Heatmap + Cause Distribution) */}
-      {(activeTab === "all" || activeTab === "diagnostics") && (
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-          {/* Left Column (7 cols): Recurrence Heatmap */}
-          <div className="lg:col-span-7 p-5 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm space-y-4">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-surface-container pb-2">
-              <div>
-                <h2 className="text-base font-bold text-surface-on m-0">Recurrence Heatmap</h2>
-                <p className="text-xs text-surface-on-variant m-0">
-                  Incident frequency by weekday and 30-minute time slot (IST). SIMULATED trend baseline.
-                </p>
+          {/* Insights: recurrence + causes */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <section className="lg:col-span-7 min-w-0 rounded-[36px] bg-white p-6" aria-label="Recurrence heatmap">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className={h2}>Recurrence</h2>
+                <span className={`${mono} text-[#4A505C]`}>Simulated baseline</span>
               </div>
-              <span className="text-[10px] font-mono text-surface-on-variant">ASIA/KOLKATA (+05:30)</span>
-            </div>
 
-            <div className="overflow-x-auto">
-              <table className="text-[10px] border-collapse w-full" aria-label="Incident recurrence heatmap">
-                <thead>
-                  <tr>
-                    <th className="py-1 px-2 text-left text-surface-on-variant font-medium">Day \ Slot</th>
+              {activeSlots.length === 0 ? (
+                <p className="text-sm text-[#4A505C] text-center py-12 m-0">No incidents in this window yet.</p>
+              ) : (
+                <div className="overflow-x-auto mt-[18px]">
+                  <div className="grid items-center gap-[5px]"
+                    style={{ gridTemplateColumns: `44px repeat(${activeSlots.length}, minmax(30px,1fr))`, minWidth: 44 + activeSlots.length * 35 }}>
+                    <div />
                     {activeSlots.map((slot) => (
-                      <th key={slot} className="py-1 px-1 font-mono text-surface-on-variant font-normal whitespace-nowrap text-center">
-                        {slot}
-                      </th>
+                      <div key={slot} className="font-mono text-[10px] font-semibold text-[#4A505C] text-center">{slot}</div>
                     ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {DAY_LABELS.map((label, dayIdx) => (
-                    <tr key={dayIdx}>
-                      <td className="py-1 px-2 font-medium text-surface-on whitespace-nowrap">{label}</td>
-                      {activeSlots.map((slot) => {
-                        const count = heatmap[dayIdx]?.[slot] ?? 0;
-                        return (
-                          <td
-                            key={slot}
-                            title={`${label} ${slot}: ${count} incident${count !== 1 ? "s" : ""}`}
-                            className={`py-1 px-1 text-center rounded transition ${heatCellStyle(count)}`}
-                            style={{ minWidth: "26px" }}
-                          >
-                            {count > 0 ? count : "·"}
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                    {DAY_LABELS.map((label, d) => (
+                      <div key={label} className="contents">
+                        <div className="font-mono text-[11px] font-semibold text-[#4A505C]">{label}</div>
+                        {activeSlots.map((slot) => {
+                          const count = (heatmap[d]?.[slot] ?? 0) as number;
+                          return (
+                            <div key={slot} title={`${label} ${slot}: ${count} incident${count !== 1 ? "s" : ""}`}
+                              className="h-7 rounded-lg flex items-center justify-center font-mono text-[10px] font-bold"
+                              style={{ background: heatColor(count, heatMax), color: count / heatMax > 0.67 ? "#11141A" : "#4A505C" }}>
+                              {count > 0 ? count : ""}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
-            {/* Recurrence Statement & Junction Filter */}
-            <div className="pt-3 border-t border-surface-container space-y-2">
-              <div className="flex flex-wrap items-center gap-3">
-                <label className="text-xs font-semibold text-surface-on-variant" htmlFor="junction-select">
-                  Recurrence statement for:
-                </label>
-                <select
-                  id="junction-select"
-                  className="text-xs rounded-lg border border-surface-container bg-surface-container-low px-3 py-1.5 text-surface-on font-medium"
-                  value={selectedJunction}
-                  onChange={(e) => setSelectedJunction(e.target.value)}
-                >
-                  <option value="all">All Corridors &amp; Junctions</option>
-                  {MANGALURU_JUNCTIONS.map((j) => (
-                    <option key={j.id} value={j.id}>
-                      {j.name}
-                    </option>
-                  ))}
+              <div className="mt-5 pt-5 border-t border-[#EEE9DC] flex flex-wrap items-center gap-3">
+                <label htmlFor="junction-select" className={`${mono} !text-[10px] text-[#4A505C]`}>For</label>
+                <select id="junction-select" value={selectedJunction} onChange={(e) => setSelectedJunction(e.target.value)}
+                  className="h-10 rounded-full bg-[#F3EFE6] px-4 text-[13px] font-semibold border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#11141A]">
+                  <option value="all">All corridors</option>
+                  {MANGALURU_JUNCTIONS.map((j) => (<option key={j.id} value={j.id}>{j.name}</option>))}
                 </select>
-              </div>
-
-              <p className="text-xs sm:text-sm text-surface-on font-medium border-l-4 border-primary pl-3 py-1.5 bg-surface-container-low rounded-r-lg m-0">
-                {recurrenceStatement}
-              </p>
-              <p className="text-[10px] text-surface-on-variant m-0">
-                N and M computed from synthetic incident timestamps in Asia/Kolkata. Decision support only.
-              </p>
-            </div>
-          </div>
-
-          {/* Right Column (5 cols): Cause Mix & Delay by Incident Type */}
-          <div className="lg:col-span-5 space-y-6">
-            {/* Incident Cause Distribution */}
-            <div className="p-5 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm space-y-3">
-              <div>
-                <h2 className="text-base font-bold text-surface-on m-0">Incident Cause Distribution</h2>
-                <p className="text-xs text-surface-on-variant m-0">
-                  Relative frequency of contributing factors across the selected analysis window.
+                <p className="basis-full text-sm font-semibold m-0 rounded-[22px] bg-[#F3EFE6] border-l-4 border-[#FF5B2E] px-4 py-3">
+                  {recurrenceStatement}
                 </p>
+                <p className="basis-full text-[11px] text-[#4A505C] m-0">Computed from synthetic incident timestamps in Asia/Kolkata. Decision support only.</p>
               </div>
+            </section>
 
-              <div className="space-y-2.5">
+            <section className="lg:col-span-5 min-w-0 rounded-[36px] bg-[#11141A] text-[#F3EFE6] p-6" aria-label="Cause distribution">
+              <h2 className={`${h2} !text-[#F3EFE6]`}>Causes</h2>
+              <div className="flex flex-col gap-4 mt-[18px]">
+                {data.cause_mix.length === 0 && <p className="text-sm text-[#B9BDC6] m-0">No data in this window.</p>}
                 {data.cause_mix.map((c) => (
-                  <div key={c.cause} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="font-semibold text-surface-on">{c.label}</span>
-                      <span className="font-mono text-surface-on-variant text-[11px]">
-                        {c.count} ({c.percentage}%)
-                      </span>
+                  <div key={c.cause}>
+                    <div className="flex justify-between text-[15px] font-semibold">
+                      <span>{c.label}</span>
+                      <span className="font-mono text-[#D5F75A]">{c.count} · {c.percentage}%</span>
                     </div>
-                    <div className="w-full h-2 rounded-full bg-surface-container-high overflow-hidden">
-                      <div
-                        className="h-full bg-primary rounded-full transition-all"
-                        style={{ width: `${Math.max(c.percentage, 4)}%` }}
-                      />
+                    <div className="h-2 mt-[7px] rounded bg-[#2A303C] overflow-hidden">
+                      <div className="h-full rounded bg-[#D5F75A]" style={{ width: `${Math.max(c.percentage, 4)}%` }} />
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-
-            {/* Per-cause Delay Table */}
-            <div className="p-5 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm space-y-3">
-              <div>
-                <h2 className="text-base font-bold text-surface-on m-0">Delay by Incident Type</h2>
-                <p className="text-xs text-surface-on-variant m-0">
-                  Per-reason incident count and total delay hours, sorted by delay impact (PDF §8).
-                </p>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-xs border-collapse">
-                  <thead>
-                    <tr className="border-b border-surface-container text-surface-on-variant">
-                      <th className="py-2 px-2.5">Cause</th>
-                      <th className="py-2 px-2.5 text-right">Incidents</th>
-                      <th className="py-2 px-2.5 text-right">Delay (hrs)</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-surface-container">
-                    {causeDelaySummary.map((row) => (
-                      <tr key={row.cause} className="hover:bg-surface-container-low transition">
-                        <td className="py-2 px-2.5 font-semibold text-surface-on">{row.label}</td>
-                        <td className="py-2 px-2.5 text-right font-mono">{row.count}</td>
-                        <td className="py-2 px-2.5 text-right font-bold text-warning-on-container">
-                          {showDemoHistory ? row.total_delay_hours : "Not measured"}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
+            </section>
           </div>
         </div>
       )}
 
-      {/* Row 5: Historical Incident Log */}
-      {(activeTab === "all" || activeTab === "history") && (
-        <div className="p-5 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm space-y-3">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-surface-container pb-2">
-            <div>
-              <h2 className="text-base font-bold text-surface-on m-0">Auditable Incident Log</h2>
-              <p className="text-xs text-surface-on-variant m-0">
-                Complete record of stored observations and citizen incident submissions (Asia/Kolkata timestamps).
-              </p>
+      {/* TAB 3: AUDIT & TIMELINE */}
+      {activeTab === "audit" && (
+        <div className="mt-5 space-y-5">
+          <section className="rounded-[36px] bg-white p-6" aria-label="Audit log">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className={h2}>Audit log</h2>
+              <span className={`${mono} text-[#4A505C]`}>{data.incidents.length} rows · IST</span>
             </div>
-            <span className="text-xs font-mono text-surface-on-variant">{data.incidents.length} TOTAL ROWS</span>
-          </div>
-
-          <div className="overflow-x-auto max-h-80">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead className="sticky top-0 bg-surface-container-lowest border-b border-surface-container z-10">
-                <tr className="text-surface-on-variant">
-                  <th className="py-2 px-3">Date / Time (IST)</th>
-                  <th className="py-2 px-3">Junction</th>
-                  <th className="py-2 px-3">Direction</th>
-                  <th className="py-2 px-3">Cause</th>
-                  <th className="py-2 px-3">Delay</th>
-                  <th className="py-2 px-3">Duration</th>
-                  <th className="py-2 px-3">Provenance</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-container">
+            <div className="overflow-auto max-h-[560px] mt-3.5">
+              <div className="min-w-[760px]">
+                <div className={`sticky top-0 bg-white grid grid-cols-[150px_1.4fr_1fr_1fr_130px] gap-3.5 items-center h-10 border-b border-[#EEE9DC] ${mono} !text-[10px] text-[#4A505C]`}>
+                  <span>When</span><span>Junction</span><span>Cause</span><span>Delay</span><span>Source</span>
+                </div>
+                {data.incidents.length === 0 && <p className="text-sm text-[#4A505C] text-center py-10 m-0">No records in this window.</p>}
                 {data.incidents.map((inc) => (
-                  <tr key={inc.id} className="hover:bg-surface-container-low transition">
-                    <td className="py-2 px-3 font-mono whitespace-nowrap">
-                      {new Intl.DateTimeFormat("en-GB", {
-                        timeZone: "Asia/Kolkata",
-                        day: "2-digit",
-                        month: "short",
-                        year: "numeric",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                        hourCycle: "h23",
-                      }).format(new Date(inc.occurred_at))}
-                    </td>
-                    <td className="py-2 px-3 font-medium text-surface-on">{inc.junction_name}</td>
-                    <td className="py-2 px-3 capitalize">{inc.direction}</td>
-                    <td className="py-2 px-3 capitalize">{inc.cause.replace("_", " ")}</td>
-                    <td className="py-2 px-3 font-bold text-warning-on-container">
+                  <div key={inc.id} className="grid grid-cols-[150px_1.4fr_1fr_1fr_130px] gap-3.5 items-center h-[54px] border-b border-[#EEE9DC] last:border-0 text-[15px]">
+                    <span className="font-mono text-[13px] font-semibold text-[#4A505C]">{fmtDate(inc.occurred_at)}</span>
+                    <span className="font-semibold truncate">{inc.junction_name}</span>
+                    <span className="capitalize truncate">{cleanCause(inc.cause)}</span>
+                    <span className={`font-semibold ${inc.provenance === "simulated" ? "" : "text-[#B8400F]"}`}>
                       {inc.provenance === "simulated" ? `${inc.commuter_delay_minutes} min` : "Not measured"}
-                    </td>
-                    <td className="py-2 px-3">
-                      {inc.provenance === "simulated" ? `${inc.duration_minutes} min` : "Not measured"}
-                    </td>
-                    <td className="py-2 px-3">
-                      <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-container font-semibold">
-                        {inc.provenance.toUpperCase()}
-                      </span>
-                    </td>
-                  </tr>
+                    </span>
+                    <span className={`justify-self-start h-6 px-2.5 rounded-full inline-flex items-center font-mono text-[10px] font-semibold tracking-[0.08em] ${inc.provenance === "simulated" ? "bg-[#F3EFE6] text-[#4A505C]" : "bg-[#FFE3D8] text-[#8F3209]"}`}>
+                      {inc.provenance.toUpperCase()}
+                    </span>
+                  </div>
                 ))}
-              </tbody>
-            </table>
-          </div>
+              </div>
+            </div>
+            <p className="text-[11px] leading-relaxed text-[#4A505C] mt-4 mb-0">
+              <strong className="text-[#11141A]">Methodology.</strong> Delay metrics reflect aggregated commuter excess travel time across synthetic observation windows.
+              Outputs suggest areas for investigation and traffic-light timing reviews; they do not represent confirmed accident causes or capital project mandates.
+            </p>
+          </section>
         </div>
       )}
     </div>

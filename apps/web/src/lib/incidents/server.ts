@@ -138,7 +138,7 @@ export async function submitIncidentReport(
     let reporterId: string | null = null;
     const serviceUrl = process.env.SUPABASE_URL;
     const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (serviceUrl && serviceKey) {
+    if (serviceUrl && serviceKey && supabase.auth?.getUser) {
       const { data: userData } = await supabase.auth.getUser();
       reporterId = userData?.user?.id ?? null;
       if (reporterId) {
