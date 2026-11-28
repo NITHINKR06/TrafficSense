@@ -250,10 +250,8 @@
 @media (max-width: 960px) {
   .heroGrid { grid-template-columns: minmax(0, 1fr); }
   .summary { flex-direction: column; }
-  .mapCanvas { height: 380px; }
 }
 @media (max-width: 480px) {
   .facts div { grid-template-columns: minmax(0, 1fr); gap: 0.2rem; }
   .samples li { flex-direction: column; gap: 0.25rem; }
-  .mapCanvas { height: 300px; }
 }

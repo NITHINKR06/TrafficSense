@@ -6,6 +6,7 @@ import { reportCategories, type ReportCategory } from "@/lib/reports/rules";
 import { TrustMeter } from "@/components/ui/trust-meter";
 import type { Map as MapInstance, Marker as MarkerInstance } from "maplibre-gl";
 import { createFallbackStyle } from "@/lib/traffic/mangaluru-basemap";
+import { attachMapResizeObserver } from "@/lib/map/attach-resize-observer";
 import { L5PhotoPanel } from "@/components/reports/l5-photo-panel";
 import type { L5DetectedCategory, L5VerificationResult } from "@/lib/vision/verify-incident-photo";
 import { IncidentIcon, getIncidentSvgString } from "@/components/icons/incident-icons";
@@ -127,6 +128,7 @@ export function WebReportScreen({ viewer }: { viewer?: { email?: string; role: s
     if (!mapContainer.current) return;
     let map: MapInstance;
     let disposed = false;
+    let detachResize: (() => void) | null = null;
 
     async function initMap() {
       const { Map, NavigationControl, setWorkerUrl } = await import("maplibre-gl");
@@ -141,6 +143,7 @@ export function WebReportScreen({ viewer }: { viewer?: { email?: string; role: s
         zoom: 14,
         attributionControl: false,
       });
+      detachResize = attachMapResizeObserver(mapContainer.current, map);
 
       map.addControl(new NavigationControl({ showCompass: false }), "top-right");
 
@@ -174,6 +177,7 @@ export function WebReportScreen({ viewer }: { viewer?: { email?: string; role: s
 
     return () => {
       disposed = true;
+      detachResize?.();
       if (markerRef.current) {
         markerRef.current.remove();
         markerRef.current = null;

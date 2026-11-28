@@ -12,6 +12,7 @@ import type { SlowdownView } from "@/lib/evidence/slowdown-presentation";
 import type { TraversalView } from "@/lib/traffic/phase4-presentation";
 import type { routeAlertView } from "@/lib/route-alerts/presentation";
 import { createFallbackStyle } from "@/lib/traffic/mangaluru-basemap";
+import { attachMapResizeObserver } from "@/lib/map/attach-resize-observer";
 import { findNearestPreset } from "@/lib/routing/presets";
 import { IncidentIcon, getIncidentSvgString } from "@/components/icons/incident-icons";
 import { CameraIcon, CrosshairIcon, XIcon } from "@/components/icons/ui-icons";
@@ -294,6 +295,7 @@ function MapAttempt({
       fail("timeout");
     }, 15000);
 
+    let detachResize: (() => void) | null = null;
     async function initialize() {
       try {
         const { Map, NavigationControl, setWorkerUrl } = await import("maplibre-gl");
@@ -309,6 +311,7 @@ function MapAttempt({
           touchPitch: false, cooperativeGestures: true,
         });
         mapRef.current = map;
+        detachResize = attachMapResizeObserver(container.current, map);
         map.addControl(new NavigationControl({ showCompass: false }), "top-right");
         map.on("error", () => {
           if (!fallbackUsed && map) {
@@ -339,6 +342,7 @@ function MapAttempt({
     return () => {
       disposed = true;
       clearTimeout(deadline);
+      detachResize?.();
       for (const marker of liveMarkers.current) marker.remove();
       liveMarkers.current = [];
       map?.remove();
