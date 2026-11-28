@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
 import { TrafficSenseLoader } from "@/components/ui/trafficsense-loader";
@@ -34,7 +35,17 @@ export function AppShell({ children }: { children: ReactNode }) {
           <div>
             <strong>TrafficSense Mangaluru</strong> · REPORT → VERIFY → ALERT → ANALYSE
           </div>
-          <div>Demo with simulated data. Not an official traffic service.</div>
+          <div className="flex flex-wrap items-center gap-3">
+            <Link href="/legal#privacy" className="underline hover:text-[#11141A]">
+              Privacy Policy
+            </Link>
+            <span aria-hidden="true">·</span>
+            <Link href="/legal#terms" className="underline hover:text-[#11141A]">
+              Terms &amp; Conditions
+            </Link>
+            <span aria-hidden="true">·</span>
+            <span>Demo with simulated data. Not an official traffic service.</span>
+          </div>
         </footer>
       )}
     </>
