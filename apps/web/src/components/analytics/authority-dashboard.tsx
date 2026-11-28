@@ -8,6 +8,7 @@ import {
   computeCauseDelaySummary,
 } from "@/lib/analytics/metrics";
 import { MANGALURU_JUNCTIONS, HISTORICAL_INCIDENTS, type HistoricalIncident } from "@/lib/analytics/history";
+import { findNearestPreset } from "@/lib/routing/presets";
 import { HotspotMap } from "@/components/analytics/hotspot-map";
 import { IncidentReviewPanel } from "@/components/analytics/incident-review-panel";
 import { RefreshIcon, ClockIcon, AlertTriangleIcon, MapIcon } from "@/components/icons/ui-icons";
@@ -145,6 +146,7 @@ export function AuthorityDashboard() {
               lat: Number.isFinite(live.lat) ? live.lat : undefined,
               lng: Number.isFinite(live.lng) ? live.lng : undefined,
               level: live.level,
+              landmark: findNearestPreset([live.lng, live.lat])?.name ?? junction.name,
             };
           });
           setLiveIncidents(mapped);
@@ -348,11 +350,12 @@ export function AuthorityDashboard() {
               setSelectedIncidentId(id);
             }}
             showDemoHistory={showDemoHistory}
-            heightClassName="h-[540px] xl:h-[calc(100dvh-295px)] min-h-[540px]"
+            showHotspotPins={showDemoHistory}
+            heightClassName="h-[540px] xl:h-[calc(100dvh-305px)] min-h-[520px]"
           />
         </div>
 
-        <div className="xl:col-span-4 min-w-0 xl:h-[calc(100dvh-295px)] min-h-[540px] flex flex-col rounded-[32px] bg-[#FAF7F0] border border-[#E8E2D3] p-4 sm:p-5 overflow-hidden">
+        <div className="xl:col-span-4 min-w-0 xl:h-[calc(100dvh-305px)] min-h-[520px] flex flex-col rounded-[32px] bg-[#FAF7F0] border border-[#E8E2D3] p-4 sm:p-5 overflow-hidden">
           <IncidentReviewPanel
             selectedIncidentId={selectedIncidentId}
             selectedHotspotId={selectedHotspotId}

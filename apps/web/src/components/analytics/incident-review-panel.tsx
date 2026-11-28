@@ -8,7 +8,7 @@ import { reportCategories, reportCategoryIcons } from "@/lib/reports/rules";
 import type { AuthorityIncidentHistoryItem, AuthorityNotificationItem, LiveIncident } from "@/lib/incidents/server";
 import type { SpreadResult } from "@/lib/routing/spread";
 import { IncidentIcon } from "@/components/icons/incident-icons";
-import { AlertTriangleIcon, CameraIcon, XIcon } from "@/components/icons/ui-icons";
+import { CameraIcon, XIcon } from "@/components/icons/ui-icons";
 
 function formatIncidentTime(value: string): string {
   return new Intl.DateTimeFormat("en-GB", {
@@ -125,8 +125,6 @@ export function IncidentReviewPanel({
   const [message, setMessage] = useState<string | null>(null);
 
   // Real-time Authority Push Notifications
-  const [notifications, setNotifications] = useState<AuthorityNotificationItem[]>([]);
-  const [latestAlert, setLatestAlert] = useState<AuthorityNotificationItem | null>(null);
   const browserNotificationGranted = useSyncExternalStore(
     subscribeNoop,
     () => typeof window !== "undefined" && "Notification" in window && Notification.permission === "granted",
@@ -185,7 +183,6 @@ export function IncidentReviewPanel({
         if (!mounted || !data.ok || !Array.isArray(data.notifications)) return;
 
         const incoming: AuthorityNotificationItem[] = data.notifications;
-        setNotifications(incoming);
 
         // Find truly new notifications not seen in this session
         const newItems = incoming.filter((n) => !seenNotificationIds.current.has(n.id));
@@ -195,7 +192,6 @@ export function IncidentReviewPanel({
 
         if (!isFirstPoll.current && newItems.length > 0) {
           const newest = newItems[0];
-          setLatestAlert(newest);
           setHighlightedIncidentId(newest.incident_id);
           playNotificationChime();
 
@@ -328,66 +324,17 @@ export function IncidentReviewPanel({
     }
   }
 
-  const unread = notifications.filter((n) => !n.is_read).length;
-
   return (
     <section
       className={layoutMode === "sidebar" ? "flex flex-col flex-1 min-h-0 h-full gap-3.5" : "space-y-3.5"}
       aria-labelledby="incident-review-title"
     >
-      {/* Real-time alert */}
-      {latestAlert && (
-        <div role="alert" className="rounded-[32px] bg-[#FFE3D8] border border-[#FF5B2E]/40 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-          <div className="flex items-start gap-3.5 min-w-0">
-            <span className="w-[50px] h-[50px] rounded-full bg-[#FF5B2E] text-[#11141A] flex items-center justify-center shrink-0">
-              <AlertTriangleIcon size={26} className="shrink-0" />
-            </span>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className={`${monoLabel} !text-[10px] text-[#8F3209]`}>New incident spotted</span>
-                {latestAlert.has_photo && (
-                  <span className="h-6 px-2.5 rounded-full bg-[#EFF9C4] text-[#11141A] inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold">
-                    <CameraIcon size={12} className="shrink-0" /> PHOTO EVIDENCE
-                  </span>
-                )}
-                <span className="h-6 px-2.5 rounded-full bg-white text-[#11141A] inline-flex items-center font-mono text-[10px] font-semibold">{latestAlert.level}</span>
-              </div>
-              <p className="font-display text-xl font-bold tracking-[-0.02em] text-[#11141A] m-0 mt-1">
-                {reportCategories[latestAlert.category as keyof typeof reportCategories] ?? latestAlert.category}
-                <span className="font-sans text-sm font-medium text-[#4A505C]"> · {latestAlert.landmark}</span>
-              </p>
-              {latestAlert.photo_summary && (
-                <p className="text-xs text-[#4A505C] italic m-0 mt-1">&ldquo;{latestAlert.photo_summary}&rdquo;</p>
-              )}
-            </div>
-          </div>
-          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
-            <button
-              type="button"
-              className="h-12 px-5 rounded-full bg-[#11141A] text-[#F3EFE6] text-sm font-semibold whitespace-nowrap hover:bg-[#2A303C] cursor-pointer"
-              onClick={() => {
-                setHighlightedIncidentId(latestAlert.incident_id);
-                document.getElementById(`incident-${latestAlert.incident_id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
-              }}
-            >
-              Inspect &amp; review →
-            </button>
-            <button type="button" className="w-12 h-12 rounded-full bg-white text-[#11141A] flex items-center justify-center cursor-pointer" onClick={() => setLatestAlert(null)} aria-label="Dismiss alert">
-              <XIcon size={16} />
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Header */}
       <div className={`flex flex-wrap items-end justify-between gap-3 ${layoutMode === "sidebar" ? "shrink-0" : ""}`}>
         <div className="min-w-0">
           <div className="flex items-center gap-3">
             <h2 id="incident-review-title" className="font-display text-2xl font-bold tracking-[-0.02em] text-[#11141A] m-0">Review queue</h2>
             <span className={`${monoLabel} text-[#4A505C]`}>{incidents.length} active</span>
-            {unread > 0 && (
-              <span className="h-6 px-2.5 rounded-full bg-[#FF5B2E] text-[#11141A] inline-flex items-center font-mono text-[10px] font-bold">{unread} NEW</span>
-            )}
           </div>
           <p className="text-xs text-[#4A505C] mt-1.5 mb-0 max-w-2xl leading-relaxed">
             Confirming records an L6 authority decision; resolving removes the incident from public active views. Reported cause and congestion evidence remain separate.
