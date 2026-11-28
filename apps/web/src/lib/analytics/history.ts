@@ -17,6 +17,7 @@ export type HistoricalIncident = {
   lat?: number;
   lng?: number;
   level?: string;
+  landmark?: string;
 };
 
 export const MANGALURU_JUNCTIONS = [

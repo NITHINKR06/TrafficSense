@@ -50,6 +50,7 @@ type HotspotMapProps = {
   selectedIncidentId?: string | null;
   onSelectIncident?: (id: string | null) => void;
   showDemoHistory?: boolean;
+  showHotspotPins?: boolean;
   className?: string;
   heightClassName?: string;
 };
@@ -62,6 +63,7 @@ export function HotspotMap({
   selectedIncidentId = null,
   onSelectIncident,
   showDemoHistory = false,
+  showHotspotPins = true,
   className = "",
   heightClassName = "h-[580px] sm:h-[660px] lg:h-[740px]",
 }: HotspotMapProps) {
@@ -71,6 +73,15 @@ export function HotspotMap({
   const hotspotPopupsRef = useRef<Record<string, PopupInstance>>({});
   const liveMarkersRef = useRef<MarkerInstance[]>([]);
   const activePopupRef = useRef<PopupInstance | null>(null);
+  const hasFittedLiveRef = useRef(false);
+  const selectedIncidentIdRef = useRef<string | null>(selectedIncidentId);
+  const onSelectIncidentRef = useRef(onSelectIncident);
+  const onSelectHotspotRef = useRef(onSelectHotspot);
+  useEffect(() => {
+    selectedIncidentIdRef.current = selectedIncidentId;
+    onSelectIncidentRef.current = onSelectIncident;
+    onSelectHotspotRef.current = onSelectHotspot;
+  }, [selectedIncidentId, onSelectIncident, onSelectHotspot]);
   const [mapReady, setMapReady] = useState(false);
   const [showLivePins, setShowLivePins] = useState(true);
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -225,6 +236,8 @@ export function HotspotMap({
     hotspotMarkersRef.current = {};
     hotspotPopupsRef.current = {};
 
+    if (!showHotspotPins || hotspots.length === 0) return;
+
     void import("maplibre-gl").then(({ Marker, Popup }) => {
       if (disposed || !mapRef.current) return;
 
@@ -326,7 +339,7 @@ export function HotspotMap({
     return () => {
       disposed = true;
     };
-  }, [hotspots, mapReady, showDemoHistory, onSelectHotspot]);
+  }, [hotspots, mapReady, showDemoHistory, showHotspotPins, onSelectHotspot]);
 
   // Smoothly focus selected hotspot without tearing down markers or scrolling container
   useEffect(() => {
@@ -349,7 +362,11 @@ export function HotspotMap({
     }
   }, [selectedHotspotId]);
 
-  // Render live incident pins on the map
+  const liveSignature = liveIncidents
+    .map((inc) => `${inc.id}:${inc.level ?? ""}:${inc.lat ?? ""}:${inc.lng ?? ""}:${inc.cause}`)
+    .join("|");
+
+  // Render live incident pins on the map (only rebuild when incidents actually change)
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady) return;
@@ -360,35 +377,43 @@ export function HotspotMap({
 
     if (!showLivePins || liveIncidents.length === 0) return;
 
-    void import("maplibre-gl").then(({ Marker, Popup }) => {
+    void import("maplibre-gl").then(({ Marker, Popup, LngLatBounds }) => {
       if (disposed || !mapRef.current) return;
+
+      const bounds = new LngLatBounds();
+      let hasBounds = false;
 
       liveIncidents.forEach((inc) => {
         const hasExactCoords = typeof inc.lng === "number" && Number.isFinite(inc.lng) && typeof inc.lat === "number" && Number.isFinite(inc.lat);
         const jCoords = HOTSPOT_GEO_COORDS[inc.junction_id];
         const lng = hasExactCoords ? inc.lng! : (jCoords ? jCoords[0] : 74.848);
         const lat = hasExactCoords ? inc.lat! : (jCoords ? jCoords[1] : 12.875);
+        bounds.extend([lng, lat]);
+        hasBounds = true;
 
+        // Keep MapLibre Marker root transform untouched; apply hover scale on inner chip only
         const el = document.createElement("div");
-        el.className =
-          "px-2 py-0.5 rounded-full bg-surface-container-lowest/95 border border-amber-500 shadow-md flex items-center gap-1 text-[11px] font-bold cursor-pointer hover:scale-110 transition";
+        el.className = "cursor-pointer select-none";
         const icon = getCauseIcon(inc.cause);
         const causeLabel = getCauseLabel(inc.cause);
         const badgeText = inc.level ?? "LIVE";
-        el.title = `Live report: ${inc.junction_name} (${causeLabel} · ${badgeText})`;
-        el.innerHTML = `<span>${icon}</span><span class="text-[9px] px-1 rounded bg-amber-500 text-white font-mono font-bold">${badgeText}</span>`;
+        const placeName = inc.landmark ?? inc.junction_name;
+        el.title = `Live report: ${placeName} (${causeLabel} · ${badgeText})`;
+        el.innerHTML = `<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/95 border border-amber-500 shadow-md text-[11px] font-bold transition-transform duration-150 hover:scale-110"><span>${icon}</span><span class="text-[9px] px-1 rounded bg-amber-500 text-white font-mono font-bold">${badgeText}</span></span>`;
 
         const popup = new Popup({ offset: 20, closeButton: true, focusAfterOpen: false, maxWidth: "260px" }).setHTML(`
           <div class="p-2.5 text-xs space-y-1">
             <p class="font-bold text-surface-on">${icon} ${causeLabel} (${badgeText})</p>
-            <p class="text-surface-on-variant text-[11px]">Near ${inc.junction_name} (${lat.toFixed(4)}, ${lng.toFixed(4)})</p>
+            <p class="text-surface-on-variant text-[11px]">Near ${placeName} (${lat.toFixed(4)}, ${lng.toFixed(4)})</p>
             <p class="text-[10px] font-mono text-amber-600">Reported at ${inc.occurred_at.slice(0, 16).replace("T", " ")} UTC</p>
           </div>
         `);
 
-        el.addEventListener("click", () => {
-          onSelectHotspot?.(null);
-          onSelectIncident?.(selectedIncidentId === inc.id ? null : inc.id);
+        el.addEventListener("click", (e) => {
+          e.stopPropagation();
+          onSelectHotspotRef.current?.(null);
+          const nextId = selectedIncidentIdRef.current === inc.id ? null : inc.id;
+          onSelectIncidentRef.current?.(nextId);
           if (activePopupRef.current) {
             activePopupRef.current.remove();
           }
@@ -402,12 +427,27 @@ export function HotspotMap({
 
         liveMarkersRef.current.push(marker);
       });
+
+      if (hasBounds && !hasFittedLiveRef.current && !selectedIncidentIdRef.current) {
+        hasFittedLiveRef.current = true;
+        if (liveIncidents.length === 1) {
+          const only = liveIncidents[0];
+          const hasExactCoords = typeof only.lng === "number" && Number.isFinite(only.lng) && typeof only.lat === "number" && Number.isFinite(only.lat);
+          const jCoords = HOTSPOT_GEO_COORDS[only.junction_id];
+          const lng = hasExactCoords ? only.lng! : (jCoords ? jCoords[0] : 74.848);
+          const lat = hasExactCoords ? only.lat! : (jCoords ? jCoords[1] : 12.875);
+          map.jumpTo({ center: [lng, lat], zoom: 13.5 });
+        } else {
+          map.fitBounds(bounds, { padding: 90, maxZoom: 13.5, animate: false });
+        }
+      }
     });
 
     return () => {
       disposed = true;
     };
-  }, [liveIncidents, mapReady, showLivePins, onSelectHotspot, onSelectIncident, selectedIncidentId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liveSignature, mapReady, showLivePins]);
 
   // Ease map to selected live incident when selected from Review Queue or map pin
   useEffect(() => {
@@ -483,48 +523,55 @@ export function HotspotMap({
         </button>
       </div>
 
-      {/* Floating Quick Junction Selector Bar (Top-Right under Navigation Controls) */}
-      <div className="absolute top-14 left-3 z-20 hidden sm:flex flex-wrap items-center gap-1.5 bg-surface-container-lowest/90 backdrop-blur-md p-1.5 rounded-lg border border-surface-container shadow text-xs">
-        <span className="text-[10px] font-mono font-bold text-surface-on-variant px-1.5">
-          JUMP TO:
-        </span>
-        {hotspots.map((h, idx) => (
-          <button
-            key={h.junction_id}
-            type="button"
-            onClick={() => {
-              onSelectHotspot?.(h.junction_id);
-              const coords = HOTSPOT_GEO_COORDS[h.junction_id];
-              if (coords && mapRef.current) {
-                mapRef.current.flyTo({ center: coords, zoom: 15.0, duration: 600 });
-              }
-            }}
-            className={`px-2 py-1 rounded text-[11px] font-semibold transition flex items-center gap-1 ${
-              selectedHotspotId === h.junction_id
-                ? "bg-primary text-white shadow-sm"
-                : "bg-surface-container hover:bg-surface-container-high text-surface-on"
-            }`}
-          >
-            <span className="font-mono text-[10px] opacity-75">#{idx + 1}</span>
-            <span>{h.junction_name.split(" ")[0]}</span>
-          </button>
-        ))}
-      </div>
+      {/* Floating Quick Junction Selector Bar (when hotspot pins are shown) */}
+      {showHotspotPins && hotspots.length > 0 && (
+        <div className="absolute top-14 left-3 z-20 hidden sm:flex flex-wrap items-center gap-1.5 bg-surface-container-lowest/90 backdrop-blur-md p-1.5 rounded-lg border border-surface-container shadow text-xs">
+          <span className="text-[10px] font-mono font-bold text-surface-on-variant px-1.5">
+            JUMP TO:
+          </span>
+          {hotspots.map((h, idx) => (
+            <button
+              key={h.junction_id}
+              type="button"
+              onClick={() => {
+                onSelectHotspot?.(h.junction_id);
+                const coords = HOTSPOT_GEO_COORDS[h.junction_id];
+                if (coords && mapRef.current) {
+                  mapRef.current.stop();
+                  mapRef.current.easeTo({ center: coords, zoom: 15.0, duration: 280 });
+                }
+              }}
+              className={`px-2 py-1 rounded text-[11px] font-semibold transition flex items-center gap-1 ${
+                selectedHotspotId === h.junction_id
+                  ? "bg-primary text-white shadow-sm"
+                  : "bg-surface-container hover:bg-surface-container-high text-surface-on"
+              }`}
+            >
+              <span className="font-mono text-[10px] opacity-75">#{idx + 1}</span>
+              <span>{h.junction_name.split(" ")[0]}</span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {/* Legend & Toggle Overlay (Bottom-Left) */}
       <div className="absolute bottom-3 left-3 z-20 flex flex-wrap items-center gap-2 bg-surface-container-lowest/90 backdrop-blur-md p-2 rounded-lg border border-surface-container shadow text-[11px]">
-        <div className="flex items-center gap-1.5 pr-2 border-r border-surface-container">
-          <span className="w-3.5 h-3.5 rounded-full bg-red-600 border border-white text-white font-mono text-[9px] flex items-center justify-center font-bold">
-            #1
-          </span>
-          <span className="text-surface-on font-medium">Top Hotspot</span>
-        </div>
-        <div className="flex items-center gap-1.5 pr-2 border-r border-surface-container">
-          <span className="w-3.5 h-3.5 rounded-full bg-amber-600 border border-white text-white font-mono text-[9px] flex items-center justify-center font-bold">
-            #2
-          </span>
-          <span className="text-surface-on font-medium">Ranked Hotspots</span>
-        </div>
+        {showHotspotPins && (
+          <>
+            <div className="flex items-center gap-1.5 pr-2 border-r border-surface-container">
+              <span className="w-3.5 h-3.5 rounded-full bg-red-600 border border-white text-white font-mono text-[9px] flex items-center justify-center font-bold">
+                #1
+              </span>
+              <span className="text-surface-on font-medium">Top Hotspot</span>
+            </div>
+            <div className="flex items-center gap-1.5 pr-2 border-r border-surface-container">
+              <span className="w-3.5 h-3.5 rounded-full bg-amber-600 border border-white text-white font-mono text-[9px] flex items-center justify-center font-bold">
+                #2
+              </span>
+              <span className="text-surface-on font-medium">Ranked Hotspots</span>
+            </div>
+          </>
+        )}
         {liveIncidents.length > 0 && (
           <label className="flex items-center gap-1.5 cursor-pointer text-surface-on font-medium select-none">
             <input
