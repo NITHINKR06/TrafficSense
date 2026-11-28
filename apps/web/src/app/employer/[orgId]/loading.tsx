@@ -1,3 +1,5 @@
+import { TrafficSenseLoader } from "@/components/ui/trafficsense-loader";
+
 export default function Loading() {
-  return <p className="panel" role="status">Loading organisation access…</p>;
+  return <TrafficSenseLoader label="Loading organisation access" />;
 }

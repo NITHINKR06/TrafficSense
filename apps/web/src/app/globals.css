@@ -646,3 +646,114 @@ a:active, button:active {
     transition: none !important;
   }
 }
+
+/* TrafficSense Site Loader (LoadingWeb.html / loader.js) */
+.ts-loader {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483647;
+  background: #F3EFE6;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  font-family: var(--font-body, "Instrument Sans", system-ui, sans-serif);
+  color: #11141A;
+}
+
+.ts-loader-disc {
+  position: relative;
+  width: 96px;
+  height: 96px;
+}
+
+.ts-loader-disc i {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid #FF5B2E;
+  opacity: 0;
+  animation: ts-loader-ring 2.4s cubic-bezier(0.2, 0.6, 0.3, 1) infinite;
+}
+
+.ts-loader-disc i + i {
+  animation-delay: 1.2s;
+}
+
+.ts-loader-disc b {
+  position: relative;
+  display: flex;
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  background: #FF5B2E;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 14px 34px rgba(255, 91, 46, 0.35);
+  animation: ts-loader-bounce 2.4s ease-in-out infinite;
+}
+
+.ts-loader path {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: ts-loader-trace 2.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+.ts-loader-wordmark {
+  font-family: var(--font-display, "Bricolage Grotesque", system-ui, sans-serif);
+  font-weight: 700;
+  font-size: 30px;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
+.ts-loader-bar {
+  position: relative;
+  width: 160px;
+  height: 3px;
+  border-radius: 2px;
+  background: #E8E2D3;
+  overflow: hidden;
+}
+
+.ts-loader-bar::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 40%;
+  border-radius: 2px;
+  background: #11141A;
+  animation: ts-loader-slide 1.4s cubic-bezier(0.65, 0, 0.35, 1) infinite;
+}
+
+@keyframes ts-loader-ring {
+  0% { transform: scale(1); opacity: 0.5; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+@keyframes ts-loader-bounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
+}
+
+@keyframes ts-loader-trace {
+  0% { stroke-dashoffset: 1; }
+  55% { stroke-dashoffset: 0; }
+  100% { stroke-dashoffset: -1; }
+}
+
+@keyframes ts-loader-slide {
+  0% { left: -40%; }
+  100% { left: 100%; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ts-loader path {
+    stroke-dashoffset: 0;
+  }
+  .ts-loader-bar::after {
+    left: 30%;
+  }
+}

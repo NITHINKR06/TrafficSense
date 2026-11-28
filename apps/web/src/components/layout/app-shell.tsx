@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { Suspense, type ReactNode } from "react";
+import { TrafficSenseLoader } from "@/components/ui/trafficsense-loader";
 
 const FULLSCREEN_ROUTES = new Set(["/traffic", "/planner"]);
 const WIDE_ROUTES = new Set(["/authority"]);
@@ -24,7 +25,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <>
       <main id="main" className={mainClassName} tabIndex={-1}>
-        <Suspense fallback={<p role="status" className="panel mx-auto max-w-md mt-28">Loading…</p>}>
+        <Suspense fallback={<TrafficSenseLoader />}>
           {children}
         </Suspense>
       </main>
