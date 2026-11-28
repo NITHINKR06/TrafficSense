@@ -351,24 +351,24 @@ export function HotspotMap({
       if (disposed || !mapRef.current) return;
 
       liveIncidents.forEach((inc) => {
-        // live incident coordinates
+        const hasExactCoords = typeof inc.lng === "number" && Number.isFinite(inc.lng) && typeof inc.lat === "number" && Number.isFinite(inc.lat);
         const jCoords = HOTSPOT_GEO_COORDS[inc.junction_id];
-        // small deterministic jitter if exact junction center is used so pins don't overlap completely
-        const lng = jCoords ? jCoords[0] + 0.0015 : 74.848;
-        const lat = jCoords ? jCoords[1] - 0.001 : 12.875;
+        const lng = hasExactCoords ? inc.lng! : (jCoords ? jCoords[0] : 74.848);
+        const lat = hasExactCoords ? inc.lat! : (jCoords ? jCoords[1] : 12.875);
 
         const el = document.createElement("div");
         el.className =
           "px-2 py-0.5 rounded-full bg-surface-container-lowest/95 border border-amber-500 shadow-md flex items-center gap-1 text-[11px] font-bold cursor-pointer hover:scale-110 transition";
         const icon = getCauseIcon(inc.cause);
         const causeLabel = getCauseLabel(inc.cause);
-        el.title = `Live report: ${inc.junction_name} (${causeLabel})`;
-        el.innerHTML = `<span>${icon}</span><span class="text-[9px] px-1 rounded bg-amber-500 text-white font-mono font-bold">LIVE</span>`;
+        const badgeText = inc.level ?? "LIVE";
+        el.title = `Live report: ${inc.junction_name} (${causeLabel} · ${badgeText})`;
+        el.innerHTML = `<span>${icon}</span><span class="text-[9px] px-1 rounded bg-amber-500 text-white font-mono font-bold">${badgeText}</span>`;
 
         const popup = new Popup({ offset: 20, closeButton: true, maxWidth: "260px" }).setHTML(`
           <div class="p-2.5 text-xs space-y-1">
-            <p class="font-bold text-surface-on">${icon} ${causeLabel}</p>
-            <p class="text-surface-on-variant text-[11px]">Location: ${inc.junction_name}</p>
+            <p class="font-bold text-surface-on">${icon} ${causeLabel} (${badgeText})</p>
+            <p class="text-surface-on-variant text-[11px]">Near ${inc.junction_name} (${lat.toFixed(4)}, ${lng.toFixed(4)})</p>
             <p class="text-[10px] font-mono text-amber-600">Reported at ${inc.occurred_at.slice(0, 16).replace("T", " ")} UTC</p>
           </div>
         `);

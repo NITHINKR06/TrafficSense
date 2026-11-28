@@ -56,6 +56,41 @@ function playNotificationChime() {
   }
 }
 
+
+/** Category disc colours from the Authority design plan. */
+function categoryTone(category: string): { bg: string; fg: string } {
+  switch (category) {
+    case "accident":
+      return { bg: "#FF5B2E", fg: "#11141A" };
+    case "heavy_traffic":
+    case "heavy_volume":
+      return { bg: "#F5B700", fg: "#11141A" };
+    case "road_repair":
+    case "road_closed":
+    case "bridge_maintenance":
+      return { bg: "#11141A", fg: "#F3EFE6" };
+    case "flood":
+    case "heavy_rain":
+      return { bg: "#2B4BFF", fg: "#FFFFFF" };
+    default:
+      return { bg: "#F3EFE6", fg: "#11141A" };
+  }
+}
+
+/** Six equal trust segments (L1..L6): filled = ink, empty = #E8E2D3. */
+function TrustBar({ level }: { level: string }) {
+  const n = Math.min(6, Math.max(1, parseInt(level.replace(/\D/g, ""), 10) || 1));
+  return (
+    <div className="grid grid-cols-6 gap-1" role="img" aria-label={`Trust level ${n} of 6`}>
+      {[1, 2, 3, 4, 5, 6].map((i) => (
+        <span key={i} className="h-2 rounded-full" style={{ background: i <= n ? "#11141A" : "#E8E2D3" }} />
+      ))}
+    </div>
+  );
+}
+
+const monoLabel = "font-mono text-[11px] font-semibold uppercase tracking-[0.08em]";
+
 export function IncidentReviewPanel() {
   const [incidents, setIncidents] = useState<LiveIncident[]>([]);
   const [history, setHistory] = useState<AuthorityIncidentHistoryItem[]>([]);
@@ -170,21 +205,33 @@ export function IncidentReviewPanel() {
 
   useEffect(() => {
     let active = true;
-    void Promise.all([fetchIncidents(), fetchHistory()])
-      .then(([loaded, loadedHistory]) => {
+    const loadAll = async () => {
+      try {
+        const [loaded, loadedHistory] = await Promise.all([fetchIncidents(), fetchHistory()]);
         if (active) {
           setIncidents(loaded);
           setHistory(loadedHistory);
         }
-      })
-      .catch(() => {
+      } catch {
         if (active) setMessage("Active incidents could not be loaded. Refresh to retry.");
-      })
-      .finally(() => {
+      } finally {
         if (active) setIsLoading(false);
-      });
+      }
+    };
+
+    void loadAll();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") void loadAll();
+    };
+    window.addEventListener("focus", loadAll);
+    document.addEventListener("visibilitychange", onVisibility);
+    const poll = setInterval(() => void loadAll(), 5000);
+
     return () => {
       active = false;
+      window.removeEventListener("focus", loadAll);
+      document.removeEventListener("visibilitychange", onVisibility);
+      clearInterval(poll);
     };
   }, [fetchHistory, fetchIncidents]);
 
@@ -255,109 +302,107 @@ export function IncidentReviewPanel() {
     }
   }
 
+  const unread = notifications.filter((n) => !n.is_read).length;
+
   return (
-    <section className="p-5 rounded-xl bg-surface-container-lowest border border-surface-container shadow-sm space-y-4" aria-labelledby="incident-review-title">
-      {/* Real-time Incident Spotted Alert Banner */}
+    <section className="space-y-3.5" aria-labelledby="incident-review-title">
+      {/* Real-time alert */}
       {latestAlert && (
-        <div className="p-4 rounded-xl bg-amber-500/10 border-2 border-amber-500/50 dark:bg-amber-950/30 dark:border-amber-500/60 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-pulse" role="alert">
-          <div className="flex items-start gap-3">
-            <AlertTriangleIcon size={24} className="text-amber-600 shrink-0 mt-0.5" />
-            <div>
+        <div role="alert" className="rounded-[32px] bg-[#FFE3D8] border border-[#FF5B2E]/40 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-start gap-3.5 min-w-0">
+            <span className="w-[50px] h-[50px] rounded-full bg-[#FF5B2E] text-[#11141A] flex items-center justify-center shrink-0">
+              <AlertTriangleIcon size={26} className="shrink-0" />
+            </span>
+            <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-700 dark:text-amber-300">
-                  New Incident Spotted
-                </span>
+                <span className={`${monoLabel} !text-[10px] text-[#8F3209]`}>New incident spotted</span>
                 {latestAlert.has_photo && (
-                  <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200 border border-emerald-300 dark:border-emerald-700 inline-flex items-center gap-1">
-                    <CameraIcon size={12} className="inline shrink-0" />
-                    <span>Photo Evidence Corroborated</span>
+                  <span className="h-6 px-2.5 rounded-full bg-[#EFF9C4] text-[#11141A] inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold">
+                    <CameraIcon size={12} className="shrink-0" /> PHOTO EVIDENCE
                   </span>
                 )}
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-container-high text-surface-on-variant">
-                  {latestAlert.level}
-                </span>
+                <span className="h-6 px-2.5 rounded-full bg-white text-[#11141A] inline-flex items-center font-mono text-[10px] font-semibold">{latestAlert.level}</span>
               </div>
-              <p className="text-sm font-semibold text-surface-on mt-0.5">
-                {reportCategories[latestAlert.category as keyof typeof reportCategories] ?? latestAlert.category} • {latestAlert.landmark}
+              <p className="font-display text-xl font-bold tracking-[-0.02em] text-[#11141A] m-0 mt-1">
+                {reportCategories[latestAlert.category as keyof typeof reportCategories] ?? latestAlert.category}
+                <span className="font-sans text-sm font-medium text-[#4A505C]"> · {latestAlert.landmark}</span>
               </p>
               {latestAlert.photo_summary && (
-                <p className="text-xs text-surface-on-variant mt-0.5 italic">
-                  &ldquo;{latestAlert.photo_summary}&rdquo;
-                </p>
+                <p className="text-xs text-[#4A505C] italic m-0 mt-1">&ldquo;{latestAlert.photo_summary}&rdquo;</p>
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2 self-end sm:self-center">
+          <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
             <button
               type="button"
-              className="h-9 px-4 rounded-full bg-[#11141A] text-[#F3EFE6] text-xs font-semibold whitespace-nowrap hover:bg-[#2A303C] transition cursor-pointer"
+              className="h-12 px-5 rounded-full bg-[#11141A] text-[#F3EFE6] text-sm font-semibold whitespace-nowrap hover:bg-[#2A303C] cursor-pointer"
               onClick={() => {
                 setHighlightedIncidentId(latestAlert.incident_id);
-                const el = document.getElementById(`incident-${latestAlert.incident_id}`);
-                el?.scrollIntoView({ behavior: "smooth", block: "center" });
+                document.getElementById(`incident-${latestAlert.incident_id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
               }}
             >
-              Inspect &amp; Review →
+              Inspect &amp; review →
             </button>
-            <button
-              type="button"
-              className="w-9 h-9 rounded-full bg-white text-[#11141A] border border-[#EEE9DC] flex items-center justify-center hover:bg-[#F3EFE6] transition cursor-pointer"
-              onClick={() => setLatestAlert(null)}
-              aria-label="Dismiss alert"
-            >
-              <XIcon size={14} />
+            <button type="button" className="w-12 h-12 rounded-full bg-white text-[#11141A] flex items-center justify-center cursor-pointer" onClick={() => setLatestAlert(null)} aria-label="Dismiss alert">
+              <XIcon size={16} />
             </button>
           </div>
         </div>
       )}
 
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <h2 id="incident-review-title" className="font-display text-2xl font-bold tracking-[-0.03em] text-[#11141A] m-0">Review queue</h2>
-            {notifications.filter((n) => !n.is_read).length > 0 && (
-              <span className="h-7 px-3 rounded-full text-[11px] font-mono font-bold bg-[#FFE3D8] text-[#8F3209] inline-flex items-center">
-                {notifications.filter((n) => !n.is_read).length} NEW
-              </span>
+      {/* Header */}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <div className="flex items-center gap-3">
+            <h2 id="incident-review-title" className="font-display text-2xl font-bold tracking-[-0.02em] text-[#11141A] m-0">Review queue</h2>
+            <span className={`${monoLabel} text-[#4A505C]`}>{incidents.length} active</span>
+            {unread > 0 && (
+              <span className="h-6 px-2.5 rounded-full bg-[#FF5B2E] text-[#11141A] inline-flex items-center font-mono text-[10px] font-bold">{unread} NEW</span>
             )}
           </div>
-          <p className="text-xs text-[#4A505C] mt-1 mb-0">Confirming records an L6 authority decision; resolving removes the incident from public active views. Reported cause and congestion evidence remain separate.</p>
+          <p className="text-xs text-[#4A505C] mt-1.5 mb-0 max-w-2xl leading-relaxed">
+            Confirming records an L6 authority decision; resolving removes the incident from public active views. Reported cause and congestion evidence remain separate.
+          </p>
         </div>
         <div className="flex items-center gap-2">
-          {!hasWebNotificationPerm && (
+          {hasWebNotificationPerm ? (
+            <span className="h-12 px-5 rounded-full bg-[#EFF9C4] text-[#11141A] inline-flex items-center gap-2 font-mono text-[11px] font-semibold tracking-[0.08em]">
+              <span className="w-2 h-2 rounded-full bg-[#11141A]" /> ALERTS ACTIVE
+            </span>
+          ) : (
             <button
               type="button"
-              className="h-9 px-4 rounded-full bg-white text-[#11141A] border border-[#EEE9DC] text-xs font-semibold flex items-center gap-1.5 hover:bg-[#F3EFE6] transition cursor-pointer"
+              className="h-12 px-5 rounded-full bg-white text-[#11141A] text-sm font-semibold inline-flex items-center gap-2 cursor-pointer"
               onClick={() => void requestNotificationPermission()}
               title="Allow browser notifications for real-time alerts"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
-              <span>Enable Push Alerts</span>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+              Enable push alerts
             </button>
           )}
-          {hasWebNotificationPerm && (
-            <span className="h-8 px-3 rounded-full text-[11px] text-[#11141A] bg-[#EFF9C4] flex items-center gap-1.5 font-mono font-semibold">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
-              <span>ALERTS ACTIVE</span>
-            </span>
-          )}
-          <button type="button" className="h-9 px-4 rounded-full bg-[#F3EFE6] text-[#11141A] border border-[#EEE9DC] text-xs font-semibold hover:bg-[#E8E2D3] transition cursor-pointer" onClick={() => void loadIncidents()} disabled={isLoading || pendingIncidentId !== null}>
-            {isLoading ? "Refreshing…" : "Refresh incidents"}
+          <button
+            type="button"
+            className="h-12 px-5 rounded-full bg-[#11141A] text-[#F3EFE6] text-sm font-semibold hover:bg-[#2A303C] cursor-pointer disabled:opacity-50"
+            onClick={() => void loadIncidents()}
+            disabled={isLoading || pendingIncidentId !== null}
+          >
+            {isLoading ? "Refreshing…" : "Refresh"}
           </button>
         </div>
       </div>
 
-      <p aria-live="polite" className={message ? "text-xs rounded-lg bg-surface-container-low p-3 text-surface-on" : "sr-only"}>{message}</p>
+      <p aria-live="polite" className={message ? "text-sm font-medium rounded-[20px] bg-white px-5 py-3 m-0 text-[#11141A]" : "sr-only"}>{message}</p>
 
       {isLoading ? (
-        <p role="status" className="text-sm text-surface-on-variant">Loading active incidents…</p>
+        <p role="status" className="rounded-[32px] bg-white p-6 text-sm text-[#4A505C] m-0">Loading active incidents…</p>
       ) : incidents.length === 0 ? (
-        <p className="text-sm text-surface-on-variant rounded-lg border border-dashed border-surface-container p-4">No active incidents need authority review.</p>
+        <p className="rounded-[32px] border-2 border-dashed border-[#E8E2D3] p-8 text-center text-sm text-[#4A505C] m-0">No active incidents need authority review.</p>
       ) : (
-        <ul className="space-y-3" aria-label="Active incidents awaiting review">
+        <ul className="list-none m-0 p-0 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5" aria-label="Active incidents awaiting review">
           {incidents.map((incident) => {
             const isPending = pendingIncidentId === incident.id;
             const category = reportCategories[incident.category] ?? incident.category;
+            const tone = categoryTone(incident.category);
             const isVerified = incident.level === "L3" || incident.level === "L5" || incident.level === "L6";
             const isCheckingSpread = spreadLoading && spreadIncidentId === incident.id;
             const isSpreadOpen = spreadIncidentId === incident.id;
@@ -367,153 +412,129 @@ export function IncidentReviewPanel() {
               <li
                 key={incident.id}
                 id={`incident-${incident.id}`}
-                className={`rounded-lg border p-3 space-y-2 transition-all ${
-                  isHighlighted
-                    ? "border-amber-500 bg-amber-50/20 dark:bg-amber-950/20 shadow-md ring-2 ring-amber-400"
-                    : "border-surface-container bg-surface-container-low"
+                className={`rounded-[32px] bg-white p-5 flex flex-col gap-3.5 transition-shadow ${isSpreadOpen ? "md:col-span-2 xl:col-span-3" : ""} ${
+                  isHighlighted ? "ring-2 ring-[#FF5B2E] shadow-[0_10px_30px_rgba(255,91,46,0.25)]" : ""
                 }`}
               >
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-surface-on flex items-center gap-1.5">
-                      <IncidentIcon category={incident.category} size={16} className="text-primary inline shrink-0" />
-                      <span>{category}</span>
-                    </p>
-                    {incident.level === "L5" && (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-emerald-100 text-emerald-800 dark:bg-emerald-950 dark:text-emerald-200 inline-flex items-center gap-1">
-                        <CameraIcon size={11} className="inline shrink-0" />
-                        <span>Photo Corroborated</span>
-                      </span>
-                    )}
-                  </div>
-                  <span className="text-[10px] font-mono rounded bg-surface-container-high px-2 py-0.5 text-surface-on-variant">{incident.level} · {incident.provenance}</span>
-                </div>
-                {incident.photo_data_url && (
-                  <div className="rounded-lg border border-surface-container bg-surface-container-lowest p-2 space-y-1.5">
-                    <div className="flex flex-wrap items-center justify-between gap-2">
-                      <span className="text-[10px] font-mono font-bold rounded bg-emerald-950 text-emerald-100 px-2 py-0.5">L5 AI VISION CORROBORATED PHOTO</span>
-                      <span className="text-[10px] font-mono text-surface-on-variant">{(incident.photo_confidence ?? "moderate").toUpperCase()} CONFIDENCE</span>
+                <div className="flex items-center gap-3.5">
+                  <span className="w-[50px] h-[50px] rounded-full flex items-center justify-center shrink-0" style={{ background: tone.bg, color: tone.fg }}>
+                    <IncidentIcon category={incident.category} size={26} className="shrink-0" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="font-display text-[22px] font-bold tracking-[-0.02em] leading-tight text-[#11141A] truncate">{category}</div>
+                    <div className="text-sm text-[#4A505C] mt-0.5 truncate">
+                      {incident.report_count} report{incident.report_count === 1 ? "" : "s"} · {formatIncidentTime(incident.first_reported_at)} IST
                     </div>
+                  </div>
+                  <span className="font-mono text-[13px] font-bold text-[#11141A]">{incident.level}</span>
+                </div>
+
+                <TrustBar level={incident.level} />
+
+                {incident.photo_data_url && (
+                  <div className="relative rounded-[22px] overflow-hidden bg-[#F3EFE6]">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={incident.photo_data_url}
-                      alt="Citizen-submitted photo evidence for this incident"
-                      className="max-h-40 w-full rounded-lg object-cover border border-surface-container"
-                    />
+                    <img src={incident.photo_data_url} alt="Citizen-submitted photo evidence for this incident" className="w-full h-[110px] object-cover" />
+                    <span className="absolute left-3 bottom-2.5 h-6 px-2.5 rounded-full bg-[#11141A] text-[#D5F75A] inline-flex items-center gap-1.5 font-mono text-[10px] font-semibold">
+                      <CameraIcon size={12} className="shrink-0" /> L5 · {(incident.photo_confidence ?? "moderate").toUpperCase()}
+                    </span>
                   </div>
                 )}
-                <p className="text-xs text-surface-on-variant">{incident.level_reason} · {incident.report_count} report{incident.report_count === 1 ? "" : "s"} · first reported {formatIncidentTime(incident.first_reported_at)} IST</p>
-                <div className="flex flex-wrap gap-2 pt-1">
+
+                <p className="text-xs text-[#4A505C] m-0 leading-relaxed">
+                  {incident.level_reason} · <span className="font-mono">{incident.provenance}</span>
+                </p>
+
+                <div className="flex gap-2 mt-auto">
                   {incident.level !== "L6" && (
                     <button
                       type="button"
-                      className="h-10 px-4 rounded-full bg-[#D5F75A] text-[#11141A] text-xs font-bold hover:brightness-95 transition cursor-pointer disabled:opacity-50"
+                      className="flex-1 h-[46px] rounded-full bg-[#D5F75A] text-[#11141A] text-sm font-bold hover:brightness-95 cursor-pointer disabled:opacity-50"
                       disabled={isPending}
                       onClick={() => void updateIncident(incident, "confirm")}
                     >
-                      {isPending ? "Saving…" : "Confirm (L6)"}
+                      {isPending ? "Saving…" : "Confirm L6"}
                     </button>
                   )}
                   <button
                     type="button"
-                    className="h-10 px-4 rounded-full bg-[#F3EFE6] text-[#11141A] border border-[#EEE9DC] text-xs font-semibold hover:bg-[#E8E2D3] transition cursor-pointer disabled:opacity-50"
+                    className={`h-[46px] px-4 rounded-full bg-[#F3EFE6] text-[#11141A] text-sm font-bold hover:bg-[#E8E2D3] cursor-pointer disabled:opacity-50 ${incident.level === "L6" ? "flex-1" : ""}`}
                     disabled={isPending}
                     onClick={() => void updateIncident(incident, "resolve")}
                   >
-                    {isPending ? "Saving…" : "Resolve incident"}
+                    {isPending ? "Saving…" : "Resolve"}
                   </button>
                   <button
                     type="button"
-                    className="h-10 px-4 rounded-full bg-[#FFE3D8] text-[#8F3209] text-xs font-semibold hover:brightness-95 transition cursor-pointer disabled:opacity-50"
+                    className="w-[46px] h-[46px] rounded-full bg-[#F3EFE6] text-[#11141A] flex items-center justify-center hover:bg-[#FFE3D8] hover:text-[#8F3209] cursor-pointer disabled:opacity-50 shrink-0"
                     disabled={isPending}
+                    aria-label="Reject report"
+                    title="Reject report"
                     onClick={() => void updateIncident(incident, "reject")}
                   >
-                    {isPending ? "Saving…" : "Reject report"}
+                    <XIcon size={18} />
                   </button>
-                  {isVerified && (
-                    <button
-                      type="button"
-                      className="h-10 px-4 rounded-full bg-white text-[#11141A] border border-[#EEE9DC] text-xs font-semibold hover:bg-[#F3EFE6] transition cursor-pointer disabled:opacity-50"
-                      disabled={isPending || isCheckingSpread}
-                      onClick={() => void handleCheckSpread(incident)}
-                    >
-                      {isCheckingSpread
-                        ? "Checking routes…"
-                        : isSpreadOpen && spreadResult
-                        ? "Hide spread"
-                        : "Check spread from Pumpwell"}
-                    </button>
-                  )}
                 </div>
 
+                {isVerified && (
+                  <button
+                    type="button"
+                    className="h-10 rounded-full border border-[#EEE9DC] text-[#11141A] text-[13px] font-semibold hover:bg-[#F3EFE6] cursor-pointer disabled:opacity-50"
+                    disabled={isPending || isCheckingSpread}
+                    onClick={() => void handleCheckSpread(incident)}
+                  >
+                    {isCheckingSpread ? "Checking routes…" : isSpreadOpen && spreadResult ? "Hide spread" : "Check spread from Pumpwell"}
+                  </button>
+                )}
+
                 {isSpreadOpen && (
-                  <div className="mt-3 p-3.5 rounded-lg border border-surface-container bg-surface-container-lowest space-y-2.5 text-xs">
+                  <div className="rounded-[22px] bg-[#F3EFE6] p-4 space-y-2.5 text-xs">
                     {spreadLoading ? (
-                      <p className="text-surface-on-variant animate-pulse">Checking routes from Pumpwell via OSRM…</p>
+                      <p className="text-[#4A505C] animate-pulse m-0">Checking routes from Pumpwell via OSRM…</p>
                     ) : spreadError ? (
-                      <p className="text-error font-medium">{spreadError}</p>
+                      <p className="text-[#B8400F] font-semibold m-0">{spreadError}</p>
                     ) : spreadResult ? (
                       <>
                         <div className="space-y-1">
-                          <p className="text-sm font-bold text-surface-on">
+                          <p className="font-display text-lg font-bold tracking-[-0.02em] text-[#11141A] m-0">
                             Affects {spreadResult.affected} of {spreadResult.checked} routes from {spreadResult.origin}.
                           </p>
                           {spreadResult.checked < spreadResult.total && (
-                            <p className="text-amber-700 dark:text-amber-400 font-medium">
-                              {spreadResult.total - spreadResult.checked} routes could not be checked right now.
-                            </p>
+                            <p className="text-[#B8400F] font-semibold m-0">{spreadResult.total - spreadResult.checked} routes could not be checked right now.</p>
                           )}
-                          <p className="text-[11px] text-surface-on-variant">
-                            This route passes within 200 metres of the verified report. Free-flow estimate.
-                          </p>
+                          <p className="text-[11px] text-[#4A505C] m-0">This route passes within 200 metres of the verified report. Free-flow estimate.</p>
                         </div>
-
                         <div className="overflow-x-auto">
-                          <table className="w-full text-left text-xs border-collapse">
-                            <thead>
-                              <tr className="border-b border-surface-container text-surface-on-variant">
-                                <th className="py-1.5 pr-2 font-medium">Destination</th>
-                                <th className="py-1.5 px-2 font-medium">Affected</th>
-                                <th className="py-1.5 px-2 font-medium">Avoid Option</th>
-                                <th className="py-1.5 pl-2 font-medium text-right">Action</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-surface-container/60">
-                              {spreadResult.rows.map((row) => (
-                                <tr key={row.destination} className="hover:bg-surface-container-low/50">
-                                  <td className="py-1.5 pr-2 font-medium text-surface-on">{row.destination}</td>
-                                  <td className="py-1.5 px-2">
-                                    {!row.checked ? (
-                                      <span className="text-surface-on-variant italic">Unchecked</span>
-                                    ) : row.affected ? (
-                                      <span className="font-semibold text-amber-700 dark:text-amber-400">Yes</span>
-                                    ) : (
-                                      <span className="text-surface-on-variant">No</span>
-                                    )}
-                                  </td>
-                                  <td className="py-1.5 px-2 text-surface-on-variant">
-                                    {!row.checked
-                                      ? "—"
-                                      : !row.affected
-                                      ? "Not affected"
-                                      : row.avoiding_extra_s !== null
-                                      ? row.avoiding_extra_s === 0
-                                        ? "0 min extra"
-                                        : `+${Math.round(row.avoiding_extra_s / 60)} min`
-                                      : "No alternative"}
-                                  </td>
-                                  <td className="py-1.5 pl-2 text-right">
-                                    <Link
-                                      href={`/planner?from=${encodeURIComponent(spreadResult.origin)}&to=${encodeURIComponent(row.destination)}`}
-                                      className="inline-block text-[11px] font-medium text-primary hover:underline whitespace-nowrap"
-                                    >
-                                      Plan pair →
-                                    </Link>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                          <div className="min-w-[560px]">
+                            <div className={`grid grid-cols-[1.4fr_0.8fr_1fr_0.8fr] gap-3 pb-2 border-b border-[#E3DDCE] ${monoLabel} !text-[10px] text-[#4A505C]`}>
+                              <span>Destination</span><span>Affected</span><span>Avoid option</span><span className="text-right">Action</span>
+                            </div>
+                            {spreadResult.rows.map((row) => (
+                              <div key={row.destination} className="grid grid-cols-[1.4fr_0.8fr_1fr_0.8fr] gap-3 items-center h-11 border-b border-[#E3DDCE] last:border-0 text-[13px]">
+                                <span className="font-semibold text-[#11141A] truncate">{row.destination}</span>
+                                <span>
+                                  {!row.checked ? <span className="italic text-[#4A505C]">Unchecked</span>
+                                    : row.affected ? <span className="font-bold text-[#B8400F]">Yes</span>
+                                    : <span className="text-[#4A505C]">No</span>}
+                                </span>
+                                <span className="text-[#4A505C]">
+                                  {!row.checked ? "—"
+                                    : !row.affected ? "Not affected"
+                                    : row.avoiding_extra_s !== null
+                                    ? row.avoiding_extra_s === 0 ? "0 min extra" : `+${Math.round(row.avoiding_extra_s / 60)} min`
+                                    : "No alternative"}
+                                </span>
+                                <span className="text-right">
+                                  <Link
+                                    href={`/planner?from=${encodeURIComponent(spreadResult.origin)}&to=${encodeURIComponent(row.destination)}`}
+                                    className="text-[12px] font-semibold text-[#FF5B2E] hover:underline whitespace-nowrap"
+                                  >
+                                    Plan pair →
+                                  </Link>
+                                </span>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </>
                     ) : null}
@@ -525,14 +546,17 @@ export function IncidentReviewPanel() {
         </ul>
       )}
 
-      <div className="border-t border-surface-container pt-3 space-y-2" aria-labelledby="incident-timeline-title">
-        <h3 id="incident-timeline-title" className="text-sm font-semibold text-surface-on">Recent authority timeline</h3>
-        {history.length === 0 ? <p className="text-xs text-surface-on-variant">No authority actions have been recorded yet.</p> : (
-          <ol className="space-y-2" aria-label="Recent authority incident actions">
+      {/* Authority timeline */}
+      <div className="rounded-[32px] bg-white p-5" aria-labelledby="incident-timeline-title">
+        <h3 id="incident-timeline-title" className="font-display text-lg font-bold tracking-[-0.02em] text-[#11141A] m-0">Recent authority timeline</h3>
+        {history.length === 0 ? (
+          <p className="text-xs text-[#4A505C] m-0 mt-2">No authority actions have been recorded yet.</p>
+        ) : (
+          <ol className="list-none m-0 p-0 mt-3 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2.5" aria-label="Recent authority incident actions">
             {history.map((item) => (
-              <li key={item.id} className="border-l-2 border-primary/40 pl-3 text-xs text-surface-on-variant">
-                <span className="font-semibold text-surface-on">{item.action.replace("_incident", "").replace(/^./, (letter) => letter.toUpperCase())}</span>{" "}
-                {reportCategories[item.category] ?? item.category} · {formatIncidentTime(item.created_at)} IST
+              <li key={item.id} className="border-l-[3px] border-[#FF5B2E] pl-3 text-[13px] text-[#4A505C]">
+                <span className="font-semibold text-[#11141A]">{item.action.replace("_incident", "").replace(/^./, (letter) => letter.toUpperCase())}</span>{" "}
+                {reportCategories[item.category] ?? item.category} · <span className="font-mono text-[12px]">{formatIncidentTime(item.created_at)} IST</span>
               </li>
             ))}
           </ol>
