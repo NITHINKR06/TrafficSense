@@ -89,9 +89,31 @@ function TrustBar({ level }: { level: string }) {
   );
 }
 
+import { findNearestPreset } from "@/lib/routing/presets";
+
 const monoLabel = "font-mono text-[11px] font-semibold uppercase tracking-[0.08em]";
 
-export function IncidentReviewPanel() {
+const JUNCTION_KEYWORDS: Record<string, string[]> = {
+  hampankatta: ["hampankatta", "central railway"],
+  "ksrtc-bejai": ["ksrtc", "bejai"],
+  "jyothi-ambedkar": ["jyothi", "ambedkar", "bunts"],
+  ladyhill: ["ladyhill", "kottara", "kulur"],
+  pumpwell: ["pumpwell", "mahaveera", "nanthoor"],
+};
+
+type IncidentReviewPanelProps = {
+  selectedIncidentId?: string | null;
+  selectedHotspotId?: string | null;
+  onSelectIncident?: (id: string | null) => void;
+  onClearSelection?: () => void;
+};
+
+export function IncidentReviewPanel({
+  selectedIncidentId = null,
+  selectedHotspotId = null,
+  onSelectIncident,
+  onClearSelection,
+}: IncidentReviewPanelProps = {}) {
   const [incidents, setIncidents] = useState<LiveIncident[]>([]);
   const [history, setHistory] = useState<AuthorityIncidentHistoryItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -365,6 +387,15 @@ export function IncidentReviewPanel() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {(selectedIncidentId || selectedHotspotId) && onClearSelection && (
+            <button
+              type="button"
+              onClick={onClearSelection}
+              className="h-12 px-5 rounded-full bg-[#FFE3D8] text-[#8F3209] text-sm font-bold hover:brightness-95 cursor-pointer"
+            >
+              Show all ({incidents.length})
+            </button>
+          )}
           {hasWebNotificationPerm ? (
             <span className="h-12 px-5 rounded-full bg-[#EFF9C4] text-[#11141A] inline-flex items-center gap-2 font-mono text-[11px] font-semibold tracking-[0.08em]">
               <span className="w-2 h-2 rounded-full bg-[#11141A]" /> ALERTS ACTIVE
@@ -398,7 +429,7 @@ export function IncidentReviewPanel() {
       ) : incidents.length === 0 ? (
         <p className="rounded-[32px] border-2 border-dashed border-[#E8E2D3] p-8 text-center text-sm text-[#4A505C] m-0">No active incidents need authority review.</p>
       ) : (
-        <ul className="list-none m-0 p-0 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3.5" aria-label="Active incidents awaiting review">
+        <ul className="list-none m-0 p-0 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5" aria-label="Active incidents awaiting review">
           {incidents.map((incident) => {
             const isPending = pendingIncidentId === incident.id;
             const category = reportCategories[incident.category] ?? incident.category;
@@ -406,15 +437,23 @@ export function IncidentReviewPanel() {
             const isVerified = incident.level === "L3" || incident.level === "L5" || incident.level === "L6";
             const isCheckingSpread = spreadLoading && spreadIncidentId === incident.id;
             const isSpreadOpen = spreadIncidentId === incident.id;
-            const isHighlighted = highlightedIncidentId === incident.id;
+            const nearestName = (findNearestPreset([incident.lng, incident.lat])?.name ?? "").toLowerCase();
+            const matchesHotspot = selectedHotspotId
+              ? (JUNCTION_KEYWORDS[selectedHotspotId] ?? [selectedHotspotId]).some((kw) => nearestName.includes(kw))
+              : false;
+            const hasActiveFilter = Boolean(selectedIncidentId || selectedHotspotId);
+            const isFocused = selectedIncidentId === incident.id || (!selectedIncidentId && matchesHotspot);
+            const isDimmed = hasActiveFilter && !isFocused;
+            const isHighlighted = isFocused || highlightedIncidentId === incident.id;
 
             return (
               <li
                 key={incident.id}
                 id={`incident-${incident.id}`}
-                className={`rounded-[32px] bg-white p-5 flex flex-col gap-3.5 transition-shadow ${isSpreadOpen ? "md:col-span-2 xl:col-span-3" : ""} ${
-                  isHighlighted ? "ring-2 ring-[#FF5B2E] shadow-[0_10px_30px_rgba(255,91,46,0.25)]" : ""
-                }`}
+                onClick={() => onSelectIncident?.(selectedIncidentId === incident.id ? null : incident.id)}
+                className={`rounded-[32px] bg-white p-5 flex flex-col gap-3.5 transition-all duration-200 cursor-pointer ${isSpreadOpen ? "md:col-span-2 xl:col-span-4" : ""} ${
+                  isHighlighted ? "ring-2 ring-[#FF5B2E] shadow-[0_14px_34px_rgba(255,91,46,0.22)]" : ""
+                } ${isDimmed ? "grayscale opacity-45 hover:grayscale-0 hover:opacity-85" : ""}`}
               >
                 <div className="flex items-center gap-3.5">
                   <span className="w-[50px] h-[50px] rounded-full flex items-center justify-center shrink-0" style={{ background: tone.bg, color: tone.fg }}>

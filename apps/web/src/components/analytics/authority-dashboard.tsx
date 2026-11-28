@@ -109,6 +109,7 @@ export function AuthorityDashboard({ showDock = true }: { showDock?: boolean }) 
   const [selectedJunction, setSelectedJunction] = useState("all");
   const [showDemoHistory, setShowDemoHistory] = useState(false);
   const [selectedHotspotId, setSelectedHotspotId] = useState<string | null>(null);
+  const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [liveIncidents, setLiveIncidents] = useState<HistoricalIncident[]>([]);
   const [active, setActive] = useState<SectionId>("overview");
 
@@ -363,14 +364,45 @@ export function AuthorityDashboard({ showDock = true }: { showDock?: boolean }) 
         </div>
       </div>
 
-      {/* Map + ranking */}
-      <div id="ad-hotspots" className="scroll-mt-6 flex flex-wrap gap-3.5 mt-3.5">
-        <div className="flex-[2_1_640px] min-w-0">
-          <HotspotMap hotspots={data.hotspots} liveIncidents={data.incidents} selectedHotspotId={selectedHotspotId}
-            onSelectHotspot={setSelectedHotspotId} showDemoHistory={showDemoHistory} heightClassName="h-[480px]" />
-        </div>
+      {/* Full-width Control Room Map */}
+      <div id="ad-hotspots" className="scroll-mt-6 mt-3.5">
+        <HotspotMap
+          hotspots={data.hotspots}
+          liveIncidents={data.incidents}
+          selectedHotspotId={selectedHotspotId}
+          onSelectHotspot={(id) => {
+            setSelectedIncidentId(null);
+            setSelectedHotspotId(id);
+          }}
+          selectedIncidentId={selectedIncidentId}
+          onSelectIncident={(id) => {
+            setSelectedHotspotId(null);
+            setSelectedIncidentId(id);
+          }}
+          showDemoHistory={showDemoHistory}
+          heightClassName="h-[68dvh] min-h-[620px] lg:h-[780px]"
+        />
+      </div>
 
-        <section className="flex-[1_1_360px] min-w-0 rounded-[36px] bg-white p-6 flex flex-col max-h-[480px]" aria-label="Hotspot ranking">
+      {/* Review queue (placed directly below the map; dims non-matching cards when map/report is focused) */}
+      <div id="ad-review" className="scroll-mt-6 mt-6">
+        <IncidentReviewPanel
+          selectedIncidentId={selectedIncidentId}
+          selectedHotspotId={selectedHotspotId}
+          onSelectIncident={(id) => {
+            setSelectedHotspotId(null);
+            setSelectedIncidentId(id);
+          }}
+          onClearSelection={() => {
+            setSelectedHotspotId(null);
+            setSelectedIncidentId(null);
+          }}
+        />
+      </div>
+
+      {/* Hotspot ranking + Directive + Delay by type */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 mt-6">
+        <section className="rounded-[36px] bg-white p-6 flex flex-col" aria-label="Hotspot ranking">
           <div className="flex items-center justify-between gap-3">
             <h2 className={h2}>Hotspot ranking</h2>
             <span className={`${mono} text-[#4A505C]`}>{showDemoHistory ? "By delay hrs" : "By events"}</span>
@@ -381,7 +413,10 @@ export function AuthorityDashboard({ showDock = true }: { showDock?: boolean }) 
               const selected = selectedHotspotId === h.junction_id;
               return (
                 <li key={h.junction_id}>
-                  <button type="button" aria-pressed={selected} onClick={() => setSelectedHotspotId(selected ? null : h.junction_id)}
+                  <button type="button" aria-pressed={selected} onClick={() => {
+                    setSelectedIncidentId(null);
+                    setSelectedHotspotId(selected ? null : h.junction_id);
+                  }}
                     className={`w-full flex items-center gap-3.5 text-left cursor-pointer rounded-2xl ${selected ? "bg-[#F8F5EE] ring-8 ring-[#F8F5EE]" : ""}`}>
                     <span className={`w-10 h-10 rounded-full shrink-0 inline-flex items-center justify-center font-mono text-sm font-bold ${i === 0 ? "bg-[#FF5B2E] text-[#11141A]" : "bg-[#11141A] text-[#F3EFE6]"}`}>
                       {i + 1}
@@ -399,17 +434,13 @@ export function AuthorityDashboard({ showDock = true }: { showDock?: boolean }) 
               );
             })}
           </ol>
-          {selectedHotspotId && (
-            <button type="button" onClick={() => setSelectedHotspotId(null)}
+          {(selectedHotspotId || selectedIncidentId) && (
+            <button type="button" onClick={() => { setSelectedHotspotId(null); setSelectedIncidentId(null); }}
               className="mt-4 self-start text-xs font-semibold text-[#FF5B2E] hover:underline cursor-pointer">
               Clear focus
             </button>
           )}
         </section>
-      </div>
-
-      {/* Directive + delay by type */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3.5 mt-3.5">
         <section className="rounded-[36px] bg-white p-6" aria-label="Authority problem report">
           <div className="flex items-center justify-between gap-3">
             <h2 className={h2}>Problem report</h2>
@@ -457,11 +488,6 @@ export function AuthorityDashboard({ showDock = true }: { showDock?: boolean }) 
             ))}
           </div>
         </section>
-      </div>
-
-      {/* Review queue */}
-      <div id="ad-review" className="scroll-mt-6 mt-9">
-        <IncidentReviewPanel />
       </div>
 
       {/* Insights: recurrence + causes */}

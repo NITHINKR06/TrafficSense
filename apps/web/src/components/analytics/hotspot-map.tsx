@@ -47,6 +47,8 @@ type HotspotMapProps = {
   liveIncidents?: HistoricalIncident[];
   selectedHotspotId?: string | null;
   onSelectHotspot?: (id: string | null) => void;
+  selectedIncidentId?: string | null;
+  onSelectIncident?: (id: string | null) => void;
   showDemoHistory?: boolean;
   className?: string;
   heightClassName?: string;
@@ -57,6 +59,8 @@ export function HotspotMap({
   liveIncidents = [],
   selectedHotspotId = null,
   onSelectHotspot,
+  selectedIncidentId = null,
+  onSelectIncident,
   showDemoHistory = false,
   className = "",
   heightClassName = "h-[580px] sm:h-[660px] lg:h-[740px]",
@@ -64,6 +68,7 @@ export function HotspotMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MapInstance | null>(null);
   const hotspotMarkersRef = useRef<Record<string, MarkerInstance>>({});
+  const hotspotPopupsRef = useRef<Record<string, PopupInstance>>({});
   const liveMarkersRef = useRef<MarkerInstance[]>([]);
   const activePopupRef = useRef<PopupInstance | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -138,6 +143,7 @@ export function HotspotMap({
       }
       Object.values(hotspotMarkersRef.current).forEach((m) => m.remove());
       hotspotMarkersRef.current = {};
+      hotspotPopupsRef.current = {};
       liveMarkersRef.current.forEach((m) => m.remove());
       liveMarkersRef.current = [];
       if (map) {
@@ -206,6 +212,7 @@ export function HotspotMap({
     // Clean existing hotspot markers
     Object.values(hotspotMarkersRef.current).forEach((m) => m.remove());
     hotspotMarkersRef.current = {};
+    hotspotPopupsRef.current = {};
 
     void import("maplibre-gl").then(({ Marker, Popup }) => {
       if (disposed || !mapRef.current) return;
@@ -216,15 +223,11 @@ export function HotspotMap({
 
         const rankNumber = index + 1;
         const isTopHotspot = rankNumber === 1;
-        const isSelected = selectedHotspotId === h.junction_id;
 
         // Create custom DOM element for ranked marker
         const el = document.createElement("div");
         el.className = "group relative flex flex-col items-center cursor-pointer select-none transition-transform duration-200";
-        el.style.zIndex = isSelected ? "40" : isTopHotspot ? "30" : `${25 - index}`;
-        if (isSelected) {
-          el.style.transform = "scale(1.2)";
-        }
+        el.style.zIndex = isTopHotspot ? "30" : `${25 - index}`;
 
         // Outer badge
         const badge = document.createElement("div");
@@ -234,7 +237,7 @@ export function HotspotMap({
             : rankNumber <= 3
             ? "bg-amber-600 border-white ring-2 ring-amber-400/40 w-9 h-9 text-xs"
             : "bg-indigo-600 border-white w-8 h-8 text-[11px]"
-        } ${isSelected ? "ring-4 ring-primary scale-110" : ""}`;
+        }`;
         badge.innerHTML = `<span>#${rankNumber}</span>`;
 
         // Pulse ring for #1 worst hotspot
@@ -248,11 +251,8 @@ export function HotspotMap({
 
         // Junction name chip underneath
         const label = document.createElement("div");
-        label.className = `mt-1 px-2.5 py-0.5 rounded text-[11px] font-bold tracking-tight whitespace-nowrap shadow-sm border ${
-          isSelected
-            ? "bg-primary text-white border-primary"
-            : "bg-surface-container-lowest/95 text-surface-on border-surface-container hover:bg-surface-container-low"
-        }`;
+        label.className =
+          "mt-1 px-2.5 py-0.5 rounded text-[11px] font-bold tracking-tight whitespace-nowrap shadow-sm border bg-surface-container-lowest/95 text-surface-on border-surface-container hover:bg-surface-container-low";
         label.textContent = h.junction_name.split(" ")[0];
         el.appendChild(label);
 
@@ -294,18 +294,13 @@ export function HotspotMap({
         const popup = new Popup({
           offset: 28,
           closeButton: true,
+          focusAfterOpen: false,
           maxWidth: "300px",
           className: "hotspot-popup",
         }).setHTML(popupContent);
 
         el.addEventListener("click", () => {
           onSelectHotspot?.(h.junction_id);
-          if (activePopupRef.current) {
-            activePopupRef.current.remove();
-          }
-          popup.setLngLat(coords).addTo(map);
-          activePopupRef.current = popup;
-          map.flyTo({ center: coords, zoom: 15.0, duration: 600 });
         });
 
         const marker = new Marker({ element: el, anchor: "center" })
@@ -313,26 +308,33 @@ export function HotspotMap({
           .addTo(map);
 
         hotspotMarkersRef.current[h.junction_id] = marker;
-
-        // If this marker is selected, show popup
-        if (isSelected) {
-          popup.setLngLat(coords).addTo(map);
-          activePopupRef.current = popup;
-        }
+        hotspotPopupsRef.current[h.junction_id] = popup;
       });
     });
 
     return () => {
       disposed = true;
     };
-  }, [hotspots, mapReady, selectedHotspotId, showDemoHistory, onSelectHotspot]);
+  }, [hotspots, mapReady, showDemoHistory, onSelectHotspot]);
 
-  // Fly to selected hotspot if selection changed from external table click
+  // Smoothly focus selected hotspot without tearing down markers or scrolling container
   useEffect(() => {
-    if (!mapRef.current || !selectedHotspotId) return;
+    const map = mapRef.current;
+    if (!map) return;
+    if (activePopupRef.current) {
+      activePopupRef.current.remove();
+      activePopupRef.current = null;
+    }
+    if (!selectedHotspotId) return;
     const coords = HOTSPOT_GEO_COORDS[selectedHotspotId];
+    const popup = hotspotPopupsRef.current[selectedHotspotId];
     if (coords) {
-      mapRef.current.flyTo({ center: coords, zoom: 15.0, duration: 600 });
+      map.stop();
+      map.easeTo({ center: coords, zoom: 15.0, duration: 280 });
+      if (popup) {
+        popup.setLngLat(coords).addTo(map);
+        activePopupRef.current = popup;
+      }
     }
   }, [selectedHotspotId]);
 
@@ -365,7 +367,7 @@ export function HotspotMap({
         el.title = `Live report: ${inc.junction_name} (${causeLabel} · ${badgeText})`;
         el.innerHTML = `<span>${icon}</span><span class="text-[9px] px-1 rounded bg-amber-500 text-white font-mono font-bold">${badgeText}</span>`;
 
-        const popup = new Popup({ offset: 20, closeButton: true, maxWidth: "260px" }).setHTML(`
+        const popup = new Popup({ offset: 20, closeButton: true, focusAfterOpen: false, maxWidth: "260px" }).setHTML(`
           <div class="p-2.5 text-xs space-y-1">
             <p class="font-bold text-surface-on">${icon} ${causeLabel} (${badgeText})</p>
             <p class="text-surface-on-variant text-[11px]">Near ${inc.junction_name} (${lat.toFixed(4)}, ${lng.toFixed(4)})</p>
@@ -374,7 +376,13 @@ export function HotspotMap({
         `);
 
         el.addEventListener("click", () => {
+          onSelectHotspot?.(null);
+          onSelectIncident?.(selectedIncidentId === inc.id ? null : inc.id);
+          if (activePopupRef.current) {
+            activePopupRef.current.remove();
+          }
           popup.setLngLat([lng, lat]).addTo(map);
+          activePopupRef.current = popup;
         });
 
         const marker = new Marker({ element: el, anchor: "center" })
@@ -388,7 +396,21 @@ export function HotspotMap({
     return () => {
       disposed = true;
     };
-  }, [liveIncidents, mapReady, showLivePins]);
+  }, [liveIncidents, mapReady, showLivePins, onSelectHotspot, onSelectIncident, selectedIncidentId]);
+
+  // Ease map to selected live incident when selected from Review Queue or map pin
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !selectedIncidentId) return;
+    const inc = liveIncidents.find((i) => i.id === selectedIncidentId);
+    if (!inc) return;
+    const hasExactCoords = typeof inc.lng === "number" && Number.isFinite(inc.lng) && typeof inc.lat === "number" && Number.isFinite(inc.lat);
+    const jCoords = HOTSPOT_GEO_COORDS[inc.junction_id];
+    const lng = hasExactCoords ? inc.lng! : (jCoords ? jCoords[0] : 74.848);
+    const lat = hasExactCoords ? inc.lat! : (jCoords ? jCoords[1] : 12.875);
+    map.stop();
+    map.easeTo({ center: [lng, lat], zoom: 15.2, duration: 280 });
+  }, [selectedIncidentId, liveIncidents]);
 
   const glass = "bg-white/[.86] backdrop-blur-[18px] backdrop-saturate-[1.7] shadow-[0_8px_22px_rgba(17,20,26,0.12)]";
   const flyTo = (id: string) => {
@@ -399,6 +421,10 @@ export function HotspotMap({
 
   return (
     <div
+      onScroll={(e) => {
+        if (e.currentTarget.scrollTop !== 0) e.currentTarget.scrollTop = 0;
+        if (e.currentTarget.scrollLeft !== 0) e.currentTarget.scrollLeft = 0;
+      }}
       className={`relative overflow-hidden transition-all duration-300 ${
         isFullscreen
           ? "fixed inset-0 z-50 w-screen h-screen bg-[#ECE6D8] m-0 p-0"
