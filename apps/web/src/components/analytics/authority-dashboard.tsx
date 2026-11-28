@@ -100,18 +100,18 @@ const heatColor = (count: number, max: number) => {
   return t <= 0.34 ? "#F4DCCD" : t <= 0.67 ? "#F7A27F" : "#FF5B2E";
 };
 
-type SectionId = "overview" | "hotspots" | "review" | "insights" | "log";
+type DashboardTab = "operations" | "analytics" | "audit";
 
 /* ───────────── component ───────────── */
 
-export function AuthorityDashboard({ showDock = true }: { showDock?: boolean }) {
+export function AuthorityDashboard() {
   const [selectedMonth, setSelectedMonth] = useState("all");
   const [selectedJunction, setSelectedJunction] = useState("all");
   const [showDemoHistory, setShowDemoHistory] = useState(false);
   const [selectedHotspotId, setSelectedHotspotId] = useState<string | null>(null);
   const [selectedIncidentId, setSelectedIncidentId] = useState<string | null>(null);
   const [liveIncidents, setLiveIncidents] = useState<HistoricalIncident[]>([]);
-  const [active, setActive] = useState<SectionId>("overview");
+  const [activeTab, setActiveTab] = useState<DashboardTab>("operations");
 
   const refreshLiveIncidents = useCallback(() => {
     return fetch("/api/incidents", { cache: "no-store" })
@@ -171,24 +171,6 @@ export function AuthorityDashboard({ showDock = true }: { showDock?: boolean }) 
     };
   }, [refreshLiveIncidents]);
 
-  // Scroll-spy for the dock
-  useEffect(() => {
-    const ids: SectionId[] = ["overview", "hotspots", "review", "insights", "log"];
-    const io = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) if (e.isIntersecting) setActive(e.target.id.replace("ad-", "") as SectionId);
-      },
-      { rootMargin: "-35% 0px -55% 0px" },
-    );
-    ids.forEach((id) => {
-      const el = document.getElementById(`ad-${id}`);
-      if (el) io.observe(el);
-    });
-    return () => io.disconnect();
-  }, []);
-
-  const goTo = (id: SectionId) => document.getElementById(`ad-${id}`)?.scrollIntoView({ behavior: "smooth", block: "start" });
-
   const activeSource = useMemo(
     () => (showDemoHistory ? [...liveIncidents, ...HISTORICAL_INCIDENTS] : liveIncidents),
     [showDemoHistory, liveIncidents],
@@ -234,93 +216,111 @@ export function AuthorityDashboard({ showDock = true }: { showDock?: boolean }) 
     new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Kolkata", day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23" })
       .format(new Date(iso)).replace(", ", " · ");
 
-  /* ───────────── dock ───────────── */
+  /* ───────────── tabs & header ───────────── */
 
-  const dockTab = (id: SectionId, label: string, icon: ReactNode) => {
-    const on = active === id;
-    return (
-      <button key={id} type="button" aria-label={label} aria-current={on ? "true" : undefined} onClick={() => goTo(id)}
-        className={`h-14 pl-[15px] pr-[18px] rounded-full inline-flex items-center justify-center gap-2 cursor-pointer shrink-0 ${
-          on ? "bg-[#11141A] text-[#F3EFE6]" : "bg-transparent text-[#11141A] hover:bg-white/60"
-        }`}>
-        {icon}
-        <span className={`text-[13px] font-semibold tracking-[0.01em] ${on ? "" : "hidden md:inline"}`}>{label}</span>
-      </button>
-    );
-  };
-
-  const dock = (
-    <div className="fixed inset-x-0 bottom-[22px] z-40 flex justify-center px-4 pointer-events-none">
-      <nav aria-label="Authority sections"
-        className="ad-dock pointer-events-auto h-[76px] p-2 gap-1.5 rounded-full flex items-center bg-white/60 backdrop-blur-[24px] backdrop-saturate-[1.7] border border-white/75 shadow-[0_14px_34px_rgba(17,20,26,0.20)]">
-        {dockTab("overview", "Overview", <Ico><rect width="7" height="9" x="3" y="3" rx="1.5" /><rect width="7" height="5" x="14" y="3" rx="1.5" /><rect width="7" height="9" x="14" y="12" rx="1.5" /><rect width="7" height="5" x="3" y="16" rx="1.5" /></Ico>)}
-        {dockTab("hotspots", "Hotspots", <MapIcon size={22} className="shrink-0" />)}
-        <button type="button" aria-label="Review" onClick={() => goTo("review")}
-          className="relative w-[62px] h-[62px] mx-1 rounded-full bg-[#FF5B2E] text-[#11141A] inline-flex items-center justify-center cursor-pointer shrink-0 shadow-[0_8px_18px_rgba(255,91,46,0.45)]">
-          <Ico size={26}><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" /><path d="M9 12l2 2 4-4" /></Ico>
-          {liveIncidents.length > 0 && (
-            <span className="absolute -top-[5px] -right-[3px] h-5 min-w-5 px-1 rounded-[10px] border-2 border-[#F3EFE6] bg-[#11141A] text-[#D5F75A] text-[11px] font-semibold inline-flex items-center justify-center">
-              {liveIncidents.length}
-            </span>
-          )}
-        </button>
-        {dockTab("insights", "Insights", <Ico><path d="M3 3v18h18" /><path d="M7 15l4-4 3 3 5-6" /></Ico>)}
-        {dockTab("log", "Log", <Ico><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></Ico>)}
-      </nav>
-    </div>
-  );
-
-  /* ───────────── page ───────────── */
+  const TABS: { id: DashboardTab; label: string; badge?: number }[] = [
+    { id: "operations", label: "Live Operations", badge: liveIncidents.length },
+    { id: "analytics", label: "Corridor Analytics" },
+    { id: "audit", label: "Audit & Timeline", badge: data.incidents.length },
+  ];
 
   return (
-    <div className="ad-shell w-full max-w-[1360px] mx-auto font-[family-name:var(--font-body)] text-[#11141A]">
+    <div className="ad-shell w-full font-[family-name:var(--font-body)] text-[#11141A] pb-16">
       <style>{CSS}</style>
 
-      {/* Header */}
-      <div id="ad-overview" className="scroll-mt-6 flex flex-wrap items-end justify-between gap-5">
-        <div>
-          <span className="h-[30px] px-3 rounded-full bg-[#11141A] text-[#D5F75A] inline-flex items-center gap-2 font-mono text-[11px] font-semibold tracking-[0.08em]">
-            <Ico size={14}><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z" /></Ico>
-            CIVIC AUTHORITY
-          </span>
-          <h1 className="font-display font-bold text-5xl lg:text-[56px] leading-[0.95] tracking-[-0.04em] mt-3.5 mb-0 ad-rise">
-            Control room<span className="text-[#FF5B2E]">.</span>
-          </h1>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2.5">
-          <label className="relative inline-flex items-center">
-            <span className="sr-only">Analysis window</span>
-            <ClockIcon size={18} className="absolute left-[22px] pointer-events-none shrink-0" />
-            <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}
-              className={`${pillBtn} appearance-none pl-[50px] pr-6 border-0 focus:outline-none focus:ring-2 focus:ring-[#11141A]`}>
-              <option value="all">All months</option>
-              <option value="2026-07">July 2026</option>
-              <option value="2026-08">August 2026</option>
-              <option value="2026-09">September 2026</option>
-              <option value="2026-10">October 2026</option>
-            </select>
-          </label>
-
-          <div role="group" aria-label="Data source" className="h-12 p-1 rounded-full bg-white inline-flex">
-            {([false, true] as const).map((v) => (
-              <button key={String(v)} type="button" aria-pressed={showDemoHistory === v} onClick={() => setShowDemoHistory(v)}
-                className={`px-4 rounded-full text-[13px] font-semibold cursor-pointer ${showDemoHistory === v ? "bg-[#11141A] text-[#F3EFE6]" : "text-[#4A505C] hover:text-[#11141A]"}`}>
-                {v ? "Live + simulated" : "Live only"}
-              </button>
-            ))}
+      {/* Unified Control Room Command Bar */}
+      <div className="rounded-[28px] bg-white/90 backdrop-blur-xl border border-[#E8E2D3] shadow-[0_10px_30px_rgba(17,20,26,0.06)] p-4 sm:p-5 flex flex-col gap-4">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-col gap-1.5">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full bg-[#F3EFE6] border border-[#E3DDCE] font-mono text-[10px] font-bold tracking-[0.08em] text-[#11141A]">
+                <span className="w-2 h-2 rounded-full bg-[#FF5B2E] animate-pulse" aria-hidden="true" />
+                CIVIC AUTHORITY
+              </span>
+              <span className="font-mono text-[10px] font-semibold tracking-[0.08em] text-[#4A505C] uppercase">
+                Mangaluru Corridor Dispatch
+              </span>
+            </div>
+            <h1 className="font-display font-bold text-5xl lg:text-[56px] leading-[0.95] tracking-[-0.04em] m-0">
+              Control room<span className="text-[#FF5B2E]">.</span>
+            </h1>
           </div>
 
-          <button type="button" aria-label="Refresh" title="Refresh live incident records" onClick={() => void refreshLiveIncidents()}
-            className="w-12 h-12 rounded-full bg-white text-[#11141A] inline-flex items-center justify-center cursor-pointer">
-            <RefreshIcon size={20} className="shrink-0" />
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="relative inline-flex items-center">
+              <span className="sr-only">Analysis window</span>
+              <ClockIcon size={16} className="absolute left-3.5 pointer-events-none shrink-0 text-[#4A505C]" />
+              <select value={selectedMonth} onChange={(e) => setSelectedMonth(e.target.value)}
+                className="h-10 rounded-full bg-[#F3EFE6] text-[#11141A] text-[13px] font-semibold pl-9 pr-5 border border-[#E3DDCE] focus:outline-none focus:ring-2 focus:ring-[#11141A] cursor-pointer">
+                <option value="all">All months</option>
+                <option value="2026-07">July 2026</option>
+                <option value="2026-08">August 2026</option>
+                <option value="2026-09">September 2026</option>
+                <option value="2026-10">October 2026</option>
+              </select>
+            </label>
 
-          <button type="button" onClick={exportCsv}
-            className={`${pillBtn} !bg-[#11141A] !text-[#F3EFE6] hover:!bg-[#2A303C]`}>
-            <Ico size={18}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></Ico>
-            Export CSV
-          </button>
+            <div role="group" aria-label="Data source" className="h-10 p-1 rounded-full bg-[#F3EFE6] border border-[#E3DDCE] inline-flex">
+              {([false, true] as const).map((v) => (
+                <button key={String(v)} type="button" aria-pressed={showDemoHistory === v} onClick={() => setShowDemoHistory(v)}
+                  className={`px-3.5 rounded-full text-[12px] font-semibold cursor-pointer transition ${showDemoHistory === v ? "bg-[#11141A] text-[#F3EFE6] shadow-sm" : "text-[#4A505C] hover:text-[#11141A]"}`}>
+                  {v ? "Live + simulated" : "Live only"}
+                </button>
+              ))}
+            </div>
+
+            <button type="button" aria-label="Refresh" title="Refresh live incident records" onClick={() => void refreshLiveIncidents()}
+              className="w-10 h-10 rounded-full bg-[#F3EFE6] border border-[#E3DDCE] text-[#11141A] inline-flex items-center justify-center hover:bg-[#E8E2D3] cursor-pointer">
+              <RefreshIcon size={17} className="shrink-0" />
+            </button>
+
+            <button type="button" onClick={exportCsv}
+              className="h-10 px-4 rounded-full bg-[#11141A] text-[#F3EFE6] text-[13px] font-semibold inline-flex items-center gap-2 hover:bg-[#2A303C] cursor-pointer">
+              <Ico size={16}><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" /></Ico>
+              Export CSV
+            </button>
+          </div>
+        </div>
+
+        {/* Segmented Dashboard Navigation Tabs */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-[#EEE9DC]">
+          <div role="tablist" aria-label="Control room views" className="p-1 rounded-full bg-[#F3EFE6] border border-[#E3DDCE] inline-flex flex-wrap items-center gap-1">
+            {TABS.map((tab) => {
+              const active = activeTab === tab.id;
+              return (
+                <button
+                  key={tab.id}
+                  role="tab"
+                  type="button"
+                  aria-selected={active}
+                  onClick={() => {
+                    setActiveTab(tab.id);
+                    if (tab.id === "operations") {
+                      setTimeout(() => window.dispatchEvent(new Event("resize")), 40);
+                    }
+                  }}
+                  className={`h-9 px-4 rounded-full text-[13px] font-semibold inline-flex items-center gap-2 cursor-pointer transition ${
+                    active
+                      ? "bg-[#11141A] text-[#F3EFE6] shadow-[0_4px_12px_rgba(17,20,26,0.16)]"
+                      : "text-[#4A505C] hover:text-[#11141A] hover:bg-white/60"
+                  }`}
+                >
+                  <span>{tab.label}</span>
+                  {typeof tab.badge === "number" && (
+                    <span className={`h-5 min-w-5 px-1.5 rounded-full font-mono text-[10px] font-bold inline-flex items-center justify-center ${
+                      active ? "bg-[#D5F75A] text-[#11141A]" : "bg-white text-[#11141A]"
+                    }`}>
+                      {tab.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+
+          <span className="font-mono text-[11px] font-medium text-[#4A505C] hidden sm:inline">
+            Auto-syncing every 5s · Click map pin or card to focus
+          </span>
         </div>
       </div>
 
@@ -331,270 +331,275 @@ export function AuthorityDashboard({ showDock = true }: { showDock?: boolean }) 
         </div>
       )}
 
-      {/* KPI row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mt-7">
-        <div className="rounded-[32px] p-[22px] h-[150px] bg-[#11141A] text-[#F3EFE6] flex flex-col justify-between ad-rise">
-          <div className={`${mono} text-[#B9BDC6]`}>Incidents</div>
-          <div className="font-display font-bold text-[72px] leading-[0.9] tracking-[-0.05em] text-[#D5F75A]">{data.total_incidents}</div>
+      {/* TAB 1: LIVE OPERATIONS (Full-width Map + Review Queue Side-by-Side) */}
+      <div className={activeTab === "operations" ? "mt-4 grid grid-cols-1 xl:grid-cols-12 gap-4 items-stretch" : "hidden"}>
+        <div className="xl:col-span-8 min-w-0">
+          <HotspotMap
+            hotspots={data.hotspots}
+            liveIncidents={data.incidents}
+            selectedHotspotId={selectedHotspotId}
+            onSelectHotspot={(id) => {
+              setSelectedIncidentId(null);
+              setSelectedHotspotId(id);
+            }}
+            selectedIncidentId={selectedIncidentId}
+            onSelectIncident={(id) => {
+              setSelectedHotspotId(null);
+              setSelectedIncidentId(id);
+            }}
+            showDemoHistory={showDemoHistory}
+            heightClassName="h-[540px] xl:h-[calc(100dvh-295px)] min-h-[540px]"
+          />
         </div>
 
-        <div className="rounded-[32px] p-[22px] h-[150px] flex flex-col justify-between ad-rise"
-          style={{ background: "repeating-linear-gradient(135deg,#fff 0 12px,#F6F2E8 12px 24px)" }}>
-          <div className={`${mono} text-[#4A505C]`}>Commuter delay</div>
-          {showDemoHistory ? (
-            <div className="font-display font-bold text-[34px] leading-none tracking-[-0.03em]">{data.total_delay_hours}<span className="text-lg text-[#4A505C]"> hrs</span></div>
-          ) : (
-            <div className="font-display font-bold text-[34px] leading-none tracking-[-0.03em] text-[#B8400F]">Not measured</div>
-          )}
-        </div>
-
-        <button type="button" onClick={() => { const t = data.hotspots[0]?.junction_id; if (t) { setSelectedHotspotId(t); goTo("hotspots"); } }}
-          title="Locate on map"
-          className="rounded-[32px] p-[22px] h-[150px] bg-[#FF5B2E] text-[#11141A] flex flex-col justify-between text-left cursor-pointer ad-rise">
-          <div className={mono}>Top hotspot · #1</div>
-          <div className="font-display font-bold text-[40px] leading-none tracking-[-0.035em] truncate w-full">{data.top_hotspot || "—"}</div>
-        </button>
-
-        <div className="rounded-[32px] p-[22px] h-[150px] bg-white flex flex-col justify-between ad-rise">
-          <div className={`${mono} text-[#4A505C]`}>Top cause</div>
-          <div className="flex items-center gap-3 font-display font-bold text-[34px] leading-none tracking-[-0.03em] capitalize">
-            <AlertTriangleIcon size={34} className="shrink-0 text-[#FF5B2E]" />
-            <span className="truncate">{cleanCause(data.primary_cause) || "—"}</span>
-          </div>
+        <div className="xl:col-span-4 min-w-0 xl:h-[calc(100dvh-295px)] min-h-[540px] flex flex-col rounded-[32px] bg-[#FAF7F0] border border-[#E8E2D3] p-4 sm:p-5 overflow-hidden">
+          <IncidentReviewPanel
+            selectedIncidentId={selectedIncidentId}
+            selectedHotspotId={selectedHotspotId}
+            onSelectIncident={(id) => {
+              setSelectedHotspotId(null);
+              setSelectedIncidentId(id);
+            }}
+            onClearSelection={() => {
+              setSelectedHotspotId(null);
+              setSelectedIncidentId(null);
+            }}
+            layoutMode="sidebar"
+            showTimeline={false}
+          />
         </div>
       </div>
 
-      {/* Full-width Control Room Map */}
-      <div id="ad-hotspots" className="scroll-mt-6 mt-3.5">
-        <HotspotMap
-          hotspots={data.hotspots}
-          liveIncidents={data.incidents}
-          selectedHotspotId={selectedHotspotId}
-          onSelectHotspot={(id) => {
-            setSelectedIncidentId(null);
-            setSelectedHotspotId(id);
-          }}
-          selectedIncidentId={selectedIncidentId}
-          onSelectIncident={(id) => {
-            setSelectedHotspotId(null);
-            setSelectedIncidentId(id);
-          }}
-          showDemoHistory={showDemoHistory}
-          heightClassName="h-[68dvh] min-h-[620px] lg:h-[780px]"
-        />
-      </div>
-
-      {/* Review queue (placed directly below the map; dims non-matching cards when map/report is focused) */}
-      <div id="ad-review" className="scroll-mt-6 mt-6">
-        <IncidentReviewPanel
-          selectedIncidentId={selectedIncidentId}
-          selectedHotspotId={selectedHotspotId}
-          onSelectIncident={(id) => {
-            setSelectedHotspotId(null);
-            setSelectedIncidentId(id);
-          }}
-          onClearSelection={() => {
-            setSelectedHotspotId(null);
-            setSelectedIncidentId(null);
-          }}
-        />
-      </div>
-
-      {/* Hotspot ranking + Directive + Delay by type */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-3.5 mt-6">
-        <section className="rounded-[36px] bg-white p-6 flex flex-col" aria-label="Hotspot ranking">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className={h2}>Hotspot ranking</h2>
-            <span className={`${mono} text-[#4A505C]`}>{showDemoHistory ? "By delay hrs" : "By events"}</span>
-          </div>
-          <ol className="list-none m-0 p-0 mt-5 flex flex-col gap-[18px] overflow-y-auto flex-1">
-            {data.hotspots.length === 0 && <li className="text-sm text-[#4A505C] py-8 text-center">No incidents in this window.</li>}
-            {data.hotspots.map((h, i) => {
-              const selected = selectedHotspotId === h.junction_id;
-              return (
-                <li key={h.junction_id}>
-                  <button type="button" aria-pressed={selected} onClick={() => {
-                    setSelectedIncidentId(null);
-                    setSelectedHotspotId(selected ? null : h.junction_id);
-                  }}
-                    className={`w-full flex items-center gap-3.5 text-left cursor-pointer rounded-2xl ${selected ? "bg-[#F8F5EE] ring-8 ring-[#F8F5EE]" : ""}`}>
-                    <span className={`w-10 h-10 rounded-full shrink-0 inline-flex items-center justify-center font-mono text-sm font-bold ${i === 0 ? "bg-[#FF5B2E] text-[#11141A]" : "bg-[#11141A] text-[#F3EFE6]"}`}>
-                      {i + 1}
-                    </span>
-                    <span className="flex-1 min-w-0">
-                      <span className="block text-[17px] font-semibold truncate">{h.junction_name}</span>
-                      <span className="block h-2 mt-2 rounded bg-[#EFEADD] overflow-hidden">
-                        <span className={`block h-full rounded ${i === 0 ? "bg-[#FF5B2E]" : "bg-[#11141A]"}`}
-                          style={{ width: `${Math.max(6, (metric(h) / metricMax) * 100)}%` }} />
-                      </span>
-                    </span>
-                    <span className="font-display font-bold text-[26px] tracking-[-0.02em]">{metric(h)}</span>
-                  </button>
-                </li>
-              );
-            })}
-          </ol>
-          {(selectedHotspotId || selectedIncidentId) && (
-            <button type="button" onClick={() => { setSelectedHotspotId(null); setSelectedIncidentId(null); }}
-              className="mt-4 self-start text-xs font-semibold text-[#FF5B2E] hover:underline cursor-pointer">
-              Clear focus
-            </button>
-          )}
-        </section>
-        <section className="rounded-[36px] bg-white p-6" aria-label="Authority problem report">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className={h2}>Problem report</h2>
-            <span className={`${mono} text-[#4A505C]`}>Advisory</span>
-          </div>
-          <dl className="grid grid-cols-2 gap-2.5 mt-5 mb-0">
-            {[
-              ["Priority corridor", data.top_hotspot || "—", true],
-              ["Reported cause", cleanCause(data.primary_cause) || "—", true],
-              ["Recurrence", showDemoHistory ? recurrenceStatement : "Live-only records; collect a longer time window.", false],
-              ["Delay evidence", showDemoHistory ? `${data.total_delay_hours} hrs observed` : "Not measured for live reports", false],
-            ].map(([label, value, big]) => (
-              <div key={label as string} className="rounded-[22px] bg-[#F3EFE6] p-4">
-                <dt className={`${mono} !text-[10px] text-[#4A505C]`}>{label}</dt>
-                <dd className={`m-0 mt-1.5 ${big ? "font-display font-bold text-xl capitalize tracking-[-0.02em]" : "text-[13px] font-semibold leading-snug"} ${!big && String(value).startsWith("Not") ? "text-[#B8400F]" : ""}`}>
-                  {value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-          <div className="mt-3 rounded-[22px] bg-[#F3EFE6] border-l-4 border-[#FF5B2E] px-4 py-3.5">
-            <div className={`${mono} !text-[10px] text-[#FF5B2E]`}>Suggested investigation</div>
-            <p className="text-sm text-[#4A505C] m-0 mt-1 leading-relaxed">{investigation}</p>
-          </div>
-        </section>
-
-        <section className="rounded-[36px] bg-white p-6" aria-label="Delay by incident type">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className={h2}>Delay by type</h2>
-            <span className={`${mono} text-[#4A505C]`}>{causeDelaySummary.length} causes</span>
-          </div>
-          <div className="mt-4">
-            <div className={`grid grid-cols-[1.6fr_1fr_1fr] gap-3.5 pb-2 border-b border-[#EEE9DC] ${mono} !text-[10px] text-[#4A505C]`}>
-              <span>Cause</span><span className="text-right">Incidents</span><span className="text-right">Delay hrs</span>
+      {/* TAB 2: CORRIDOR ANALYTICS */}
+      {activeTab === "analytics" && (
+        <div className="mt-5 space-y-5">
+          {/* KPI row */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
+            <div className="rounded-[32px] p-[22px] h-[150px] bg-[#11141A] text-[#F3EFE6] flex flex-col justify-between">
+              <div className={`${mono} text-[#B9BDC6]`}>Incidents</div>
+              <div className="font-display font-bold text-[72px] leading-[0.9] tracking-[-0.05em] text-[#D5F75A]">{data.total_incidents}</div>
             </div>
-            {causeDelaySummary.length === 0 && <p className="text-sm text-[#4A505C] py-6 text-center m-0">No data in this window.</p>}
-            {causeDelaySummary.map((row) => (
-              <div key={row.cause} className="grid grid-cols-[1.6fr_1fr_1fr] gap-3.5 items-center h-[54px] border-b border-[#EEE9DC] last:border-0 text-[15px]">
-                <span className="font-semibold truncate">{row.label}</span>
-                <span className="text-right font-mono font-semibold text-[13px]">{row.count}</span>
-                <span className={`text-right font-semibold ${showDemoHistory ? "" : "text-[#B8400F] text-[13px]"}`}>
-                  {showDemoHistory ? row.total_delay_hours : "Not measured"}
-                </span>
+
+            <div className="rounded-[32px] p-[22px] h-[150px] flex flex-col justify-between"
+              style={{ background: "repeating-linear-gradient(135deg,#fff 0 12px,#F6F2E8 12px 24px)" }}>
+              <div className={`${mono} text-[#4A505C]`}>Commuter delay</div>
+              {showDemoHistory ? (
+                <div className="font-display font-bold text-[34px] leading-none tracking-[-0.03em]">{data.total_delay_hours}<span className="text-lg text-[#4A505C]"> hrs</span></div>
+              ) : (
+                <div className="font-display font-bold text-[34px] leading-none tracking-[-0.03em] text-[#B8400F]">Not measured</div>
+              )}
+            </div>
+
+            <button type="button" onClick={() => { const t = data.hotspots[0]?.junction_id; if (t) { setSelectedHotspotId(t); setActiveTab("operations"); } }}
+              title="Locate on map"
+              className="rounded-[32px] p-[22px] h-[150px] bg-[#FF5B2E] text-[#11141A] flex flex-col justify-between text-left cursor-pointer">
+              <div className={mono}>Top hotspot · #1</div>
+              <div className="font-display font-bold text-[40px] leading-none tracking-[-0.035em] truncate w-full">{data.top_hotspot || "—"}</div>
+            </button>
+
+            <div className="rounded-[32px] p-[22px] h-[150px] bg-white flex flex-col justify-between">
+              <div className={`${mono} text-[#4A505C]`}>Top cause</div>
+              <div className="flex items-center gap-3 font-display font-bold text-[34px] leading-none tracking-[-0.03em] capitalize">
+                <AlertTriangleIcon size={34} className="shrink-0 text-[#FF5B2E]" />
+                <span className="truncate">{cleanCause(data.primary_cause) || "—"}</span>
               </div>
-            ))}
-          </div>
-        </section>
-      </div>
-
-      {/* Insights: recurrence + causes */}
-      <div id="ad-insights" className="scroll-mt-6 flex flex-wrap gap-3.5 mt-9">
-        <section className="flex-[3_1_620px] min-w-0 rounded-[36px] bg-white p-6" aria-label="Recurrence heatmap">
-          <div className="flex items-center justify-between gap-3">
-            <h2 className={h2}>Recurrence</h2>
-            <span className={`${mono} text-[#4A505C]`}>Simulated baseline</span>
+            </div>
           </div>
 
-          {activeSlots.length === 0 ? (
-            <p className="text-sm text-[#4A505C] text-center py-12 m-0">No incidents in this window yet.</p>
-          ) : (
-            <div className="overflow-x-auto mt-[18px]">
-              <div className="grid items-center gap-[5px]"
-                style={{ gridTemplateColumns: `44px repeat(${activeSlots.length}, minmax(30px,1fr))`, minWidth: 44 + activeSlots.length * 35 }}>
-                <div />
-                {activeSlots.map((slot) => (
-                  <div key={slot} className="font-mono text-[10px] font-semibold text-[#4A505C] text-center">{slot}</div>
+          {/* Hotspot ranking + Problem report + Delay by type */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+            <section className="rounded-[36px] bg-white p-6 flex flex-col" aria-label="Hotspot ranking">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className={h2}>Hotspot ranking</h2>
+                <span className={`${mono} text-[#4A505C]`}>{showDemoHistory ? "By delay hrs" : "By events"}</span>
+              </div>
+              <ol className="list-none m-0 p-0 mt-5 flex flex-col gap-[18px] overflow-y-auto flex-1">
+                {data.hotspots.length === 0 && <li className="text-sm text-[#4A505C] py-8 text-center">No incidents in this window.</li>}
+                {data.hotspots.map((h, i) => {
+                  const selected = selectedHotspotId === h.junction_id;
+                  return (
+                    <li key={h.junction_id}>
+                      <button type="button" aria-pressed={selected} onClick={() => {
+                        setSelectedIncidentId(null);
+                        setSelectedHotspotId(selected ? null : h.junction_id);
+                        setActiveTab("operations");
+                      }}
+                        className={`w-full flex items-center gap-3.5 text-left cursor-pointer rounded-2xl ${selected ? "bg-[#F8F5EE] ring-8 ring-[#F8F5EE]" : ""}`}>
+                        <span className={`w-10 h-10 rounded-full shrink-0 inline-flex items-center justify-center font-mono text-sm font-bold ${i === 0 ? "bg-[#FF5B2E] text-[#11141A]" : "bg-[#11141A] text-[#F3EFE6]"}`}>
+                          {i + 1}
+                        </span>
+                        <span className="flex-1 min-w-0">
+                          <span className="block text-[17px] font-semibold truncate">{h.junction_name}</span>
+                          <span className="block h-2 mt-2 rounded bg-[#EFEADD] overflow-hidden">
+                            <span className={`block h-full rounded ${i === 0 ? "bg-[#FF5B2E]" : "bg-[#11141A]"}`}
+                              style={{ width: `${Math.max(6, (metric(h) / metricMax) * 100)}%` }} />
+                          </span>
+                        </span>
+                        <span className="font-display font-bold text-[26px] tracking-[-0.02em]">{metric(h)}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ol>
+            </section>
+
+            <section className="rounded-[36px] bg-white p-6" aria-label="Authority problem report">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className={h2}>Problem report</h2>
+                <span className={`${mono} text-[#4A505C]`}>Advisory</span>
+              </div>
+              <dl className="grid grid-cols-2 gap-2.5 mt-5 mb-0">
+                {[
+                  ["Priority corridor", data.top_hotspot || "—", true],
+                  ["Reported cause", cleanCause(data.primary_cause) || "—", true],
+                  ["Recurrence", showDemoHistory ? recurrenceStatement : "Live-only records; collect a longer time window.", false],
+                  ["Delay evidence", showDemoHistory ? `${data.total_delay_hours} hrs observed` : "Not measured for live reports", false],
+                ].map(([label, value, big]) => (
+                  <div key={label as string} className="rounded-[22px] bg-[#F3EFE6] p-4">
+                    <dt className={`${mono} !text-[10px] text-[#4A505C]`}>{label}</dt>
+                    <dd className={`m-0 mt-1.5 ${big ? "font-display font-bold text-xl capitalize tracking-[-0.02em]" : "text-[13px] font-semibold leading-snug"} ${!big && String(value).startsWith("Not") ? "text-[#B8400F]" : ""}`}>
+                      {value}
+                    </dd>
+                  </div>
                 ))}
-                {DAY_LABELS.map((label, d) => (
-                  <div key={label} className="contents">
-                    <div className="font-mono text-[11px] font-semibold text-[#4A505C]">{label}</div>
-                    {activeSlots.map((slot) => {
-                      const count = (heatmap[d]?.[slot] ?? 0) as number;
-                      return (
-                        <div key={slot} title={`${label} ${slot}: ${count} incident${count !== 1 ? "s" : ""}`}
-                          className="h-7 rounded-lg flex items-center justify-center font-mono text-[10px] font-bold"
-                          style={{ background: heatColor(count, heatMax), color: count / heatMax > 0.67 ? "#11141A" : "#4A505C" }}>
-                          {count > 0 ? count : ""}
-                        </div>
-                      );
-                    })}
+              </dl>
+              <div className="mt-3 rounded-[22px] bg-[#F3EFE6] border-l-4 border-[#FF5B2E] px-4 py-3.5">
+                <div className={`${mono} !text-[10px] text-[#FF5B2E]`}>Suggested investigation</div>
+                <p className="text-sm text-[#4A505C] m-0 mt-1 leading-relaxed">{investigation}</p>
+              </div>
+            </section>
+
+            <section className="rounded-[36px] bg-white p-6" aria-label="Delay by incident type">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className={h2}>Delay by type</h2>
+                <span className={`${mono} text-[#4A505C]`}>{causeDelaySummary.length} causes</span>
+              </div>
+              <div className="mt-4">
+                <div className={`grid grid-cols-[1.6fr_1fr_1fr] gap-3.5 pb-2 border-b border-[#EEE9DC] ${mono} !text-[10px] text-[#4A505C]`}>
+                  <span>Cause</span><span className="text-right">Incidents</span><span className="text-right">Delay hrs</span>
+                </div>
+                {causeDelaySummary.length === 0 && <p className="text-sm text-[#4A505C] py-6 text-center m-0">No data in this window.</p>}
+                {causeDelaySummary.map((row) => (
+                  <div key={row.cause} className="grid grid-cols-[1.6fr_1fr_1fr] gap-3.5 items-center h-[54px] border-b border-[#EEE9DC] last:border-0 text-[15px]">
+                    <span className="font-semibold truncate">{row.label}</span>
+                    <span className="text-right font-mono font-semibold text-[13px]">{row.count}</span>
+                    <span className={`text-right font-semibold ${showDemoHistory ? "" : "text-[#B8400F] text-[13px]"}`}>
+                      {showDemoHistory ? row.total_delay_hours : "Not measured"}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+
+          {/* Insights: recurrence + causes */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <section className="lg:col-span-7 min-w-0 rounded-[36px] bg-white p-6" aria-label="Recurrence heatmap">
+              <div className="flex items-center justify-between gap-3">
+                <h2 className={h2}>Recurrence</h2>
+                <span className={`${mono} text-[#4A505C]`}>Simulated baseline</span>
+              </div>
+
+              {activeSlots.length === 0 ? (
+                <p className="text-sm text-[#4A505C] text-center py-12 m-0">No incidents in this window yet.</p>
+              ) : (
+                <div className="overflow-x-auto mt-[18px]">
+                  <div className="grid items-center gap-[5px]"
+                    style={{ gridTemplateColumns: `44px repeat(${activeSlots.length}, minmax(30px,1fr))`, minWidth: 44 + activeSlots.length * 35 }}>
+                    <div />
+                    {activeSlots.map((slot) => (
+                      <div key={slot} className="font-mono text-[10px] font-semibold text-[#4A505C] text-center">{slot}</div>
+                    ))}
+                    {DAY_LABELS.map((label, d) => (
+                      <div key={label} className="contents">
+                        <div className="font-mono text-[11px] font-semibold text-[#4A505C]">{label}</div>
+                        {activeSlots.map((slot) => {
+                          const count = (heatmap[d]?.[slot] ?? 0) as number;
+                          return (
+                            <div key={slot} title={`${label} ${slot}: ${count} incident${count !== 1 ? "s" : ""}`}
+                              className="h-7 rounded-lg flex items-center justify-center font-mono text-[10px] font-bold"
+                              style={{ background: heatColor(count, heatMax), color: count / heatMax > 0.67 ? "#11141A" : "#4A505C" }}>
+                              {count > 0 ? count : ""}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-5 pt-5 border-t border-[#EEE9DC] flex flex-wrap items-center gap-3">
+                <label htmlFor="junction-select" className={`${mono} !text-[10px] text-[#4A505C]`}>For</label>
+                <select id="junction-select" value={selectedJunction} onChange={(e) => setSelectedJunction(e.target.value)}
+                  className="h-10 rounded-full bg-[#F3EFE6] px-4 text-[13px] font-semibold border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#11141A]">
+                  <option value="all">All corridors</option>
+                  {MANGALURU_JUNCTIONS.map((j) => (<option key={j.id} value={j.id}>{j.name}</option>))}
+                </select>
+                <p className="basis-full text-sm font-semibold m-0 rounded-[22px] bg-[#F3EFE6] border-l-4 border-[#FF5B2E] px-4 py-3">
+                  {recurrenceStatement}
+                </p>
+                <p className="basis-full text-[11px] text-[#4A505C] m-0">Computed from synthetic incident timestamps in Asia/Kolkata. Decision support only.</p>
+              </div>
+            </section>
+
+            <section className="lg:col-span-5 min-w-0 rounded-[36px] bg-[#11141A] text-[#F3EFE6] p-6" aria-label="Cause distribution">
+              <h2 className={`${h2} !text-[#F3EFE6]`}>Causes</h2>
+              <div className="flex flex-col gap-4 mt-[18px]">
+                {data.cause_mix.length === 0 && <p className="text-sm text-[#B9BDC6] m-0">No data in this window.</p>}
+                {data.cause_mix.map((c) => (
+                  <div key={c.cause}>
+                    <div className="flex justify-between text-[15px] font-semibold">
+                      <span>{c.label}</span>
+                      <span className="font-mono text-[#D5F75A]">{c.count} · {c.percentage}%</span>
+                    </div>
+                    <div className="h-2 mt-[7px] rounded bg-[#2A303C] overflow-hidden">
+                      <div className="h-full rounded bg-[#D5F75A]" style={{ width: `${Math.max(c.percentage, 4)}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        </div>
+      )}
+
+      {/* TAB 3: AUDIT & TIMELINE */}
+      {activeTab === "audit" && (
+        <div className="mt-5 space-y-5">
+          <section className="rounded-[36px] bg-white p-6" aria-label="Audit log">
+            <div className="flex items-center justify-between gap-3">
+              <h2 className={h2}>Audit log</h2>
+              <span className={`${mono} text-[#4A505C]`}>{data.incidents.length} rows · IST</span>
+            </div>
+            <div className="overflow-auto max-h-[560px] mt-3.5">
+              <div className="min-w-[760px]">
+                <div className={`sticky top-0 bg-white grid grid-cols-[150px_1.4fr_1fr_1fr_130px] gap-3.5 items-center h-10 border-b border-[#EEE9DC] ${mono} !text-[10px] text-[#4A505C]`}>
+                  <span>When</span><span>Junction</span><span>Cause</span><span>Delay</span><span>Source</span>
+                </div>
+                {data.incidents.length === 0 && <p className="text-sm text-[#4A505C] text-center py-10 m-0">No records in this window.</p>}
+                {data.incidents.map((inc) => (
+                  <div key={inc.id} className="grid grid-cols-[150px_1.4fr_1fr_1fr_130px] gap-3.5 items-center h-[54px] border-b border-[#EEE9DC] last:border-0 text-[15px]">
+                    <span className="font-mono text-[13px] font-semibold text-[#4A505C]">{fmtDate(inc.occurred_at)}</span>
+                    <span className="font-semibold truncate">{inc.junction_name}</span>
+                    <span className="capitalize truncate">{cleanCause(inc.cause)}</span>
+                    <span className={`font-semibold ${inc.provenance === "simulated" ? "" : "text-[#B8400F]"}`}>
+                      {inc.provenance === "simulated" ? `${inc.commuter_delay_minutes} min` : "Not measured"}
+                    </span>
+                    <span className={`justify-self-start h-6 px-2.5 rounded-full inline-flex items-center font-mono text-[10px] font-semibold tracking-[0.08em] ${inc.provenance === "simulated" ? "bg-[#F3EFE6] text-[#4A505C]" : "bg-[#FFE3D8] text-[#8F3209]"}`}>
+                      {inc.provenance.toUpperCase()}
+                    </span>
                   </div>
                 ))}
               </div>
             </div>
-          )}
-
-          <div className="mt-5 pt-5 border-t border-[#EEE9DC] flex flex-wrap items-center gap-3">
-            <label htmlFor="junction-select" className={`${mono} !text-[10px] text-[#4A505C]`}>For</label>
-            <select id="junction-select" value={selectedJunction} onChange={(e) => setSelectedJunction(e.target.value)}
-              className="h-10 rounded-full bg-[#F3EFE6] px-4 text-[13px] font-semibold border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-[#11141A]">
-              <option value="all">All corridors</option>
-              {MANGALURU_JUNCTIONS.map((j) => (<option key={j.id} value={j.id}>{j.name}</option>))}
-            </select>
-            <p className="basis-full text-sm font-semibold m-0 rounded-[22px] bg-[#F3EFE6] border-l-4 border-[#FF5B2E] px-4 py-3">
-              {recurrenceStatement}
+            <p className="text-[11px] leading-relaxed text-[#4A505C] mt-4 mb-0">
+              <strong className="text-[#11141A]">Methodology.</strong> Delay metrics reflect aggregated commuter excess travel time across synthetic observation windows.
+              Outputs suggest areas for investigation and traffic-light timing reviews; they do not represent confirmed accident causes or capital project mandates.
             </p>
-            <p className="basis-full text-[11px] text-[#4A505C] m-0">Computed from synthetic incident timestamps in Asia/Kolkata. Decision support only.</p>
-          </div>
-        </section>
-
-        <section className="flex-[2_1_400px] min-w-0 rounded-[36px] bg-[#11141A] text-[#F3EFE6] p-6" aria-label="Cause distribution">
-          <h2 className={`${h2} !text-[#F3EFE6]`}>Causes</h2>
-          <div className="flex flex-col gap-4 mt-[18px]">
-            {data.cause_mix.length === 0 && <p className="text-sm text-[#B9BDC6] m-0">No data in this window.</p>}
-            {data.cause_mix.map((c) => (
-              <div key={c.cause}>
-                <div className="flex justify-between text-[15px] font-semibold">
-                  <span>{c.label}</span>
-                  <span className="font-mono text-[#D5F75A]">{c.count} · {c.percentage}%</span>
-                </div>
-                <div className="h-2 mt-[7px] rounded bg-[#2A303C] overflow-hidden">
-                  <div className="h-full rounded bg-[#D5F75A]" style={{ width: `${Math.max(c.percentage, 4)}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      </div>
-
-      {/* Audit log */}
-      <section id="ad-log" className="scroll-mt-6 rounded-[36px] bg-white p-6 mt-9" aria-label="Audit log">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className={h2}>Audit log</h2>
-          <span className={`${mono} text-[#4A505C]`}>{data.incidents.length} rows · IST</span>
+          </section>
         </div>
-        <div className="overflow-auto max-h-[560px] mt-3.5">
-          <div className="min-w-[760px]">
-            <div className={`sticky top-0 bg-white grid grid-cols-[150px_1.4fr_1fr_1fr_130px] gap-3.5 items-center h-10 border-b border-[#EEE9DC] ${mono} !text-[10px] text-[#4A505C]`}>
-              <span>When</span><span>Junction</span><span>Cause</span><span>Delay</span><span>Source</span>
-            </div>
-            {data.incidents.length === 0 && <p className="text-sm text-[#4A505C] text-center py-10 m-0">No records in this window.</p>}
-            {data.incidents.map((inc) => (
-              <div key={inc.id} className="grid grid-cols-[150px_1.4fr_1fr_1fr_130px] gap-3.5 items-center h-[54px] border-b border-[#EEE9DC] last:border-0 text-[15px]">
-                <span className="font-mono text-[13px] font-semibold text-[#4A505C]">{fmtDate(inc.occurred_at)}</span>
-                <span className="font-semibold truncate">{inc.junction_name}</span>
-                <span className="capitalize truncate">{cleanCause(inc.cause)}</span>
-                <span className={`font-semibold ${inc.provenance === "simulated" ? "" : "text-[#B8400F]"}`}>
-                  {inc.provenance === "simulated" ? `${inc.commuter_delay_minutes} min` : "Not measured"}
-                </span>
-                <span className={`justify-self-start h-6 px-2.5 rounded-full inline-flex items-center font-mono text-[10px] font-semibold tracking-[0.08em] ${inc.provenance === "simulated" ? "bg-[#F3EFE6] text-[#4A505C]" : "bg-[#FFE3D8] text-[#8F3209]"}`}>
-                  {inc.provenance.toUpperCase()}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-        <p className="text-[11px] leading-relaxed text-[#4A505C] mt-4 mb-0">
-          <strong className="text-[#11141A]">Methodology.</strong> Delay metrics reflect aggregated commuter excess travel time across synthetic observation windows.
-          Outputs suggest areas for investigation and traffic-light timing reviews; they do not represent confirmed accident causes or capital project mandates.
-        </p>
-      </section>
-
-      <div className="h-[140px]" aria-hidden="true" />
-      {showDock && dock}
+      )}
     </div>
   );
 }

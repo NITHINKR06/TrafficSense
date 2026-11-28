@@ -106,6 +106,8 @@ type IncidentReviewPanelProps = {
   selectedHotspotId?: string | null;
   onSelectIncident?: (id: string | null) => void;
   onClearSelection?: () => void;
+  layoutMode?: "grid" | "sidebar";
+  showTimeline?: boolean;
 };
 
 export function IncidentReviewPanel({
@@ -113,6 +115,8 @@ export function IncidentReviewPanel({
   selectedHotspotId = null,
   onSelectIncident,
   onClearSelection,
+  layoutMode = "grid",
+  showTimeline = true,
 }: IncidentReviewPanelProps = {}) {
   const [incidents, setIncidents] = useState<LiveIncident[]>([]);
   const [history, setHistory] = useState<AuthorityIncidentHistoryItem[]>([]);
@@ -327,7 +331,10 @@ export function IncidentReviewPanel({
   const unread = notifications.filter((n) => !n.is_read).length;
 
   return (
-    <section className="space-y-3.5" aria-labelledby="incident-review-title">
+    <section
+      className={layoutMode === "sidebar" ? "flex flex-col flex-1 min-h-0 h-full gap-3.5" : "space-y-3.5"}
+      aria-labelledby="incident-review-title"
+    >
       {/* Real-time alert */}
       {latestAlert && (
         <div role="alert" className="rounded-[32px] bg-[#FFE3D8] border border-[#FF5B2E]/40 p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -373,7 +380,7 @@ export function IncidentReviewPanel({
       )}
 
       {/* Header */}
-      <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className={`flex flex-wrap items-end justify-between gap-3 ${layoutMode === "sidebar" ? "shrink-0" : ""}`}>
         <div className="min-w-0">
           <div className="flex items-center gap-3">
             <h2 id="incident-review-title" className="font-display text-2xl font-bold tracking-[-0.02em] text-[#11141A] m-0">Review queue</h2>
@@ -429,7 +436,14 @@ export function IncidentReviewPanel({
       ) : incidents.length === 0 ? (
         <p className="rounded-[32px] border-2 border-dashed border-[#E8E2D3] p-8 text-center text-sm text-[#4A505C] m-0">No active incidents need authority review.</p>
       ) : (
-        <ul className="list-none m-0 p-0 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3.5" aria-label="Active incidents awaiting review">
+        <ul
+          className={`list-none m-0 grid gap-3 ${
+            layoutMode === "sidebar"
+              ? "grid-cols-1 overflow-y-auto px-1.5 py-2 flex-1 min-h-0 content-start"
+              : "grid-cols-1 md:grid-cols-2 xl:grid-cols-4 p-0"
+          }`}
+          aria-label="Active incidents awaiting review"
+        >
           {incidents.map((incident) => {
             const isPending = pendingIncidentId === incident.id;
             const category = reportCategories[incident.category] ?? incident.category;
@@ -451,7 +465,9 @@ export function IncidentReviewPanel({
                 key={incident.id}
                 id={`incident-${incident.id}`}
                 onClick={() => onSelectIncident?.(selectedIncidentId === incident.id ? null : incident.id)}
-                className={`rounded-[32px] bg-white p-5 flex flex-col gap-3.5 transition-all duration-200 cursor-pointer ${isSpreadOpen ? "md:col-span-2 xl:col-span-4" : ""} ${
+                className={`rounded-[28px] bg-white p-4 sm:p-5 flex flex-col gap-3 transition-all duration-200 cursor-pointer border border-[#EEE9DC] ${
+                  isSpreadOpen && layoutMode === "grid" ? "md:col-span-2 xl:col-span-4" : ""
+                } ${
                   isHighlighted ? "ring-2 ring-[#FF5B2E] shadow-[0_14px_34px_rgba(255,91,46,0.22)]" : ""
                 } ${isDimmed ? "grayscale opacity-45 hover:grayscale-0 hover:opacity-85" : ""}`}
               >
@@ -484,7 +500,7 @@ export function IncidentReviewPanel({
                   {incident.level_reason} · <span className="font-mono">{incident.provenance}</span>
                 </p>
 
-                <div className="flex gap-2 mt-auto">
+                <div className="flex gap-2 mt-auto" onClick={(e) => e.stopPropagation()}>
                   {incident.level !== "L6" && (
                     <button
                       type="button"
@@ -520,7 +536,10 @@ export function IncidentReviewPanel({
                     type="button"
                     className="h-10 rounded-full border border-[#EEE9DC] text-[#11141A] text-[13px] font-semibold hover:bg-[#F3EFE6] cursor-pointer disabled:opacity-50"
                     disabled={isPending || isCheckingSpread}
-                    onClick={() => void handleCheckSpread(incident)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void handleCheckSpread(incident);
+                    }}
                   >
                     {isCheckingSpread ? "Checking routes…" : isSpreadOpen && spreadResult ? "Hide spread" : "Check spread from Pumpwell"}
                   </button>
@@ -585,22 +604,23 @@ export function IncidentReviewPanel({
         </ul>
       )}
 
-      {/* Authority timeline */}
-      <div className="rounded-[32px] bg-white p-5" aria-labelledby="incident-timeline-title">
-        <h3 id="incident-timeline-title" className="font-display text-lg font-bold tracking-[-0.02em] text-[#11141A] m-0">Recent authority timeline</h3>
-        {history.length === 0 ? (
-          <p className="text-xs text-[#4A505C] m-0 mt-2">No authority actions have been recorded yet.</p>
-        ) : (
-          <ol className="list-none m-0 p-0 mt-3 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2.5" aria-label="Recent authority incident actions">
-            {history.map((item) => (
-              <li key={item.id} className="border-l-[3px] border-[#FF5B2E] pl-3 text-[13px] text-[#4A505C]">
-                <span className="font-semibold text-[#11141A]">{item.action.replace("_incident", "").replace(/^./, (letter) => letter.toUpperCase())}</span>{" "}
-                {reportCategories[item.category] ?? item.category} · <span className="font-mono text-[12px]">{formatIncidentTime(item.created_at)} IST</span>
-              </li>
-            ))}
-          </ol>
-        )}
-      </div>
+      {showTimeline && (
+        <div className="rounded-[32px] bg-white p-5 border border-[#EEE9DC]" aria-labelledby="incident-timeline-title">
+          <h3 id="incident-timeline-title" className="font-display text-lg font-bold tracking-[-0.02em] text-[#11141A] m-0">Recent authority timeline</h3>
+          {history.length === 0 ? (
+            <p className="text-xs text-[#4A505C] m-0 mt-2">No authority actions have been recorded yet.</p>
+          ) : (
+            <ol className="list-none m-0 p-0 mt-3 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2.5" aria-label="Recent authority incident actions">
+              {history.map((item) => (
+                <li key={item.id} className="border-l-[3px] border-[#FF5B2E] pl-3 text-[13px] text-[#4A505C]">
+                  <span className="font-semibold text-[#11141A]">{item.action.replace("_incident", "").replace(/^./, (letter) => letter.toUpperCase())}</span>{" "}
+                  {reportCategories[item.category] ?? item.category} · <span className="font-mono text-[12px]">{formatIncidentTime(item.created_at)} IST</span>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      )}
     </section>
   );
 }

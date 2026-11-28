@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import type { Map as MapInstance, Marker as MarkerInstance, Popup as PopupInstance } from "maplibre-gl";
 import { createFallbackStyle } from "@/lib/traffic/mangaluru-basemap";
-import { attachMapResizeObserver } from "@/lib/map/attach-resize-observer";
 import type { HistoricalIncident } from "@/lib/analytics/history";
 import type { HotspotRanking } from "@/lib/analytics/metrics";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -82,7 +81,6 @@ export function HotspotMap({
     let map: MapInstance | null = null;
     let fallbackUsed = false;
 
-    let detachResize: (() => void) | null = null;
     async function initMap() {
       try {
         const { Map, NavigationControl, setWorkerUrl } = await import("maplibre-gl");
@@ -107,7 +105,6 @@ export function HotspotMap({
           touchPitch: false,
           cooperativeGestures: true,
         });
-        detachResize = attachMapResizeObserver(containerRef.current, map);
 
         map.addControl(new NavigationControl({ showCompass: false }), "top-right");
 
@@ -136,7 +133,6 @@ export function HotspotMap({
 
     return () => {
       disposed = true;
-      detachResize?.();
       if (activePopupRef.current) {
         activePopupRef.current.remove();
         activePopupRef.current = null;
@@ -157,9 +153,12 @@ export function HotspotMap({
   const toggleFullscreen = useCallback(() => {
     setIsFullscreen((prev) => {
       const next = !prev;
+      if (typeof document !== "undefined") {
+        document.body.style.overflow = next ? "hidden" : "";
+      }
       setTimeout(() => {
         mapRef.current?.resize();
-      }, 150);
+      }, 60);
       return next;
     });
   }, []);
@@ -169,13 +168,21 @@ export function HotspotMap({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && isFullscreen) {
         setIsFullscreen(false);
+        if (typeof document !== "undefined") {
+          document.body.style.overflow = "";
+        }
         setTimeout(() => {
           mapRef.current?.resize();
-        }, 150);
+        }, 60);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      if (typeof document !== "undefined") {
+        document.body.style.overflow = "";
+      }
+    };
   }, [isFullscreen]);
 
   // Window resize observer to ensure canvas always stays sharp
@@ -412,144 +419,180 @@ export function HotspotMap({
     map.easeTo({ center: [lng, lat], zoom: 15.2, duration: 280 });
   }, [selectedIncidentId, liveIncidents]);
 
-  const glass = "bg-white/[.86] backdrop-blur-[18px] backdrop-saturate-[1.7] shadow-[0_8px_22px_rgba(17,20,26,0.12)]";
-  const flyTo = (id: string) => {
-    onSelectHotspot?.(id);
-    const coords = HOTSPOT_GEO_COORDS[id];
-    if (coords && mapRef.current) mapRef.current.flyTo({ center: coords, zoom: 15.0, duration: 600 });
-  };
-
   return (
     <div
       onScroll={(e) => {
         if (e.currentTarget.scrollTop !== 0) e.currentTarget.scrollTop = 0;
         if (e.currentTarget.scrollLeft !== 0) e.currentTarget.scrollLeft = 0;
       }}
-      className={`relative overflow-hidden transition-all duration-300 ${
+      className={`relative overflow-hidden ${
         isFullscreen
-          ? "fixed inset-0 z-50 w-screen h-screen bg-[#ECE6D8] m-0 p-0"
-          : `rounded-[36px] bg-[#ECE6D8] shadow-[0_10px_30px_rgba(17,20,26,0.12)] ${className}`
+          ? "fixed inset-0 z-[9999] w-screen h-screen bg-surface-container-lowest m-0 p-0"
+          : `rounded-[28px] border border-[#E8E2D3] bg-surface-container-low shadow-sm ${className}`
       }`}
     >
-      {/* Top controls */}
-      <div className="absolute top-[18px] left-[18px] right-[18px] z-20 flex flex-wrap items-center gap-2 pointer-events-none">
-        <div className={`${glass} pointer-events-auto h-10 pl-4 pr-2 rounded-full flex items-center gap-2.5`}>
-          <span className="font-display text-[15px] font-bold tracking-[-0.02em] text-[#11141A]">Corridor hotspot map</span>
-          <span className="h-6 px-2.5 rounded-full bg-[#11141A] text-[#F3EFE6] inline-flex items-center font-mono text-[10px] font-semibold tracking-[0.08em]">
+      {/* Top Map Control Bar */}
+      <div className="absolute top-3 left-3 z-20 flex flex-wrap items-center gap-2">
+        <div className="bg-surface-container-lowest/95 backdrop-blur-md px-3.5 py-1.5 rounded-lg border border-surface-container shadow text-xs flex items-center gap-2">
+          <span className="font-extrabold text-surface-on">Corridor Hotspot Map</span>
+          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-surface-container-high text-surface-on-variant font-bold">
             OPENSTREETMAP
           </span>
+          {isFullscreen && (
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-primary text-white font-bold">
+              FULL SCREEN MODE
+            </span>
+          )}
         </div>
 
         <button
           type="button"
           onClick={handleResetView}
-          className={`${glass} pointer-events-auto h-10 px-4 rounded-full text-[13px] font-semibold text-[#11141A] inline-flex items-center gap-1.5 cursor-pointer`}
+          className="bg-surface-container-lowest/95 backdrop-blur-md hover:bg-surface-container px-3 py-1.5 rounded-lg border border-surface-container shadow text-xs font-medium text-surface-on transition flex items-center gap-1.5"
           title="Reset map view to whole Mangaluru corridor"
           aria-label="Reset view"
         >
-          <RefreshIcon size={15} className="shrink-0" />
-          <span>Reset view</span>
+          <RefreshIcon size={14} className="shrink-0" />
+          <span>Reset Corridor View</span>
         </button>
 
+        {/* Full Screen Toggle Button */}
         <button
           type="button"
           onClick={toggleFullscreen}
-          className={`pointer-events-auto h-10 px-4 rounded-full text-[13px] font-semibold inline-flex items-center gap-1.5 cursor-pointer ${
-            isFullscreen ? "bg-[#11141A] text-[#F3EFE6] shadow-[0_8px_22px_rgba(17,20,26,0.2)]" : `${glass} text-[#11141A]`
+          className={`backdrop-blur-md px-3 py-1.5 rounded-lg border shadow text-xs font-semibold transition flex items-center gap-1.5 ${
+            isFullscreen
+              ? "bg-red-600 text-white border-red-700 hover:bg-red-700"
+              : "bg-surface-container-lowest/95 text-surface-on border-surface-container hover:bg-surface-container"
           }`}
-          title={isFullscreen ? "Exit full screen (Esc)" : "Expand to full screen"}
+          title={isFullscreen ? "Exit Full Screen Mode (Esc)" : "Expand to Full Screen Big Screen Mode"}
           aria-label={isFullscreen ? "Exit full screen" : "Expand to full screen"}
         >
           {isFullscreen ? (
-            <XIcon size={15} className="shrink-0" />
+            <XIcon size={14} className="shrink-0" />
           ) : (
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
               <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3" />
             </svg>
           )}
-          <span>{isFullscreen ? "Exit full screen" : "Full screen"}</span>
+          <span>{isFullscreen ? "Exit Full Screen" : "Full Screen"}</span>
         </button>
       </div>
 
-      {/* Jump-to chips */}
-      <div className={`${glass} absolute top-[68px] left-[18px] z-20 hidden sm:flex flex-wrap items-center gap-1 p-1 rounded-full max-w-[calc(100%-36px)]`}>
-        <span className="font-mono text-[10px] font-semibold tracking-[0.08em] text-[#4A505C] pl-3 pr-1.5">JUMP TO</span>
+      {/* Floating Quick Junction Selector Bar (Top-Right under Navigation Controls) */}
+      <div className="absolute top-14 left-3 z-20 hidden sm:flex flex-wrap items-center gap-1.5 bg-surface-container-lowest/90 backdrop-blur-md p-1.5 rounded-lg border border-surface-container shadow text-xs">
+        <span className="text-[10px] font-mono font-bold text-surface-on-variant px-1.5">
+          JUMP TO:
+        </span>
         {hotspots.map((h, idx) => (
           <button
             key={h.junction_id}
             type="button"
-            onClick={() => flyTo(h.junction_id)}
-            className={`h-8 pl-2.5 pr-3.5 rounded-full text-[12px] font-semibold inline-flex items-center gap-1.5 cursor-pointer ${
-              selectedHotspotId === h.junction_id ? "bg-[#11141A] text-[#F3EFE6]" : "text-[#11141A] hover:bg-[#F3EFE6]"
+            onClick={() => {
+              onSelectHotspot?.(h.junction_id);
+              const coords = HOTSPOT_GEO_COORDS[h.junction_id];
+              if (coords && mapRef.current) {
+                mapRef.current.flyTo({ center: coords, zoom: 15.0, duration: 600 });
+              }
+            }}
+            className={`px-2 py-1 rounded text-[11px] font-semibold transition flex items-center gap-1 ${
+              selectedHotspotId === h.junction_id
+                ? "bg-primary text-white shadow-sm"
+                : "bg-surface-container hover:bg-surface-container-high text-surface-on"
             }`}
           >
-            <span className={`w-5 h-5 rounded-full inline-flex items-center justify-center font-mono text-[10px] font-bold ${idx === 0 ? "bg-[#FF5B2E] text-[#11141A]" : selectedHotspotId === h.junction_id ? "bg-[#2A303C] text-[#F3EFE6]" : "bg-[#11141A] text-[#F3EFE6]"}`}>
-              {idx + 1}
-            </span>
+            <span className="font-mono text-[10px] opacity-75">#{idx + 1}</span>
             <span>{h.junction_name.split(" ")[0]}</span>
           </button>
         ))}
       </div>
 
-      {/* Legend */}
-      <div className={`${glass} absolute bottom-[18px] left-[18px] z-20 h-10 pl-3 pr-4 rounded-full flex flex-wrap items-center gap-4 text-[12px] font-semibold text-[#11141A]`}>
-        <span className="inline-flex items-center gap-2">
-          <span className="w-5 h-5 rounded-full bg-[#FF5B2E] text-[#11141A] font-mono text-[10px] font-bold inline-flex items-center justify-center">1</span>
-          Top hotspot
-        </span>
-        <span className="inline-flex items-center gap-2">
-          <span className="w-5 h-5 rounded-full bg-[#11141A] text-[#F3EFE6] font-mono text-[10px] font-bold inline-flex items-center justify-center">2</span>
-          Ranked
-        </span>
+      {/* Legend & Toggle Overlay (Bottom-Left) */}
+      <div className="absolute bottom-3 left-3 z-20 flex flex-wrap items-center gap-2 bg-surface-container-lowest/90 backdrop-blur-md p-2 rounded-lg border border-surface-container shadow text-[11px]">
+        <div className="flex items-center gap-1.5 pr-2 border-r border-surface-container">
+          <span className="w-3.5 h-3.5 rounded-full bg-red-600 border border-white text-white font-mono text-[9px] flex items-center justify-center font-bold">
+            #1
+          </span>
+          <span className="text-surface-on font-medium">Top Hotspot</span>
+        </div>
+        <div className="flex items-center gap-1.5 pr-2 border-r border-surface-container">
+          <span className="w-3.5 h-3.5 rounded-full bg-amber-600 border border-white text-white font-mono text-[9px] flex items-center justify-center font-bold">
+            #2
+          </span>
+          <span className="text-surface-on font-medium">Ranked Hotspots</span>
+        </div>
         {liveIncidents.length > 0 && (
-          <label className="inline-flex items-center gap-2 cursor-pointer select-none">
-            <input type="checkbox" checked={showLivePins} onChange={(e) => setShowLivePins(e.target.checked)} className="w-4 h-4 accent-[#11141A]" />
-            Live reports ({liveIncidents.length})
+          <label className="flex items-center gap-1.5 cursor-pointer text-surface-on font-medium select-none">
+            <input
+              type="checkbox"
+              checked={showLivePins}
+              onChange={(e) => setShowLivePins(e.target.checked)}
+              className="rounded border-surface-container text-primary"
+            />
+            <span>Show Live Reports ({liveIncidents.length})</span>
           </label>
         )}
       </div>
 
-      {/* Full-screen rankings drawer */}
+      {/* Fullscreen Mode: Floating HUD Drawer on Right side */}
       {isFullscreen && (
-        <div className="absolute top-[18px] right-[18px] z-20 w-80 max-w-[calc(100%-36px)] rounded-[28px] bg-white shadow-[0_14px_34px_rgba(17,20,26,0.20)] overflow-hidden flex flex-col max-h-[85vh]">
-          <div className="px-5 py-4 flex items-center justify-between">
-            <span className="font-display text-lg font-bold tracking-[-0.02em] text-[#11141A]">Hotspot ranking</span>
-            <button type="button" onClick={() => setShowHudDrawer(!showHudDrawer)} className="text-xs font-semibold text-[#FF5B2E] hover:underline cursor-pointer">
-              {showHudDrawer ? "Minimize" : "Show"}
+        <div className="absolute top-3 right-14 z-20 max-w-sm w-80 bg-surface-container-lowest/95 backdrop-blur-md rounded-xl border border-surface-container shadow-2xl overflow-hidden flex flex-col max-h-[85vh]">
+          <div className="p-3 border-b border-surface-container flex items-center justify-between">
+            <span className="text-xs font-bold text-surface-on">Corridor Operations HUD</span>
+            <button
+              type="button"
+              onClick={() => setShowHudDrawer(!showHudDrawer)}
+              className="text-xs text-primary hover:underline"
+            >
+              {showHudDrawer ? "Minimize" : "Show Rankings"}
             </button>
           </div>
+
           {showHudDrawer && (
-            <ol className="list-none m-0 px-3 pb-3 flex flex-col gap-1.5 overflow-y-auto">
-              {hotspots.map((h, idx) => (
-                <li key={h.junction_id}>
-                  <button
-                    type="button"
-                    onClick={() => flyTo(h.junction_id)}
-                    className={`w-full text-left p-2.5 rounded-2xl flex items-center justify-between gap-3 cursor-pointer ${
-                      selectedHotspotId === h.junction_id ? "bg-[#F3EFE6]" : "hover:bg-[#F8F5EE]"
+            <div className="p-3 space-y-2 overflow-y-auto text-xs">
+              <p className="text-[11px] text-surface-on-variant m-0">
+                Click any junction below to inspect and center on map:
+              </p>
+              <div className="space-y-1.5">
+                {hotspots.map((h, idx) => (
+                  <div
+                    key={h.junction_id}
+                    onClick={() => {
+                      onSelectHotspot?.(h.junction_id);
+                      const coords = HOTSPOT_GEO_COORDS[h.junction_id];
+                      if (coords && mapRef.current) {
+                        mapRef.current.flyTo({ center: coords, zoom: 15.0, duration: 600 });
+                      }
+                    }}
+                    className={`p-2 rounded-lg border cursor-pointer transition flex items-center justify-between gap-2 ${
+                      selectedHotspotId === h.junction_id
+                        ? "bg-primary/10 border-primary ring-2 ring-primary/40"
+                        : "bg-surface-container-low border-surface-container hover:bg-surface-container"
                     }`}
                   >
-                    <span className="flex items-center gap-3 min-w-0">
-                      <span className={`w-8 h-8 rounded-full shrink-0 inline-flex items-center justify-center font-mono text-xs font-bold ${idx === 0 ? "bg-[#FF5B2E] text-[#11141A]" : "bg-[#11141A] text-[#F3EFE6]"}`}>
-                        {idx + 1}
+                    <div className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-primary text-white font-mono text-[10px] flex items-center justify-center font-bold">
+                        #{idx + 1}
                       </span>
-                      <span className="text-[15px] font-semibold text-[#11141A] truncate">{h.junction_name}</span>
+                      <span className="font-semibold text-surface-on">{h.junction_name}</span>
+                    </div>
+                    <span className="font-mono text-warning-on-container font-bold text-[11px]">
+                      {showDemoHistory ? `${h.total_delay_hours}h` : `${h.incident_count} events`}
                     </span>
-                    <span className="font-display text-lg font-bold text-[#11141A]">
-                      {showDemoHistory ? `${h.total_delay_hours}h` : h.incident_count}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ol>
+                  </div>
+                ))}
+              </div>
+            </div>
           )}
         </div>
       )}
 
-      {/* Map canvas */}
+      {/* Map Canvas Container */}
       <div
         ref={containerRef}
-        className={`w-full bg-[#ECE6D8] ${isFullscreen ? "h-screen w-screen" : heightClassName}`}
+        className={`w-full bg-surface-container ${
+          isFullscreen ? "h-screen w-screen" : heightClassName
+        }`}
         aria-label="Interactive OpenStreetMap of Mangaluru corridor congestion hotspots"
       />
     </div>
