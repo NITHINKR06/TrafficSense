@@ -33,7 +33,7 @@ export function AppShell({ children }: { children: ReactNode }) {
       {!isFullscreen && !isBleed && (
         <footer className="site-footer">
           <div>
-            <strong>TrafficSense Mangaluru</strong> · REPORT → VERIFY → ALERT → ANALYSE
+            <strong>TrafficSense Mangaluru</strong>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <Link href="/legal#privacy" className="underline hover:text-[#11141A]">
@@ -43,8 +43,6 @@ export function AppShell({ children }: { children: ReactNode }) {
             <Link href="/legal#terms" className="underline hover:text-[#11141A]">
               Terms &amp; Conditions
             </Link>
-            <span aria-hidden="true">·</span>
-            <span>Demo with simulated data. Not an official traffic service.</span>
           </div>
         </footer>
       )}
