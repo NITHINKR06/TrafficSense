@@ -5,6 +5,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { TopBar } from "@/components/layout/top-bar";
 import { TopBarWithViewer, DockWithViewer } from "@/components/layout/viewer-chrome";
 import { MotionLayer } from "@/components/layout/motion-layer";
+import { TrafficSenseLoader } from "@/components/ui/trafficsense-loader";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -39,7 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Suspense
           fallback={
             <main id="main" className="site-main" tabIndex={-1}>
-              <p role="status" className="panel">Loading…</p>
+              <TrafficSenseLoader />
             </main>
           }
         >
